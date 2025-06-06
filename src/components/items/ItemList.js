@@ -18,7 +18,11 @@ import {
   Portal,
   Provider,
 } from 'react-native-paper';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 import {
   useInfiniteQuery,
   useQueryClient,
@@ -208,7 +212,7 @@ const ItemList = props => {
 
   const renderOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -219,7 +223,7 @@ const ItemList = props => {
           {'Item options'}
         </Text>
         <OptionsList options={itemOptions} />
-      </View>
+      </BottomSheetView>
     );
   };
 

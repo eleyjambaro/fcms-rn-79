@@ -10,7 +10,11 @@ import {
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {Button, useTheme, Modal, Title, Portal} from 'react-native-paper';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 
 import {ingredients} from '../../__dummyData';
 import IngredientListItem from './IngredientListItem';
@@ -93,7 +97,7 @@ const IngredientList = props => {
 
   const renderOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -104,7 +108,7 @@ const IngredientList = props => {
           {'Ingredient options'}
         </Text>
         <OptionsList options={itemOptions} />
-      </View>
+      </BottomSheetView>
     );
   };
 

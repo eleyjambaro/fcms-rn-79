@@ -21,7 +21,11 @@ import {
   Modal,
   Title,
 } from 'react-native-paper';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 import {
   useInfiniteQuery,
   useQueryClient,
@@ -212,7 +216,7 @@ const VendorList = props => {
 
   const renderOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -223,7 +227,7 @@ const VendorList = props => {
           {'Vendor options'}
         </Text>
         <OptionsList options={vendorOptions} />
-      </View>
+      </BottomSheetView>
     );
   };
 

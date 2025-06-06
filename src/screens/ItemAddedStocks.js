@@ -8,7 +8,11 @@ import {
 } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 import {useQuery} from '@tanstack/react-query';
 
 import {
@@ -218,7 +222,7 @@ const ItemAddedStocks = props => {
 
   const renderDurationOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -236,7 +240,7 @@ const ItemAddedStocks = props => {
             closeOptionsBottomSheet();
           }}
         />
-      </View>
+      </BottomSheetView>
     );
   };
 
@@ -293,7 +297,7 @@ const ItemAddedStocks = props => {
     ];
 
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -309,7 +313,7 @@ const ItemAddedStocks = props => {
           value={itemLogListFilters['operations.id']}
           onChange={handleOperationFilterChange}
         />
-      </View>
+      </BottomSheetView>
     );
   };
 

@@ -13,7 +13,11 @@ import {
 import {Button, useTheme, DataTable, Modal, Portal} from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 import {useQuery} from '@tanstack/react-query';
 import moment from 'moment';
 import MonthPicker from 'react-native-month-picker';
@@ -237,7 +241,7 @@ const CustomReportByCategory = () => {
 
   const renderDateFilterOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -261,7 +265,7 @@ const CustomReportByCategory = () => {
             closeOptionsBottomSheet();
           }}
         />
-      </View>
+      </BottomSheetView>
     );
   };
 

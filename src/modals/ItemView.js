@@ -11,7 +11,11 @@ import {
 } from 'react-native-paper';
 import {Tabs, TabScreen} from 'react-native-paper-tabs';
 import {useQuery, useQueryClient, useMutation} from '@tanstack/react-query';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 
 import routes from '../constants/routes';
 import ItemStockSummary from '../components/items/ItemStockSummary';
@@ -170,7 +174,7 @@ const ItemView = props => {
 
   const renderOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -181,7 +185,7 @@ const ItemView = props => {
           {'Item options'}
         </Text>
         <OptionsList options={itemOptions} />
-      </View>
+      </BottomSheetView>
     );
   };
 

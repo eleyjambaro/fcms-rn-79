@@ -12,7 +12,11 @@ import {
 import commaNumber from 'comma-number';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 
 import GrandTotal from '../components/purchases/GrandTotal';
 import MoreSelectionButton from '../components/buttons/MoreSelectionButton';
@@ -160,7 +164,7 @@ const FoodMenuMix = () => {
 
   const renderOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -178,7 +182,7 @@ const FoodMenuMix = () => {
             closeOptionsBottomSheet();
           }}
         />
-      </View>
+      </BottomSheetView>
     );
   };
 

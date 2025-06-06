@@ -10,7 +10,11 @@ import {
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {Button, useTheme} from 'react-native-paper';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 
 import {items} from '../../__dummyData';
 import ItemListItem from './ItemListItem';
@@ -107,7 +111,7 @@ const ExpenseList = props => {
 
   const renderOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -118,7 +122,7 @@ const ExpenseList = props => {
           {'Expense options'}
         </Text>
         <OptionsList options={itemOptions} />
-      </View>
+      </BottomSheetView>
     );
   };
 

@@ -14,7 +14,11 @@ import {Button, useTheme, DataTable, Modal, Portal} from 'react-native-paper';
 import {useQuery} from '@tanstack/react-query';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 import moment from 'moment';
 import MonthPicker from 'react-native-month-picker';
 
@@ -252,13 +256,13 @@ const Spoilage = () => {
     }
 
     if (optionsType === 'adjustment-reason') {
-      return renderOperationOptions();
+      // return renderOperationOptions();
     }
   };
 
   const renderDateFilterOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -282,7 +286,7 @@ const Spoilage = () => {
             closeOptionsBottomSheet();
           }}
         />
-      </View>
+      </BottomSheetView>
     );
   };
 

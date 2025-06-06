@@ -17,6 +17,7 @@ import {
 import {navigationRef} from './RootNavigation'; // see: https://reactnavigation.org/docs/navigating-without-navigation-prop/
 import merge from 'deepmerge';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
 
 import ItemFormContextProvider from './src/context/providers/ItemFormContextProvider';
 import ExpenseFormContextProvider from './src/context/providers/ExpenseFormContextProvider';
@@ -64,6 +65,13 @@ const CombinedDefaultTheme = {
   ...PaperDefaultTheme,
   ...adaptedNavigationLightTheme,
   // myOwnProperty: true,
+  fonts: {
+    ...PaperDefaultTheme.fonts,
+    labelLarge: {
+      fontFamily: 'YourCustomFont',
+      fontWeight: '500',
+    },
+  },
   colors: {
     ...PaperDefaultTheme.colors,
     ...adaptedNavigationLightTheme.colors,
@@ -75,6 +83,13 @@ const CombinedDefaultTheme = {
 const CombinedDarkTheme = {
   ...PaperDarkTheme,
   ...adaptedNavigationDarkTheme,
+  fonts: {
+    ...PaperDarkTheme.fonts,
+    labelLarge: {
+      fontFamily: 'YourCustomFont',
+      fontWeight: '500',
+    },
+  },
   colors: {
     ...PaperDarkTheme.colors,
     ...adaptedNavigationDarkTheme.colors,
@@ -103,23 +118,25 @@ export default function Main() {
               theme={theme}
               ref={navigationRef}
               navigationInChildEnabled>
-              <BottomSheetModalProvider>
-                <SearchbarContextProvider>
-                  <DefaultPrinterContextProvider>
-                    <SalesCounterContextProvider>
-                      <AddedIngredientsContextProvider>
-                        <ItemFormContextProvider>
-                          <ExpenseFormContextProvider>
-                            <RecipeFormContextProvider>
-                              <App />
-                            </RecipeFormContextProvider>
-                          </ExpenseFormContextProvider>
-                        </ItemFormContextProvider>
-                      </AddedIngredientsContextProvider>
-                    </SalesCounterContextProvider>
-                  </DefaultPrinterContextProvider>
-                </SearchbarContextProvider>
-              </BottomSheetModalProvider>
+              <GestureHandlerRootView>
+                <BottomSheetModalProvider>
+                  <SearchbarContextProvider>
+                    <DefaultPrinterContextProvider>
+                      <SalesCounterContextProvider>
+                        <AddedIngredientsContextProvider>
+                          <ItemFormContextProvider>
+                            <ExpenseFormContextProvider>
+                              <RecipeFormContextProvider>
+                                <App />
+                              </RecipeFormContextProvider>
+                            </ExpenseFormContextProvider>
+                          </ItemFormContextProvider>
+                        </AddedIngredientsContextProvider>
+                      </SalesCounterContextProvider>
+                    </DefaultPrinterContextProvider>
+                  </SearchbarContextProvider>
+                </BottomSheetModalProvider>
+              </GestureHandlerRootView>
             </NavigationContainer>
           </AppConfigContextProvider>
         </PaperProvider>

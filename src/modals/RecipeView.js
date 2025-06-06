@@ -17,7 +17,11 @@ import {
 } from 'react-native-paper-tabs';
 import commaNumber from 'comma-number';
 import {useQuery, useQueryClient, useMutation} from '@tanstack/react-query';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 
 import routes from '../constants/routes';
 import {recipes} from '../__dummyData';
@@ -135,7 +139,7 @@ const RecipeView = props => {
 
   const renderOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -146,7 +150,7 @@ const RecipeView = props => {
           {'Item options'}
         </Text>
         <OptionsList options={itemOptions} />
-      </View>
+      </BottomSheetView>
     );
   };
 

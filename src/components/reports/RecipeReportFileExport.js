@@ -35,7 +35,11 @@ import XLSX from 'xlsx';
 import moment from 'moment';
 import FileViewer from 'react-native-file-viewer';
 import DocumentPicker from '@react-native-documents/picker';
-import {BottomSheetModal, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 import ManageExternalStorage from 'react-native-manage-external-storage';
 
 import routes from '../../constants/routes';
@@ -256,7 +260,7 @@ const RecipeReportFileExport = props => {
 
   const renderOptions = () => {
     return (
-      <View style={styles.bottomSheetContent}>
+      <BottomSheetView style={styles.bottomSheetContent}>
         <Text
           style={{
             marginBottom: 15,
@@ -267,7 +271,7 @@ const RecipeReportFileExport = props => {
           {'Options'}
         </Text>
         <OptionsList options={itemOptions} />
-      </View>
+      </BottomSheetView>
     );
   };
 
