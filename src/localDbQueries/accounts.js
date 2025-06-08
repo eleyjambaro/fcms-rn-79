@@ -4,7 +4,7 @@ import {sign, decode} from 'react-native-pure-jwt';
 import bcrypt from 'react-native-bcrypt';
 import uuid from 'react-native-uuid';
 import * as RNFS from 'react-native-fs';
-import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
+import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 
 import {
   createQueryFilter,
@@ -63,7 +63,7 @@ export const generateAuthToken = async (account, roleConfig) => {
     /**
      * Save auth token to storage
      */
-    await RNSecureStorage.set(rnStorageKeys.authToken, authToken, {
+    await SecureStorage.set(rnStorageKeys.authToken, authToken, {
       accessible: ACCESSIBLE.WHEN_UNLOCKED,
     });
 
@@ -82,10 +82,10 @@ export const getAuthTokenStatus = async ({queryKey}) => {
     let tokenPayload = null;
     let isAuthTokenExpired = true;
 
-    const hasAuthToken = await RNSecureStorage.exists('authToken');
+    const hasAuthToken = await SecureStorage.exists('authToken');
 
     if (hasAuthToken) {
-      authToken = await RNSecureStorage.get('authToken');
+      authToken = await SecureStorage.get('authToken');
 
       const diuid = await createNewOrGetDeviceImplantedUniqueId();
       let secretKey = diuid;
@@ -1631,8 +1631,8 @@ export const deleteMyAccount = async ({
 
     // clear secure storage
     for (let key in rnStorageKeys) {
-      if (await RNSecureStorage.exists(key)) {
-        await RNSecureStorage.remove(key);
+      if (await SecureStorage.hasItem(key)) {
+        await SecureStorage.removeItem(key);
         console.info('Secured storage removed key: ', key);
       }
     }

@@ -4,7 +4,8 @@ import {
   getAuthToken,
   storeAuthToken,
 } from '../utils/cloudAuthHelpers';
-import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
+import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
+
 import {getLocalAccountDBConnection} from '../localDb';
 
 import urls from '../constants/urls';
@@ -20,10 +21,10 @@ export const getDefaultCloudEmail = async () => {
 
     const db = await getLocalAccountDBConnection();
 
-    const hasDefaultEmail = await RNSecureStorage.exists(defaultCloudEmailKey);
+    const hasDefaultEmail = await SecureStorage.hasItem(defaultCloudEmailKey);
 
     if (hasDefaultEmail) {
-      email = await RNSecureStorage.get(defaultCloudEmailKey);
+      email = await SecureStorage.getItem(defaultCloudEmailKey);
     }
 
     if (!email) {
@@ -60,9 +61,11 @@ export const setDefaultCloudEmail = async email => {
   if (!email) return;
 
   try {
-    await RNSecureStorage.set(defaultCloudEmailKey, email, {
-      accessible: ACCESSIBLE.WHEN_UNLOCKED,
-    });
+    await SecureStorage.setItem(
+      defaultCloudEmailKey,
+      email,
+      ACCESSIBLE.WHEN_UNLOCKED,
+    );
   } catch (error) {
     console.log(error);
   }

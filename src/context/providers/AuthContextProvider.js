@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useReducer, useMemo} from 'react';
-import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
+import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 import {sign, decode} from 'react-native-pure-jwt';
 
 import {AuthContext} from '../types';
@@ -71,10 +71,10 @@ const AuthContextProvider = props => {
         // authToken = await SecureStore.getItemAsync('authToken');
         authToken = null;
 
-        const hasAuthToken = await RNSecureStorage.exists('authToken');
+        const hasAuthToken = await SecureStorage.hasItem('authToken');
 
         if (hasAuthToken) {
-          authToken = await RNSecureStorage.get('authToken');
+          authToken = await SecureStorage.getItem('authToken');
           const diuid = await createNewOrGetDeviceImplantedUniqueId();
           let secretKey = diuid;
 
@@ -130,10 +130,10 @@ const AuthContextProvider = props => {
       },
       signOut: async () => {
         try {
-          const hasAuthToken = await RNSecureStorage.exists('authToken');
+          const hasAuthToken = await SecureStorage.hasItem('authToken');
 
           if (hasAuthToken) {
-            await RNSecureStorage.remove('authToken');
+            await SecureStorage.removeItem('authToken');
           }
         } catch (error) {
           console.debug(error);

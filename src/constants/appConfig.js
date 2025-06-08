@@ -1,4 +1,4 @@
-import RNSecureStorage from 'rn-secure-storage';
+import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 import {sign, decode} from 'react-native-pure-jwt';
 import DeviceInfo from 'react-native-device-info';
 
@@ -27,10 +27,10 @@ export async function getAppConfig() {
   try {
     let licenseToken = null;
 
-    const hasLicenseToken = await RNSecureStorage.exists('licenseToken');
+    const hasLicenseToken = await SecureStorage.hasItem('licenseToken');
 
     if (hasLicenseToken) {
-      licenseToken = await RNSecureStorage.get('licenseToken');
+      licenseToken = await SecureStorage.getItem('licenseToken');
     }
 
     if (!licenseToken) {

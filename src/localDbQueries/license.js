@@ -1,6 +1,6 @@
 import DeviceInfo from 'react-native-device-info';
 import {sign, decode} from 'react-native-pure-jwt';
-import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
+import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 import uuid from 'react-native-uuid';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -14,7 +14,7 @@ import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 export const hasLicenseKey = async ({queryKey}) => {
   const [_key] = queryKey;
 
-  const hasLicenseKey = await RNSecureStorage.exists('licenseKey');
+  const hasLicenseKey = await SecureStorage.hasItem('licenseKey');
 
   return {
     result: hasLicenseKey ? true : false,
@@ -26,10 +26,10 @@ export const getLicenseKey = async ({queryKey}) => {
 
   let licenseKey = null;
 
-  const hasLicenseKey = await RNSecureStorage.exists('licenseKey');
+  const hasLicenseKey = await SecureStorage.hasItem('licenseKey');
 
   if (hasLicenseKey) {
-    licenseKey = await RNSecureStorage.get('licenseKey');
+    licenseKey = await SecureStorage.getItem('licenseKey');
   }
 
   const hiddenChars = 'XXXXXXXX-XXXX-XXXX-XXXX-';
@@ -55,10 +55,10 @@ export const getLicenseStatus = async ({queryKey}) => {
     let currentDate = new Date();
     let isLicenseExpired = true;
 
-    const hasLicenseKey = await RNSecureStorage.exists('licenseKey');
+    const hasLicenseKey = await SecureStorage.hasItem('licenseKey');
 
     if (hasLicenseKey) {
-      licenseKey = await RNSecureStorage.get('licenseKey');
+      licenseKey = await SecureStorage.getItem('licenseKey');
     }
 
     const hiddenChars = 'XXXXXXXX-XXXX-XXXX-XXXX-';
@@ -67,10 +67,10 @@ export const getLicenseStatus = async ({queryKey}) => {
       licenseKey = hiddenChars + licenseKey.substring(hiddenChars.length);
     }
 
-    const hasLicenseToken = await RNSecureStorage.exists('licenseToken');
+    const hasLicenseToken = await SecureStorage.hasItem('licenseToken');
 
     if (hasLicenseToken) {
-      licenseToken = await RNSecureStorage.get('licenseToken');
+      licenseToken = await SecureStorage.getItem('licenseToken');
 
       const parsedLicenseToken = JSON.parse(licenseToken);
       const {lt: token, kp: keyPair} = parsedLicenseToken;
@@ -123,10 +123,10 @@ export const getLicenseStatus = async ({queryKey}) => {
 
 export const removeLicenseKey = async () => {
   try {
-    const hasLicenseKey = await RNSecureStorage.exists('licenseKey');
+    const hasLicenseKey = await SecureStorage.hasItem('licenseKey');
 
     if (hasLicenseKey) {
-      await RNSecureStorage.remove('licenseKey');
+      await SecureStorage.removeItem('licenseKey');
     }
   } catch (error) {
     console.debug(error);
@@ -140,9 +140,11 @@ export const saveLicenseKey = async licenseKey => {
       throw Error('Missing licenseKey parameter');
     }
 
-    await RNSecureStorage.set(rnStorageKeys.licenseKey, licenseKey, {
-      accessible: ACCESSIBLE.WHEN_UNLOCKED,
-    });
+    await SecureStorage.setItem(
+      rnStorageKeys.licenseKey,
+      licenseKey,
+      ACCESSIBLE.WHEN_UNLOCKED,
+    );
   } catch (error) {
     console.debug(error);
     throw error;
@@ -182,9 +184,11 @@ export const saveLicenseToken = async (licenseToken, keyPair) => {
      */
     const licenseTokenJSON = JSON.stringify(licenseTokenKeyPairAndMetadata);
 
-    await RNSecureStorage.set(rnStorageKeys.licenseToken, licenseTokenJSON, {
-      accessible: ACCESSIBLE.WHEN_UNLOCKED,
-    });
+    await SecureStorage.setItem(
+      rnStorageKeys.licenseToken,
+      licenseTokenJSON,
+      ACCESSIBLE.WHEN_UNLOCKED,
+    );
   } catch (error) {
     console.debug(error);
     throw error;
@@ -193,10 +197,10 @@ export const saveLicenseToken = async (licenseToken, keyPair) => {
 
 export const removeLicenseToken = async () => {
   try {
-    const hasLicenseToken = await RNSecureStorage.exists('licenseToken');
+    const hasLicenseToken = await SecureStorage.hasItem('licenseToken');
 
     if (hasLicenseToken) {
-      await RNSecureStorage.remove('licenseToken');
+      await SecureStorage.removeItem('licenseToken');
     }
   } catch (error) {
     console.debug(error);

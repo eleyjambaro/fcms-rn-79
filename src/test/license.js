@@ -1,6 +1,6 @@
 import DeviceInfo from 'react-native-device-info';
 import {sign, decode} from 'react-native-pure-jwt';
-import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
+import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 import uuid from 'react-native-uuid';
 
 /**
@@ -41,9 +41,11 @@ export const saveLicenseToken = async () => {
   try {
     const licenseToken = await generateLicenseToken();
 
-    await RNSecureStorage.set('licenseToken', licenseToken, {
-      accessible: ACCESSIBLE.WHEN_UNLOCKED,
-    });
+    await SecureStorage.setItem(
+      'licenseToken',
+      licenseToken,
+      ACCESSIBLE.WHEN_UNLOCKED,
+    );
   } catch (error) {
     console.error(error);
     throw error;
@@ -52,10 +54,10 @@ export const saveLicenseToken = async () => {
 
 export const removeLicenseToken = async () => {
   try {
-    const hasLicenseToken = await RNSecureStorage.exists('licenseToken');
+    const hasLicenseToken = await SecureStorage.hasItem('licenseToken');
 
     if (hasLicenseToken) {
-      await RNSecureStorage.remove('licenseToken');
+      await SecureStorage.removeItem('licenseToken');
     }
   } catch (error) {
     console.error(error);
@@ -67,9 +69,11 @@ export const saveLicenseKey = async () => {
   try {
     const licenseKey = uuid.v4();
 
-    await RNSecureStorage.set('licenseKey', licenseKey, {
-      accessible: ACCESSIBLE.WHEN_UNLOCKED,
-    });
+    await SecureStorage.setItem(
+      'licenseKey',
+      licenseKey,
+      ACCESSIBLE.WHEN_UNLOCKED,
+    );
   } catch (error) {
     console.error(error);
     throw error;
@@ -78,10 +82,10 @@ export const saveLicenseKey = async () => {
 
 export const removeLicenseKey = async () => {
   try {
-    const hasLicenseKey = await RNSecureStorage.exists('licenseKey');
+    const hasLicenseKey = await SecureStorage.hasItem('licenseKey');
 
     if (hasLicenseKey) {
-      await RNSecureStorage.remove('licenseKey');
+      await SecureStorage.removeItem('licenseKey');
     }
   } catch (error) {
     console.error(error);

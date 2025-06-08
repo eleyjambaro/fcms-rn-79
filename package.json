@@ -19,6 +19,7 @@
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-documents/picker": "^10.1.3",
     "@react-native-masked-view/masked-view": "^0.3.2",
+    "@react-native-vector-icons/material-design-icons": "^12.0.0",
     "@react-navigation/bottom-tabs": "^7.3.14",
     "@react-navigation/drawer": "^7.4.1",
     "@react-navigation/material-top-tabs": "^7.2.14",
@@ -44,6 +45,7 @@
     "react-native-chart-kit": "^6.12.0",
     "react-native-device-info": "^14.0.4",
     "react-native-exit-app": "^2.0.0",
+    "react-native-fast-secure-storage": "^1.2.2",
     "react-native-file-logger": "^0.6.0",
     "react-native-file-viewer": "^2.1.5",
     "react-native-fs": "^2.20.0",
@@ -69,7 +71,6 @@
     "react-native-uuid": "^2.0.3",
     "react-native-vector-icons": "^10.2.0",
     "rn-fetch-blob": "^0.12.0",
-    "rn-secure-storage": "^3.0.1",
     "semver": "^7.7.2",
     "xlsx": "^0.18.5",
     "yup": "^1.6.1"

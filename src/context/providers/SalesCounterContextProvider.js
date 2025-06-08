@@ -1,5 +1,4 @@
 import React, {useState, useEffect, useReducer, useMemo} from 'react';
-import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
 import {sign, decode} from 'react-native-pure-jwt';
 
 import {SalesCounterContext} from '../types';

@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useReducer, useMemo} from 'react';
-import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
+import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 import {sign, decode} from 'react-native-pure-jwt';
 
 import {CloudAuthContext} from '../types';
@@ -74,10 +74,10 @@ const CloudAuthContextProvider = props => {
         // authToken = await SecureStore.getItemAsync('cloudAuthToken');
         authToken = null;
 
-        const hasAuthToken = await RNSecureStorage.exists('cloudAuthToken');
+        const hasAuthToken = await SecureStorage.hasItem('cloudAuthToken');
 
         if (hasAuthToken) {
-          authToken = await RNSecureStorage.get('cloudAuthToken');
+          authToken = await SecureStorage.getItem('cloudAuthToken');
           const diuid = await createNewOrGetDeviceImplantedUniqueId();
           let secretKey = diuid;
 
@@ -133,10 +133,10 @@ const CloudAuthContextProvider = props => {
       },
       signOut: async () => {
         try {
-          const hasAuthToken = await RNSecureStorage.exists('cloudAuthToken');
+          const hasAuthToken = await SecureStorage.hasItem('cloudAuthToken');
 
           if (hasAuthToken) {
-            await RNSecureStorage.remove('cloudAuthToken');
+            await SecureStorage.removeItem('cloudAuthToken');
           }
         } catch (error) {
           console.debug(error);

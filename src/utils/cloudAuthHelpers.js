@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
+import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 
 export const storeAuthToken = async authToken => {
@@ -11,9 +11,11 @@ export const storeAuthToken = async authToken => {
     /**
      * Save auth token to storage
      */
-    await RNSecureStorage.set(rnStorageKeys.cloudAuthToken, authToken, {
-      accessible: ACCESSIBLE.WHEN_UNLOCKED,
-    });
+    await SecureStorage.setItem(
+      rnStorageKeys.cloudAuthToken,
+      authToken,
+      ACCESSIBLE.WHEN_UNLOCKED,
+    );
   } catch (error) {
     throw error;
   }
@@ -25,10 +27,10 @@ export const getAuthToken = async () => {
 
     let authToken = null;
 
-    const hasAuthToken = await RNSecureStorage.exists('cloudAuthToken');
+    const hasAuthToken = await SecureStorage.hasItem('cloudAuthToken');
 
     if (hasAuthToken) {
-      authToken = await RNSecureStorage.get('cloudAuthToken');
+      authToken = await SecureStorage.getItem('cloudAuthToken');
     }
 
     return authToken;
@@ -39,10 +41,10 @@ export const getAuthToken = async () => {
 
 export const removeAuthToken = async () => {
   try {
-    const hasAuthToken = await RNSecureStorage.exists('cloudAuthToken');
+    const hasAuthToken = await SecureStorage.hasItem('cloudAuthToken');
 
     if (hasAuthToken) {
-      await RNSecureStorage.remove('cloudAuthToken');
+      await SecureStorage.removeItem('cloudAuthToken');
     }
   } catch (error) {
     console.debug(error);
