@@ -63,9 +63,11 @@ export const generateAuthToken = async (account, roleConfig) => {
     /**
      * Save auth token to storage
      */
-    await SecureStorage.set(rnStorageKeys.authToken, authToken, {
-      accessible: ACCESSIBLE.WHEN_UNLOCKED,
-    });
+    await SecureStorage.setItem(
+      rnStorageKeys.authToken,
+      authToken,
+      ACCESSIBLE.WHEN_UNLOCKED,
+    );
 
     return authToken;
   } catch (error) {

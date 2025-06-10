@@ -5,7 +5,7 @@ import commaNumber from 'comma-number';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
-// import RNBackgroundDownloader from 'react-native-background-downloader';
+import {download} from '@kesha-antonov/react-native-background-downloader';
 import * as RNFS from 'react-native-fs';
 import moment from 'moment';
 
@@ -34,33 +34,33 @@ const downloadFile = async ({url, fileId, fileName}, onSuccess) => {
       await RNFS.mkdir(dataRecoveryFilesDirectoryPath);
     }
 
-    // RNBackgroundDownloader.download({
-    //   id: `${fileId}`,
-    //   url,
-    //   destination: `${dataRecoveryFilesDirectoryPath}/${fileName}`,
-    // })
-    //   .begin(expectedBytes => {
-    //     console.debug(`Going to download ${expectedBytes} bytes!`);
-    //   })
-    //   .progress(percent => {
-    //     console.debug(`Downloaded: ${percent * 100}%`);
-    //   })
-    //   .done(() => {
-    //     console.debug('Download is done!');
+    let task = download({
+      id: `${fileId}`,
+      url,
+      destination: `${dataRecoveryFilesDirectoryPath}/${fileName}`,
+    })
+      .begin(({expectedBytes, headers}) => {
+        console.log(`Going to download ${expectedBytes} bytes!`);
+      })
+      .progress(({bytesDownloaded, bytesTotal}) => {
+        console.log(`Downloaded: ${(bytesDownloaded / bytesTotal) * 100}%`);
+      })
+      .done(({bytesDownloaded, bytesTotal}) => {
+        console.log('Download is done!', {bytesDownloaded, bytesTotal});
 
-    //     ToastAndroid.showWithGravityAndOffset(
-    //       'Download completed!',
-    //       ToastAndroid.SHORT,
-    //       ToastAndroid.BOTTOM,
-    //       0,
-    //       200,
-    //     );
+        ToastAndroid.showWithGravityAndOffset(
+          'Download completed!',
+          ToastAndroid.SHORT,
+          ToastAndroid.BOTTOM,
+          0,
+          200,
+        );
 
-    //     onSuccess && onSuccess();
-    //   })
-    //   .error(error => {
-    //     console.debug('Download canceled due to error: ', error);
-    //   });
+        onSuccess && onSuccess();
+      })
+      .error(({error, errorCode}) => {
+        console.log('Download canceled due to error: ', {error, errorCode});
+      });
   } catch (error) {
     console.debug(error);
   }
