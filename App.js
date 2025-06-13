@@ -12,14 +12,13 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
   useColorScheme,
   View,
   AppState,
   PermissionsAndroid,
   Platform,
 } from 'react-native';
-import {Button, Dialog, Paragraph, Portal} from 'react-native-paper';
+import {Button, Dialog, Text, Portal} from 'react-native-paper';
 import {NavigationContainer} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ManageExternalStorage from 'react-native-manage-external-storage';
@@ -477,11 +476,11 @@ const App = () => {
           }}>
           <Dialog.Title>Session expired!</Dialog.Title>
           <Dialog.Content>
-            <Paragraph>
+            <Text variant="bodyMedium">
               {
                 'Your authentication session has been expired, you must login again to continue.'
               }
-            </Paragraph>
+            </Text>
           </Dialog.Content>
           <Dialog.Actions style={{justifyContent: 'space-around'}}>
             <Button
