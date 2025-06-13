@@ -84,10 +84,10 @@ export const getAuthTokenStatus = async ({queryKey}) => {
     let tokenPayload = null;
     let isAuthTokenExpired = true;
 
-    const hasAuthToken = await SecureStorage.exists('authToken');
+    const hasAuthToken = await SecureStorage.hasItem('authToken');
 
     if (hasAuthToken) {
-      authToken = await SecureStorage.get('authToken');
+      authToken = await SecureStorage.getItem('authToken');
 
       const diuid = await createNewOrGetDeviceImplantedUniqueId();
       let secretKey = diuid;
