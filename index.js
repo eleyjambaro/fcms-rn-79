@@ -18,13 +18,15 @@ import {navigationRef} from './RootNavigation'; // see: https://reactnavigation.
 import merge from 'deepmerge';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import {BottomSheetModalProvider} from '@gorhom/bottom-sheet';
+import {gestureHandlerRootHOC} from 'react-native-gesture-handler';
+import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 
 import ItemFormContextProvider from './src/context/providers/ItemFormContextProvider';
 import ExpenseFormContextProvider from './src/context/providers/ExpenseFormContextProvider';
 import SearchbarContextProvider from './src/context/providers/SearchbarContextProvider';
 import RecipeFormContextProvider from './src/context/providers/RecipeFormContextProvider';
-import {BottomSheetModalProvider} from '@gorhom/bottom-sheet';
-import {gestureHandlerRootHOC} from 'react-native-gesture-handler';
+
 import AddedIngredientsContextProvider from './src/context/providers/AddedIngredientsContextProvider';
 import AppConfigContextProvider from './src/context/providers/AppConfigContextProvider';
 import SalesCounterContextProvider from './src/context/providers/SalesCounterContextProvider';
@@ -60,9 +62,6 @@ const orangeMono = {
   highlighted: '#ffd195',
   highlightedUpdating: 'rgba(255,176,72, .50)',
 };
-
-console.log('ADAPTED NAV THEME', adaptedNavigationLightTheme.colors);
-console.log('PAPER THEME', PaperDefaultTheme.colors);
 
 const CombinedDefaultTheme = {
   ...adaptedNavigationLightTheme,
@@ -115,38 +114,50 @@ export default function Main() {
   const theme = CombinedDefaultTheme;
 
   return (
-    <CloudAuthContextProvider>
-      <QueryClientProvider client={queryClient}>
-        <PaperProvider theme={theme}>
-          <AppConfigContextProvider>
-            <NavigationContainer
-              theme={theme}
-              ref={navigationRef}
-              navigationInChildEnabled>
-              <GestureHandlerRootView>
-                <BottomSheetModalProvider>
-                  <SearchbarContextProvider>
-                    <DefaultPrinterContextProvider>
-                      <SalesCounterContextProvider>
-                        <AddedIngredientsContextProvider>
-                          <ItemFormContextProvider>
-                            <ExpenseFormContextProvider>
-                              <RecipeFormContextProvider>
-                                <App />
-                              </RecipeFormContextProvider>
-                            </ExpenseFormContextProvider>
-                          </ItemFormContextProvider>
-                        </AddedIngredientsContextProvider>
-                      </SalesCounterContextProvider>
-                    </DefaultPrinterContextProvider>
-                  </SearchbarContextProvider>
-                </BottomSheetModalProvider>
-              </GestureHandlerRootView>
-            </NavigationContainer>
-          </AppConfigContextProvider>
-        </PaperProvider>
-      </QueryClientProvider>
-    </CloudAuthContextProvider>
+    <SafeAreaProvider>
+      <CloudAuthContextProvider>
+        <QueryClientProvider client={queryClient}>
+          <PaperProvider theme={theme}>
+            <AppConfigContextProvider>
+              <NavigationContainer
+                theme={theme}
+                ref={navigationRef}
+                navigationInChildEnabled>
+                <GestureHandlerRootView>
+                  <BottomSheetModalProvider>
+                    <SearchbarContextProvider>
+                      <DefaultPrinterContextProvider>
+                        <SalesCounterContextProvider>
+                          <AddedIngredientsContextProvider>
+                            <ItemFormContextProvider>
+                              <ExpenseFormContextProvider>
+                                <RecipeFormContextProvider>
+                                  <SafeAreaView
+                                    style={{
+                                      flex: 1,
+                                      backgroundColor: theme.colors.surface,
+                                    }}
+                                    edges={{
+                                      bottom: 'maximum',
+                                      top: 'off',
+                                    }}>
+                                    <App />
+                                  </SafeAreaView>
+                                </RecipeFormContextProvider>
+                              </ExpenseFormContextProvider>
+                            </ItemFormContextProvider>
+                          </AddedIngredientsContextProvider>
+                        </SalesCounterContextProvider>
+                      </DefaultPrinterContextProvider>
+                    </SearchbarContextProvider>
+                  </BottomSheetModalProvider>
+                </GestureHandlerRootView>
+              </NavigationContainer>
+            </AppConfigContextProvider>
+          </PaperProvider>
+        </QueryClientProvider>
+      </CloudAuthContextProvider>
+    </SafeAreaProvider>
   );
 }
 
