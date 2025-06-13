@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
-    paddingTop: 80,
+    paddingTop: 100,
     paddingBottom: 50,
     justifyContent: 'center',
   },
