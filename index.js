@@ -5,8 +5,8 @@ import App from './App';
 import {name as appName} from './app.json';
 import {
   PaperProvider,
-  MD3DarkTheme as PaperDarkTheme,
-  MD3LightTheme as PaperDefaultTheme,
+  MD2DarkTheme as PaperDarkTheme,
+  MD2LightTheme as PaperDefaultTheme,
   adaptNavigationTheme,
 } from 'react-native-paper';
 import {
@@ -61,9 +61,12 @@ const orangeMono = {
   highlightedUpdating: 'rgba(255,176,72, .50)',
 };
 
+console.log('ADAPTED NAV THEME', adaptedNavigationLightTheme.colors);
+console.log('PAPER THEME', PaperDefaultTheme.colors);
+
 const CombinedDefaultTheme = {
-  ...PaperDefaultTheme,
   ...adaptedNavigationLightTheme,
+  ...PaperDefaultTheme,
   // myOwnProperty: true,
   fonts: {
     ...PaperDefaultTheme.fonts,
@@ -73,16 +76,17 @@ const CombinedDefaultTheme = {
     },
   },
   colors: {
-    ...PaperDefaultTheme.colors,
     ...adaptedNavigationLightTheme.colors,
+    card: PaperDefaultTheme.colors.surface,
+    ...PaperDefaultTheme.colors,
     ...pastelBlueTheme,
     ...orangeMono,
   },
 };
 
 const CombinedDarkTheme = {
-  ...PaperDarkTheme,
   ...adaptedNavigationDarkTheme,
+  ...PaperDarkTheme,
   fonts: {
     ...PaperDarkTheme.fonts,
     labelLarge: {
@@ -91,8 +95,9 @@ const CombinedDarkTheme = {
     },
   },
   colors: {
-    ...PaperDarkTheme.colors,
     ...adaptedNavigationDarkTheme.colors,
+    card: PaperDarkTheme.colors.surface,
+    ...PaperDarkTheme.colors,
   },
 };
 
