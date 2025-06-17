@@ -18,7 +18,7 @@ import {
   Paragraph,
 } from 'react-native-paper';
 import {useNavigation} from '@react-navigation/native';
-import {Formik, validateYupSchema} from 'formik';
+import {useFormik} from 'formik';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useQuery} from '@tanstack/react-query';
 import convert from 'convert-units';
@@ -1389,529 +1389,495 @@ const ItemForm = props => {
       ? getItemSellingSizeModifierOptionsData.result
       : initialValues.selling_size_options || [];
 
+  const formik = useFormik({
+    initialValues: {
+      edit_mode: editMode,
+      category_id: initialValues.category_id?.toString() || '',
+      tax_id: initialValues.tax_id?.toString() || '',
+      vendor_id: initialValues.vendor_id?.toString() || '',
+      name: initialValues.name || '',
+      barcode: initialValues.barcode || '',
+      uom_id: initialValues.uom_id?.toString() || '',
+      uom_abbrev: initialValues.uom_abbrev || '',
+      unit_cost: initialStockUnitCost,
+      total_cost: totalCost,
+      cost_input_mode: initialValues.cost_input_mode || 'unit_cost', // 'total_cost' or 'unit_cost'
+      add_measurement_per_piece: false,
+      set_uom_to_uom_per_piece: false,
+      uom_abbrev_per_piece: initialValues.uom_abbrev_per_piece || '',
+      qty_per_piece: initialValues.qty_per_piece?.toString() || '',
+      initial_stock_unit_cost: initialStockUnitCost,
+      initial_stock_qty: initialStockQty,
+      low_stock_level: initialValues.low_stock_level?.toString() || '0',
+      beginning_inventory_date: datetimeString,
+      initial_stock_applied_tax_id: initialStockAppliedTaxId,
+      initial_stock_vendor_id: initialStockVendorId,
+      official_receipt_number: initialStockOfficialReceiptNumber,
+      // sales
+      unit_selling_price: initialValues.unit_selling_price?.toString() || '0',
+      sales_tax_id: initialValues.sales_tax_id?.toString() || '',
+      selling_size_options: sellingSizeOptions,
+      remarks: initialStockRemarks,
+    },
+    validationSchema: ItemValidationSchema,
+    onSubmit,
+  });
+
+  const {
+    handleChange,
+    handleBlur,
+    handleSubmit,
+    setFieldValue,
+    values,
+    errors,
+    touched,
+    isValid,
+    dirty,
+    isSubmitting,
+    setFieldTouched,
+    setFieldError,
+    setValues,
+  } = formik;
+
+  let itemDetailsHeadingText = editMode
+    ? 'Update Item Details'
+    : 'Item Details';
+
+  let itemBasicSettingsHeadingText = editMode
+    ? 'Update Item Basic Settings'
+    : 'Item Basic Settings';
+
+  let initStockSectionHeadingText = editMode
+    ? `Update Pre-${appDefaults.appDisplayName} Stock & Cost`
+    : `Input Pre-${appDefaults.appDisplayName} Stock Cost & Tax`;
+
+  let sellingDetailsHeadingText = editMode
+    ? 'Update Selling Price'
+    : 'Input Selling Price';
+
   return (
     <>
-      <Formik
-        initialValues={{
-          edit_mode: editMode,
-          category_id: initialValues.category_id?.toString() || '',
-          tax_id: initialValues.tax_id?.toString() || '',
-          vendor_id: initialValues.vendor_id?.toString() || '',
-          name: initialValues.name || '',
-          barcode: initialValues.barcode || '',
-          uom_id: initialValues.uom_id?.toString() || '',
-          uom_abbrev: initialValues.uom_abbrev || '',
-          unit_cost: initialStockUnitCost,
-          total_cost: totalCost,
-          cost_input_mode: initialValues.cost_input_mode || 'unit_cost', // 'total_cost' or 'unit_cost'
-          add_measurement_per_piece: false,
-          set_uom_to_uom_per_piece: false,
-          uom_abbrev_per_piece: initialValues.uom_abbrev_per_piece || '',
-          qty_per_piece: initialValues.qty_per_piece?.toString() || '',
-          initial_stock_unit_cost: initialStockUnitCost,
-          initial_stock_qty: initialStockQty,
-          low_stock_level: initialValues.low_stock_level?.toString() || '0',
-          beginning_inventory_date: datetimeString,
-          initial_stock_applied_tax_id: initialStockAppliedTaxId,
-          initial_stock_vendor_id: initialStockVendorId,
-          official_receipt_number: initialStockOfficialReceiptNumber,
-          // sales
-          unit_selling_price:
-            initialValues.unit_selling_price?.toString() || '0',
-          sales_tax_id: initialValues.sales_tax_id?.toString() || '',
-          selling_size_options: sellingSizeOptions,
-          remarks: initialStockRemarks,
+      {/* Old version uses DateTimePicker */}
+      {showCalendar && (
+        <DateTimePicker
+          testID="dateTimePicker"
+          value={date}
+          mode={dateTimePickerMode}
+          is24Hour={true}
+          onChange={(_event, selectedDate) => {
+            handleDateTimePickerChange(_event, selectedDate);
+
+            const month = ('0' + (selectedDate.getMonth() + 1)).slice(-2);
+            const day = ('0' + selectedDate.getDate()).slice(-2);
+            const year = selectedDate.getFullYear();
+            const hours = ('0' + selectedDate.getHours()).slice(-2);
+            const minutes = ('0' + selectedDate.getMinutes()).slice(-2);
+            const seconds = ('0' + selectedDate.getSeconds()).slice(-2);
+            const selectedDateStringFormat = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
+            handleChange('beginning_inventory_date')(selectedDateStringFormat);
+          }}
+        />
+      )}
+
+      {showMonthPicker && (
+        <Modal
+          transparent
+          animationType="fade"
+          visible={showMonthPicker}
+          onRequestClose={() => {
+            setShowMonthPicker(() => false);
+          }}>
+          <View style={styles.modalContentContainer}>
+            <View style={styles.modalContent}>
+              <MonthPicker
+                selectedDate={date}
+                onMonthChange={selectedValue => {
+                  const selectedDate = new Date(selectedValue);
+
+                  handleMonthChange(selectedDate);
+
+                  const month = ('0' + (selectedDate.getMonth() + 1)).slice(-2);
+                  const day = ('0' + selectedDate.getDate()).slice(-2);
+                  const year = selectedDate.getFullYear();
+                  const hours = ('0' + selectedDate.getHours()).slice(-2);
+                  const minutes = ('0' + selectedDate.getMinutes()).slice(-2);
+                  const seconds = ('0' + selectedDate.getSeconds()).slice(-2);
+                  const selectedDateStringFormat = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
+                  handleChange('beginning_inventory_date')(
+                    selectedDateStringFormat,
+                  );
+                }}
+                currentMonthTextStyle={{
+                  color: colors.accent,
+                  fontWeight: 'bold',
+                }}
+                selectedBackgroundColor={colors.accent}
+                yearTextStyle={{
+                  fontWeight: 'bold',
+                  fontSize: 20,
+                  color: colors.dark,
+                }}
+              />
+              <Button
+                onPress={() => setShowMonthPicker(() => false)}
+                style={styles.modalConfirmButton}>
+                OK
+              </Button>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      <Portal>
+        <Dialog
+          visible={unitOfMeasurementRequiredDialogVisible}
+          onDismiss={() =>
+            setUnitOfMeasurementRequiredDialogVisible(() => false)
+          }>
+          <Dialog.Title>Item UOM is required!</Dialog.Title>
+          <Dialog.Content>
+            <Paragraph>
+              Set the Unit of Measurement of the item above first before adding
+              a selling size option.
+            </Paragraph>
+          </Dialog.Content>
+          <Dialog.Actions style={{justifyContent: 'space-around'}}>
+            <Button
+              onPress={() =>
+                setUnitOfMeasurementRequiredDialogVisible(() => false)
+              }>
+              Okay
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      <Portal>
+        <Dialog
+          visible={updateUOMWarningDialogVisible}
+          onDismiss={() => {
+            setUpdateUOMWarningDialogVisible(() => false);
+            setConfirmClearAllSellingSizeOptions(() => false);
+          }}>
+          <Dialog.Title>Attention!</Dialog.Title>
+          <Dialog.Content>
+            <Paragraph>
+              Please note that changing the item's unit of measurement will
+              delete the selling size options you added below. This prevents
+              conflicts between the item's unit of measurement and its
+              associated selling size options. You can re-create selling size
+              options for this item from scratch as needed.
+            </Paragraph>
+            <ConfirmationCheckbox
+              status={confirmClearAllSellingSizeOptions}
+              text="Clear size options listed below"
+              onPress={() => {
+                setConfirmClearAllSellingSizeOptions(
+                  !confirmClearAllSellingSizeOptions,
+                );
+              }}
+            />
+          </Dialog.Content>
+          <Dialog.Actions style={{justifyContent: 'space-around'}}>
+            <Button
+              color={
+                confirmClearAllSellingSizeOptions
+                  ? colors.notification
+                  : colors.disabled
+              }
+              disabled={confirmClearAllSellingSizeOptions ? false : true}
+              onPress={() => {
+                if (!confirmClearAllSellingSizeOptions) return;
+
+                // delete selling size options
+                setValues({
+                  ...values,
+                  selling_size_options: [],
+                });
+
+                setFormikActions(() => ({
+                  setFieldValue,
+                  setFieldTouched,
+                  setFieldError,
+                }));
+
+                navigation.navigate('ItemUOM', {
+                  uom_abbrev: values.uom_abbrev,
+                  uom_abbrev_field_key: 'uom_abbrev',
+                  is_uom_abbrev_required: true,
+                });
+
+                setUpdateUOMWarningDialogVisible(() => false);
+              }}>
+              Edit now
+            </Button>
+            <Button
+              onPress={() => {
+                setUpdateUOMWarningDialogVisible(() => false);
+                setConfirmClearAllSellingSizeOptions(() => false);
+              }}>
+              Cancel
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      <Portal>
+        <Dialog
+          visible={confirmDeleteSellingSizeOptionDialogVisible}
+          onDismiss={() =>
+            setConfirmDeleteSellingSizeOptionDialogVisible(() => false)
+          }>
+          <Dialog.Title>Delete selling size option?</Dialog.Title>
+          <Dialog.Content>
+            <Paragraph>
+              {`Are you sure you want to delete ${
+                focusedSellingSizeOption?.option_name
+                  ? `"${focusedSellingSizeOption?.option_name}" `
+                  : ''
+              }selling size option?`}
+            </Paragraph>
+          </Dialog.Content>
+          <Dialog.Actions style={{justifyContent: 'space-around'}}>
+            <Button
+              icon="delete"
+              color={colors.notification}
+              onPress={() => {
+                if (!focusedSellingSizeOption) return;
+
+                let sellingSizeOptions = values.selling_size_options || [];
+
+                let filteredSellingSizeOptions = sellingSizeOptions.filter(
+                  option =>
+                    option.option_id != focusedSellingSizeOption.option_id,
+                );
+
+                setFieldValue(
+                  'selling_size_options',
+                  filteredSellingSizeOptions,
+                );
+
+                setFocusedSellingSizeOption(() => null);
+
+                setConfirmDeleteSellingSizeOptionDialogVisible(() => false);
+              }}>
+              Delete
+            </Button>
+            <Button
+              onPress={() =>
+                setConfirmDeleteSellingSizeOptionDialogVisible(() => false)
+              }>
+              Cancel
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      <Portal>
+        <RNPaperModal
+          visible={addOptionModalVisible}
+          onDismiss={() => setAddOptionModalVisible(false)}
+          contentContainerStyle={{
+            backgroundColor: colors.surface,
+            padding: 10,
+            paddingVertical: 20,
+          }}>
+          <Title style={{marginBottom: 15, textAlign: 'center'}}>
+            Size/Quantity Option
+          </Title>
+
+          <ModifierOptionForm
+            itemId={item?.id}
+            initialValues={{
+              in_option_qty_uom_abbrev: values.uom_abbrev,
+              uom_abbrev_per_piece: values.uom_abbrev_per_piece,
+              qty_per_piece: values.qty_per_piece,
+            }}
+            onSubmit={(formValues, formActions) => {
+              console.log(formValues);
+
+              if (!formValues.option_id) {
+                formValues.option_id = `temp_id_${uuid.v4()}`;
+              }
+
+              let sellingSizeOptions = values.selling_size_options || [];
+              sellingSizeOptions.push(formValues);
+
+              setFieldValue('selling_size_options', sellingSizeOptions);
+              setAddOptionModalVisible(() => false);
+              formActions.resetForm();
+            }}
+            onCancel={() => setAddOptionModalVisible(false)}
+          />
+        </RNPaperModal>
+      </Portal>
+
+      <FormRequiredFieldsHelperText />
+
+      <PreventGoBack navigation={navigation} hasUnsavedChanges={dirty} />
+
+      <SectionHeading
+        headingText={itemDetailsHeadingText}
+        containerStyle={{marginTop: 15}}
+      />
+      <MoreSelectionButton
+        placeholder="Select Category"
+        label="Category"
+        required
+        renderValueCurrentValue={values.category_id}
+        renderValue={(_value, renderingValueProps) =>
+          renderCategoryValue(
+            getCategoryStatus,
+            getCategoryData,
+            renderingValueProps,
+          )
+        }
+        onChangeValue={currentValue => {
+          handleCategoryChange(currentValue);
+          handleChange('category_id')(currentValue);
         }}
-        validationSchema={ItemValidationSchema}
-        onSubmit={onSubmit}>
-        {props => {
-          const {
-            handleChange,
-            handleBlur,
-            handleSubmit,
+        onPress={() => {
+          setFormikActions(() => ({
             setFieldValue,
-            values,
-            errors,
-            touched,
-            isValid,
-            dirty,
-            isSubmitting,
             setFieldTouched,
             setFieldError,
-            setValues,
-          } = props;
+          }));
 
-          let itemDetailsHeadingText = editMode
-            ? 'Update Item Details'
-            : 'Item Details';
-
-          let itemBasicSettingsHeadingText = editMode
-            ? 'Update Item Basic Settings'
-            : 'Item Basic Settings';
-
-          let initStockSectionHeadingText = editMode
-            ? `Update Pre-${appDefaults.appDisplayName} Stock & Cost`
-            : `Input Pre-${appDefaults.appDisplayName} Stock Cost & Tax`;
-
-          let sellingDetailsHeadingText = editMode
-            ? 'Update Selling Price'
-            : 'Input Selling Price';
-
-          return (
-            <>
-              {/* Old version uses DateTimePicker */}
-              {showCalendar && (
-                <DateTimePicker
-                  testID="dateTimePicker"
-                  value={date}
-                  mode={dateTimePickerMode}
-                  is24Hour={true}
-                  onChange={(_event, selectedDate) => {
-                    handleDateTimePickerChange(_event, selectedDate);
-
-                    const month = ('0' + (selectedDate.getMonth() + 1)).slice(
-                      -2,
-                    );
-                    const day = ('0' + selectedDate.getDate()).slice(-2);
-                    const year = selectedDate.getFullYear();
-                    const hours = ('0' + selectedDate.getHours()).slice(-2);
-                    const minutes = ('0' + selectedDate.getMinutes()).slice(-2);
-                    const seconds = ('0' + selectedDate.getSeconds()).slice(-2);
-                    const selectedDateStringFormat = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-
-                    handleChange('beginning_inventory_date')(
-                      selectedDateStringFormat,
-                    );
-                  }}
-                />
-              )}
-
-              {showMonthPicker && (
-                <Modal
-                  transparent
-                  animationType="fade"
-                  visible={showMonthPicker}
-                  onRequestClose={() => {
-                    setShowMonthPicker(() => false);
-                  }}>
-                  <View style={styles.modalContentContainer}>
-                    <View style={styles.modalContent}>
-                      <MonthPicker
-                        selectedDate={date}
-                        onMonthChange={selectedValue => {
-                          const selectedDate = new Date(selectedValue);
-
-                          handleMonthChange(selectedDate);
-
-                          const month = (
-                            '0' +
-                            (selectedDate.getMonth() + 1)
-                          ).slice(-2);
-                          const day = ('0' + selectedDate.getDate()).slice(-2);
-                          const year = selectedDate.getFullYear();
-                          const hours = ('0' + selectedDate.getHours()).slice(
-                            -2,
-                          );
-                          const minutes = (
-                            '0' + selectedDate.getMinutes()
-                          ).slice(-2);
-                          const seconds = (
-                            '0' + selectedDate.getSeconds()
-                          ).slice(-2);
-                          const selectedDateStringFormat = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-
-                          handleChange('beginning_inventory_date')(
-                            selectedDateStringFormat,
-                          );
-                        }}
-                        currentMonthTextStyle={{
-                          color: colors.accent,
-                          fontWeight: 'bold',
-                        }}
-                        selectedBackgroundColor={colors.accent}
-                        yearTextStyle={{
-                          fontWeight: 'bold',
-                          fontSize: 20,
-                          color: colors.dark,
-                        }}
-                      />
-                      <Button
-                        onPress={() => setShowMonthPicker(() => false)}
-                        style={styles.modalConfirmButton}>
-                        OK
-                      </Button>
-                    </View>
-                  </View>
-                </Modal>
-              )}
-
-              <Portal>
-                <Dialog
-                  visible={unitOfMeasurementRequiredDialogVisible}
-                  onDismiss={() =>
-                    setUnitOfMeasurementRequiredDialogVisible(() => false)
-                  }>
-                  <Dialog.Title>Item UOM is required!</Dialog.Title>
-                  <Dialog.Content>
-                    <Paragraph>
-                      Set the Unit of Measurement of the item above first before
-                      adding a selling size option.
-                    </Paragraph>
-                  </Dialog.Content>
-                  <Dialog.Actions style={{justifyContent: 'space-around'}}>
-                    <Button
-                      onPress={() =>
-                        setUnitOfMeasurementRequiredDialogVisible(() => false)
-                      }>
-                      Okay
-                    </Button>
-                  </Dialog.Actions>
-                </Dialog>
-              </Portal>
-
-              <Portal>
-                <Dialog
-                  visible={updateUOMWarningDialogVisible}
-                  onDismiss={() => {
-                    setUpdateUOMWarningDialogVisible(() => false);
-                    setConfirmClearAllSellingSizeOptions(() => false);
-                  }}>
-                  <Dialog.Title>Attention!</Dialog.Title>
-                  <Dialog.Content>
-                    <Paragraph>
-                      Please note that changing the item's unit of measurement
-                      will delete the selling size options you added below. This
-                      prevents conflicts between the item's unit of measurement
-                      and its associated selling size options. You can re-create
-                      selling size options for this item from scratch as needed.
-                    </Paragraph>
-                    <ConfirmationCheckbox
-                      status={confirmClearAllSellingSizeOptions}
-                      text="Clear size options listed below"
-                      onPress={() => {
-                        setConfirmClearAllSellingSizeOptions(
-                          !confirmClearAllSellingSizeOptions,
-                        );
-                      }}
-                    />
-                  </Dialog.Content>
-                  <Dialog.Actions style={{justifyContent: 'space-around'}}>
-                    <Button
-                      color={
-                        confirmClearAllSellingSizeOptions
-                          ? colors.notification
-                          : colors.disabled
-                      }
-                      disabled={
-                        confirmClearAllSellingSizeOptions ? false : true
-                      }
-                      onPress={() => {
-                        if (!confirmClearAllSellingSizeOptions) return;
-
-                        // delete selling size options
-                        setValues({
-                          ...values,
-                          selling_size_options: [],
-                        });
-
-                        setFormikActions(() => ({
-                          setFieldValue,
-                          setFieldTouched,
-                          setFieldError,
-                        }));
-
-                        navigation.navigate('ItemUOM', {
-                          uom_abbrev: values.uom_abbrev,
-                          uom_abbrev_field_key: 'uom_abbrev',
-                          is_uom_abbrev_required: true,
-                        });
-
-                        setUpdateUOMWarningDialogVisible(() => false);
-                      }}>
-                      Edit now
-                    </Button>
-                    <Button
-                      onPress={() => {
-                        setUpdateUOMWarningDialogVisible(() => false);
-                        setConfirmClearAllSellingSizeOptions(() => false);
-                      }}>
-                      Cancel
-                    </Button>
-                  </Dialog.Actions>
-                </Dialog>
-              </Portal>
-
-              <Portal>
-                <Dialog
-                  visible={confirmDeleteSellingSizeOptionDialogVisible}
-                  onDismiss={() =>
-                    setConfirmDeleteSellingSizeOptionDialogVisible(() => false)
-                  }>
-                  <Dialog.Title>Delete selling size option?</Dialog.Title>
-                  <Dialog.Content>
-                    <Paragraph>
-                      {`Are you sure you want to delete ${
-                        focusedSellingSizeOption?.option_name
-                          ? `"${focusedSellingSizeOption?.option_name}" `
-                          : ''
-                      }selling size option?`}
-                    </Paragraph>
-                  </Dialog.Content>
-                  <Dialog.Actions style={{justifyContent: 'space-around'}}>
-                    <Button
-                      icon="delete"
-                      color={colors.notification}
-                      onPress={() => {
-                        if (!focusedSellingSizeOption) return;
-
-                        let sellingSizeOptions =
-                          values.selling_size_options || [];
-
-                        let filteredSellingSizeOptions =
-                          sellingSizeOptions.filter(
-                            option =>
-                              option.option_id !=
-                              focusedSellingSizeOption.option_id,
-                          );
-
-                        setFieldValue(
-                          'selling_size_options',
-                          filteredSellingSizeOptions,
-                        );
-
-                        setFocusedSellingSizeOption(() => null);
-
-                        setConfirmDeleteSellingSizeOptionDialogVisible(
-                          () => false,
-                        );
-                      }}>
-                      Delete
-                    </Button>
-                    <Button
-                      onPress={() =>
-                        setConfirmDeleteSellingSizeOptionDialogVisible(
-                          () => false,
-                        )
-                      }>
-                      Cancel
-                    </Button>
-                  </Dialog.Actions>
-                </Dialog>
-              </Portal>
-
-              <Portal>
-                <RNPaperModal
-                  visible={addOptionModalVisible}
-                  onDismiss={() => setAddOptionModalVisible(false)}
-                  contentContainerStyle={{
-                    backgroundColor: colors.surface,
-                    padding: 10,
-                    paddingVertical: 20,
-                  }}>
-                  <Title style={{marginBottom: 15, textAlign: 'center'}}>
-                    Size/Quantity Option
-                  </Title>
-
-                  <ModifierOptionForm
-                    itemId={item?.id}
-                    initialValues={{
-                      in_option_qty_uom_abbrev: values.uom_abbrev,
-                      uom_abbrev_per_piece: values.uom_abbrev_per_piece,
-                      qty_per_piece: values.qty_per_piece,
-                    }}
-                    onSubmit={(formValues, formActions) => {
-                      console.log(formValues);
-
-                      if (!formValues.option_id) {
-                        formValues.option_id = `temp_id_${uuid.v4()}`;
-                      }
-
-                      let sellingSizeOptions =
-                        values.selling_size_options || [];
-                      sellingSizeOptions.push(formValues);
-
-                      setFieldValue('selling_size_options', sellingSizeOptions);
-                      setAddOptionModalVisible(() => false);
-                      formActions.resetForm();
-                    }}
-                    onCancel={() => setAddOptionModalVisible(false)}
-                  />
-                </RNPaperModal>
-              </Portal>
-
-              <FormRequiredFieldsHelperText />
-
-              <PreventGoBack
-                navigation={navigation}
-                hasUnsavedChanges={dirty}
-              />
-
-              <SectionHeading
-                headingText={itemDetailsHeadingText}
-                containerStyle={{marginTop: 15}}
-              />
-              <MoreSelectionButton
-                placeholder="Select Category"
-                label="Category"
-                required
-                renderValueCurrentValue={values.category_id}
-                renderValue={(_value, renderingValueProps) =>
-                  renderCategoryValue(
-                    getCategoryStatus,
-                    getCategoryData,
-                    renderingValueProps,
-                  )
-                }
-                onChangeValue={currentValue => {
-                  handleCategoryChange(currentValue);
-                  handleChange('category_id')(currentValue);
-                }}
-                onPress={() => {
-                  setFormikActions(() => ({
-                    setFieldValue,
-                    setFieldTouched,
-                    setFieldError,
-                  }));
-
-                  navigation.navigate(routes.itemCategory(), {
-                    category_id: values.category_id,
-                  });
-                }}
-                error={errors.category_id && touched.category_id ? true : false}
-              />
-              <TextInput
-                style={styles.textInput}
-                label={
-                  <TextInputLabel
-                    label="Item Name"
-                    required
-                    error={errors.name && touched.name ? true : false}
-                  />
-                }
-                onChangeText={handleChange('name')}
-                onBlur={handleBlur('name')}
-                value={values.name}
-                error={errors.name && touched.name ? true : false}
-                autoCapitalize="words"
-              />
-
-              <View style={{flexDirection: 'row'}}>
-                <TextInput
-                  label="Item Barcode (Optional)"
-                  onChangeText={handleChange('barcode')}
-                  onBlur={handleBlur('barcode')}
-                  value={values.barcode}
-                  style={[styles.textInput, {flex: 1}]}
-                />
-                <MaterialCommunityIcons
-                  name="barcode-scan"
-                  size={25}
-                  color={colors.dark}
-                  style={{position: 'absolute', top: 18, right: 15}}
-                />
-              </View>
-              <MoreSelectionButton
-                containerStyle={{marginTop: -2}}
-                placeholder="Select Unit"
-                label="Unit of Measurement"
-                disabled={editMode ? true : false}
-                required
-                renderValueCurrentValue={values.uom_abbrev}
-                renderValue={(_value, renderingValueProps) =>
-                  renderUOMValue(values.uom_abbrev, renderingValueProps)
-                }
-                onPress={() => {
-                  // show update UOM warning
-                  if (values.selling_size_options?.length > 0) {
-                    setUpdateUOMWarningDialogVisible(() => true);
-                    return;
-                  }
-
-                  setFormikActions(() => ({
-                    setFieldValue,
-                    setFieldTouched,
-                    setFieldError,
-                  }));
-
-                  navigation.navigate('ItemUOM', {
-                    uom_abbrev: values.uom_abbrev,
-                    uom_abbrev_field_key: 'uom_abbrev',
-                    is_uom_abbrev_required: true,
-                  });
-                }}
-                error={errors.uom_abbrev && touched.uom_abbrev ? true : false}
-              />
-              {renderAddMeasurementPerPieceCheckbox(props)}
-              {renderSetUOMToUOMPerPieceCheckbox(props)}
-              {renderMeasurementPerPieceButton(props)}
-              {renderQuantityPerPieceInput(props)}
-
-              {!item?.is_finished_product && (
-                <SectionHeading
-                  headingText={initStockSectionHeadingText}
-                  containerStyle={{marginTop: 20}}
-                  switchVisible={true}
-                  switchValue={isInitStockFieldsVisible}
-                  onSwitchValueChange={() => {
-                    setIsInitStockFieldsVisible(
-                      () => !isInitStockFieldsVisible,
-                    );
-                  }}
-                />
-              )}
-
-              {!item?.is_finished_product &&
-                renderInitStockFields(
-                  getItemInitStockLogStatus,
-                  getItemInitStockLogData,
-                  props,
-                )}
-
-              {editMode ? (
-                <PressableSectionHeading
-                  headingText={sellingDetailsHeadingText}
-                  containerStyle={{marginTop: 20}}
-                  onPress={() => {
-                    navigation.navigate(routes.itemSizeOptions(), {
-                      item_id: item?.id,
-                    });
-                  }}
-                />
-              ) : (
-                <SectionHeading
-                  headingText={sellingDetailsHeadingText}
-                  containerStyle={{marginTop: 20}}
-                  switchVisible={true}
-                  switchValue={isSellingDetailsFieldsVisible}
-                  onSwitchValueChange={() => {
-                    setIsSellingDetailsFieldsVisible(
-                      () => !isSellingDetailsFieldsVisible,
-                    );
-                  }}
-                />
-              )}
-
-              {renderSellingDetailsFields(props)}
-
-              <Button
-                mode="contained"
-                onPress={handleSubmit}
-                disabled={!dirty || !isValid || isSubmitting}
-                loading={isSubmitting}
-                style={{marginTop: 40}}>
-                {editMode ? 'Save Changes' : 'Save'}
-              </Button>
-              <Button
-                onPress={() => {
-                  navigation.goBack();
-                }}
-                style={{marginTop: 10, marginBottom: 25}}>
-                Cancel
-              </Button>
-            </>
-          );
+          navigation.navigate(routes.itemCategory(), {
+            category_id: values.category_id,
+          });
         }}
-      </Formik>
+        error={errors.category_id && touched.category_id ? true : false}
+      />
+      <TextInput
+        style={styles.textInput}
+        label={
+          <TextInputLabel
+            label="Item Name"
+            required
+            error={errors.name && touched.name ? true : false}
+          />
+        }
+        onChangeText={handleChange('name')}
+        onBlur={handleBlur('name')}
+        value={values.name}
+        error={errors.name && touched.name ? true : false}
+        autoCapitalize="words"
+      />
+
+      <View style={{flexDirection: 'row'}}>
+        <TextInput
+          label="Item Barcode (Optional)"
+          onChangeText={handleChange('barcode')}
+          onBlur={handleBlur('barcode')}
+          value={values.barcode}
+          style={[styles.textInput, {flex: 1}]}
+        />
+        <MaterialCommunityIcons
+          name="barcode-scan"
+          size={25}
+          color={colors.dark}
+          style={{position: 'absolute', top: 18, right: 15}}
+        />
+      </View>
+      <MoreSelectionButton
+        containerStyle={{marginTop: -2}}
+        placeholder="Select Unit"
+        label="Unit of Measurement"
+        disabled={editMode ? true : false}
+        required
+        renderValueCurrentValue={values.uom_abbrev}
+        renderValue={(_value, renderingValueProps) =>
+          renderUOMValue(values.uom_abbrev, renderingValueProps)
+        }
+        onPress={() => {
+          // show update UOM warning
+          if (values.selling_size_options?.length > 0) {
+            setUpdateUOMWarningDialogVisible(() => true);
+            return;
+          }
+
+          setFormikActions(() => ({
+            setFieldValue,
+            setFieldTouched,
+            setFieldError,
+          }));
+
+          navigation.navigate('ItemUOM', {
+            uom_abbrev: values.uom_abbrev,
+            uom_abbrev_field_key: 'uom_abbrev',
+            is_uom_abbrev_required: true,
+          });
+        }}
+        error={errors.uom_abbrev && touched.uom_abbrev ? true : false}
+      />
+      {renderAddMeasurementPerPieceCheckbox(formik)}
+      {renderSetUOMToUOMPerPieceCheckbox(formik)}
+      {renderMeasurementPerPieceButton(formik)}
+      {renderQuantityPerPieceInput(formik)}
+
+      {!item?.is_finished_product && (
+        <SectionHeading
+          headingText={initStockSectionHeadingText}
+          containerStyle={{marginTop: 20}}
+          switchVisible={true}
+          switchValue={isInitStockFieldsVisible}
+          onSwitchValueChange={() => {
+            setIsInitStockFieldsVisible(() => !isInitStockFieldsVisible);
+          }}
+        />
+      )}
+
+      {!item?.is_finished_product &&
+        renderInitStockFields(
+          getItemInitStockLogStatus,
+          getItemInitStockLogData,
+          formik,
+        )}
+
+      {editMode ? (
+        <PressableSectionHeading
+          headingText={sellingDetailsHeadingText}
+          containerStyle={{marginTop: 20}}
+          onPress={() => {
+            navigation.navigate(routes.itemSizeOptions(), {
+              item_id: item?.id,
+            });
+          }}
+        />
+      ) : (
+        <SectionHeading
+          headingText={sellingDetailsHeadingText}
+          containerStyle={{marginTop: 20}}
+          switchVisible={true}
+          switchValue={isSellingDetailsFieldsVisible}
+          onSwitchValueChange={() => {
+            setIsSellingDetailsFieldsVisible(
+              () => !isSellingDetailsFieldsVisible,
+            );
+          }}
+        />
+      )}
+
+      {renderSellingDetailsFields(formik)}
+
+      <Button
+        mode="contained"
+        onPress={handleSubmit}
+        disabled={!dirty || !isValid || isSubmitting}
+        loading={isSubmitting}
+        style={{marginTop: 40}}>
+        {editMode ? 'Save Changes' : 'Save'}
+      </Button>
+      <Button
+        onPress={() => {
+          navigation.goBack();
+        }}
+        style={{marginTop: 10, marginBottom: 25}}>
+        Cancel
+      </Button>
     </>
   );
 };
