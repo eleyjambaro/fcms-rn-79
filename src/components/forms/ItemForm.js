@@ -11,7 +11,6 @@ import {
   Portal,
   Modal as RNPaperModal,
   Dialog,
-  Paragraph,
 } from 'react-native-paper';
 import {useNavigation} from '@react-navigation/native';
 import {useFormik} from 'formik';
@@ -1547,10 +1546,10 @@ const ItemForm = props => {
           }>
           <Dialog.Title>Item UOM is required!</Dialog.Title>
           <Dialog.Content>
-            <Paragraph>
+            <Text variant="bodyMedium">
               Set the Unit of Measurement of the item above first before adding
               a selling size option.
-            </Paragraph>
+            </Text>
           </Dialog.Content>
           <Dialog.Actions style={{justifyContent: 'space-around'}}>
             <Button
@@ -1572,13 +1571,13 @@ const ItemForm = props => {
           }}>
           <Dialog.Title>Attention!</Dialog.Title>
           <Dialog.Content>
-            <Paragraph>
+            <Text variant="bodyMedium">
               Please note that changing the item's unit of measurement will
               delete the selling size options you added below. This prevents
               conflicts between the item's unit of measurement and its
               associated selling size options. You can re-create selling size
               options for this item from scratch as needed.
-            </Paragraph>
+            </Text>
             <ConfirmationCheckbox
               status={confirmClearAllSellingSizeOptions}
               text="Clear size options listed below"
@@ -1641,13 +1640,13 @@ const ItemForm = props => {
           }>
           <Dialog.Title>Delete selling size option?</Dialog.Title>
           <Dialog.Content>
-            <Paragraph>
+            <Text variant="bodyMedium">
               {`Are you sure you want to delete ${
                 focusedSellingSizeOption?.option_name
                   ? `"${focusedSellingSizeOption?.option_name}" `
                   : ''
               }selling size option?`}
-            </Paragraph>
+            </Text>
           </Dialog.Content>
           <Dialog.Actions style={{justifyContent: 'space-around'}}>
             <Button
