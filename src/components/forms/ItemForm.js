@@ -5,7 +5,6 @@ import {
   Button,
   Text,
   useTheme,
-  Subheading,
   ActivityIndicator,
   Checkbox,
   RadioButton,
@@ -70,22 +69,22 @@ const ItemValidationSchema = Yup.object().shape({
     .max(50, 'Too Long!')
     .required('Required'),
   add_measurement_per_piece: Yup.boolean(),
-  uom_abbrev_per_piece: Yup.string().when('add_measurement_per_piece', {
-    is: true,
-    then: Yup.string().required(),
-    otherwise: Yup.string().notRequired(),
-  }),
-  set_uom_to_uom_per_piece: Yup.boolean(),
-  uom_abbrev_per_piece: Yup.string().when('set_uom_to_uom_per_piece', {
-    is: true,
-    then: Yup.string().required(),
-    otherwise: Yup.string().notRequired(),
-  }),
-  qty_per_piece: Yup.string().when('uom_abbrev_per_piece', {
-    is: uomAbbrevPerPiece => uomAbbrevPerPiece?.length > 0,
-    then: Yup.string().required(),
-    otherwise: Yup.string().notRequired(),
-  }),
+  // uom_abbrev_per_piece: Yup.string().when('add_measurement_per_piece', {
+  //   is: true,
+  //   then: Yup.string().required(),
+  //   otherwise: Yup.string().notRequired(),
+  // }),
+  // set_uom_to_uom_per_piece: Yup.boolean(),
+  // uom_abbrev_per_piece: Yup.string().when('set_uom_to_uom_per_piece', {
+  //   is: true,
+  //   then: Yup.string().required(),
+  //   otherwise: Yup.string().notRequired(),
+  // }),
+  // qty_per_piece: Yup.string().when('uom_abbrev_per_piece', {
+  //   is: uomAbbrevPerPiece => uomAbbrevPerPiece?.length > 0,
+  //   then: Yup.string().required(),
+  //   otherwise: Yup.string().notRequired(),
+  // }),
   selling_size_options: Yup.array(),
 });
 
@@ -735,15 +734,19 @@ const ItemForm = props => {
     }
 
     if (status === 'error') {
-      return <Subheading style={props.style}>Something went wrong</Subheading>;
+      return (
+        <Text variant="titleMedium" style={props.style}>
+          Something went wrong
+        </Text>
+      );
     }
 
     if (!data || !data.result) return null;
 
     return (
-      <Subheading {...props}>
+      <Text variant="titleMedium" {...props}>
         {props?.trimTextLength(data.result?.name)}
-      </Subheading>
+      </Text>
     );
   };
 
@@ -760,17 +763,21 @@ const ItemForm = props => {
     }
 
     if (status === 'error') {
-      return <Subheading style={props.style}>Something went wrong</Subheading>;
+      return (
+        <Text variant="titleMedium" style={props.style}>
+          Something went wrong
+        </Text>
+      );
     }
 
     if (!data || !data.result) return null;
 
     return (
-      <Subheading {...props}>
+      <Text variant="titleMedium" {...props}>
         {props?.trimTextLength(
           `${data.result?.name} (${data.result?.rate_percentage}%)`,
         )}
-      </Subheading>
+      </Text>
     );
   };
 
@@ -787,15 +794,19 @@ const ItemForm = props => {
     }
 
     if (status === 'error') {
-      return <Subheading style={props.style}>Something went wrong</Subheading>;
+      return (
+        <Text variant="titleMedium" style={props.style}>
+          Something went wrong
+        </Text>
+      );
     }
 
     if (!data || !data.result) return null;
 
     return (
-      <Subheading {...props}>
+      <Text variant="titleMedium" {...props}>
         {props?.trimTextLength(`${data.result?.vendor_display_name}`)}
-      </Subheading>
+      </Text>
     );
   };
 
@@ -806,7 +817,9 @@ const ItemForm = props => {
       unitAbbrev === 'ea' ? 'Piece' : convert().describe(unitAbbrev).singular;
 
     return (
-      <Subheading {...props}>{props?.trimTextLength(`${UOM}`)}</Subheading>
+      <Text variant="titleMedium" {...props}>
+        {props?.trimTextLength(`${UOM}`)}
+      </Text>
     );
   };
 
