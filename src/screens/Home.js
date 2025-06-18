@@ -581,10 +581,10 @@ const Home = props => {
       {isFocused && !expiredAuthTokenDialogVisible ? (
         <Portal>
           <FAB.Group
-            style={{bottom: 72}}
             fabStyle={{
               backgroundColor: colors.primary,
               elevation: 3,
+              marginBottom: 88,
             }}
             color={colors.dark}
             open={open}
