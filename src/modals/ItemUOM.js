@@ -120,10 +120,6 @@ const ItemUOM = () => {
             formikActions.setFieldTouched(uomAbbrevFieldKey);
             formikActions.setFieldValue(uomAbbrevFieldKey, selectedUnit);
 
-            !selectedUnit
-              ? formikActions.setFieldError(uomAbbrevFieldKey, 'Required')
-              : formikActions.setFieldError(uomAbbrevFieldKey, '');
-
             if (uomAbbrevFieldKey === 'uom_abbrev' && selectedUnit !== 'ea') {
               // Reset measurement per piece values
               formikActions.setFieldValue('uom_abbrev_per_piece', '');
