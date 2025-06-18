@@ -45,7 +45,7 @@ import ItemSellingSizeOptions from './components/ItemSellingSizeOptions';
 import {getItemSellingSizeModifierOptions} from '../../localDbQueries/modifiers';
 import PressableSectionHeading from '../headings/PressableSectionHeading';
 
-const ItemValidationSchema = Yup.object().shape({
+const ItemValidationSchema = Yup.object({
   edit_mode: Yup.boolean(),
   category_id: Yup.string().required('Required'),
   name: Yup.string()
@@ -64,22 +64,22 @@ const ItemValidationSchema = Yup.object().shape({
     .max(50, 'Too Long!')
     .required('Required'),
   add_measurement_per_piece: Yup.boolean(),
-  // uom_abbrev_per_piece: Yup.string().when('add_measurement_per_piece', {
-  //   is: true,
-  //   then: Yup.string().required(),
-  //   otherwise: Yup.string().notRequired(),
-  // }),
-  // set_uom_to_uom_per_piece: Yup.boolean(),
-  // uom_abbrev_per_piece: Yup.string().when('set_uom_to_uom_per_piece', {
-  //   is: true,
-  //   then: Yup.string().required(),
-  //   otherwise: Yup.string().notRequired(),
-  // }),
-  // qty_per_piece: Yup.string().when('uom_abbrev_per_piece', {
-  //   is: uomAbbrevPerPiece => uomAbbrevPerPiece?.length > 0,
-  //   then: Yup.string().required(),
-  //   otherwise: Yup.string().notRequired(),
-  // }),
+  uom_abbrev_per_piece: Yup.string().when('add_measurement_per_piece', {
+    is: true,
+    then: () => Yup.string().required(),
+    otherwise: () => Yup.string().notRequired(),
+  }),
+  set_uom_to_uom_per_piece: Yup.boolean(),
+  uom_abbrev_per_piece: Yup.string().when('set_uom_to_uom_per_piece', {
+    is: true,
+    then: () => Yup.string().required(),
+    otherwise: () => Yup.string().notRequired(),
+  }),
+  qty_per_piece: Yup.string().when('uom_abbrev_per_piece', {
+    is: uomAbbrevPerPiece => uomAbbrevPerPiece?.length > 0,
+    then: () => Yup.string().required(),
+    otherwise: () => Yup.string().notRequired(),
+  }),
   selling_size_options: Yup.array(),
 });
 
