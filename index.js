@@ -115,48 +115,48 @@ export default function Main() {
 
   return (
     <SafeAreaProvider>
-      <CloudAuthContextProvider>
-        <QueryClientProvider client={queryClient}>
-          <PaperProvider theme={theme}>
-            <AppConfigContextProvider>
-              <NavigationContainer
-                theme={theme}
-                ref={navigationRef}
-                navigationInChildEnabled>
-                <GestureHandlerRootView>
-                  <BottomSheetModalProvider>
-                    <SearchbarContextProvider>
-                      <DefaultPrinterContextProvider>
-                        <SalesCounterContextProvider>
-                          <AddedIngredientsContextProvider>
-                            <ItemFormContextProvider>
-                              <ExpenseFormContextProvider>
-                                <RecipeFormContextProvider>
-                                  <SafeAreaView
-                                    style={{
-                                      flex: 1,
-                                      backgroundColor: theme.colors.surface,
-                                    }}
-                                    edges={{
-                                      bottom: 'maximum',
-                                      top: 'off',
-                                    }}>
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: theme.colors.surface,
+        }}
+        edges={{
+          bottom: 'maximum',
+          top: 'off',
+        }}>
+        <CloudAuthContextProvider>
+          <QueryClientProvider client={queryClient}>
+            <PaperProvider theme={theme}>
+              <AppConfigContextProvider>
+                <NavigationContainer
+                  theme={theme}
+                  ref={navigationRef}
+                  navigationInChildEnabled>
+                  <GestureHandlerRootView>
+                    <BottomSheetModalProvider>
+                      <SearchbarContextProvider>
+                        <DefaultPrinterContextProvider>
+                          <SalesCounterContextProvider>
+                            <AddedIngredientsContextProvider>
+                              <ItemFormContextProvider>
+                                <ExpenseFormContextProvider>
+                                  <RecipeFormContextProvider>
                                     <App />
-                                  </SafeAreaView>
-                                </RecipeFormContextProvider>
-                              </ExpenseFormContextProvider>
-                            </ItemFormContextProvider>
-                          </AddedIngredientsContextProvider>
-                        </SalesCounterContextProvider>
-                      </DefaultPrinterContextProvider>
-                    </SearchbarContextProvider>
-                  </BottomSheetModalProvider>
-                </GestureHandlerRootView>
-              </NavigationContainer>
-            </AppConfigContextProvider>
-          </PaperProvider>
-        </QueryClientProvider>
-      </CloudAuthContextProvider>
+                                  </RecipeFormContextProvider>
+                                </ExpenseFormContextProvider>
+                              </ItemFormContextProvider>
+                            </AddedIngredientsContextProvider>
+                          </SalesCounterContextProvider>
+                        </DefaultPrinterContextProvider>
+                      </SearchbarContextProvider>
+                    </BottomSheetModalProvider>
+                  </GestureHandlerRootView>
+                </NavigationContainer>
+              </AppConfigContextProvider>
+            </PaperProvider>
+          </QueryClientProvider>
+        </CloudAuthContextProvider>
+      </SafeAreaView>
     </SafeAreaProvider>
   );
 }
