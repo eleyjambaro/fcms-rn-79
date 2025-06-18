@@ -584,7 +584,7 @@ const Home = props => {
             fabStyle={{
               backgroundColor: colors.primary,
               elevation: 3,
-              marginBottom: 88,
+              marginBottom: 40,
             }}
             color={colors.dark}
             open={open}
