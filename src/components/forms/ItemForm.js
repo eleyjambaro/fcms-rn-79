@@ -1,17 +1,14 @@
 import React, {useState, useEffect} from 'react';
-import {View, Pressable, StyleSheet, Modal} from 'react-native';
+import {View, StyleSheet, Modal} from 'react-native';
 import {
   TextInput,
   Button,
   Text,
   useTheme,
   ActivityIndicator,
-  Checkbox,
   RadioButton,
-  Switch,
   HelperText,
   Portal,
-  Title,
   Modal as RNPaperModal,
   Dialog,
   Paragraph,
@@ -28,7 +25,6 @@ import MonthPicker from 'react-native-month-picker';
 import uuid from 'react-native-uuid';
 
 import MoreSelectionButton from '../buttons/MoreSelectionButton';
-import {categories, units} from '../../__dummyData';
 import useItemFormContext from '../../hooks/useItemFormContext';
 import {getCategory} from '../../localDbQueries/categories';
 import {getTax} from '../../localDbQueries/taxes';
@@ -1697,9 +1693,11 @@ const ItemForm = props => {
             padding: 10,
             paddingVertical: 20,
           }}>
-          <Title style={{marginBottom: 15, textAlign: 'center'}}>
+          <Text
+            variant="titleLarge"
+            style={{marginBottom: 15, textAlign: 'center'}}>
             Size/Quantity Option
-          </Title>
+          </Text>
 
           <ModifierOptionForm
             itemId={item?.id}
