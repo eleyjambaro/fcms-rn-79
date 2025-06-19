@@ -18,7 +18,7 @@ import {
   NetPrinter,
   BLEPrinter,
 } from '@tumihub/react-native-thermal-receipt-printer';
-import BluetoothStateManager from 'react-native-bluetooth-state-manager';
+import {BluetoothStateManager} from 'react-native-bluetooth-state-manager';
 
 import {DefaultPrinterContext} from '../types';
 import {getDefaultPrinter} from '../../localDbQueries/printers';
@@ -199,41 +199,46 @@ const DefaultPrinterContextProvider = props => {
   useEffect(() => {
     if (!defaultPrinter || !PrinterController) return;
 
-    BluetoothStateManager.onStateChange(bluetoothState => {
-      setBluetoothState(() => bluetoothState);
-
-      if (bluetoothState === 'PoweredOn') {
-        ToastAndroid.showWithGravityAndOffset(
-          'Bluetooth powered on!',
-          ToastAndroid.SHORT,
-          ToastAndroid.BOTTOM,
-          0,
-          200,
-        );
-
-        // prompt user to connect to the default printer anytime the bluetooth turns on
-        if (printerState !== 'connected' && defaultPrinter.auto_connect) {
-          setConnectToPrinterDialogVisible(() => true);
-        }
-      } else if (bluetoothState === 'PoweredOff') {
-        if (printerState === 'connected') {
-          PrinterController.closeConn().then(() => {
-            setPrinterState(() => 'disconnected');
-
-            ToastAndroid.showWithGravityAndOffset(
-              'Bluetooth turned off. Default printer has been disconnected as well.',
-              ToastAndroid.LONG,
-              ToastAndroid.BOTTOM,
-              0,
-              200,
-            );
-          });
-        }
-
-        setPrinterState(() => 'disconnected');
-      }
-    }, true);
+    const remove = BluetoothStateManager.addListener(state => {
+      setBluetoothState(() => state);
+    });
+    return remove;
   }, [defaultPrinter, PrinterController]);
+
+  useEffect(() => {
+    if (!defaultPrinter || !PrinterController) return;
+
+    if (bluetoothState === 'PoweredOn') {
+      ToastAndroid.showWithGravityAndOffset(
+        'Bluetooth powered on!',
+        ToastAndroid.SHORT,
+        ToastAndroid.BOTTOM,
+        0,
+        200,
+      );
+
+      // prompt user to connect to the default printer anytime the bluetooth turns on
+      if (printerState !== 'connected' && defaultPrinter.auto_connect) {
+        setConnectToPrinterDialogVisible(() => true);
+      }
+    } else if (bluetoothState === 'PoweredOff') {
+      if (printerState === 'connected') {
+        PrinterController.closeConn().then(() => {
+          setPrinterState(() => 'disconnected');
+
+          ToastAndroid.showWithGravityAndOffset(
+            'Bluetooth turned off. Default printer has been disconnected as well.',
+            ToastAndroid.LONG,
+            ToastAndroid.BOTTOM,
+            0,
+            200,
+          );
+        });
+      }
+
+      setPrinterState(() => 'disconnected');
+    }
+  }, [defaultPrinter, PrinterController, bluetoothState]);
 
   useEffect(() => {
     let isLoading =

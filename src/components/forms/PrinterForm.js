@@ -14,7 +14,7 @@ import {
 import {Formik} from 'formik';
 import * as Yup from 'yup';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import BluetoothStateManager from 'react-native-bluetooth-state-manager';
+import {BluetoothStateManager} from 'react-native-bluetooth-state-manager';
 import {
   USBPrinter,
   NetPrinter,
