@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import {View, StyleSheet} from 'react-native';
 import {TextInput, Button, Text, useTheme} from 'react-native-paper';
-import DropDown from 'react-native-paper-dropdown';
+import {Dropdown} from 'react-native-paper-dropdown';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
 import {useQuery} from '@tanstack/react-query';
@@ -174,18 +174,19 @@ const IngredientUnitAndQuantityForm = props => {
                 operationType="add"
               />
             </View>
-            <DropDown
+            <Dropdown
               label={'Unit'}
               mode={'flat'}
               visible={showDropDown}
               showDropDown={() => setShowDropDown(true)}
               onDismiss={() => setShowDropDown(false)}
               value={unit}
-              setValue={value => {
+              hideMenuHeader
+              onSelect={value => {
                 setUnit(value);
                 handleChange('in_recipe_uom_abbrev')(value);
               }}
-              list={unitOptions}
+              options={unitOptions}
               activeColor={colors.accent}
               dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
             />

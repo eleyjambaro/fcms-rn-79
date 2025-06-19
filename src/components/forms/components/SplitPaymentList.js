@@ -3,7 +3,7 @@ import React, {useState} from 'react';
 import commaNumber from 'comma-number';
 import {TextInput, useTheme} from 'react-native-paper';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import DropDown from 'react-native-paper-dropdown';
+import {Dropdown} from 'react-native-paper-dropdown';
 
 import useCurrencySymbol from '../../../hooks/useCurrencySymbol';
 import {extractNumber, formatUOMAbbrev} from '../../../utils/stringHelpers';
@@ -64,13 +64,14 @@ const SplitPaymentList = props => {
               />
             </View>
             <View style={{flex: 1}}>
-              <DropDown
+              <Dropdown
                 mode={'flat'}
                 visible={showDropDown === listItem.id}
                 showDropDown={() => setShowDropDown(() => listItem.id)}
                 onDismiss={() => setShowDropDown(null)}
                 value={listItem.payment_method}
-                setValue={value => {
+                hideMenuHeader
+                onSelect={value => {
                   let updatedListItem = {
                     ...listItem,
                     payment_method: value,
@@ -78,7 +79,7 @@ const SplitPaymentList = props => {
 
                   handleChangeListItemValue(updatedListItem);
                 }}
-                list={paymentMethodSelectionList}
+                options={paymentMethodSelectionList}
                 activeColor={colors.accent}
                 dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
                 inputProps={{disabled: false}}

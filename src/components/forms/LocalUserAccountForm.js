@@ -9,7 +9,7 @@ import {
 } from 'react-native-paper';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
-import DropDown from 'react-native-paper-dropdown';
+import {Dropdown} from 'react-native-paper-dropdown';
 import {useQuery} from '@tanstack/react-query';
 
 import TextInputLabel from './TextInputLabel';
@@ -200,14 +200,15 @@ const LocalUserAccountForm = props => {
               {`* Their email will be their username to login.`}
             </HelperText>
             {renderPasswordField(props)}
-            <DropDown
+            <Dropdown
               label={'Role'}
               mode={'flat'}
               visible={showDropDown}
               showDropDown={() => setShowDropDown(true)}
               onDismiss={() => setShowDropDown(false)}
               value={roleId}
-              setValue={value => {
+              hideMenuHeader
+              onSelect={value => {
                 if (isDisabled()) return;
 
                 setRoleId(value);
@@ -223,7 +224,7 @@ const LocalUserAccountForm = props => {
                   />
                 ),
               }}
-              list={roleSelectionList}
+              options={roleSelectionList}
               activeColor={colors.accent}
               dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
               dropDownItemTextStyle={

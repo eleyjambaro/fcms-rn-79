@@ -26,7 +26,7 @@ import {getTax, getTaxes} from '../../localDbQueries/taxes';
 import * as RootNavigation from '../../../RootNavigation';
 import {getVendor} from '../../localDbQueries/vendors';
 import QuantityUOMText from './QuantityUOMText';
-import DropDown from 'react-native-paper-dropdown';
+import {Dropdown} from 'react-native-paper-dropdown';
 
 const AddStockValidationSchema = Yup.object().shape({
   add_stock_unit_cost: Yup.string().required('Required'),
@@ -376,19 +376,20 @@ const BatchPurchaseAddStockForm = props => {
                 </View>
               </RadioButton.Group>
 
-              <DropDown
+              <Dropdown
                 label={'Tax'}
                 mode={'flat'}
                 visible={showDropDown}
                 showDropDown={() => setShowDropDown(true)}
                 onDismiss={() => setShowDropDown(false)}
                 value={values.tax_id}
-                setValue={value => {
+                hideMenuHeader
+                onSelect={value => {
                   setTaxId(value);
                   refetchTax();
                   handleChange('tax_id')(value);
                 }}
-                list={taxSelectionList}
+                options={taxSelectionList}
                 activeColor={colors.accent}
                 dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
                 inputProps={{disabled: isListRefetching}}
