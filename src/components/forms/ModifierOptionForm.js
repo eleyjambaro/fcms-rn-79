@@ -1,40 +1,21 @@
-import React, {useState, useEffect} from 'react';
-import {StyleSheet, View, Modal} from 'react-native';
-import {
-  TextInput,
-  Button,
-  Text,
-  Divider,
-  useTheme,
-  Subheading,
-  ActivityIndicator,
-  HelperText,
-  RadioButton,
-} from 'react-native-paper';
-import {useNavigation, useRoute} from '@react-navigation/native';
-import DropDown from 'react-native-paper-dropdown';
-import {Formik} from 'formik';
+import React, {useState} from 'react';
+import {StyleSheet, View} from 'react-native';
+import {TextInput, Button, Text, useTheme} from 'react-native-paper';
+import {Dropdown} from 'react-native-paper-dropdown';
+import {useFormik} from 'formik';
 import {useQuery} from '@tanstack/react-query';
 import convert from 'convert-units';
 import * as Yup from 'yup';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import moment from 'moment';
 
-import routes from '../../constants/routes';
-import CheckboxSelection from './CheckboxSelection';
-import MoreSelectionButton from '../../components/buttons/MoreSelectionButton';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import QuantityUOMText from './QuantityUOMText';
-import {getTax} from '../../localDbQueries/taxes';
 import {getItem} from '../../localDbQueries/items';
 import ConfirmationCheckbox from './ConfirmationCheckbox';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
-import appDefaults from '../../constants/appDefaults';
 import TextInputLabel from './TextInputLabel';
 
-const ModifierOptionValidationSchema = Yup.object().shape({
+const ModifierOptionValidationSchema = Yup.object({
   use_measurement_per_piece: Yup.boolean(),
   option_name: Yup.string().max(
     120,
@@ -190,142 +171,134 @@ const ModifierOptionForm = props => {
 
   let taxIdFormValue = item?.tax_id?.toString() || '';
 
+  const formik = useFormik({
+    initialValues: {
+      item_id: item?.id?.toString() || '',
+      tax_id: taxIdFormValue,
+      use_measurement_per_piece:
+        initialValues.use_measurement_per_piece || false,
+      option_selling_price: initialValues.option_selling_price || '',
+      in_option_qty: initialValues.in_option_qty?.toString() || '',
+      in_option_qty_uom_abbrev:
+        initialValues.in_option_qty_uom_abbrev || item?.uom_abbrev || '',
+      uom_abbrev_per_piece: initialValues.uom_abbrev_per_piece,
+      qty_per_piece: initialValues.qty_per_piece,
+      remarks: initialValues.remarks || '',
+    },
+    validationSchema: ModifierOptionValidationSchema,
+    onSubmit,
+  });
+
+  const {
+    handleChange,
+    handleBlur,
+    handleSubmit,
+    values,
+    errors,
+    touched,
+    dirty,
+    isValid,
+    isSubmitting,
+    setFieldValue,
+    setFieldTouched,
+    setFieldError,
+  } = formik;
+
   return (
-    <Formik
-      initialValues={{
-        item_id: item?.id?.toString() || '',
-        tax_id: taxIdFormValue,
-        use_measurement_per_piece:
-          initialValues.use_measurement_per_piece || false,
-        option_selling_price: initialValues.option_selling_price || '',
-        in_option_qty: initialValues.in_option_qty?.toString() || '',
-        in_option_qty_uom_abbrev:
-          initialValues.in_option_qty_uom_abbrev || item?.uom_abbrev || '',
-        uom_abbrev_per_piece: initialValues.uom_abbrev_per_piece,
-        qty_per_piece: initialValues.qty_per_piece,
-        remarks: initialValues.remarks || '',
-      }}
-      onSubmit={onSubmit}
-      validationSchema={ModifierOptionValidationSchema}>
-      {props => {
-        const {
-          handleChange,
-          handleBlur,
-          handleSubmit,
-          values,
-          errors,
-          touched,
-          dirty,
-          isValid,
-          isSubmitting,
-          setFieldValue,
-          setFieldTouched,
-          setFieldError,
-        } = props;
-
-        return (
-          <>
-            <TextInput
-              style={styles.textInput}
-              label={
-                <TextInputLabel
-                  label="Size Option Name (e.g., Regular, Large)"
-                  required
-                  error={
-                    errors.option_name && touched.option_name ? true : false
-                  }
-                />
+    <>
+      <TextInput
+        style={styles.textInput}
+        label={
+          <TextInputLabel
+            label="Size Option Name (e.g., Regular, Large)"
+            required
+            error={errors.option_name && touched.option_name ? true : false}
+          />
+        }
+        onChangeText={handleChange('option_name')}
+        onBlur={handleBlur('option_name')}
+        value={values.option_name}
+        error={errors.option_name && touched.option_name ? true : false}
+        autoCapitalize="sentences"
+      />
+      <View style={{flexDirection: 'row'}}>
+        <TextInput
+          label={
+            <TextInputLabel
+              label="Size/Quantity"
+              required
+              error={
+                errors.option_selling_price && touched.option_selling_price
+                  ? true
+                  : false
               }
-              onChangeText={handleChange('option_name')}
-              onBlur={handleBlur('option_name')}
-              value={values.option_name}
-              error={errors.option_name && touched.option_name ? true : false}
-              autoCapitalize="sentences"
             />
-            <View style={{flexDirection: 'row'}}>
-              <TextInput
-                label={
-                  <TextInputLabel
-                    label="Size/Quantity"
-                    required
-                    error={
-                      errors.option_selling_price &&
-                      touched.option_selling_price
-                        ? true
-                        : false
-                    }
-                  />
-                }
-                onChangeText={handleChange('in_option_qty')}
-                onBlur={handleBlur('in_option_qty')}
-                value={values.in_option_qty}
-                style={[styles.textInput, {flex: 1}]}
-                onFocus={() => {
-                  onFocus && onFocus();
-                }}
-                keyboardType="numeric"
-                error={
-                  errors.in_option_qty && touched.in_option_qty ? true : false
-                }
-              />
-              <QuantityUOMText
-                uomAbbrev={
-                  values.use_measurement_per_piece
-                    ? item?.uom_abbrev_per_piece
-                    : item?.uom_abbrev
-                }
-                quantity={values.in_option_qty}
-                operationType="add"
-              />
-            </View>
-            <DropDown
-              label={'Size/Quantity Unit'}
-              mode={'flat'}
-              visible={showDropDown}
-              showDropDown={() => setShowDropDown(true)}
-              onDismiss={() => setShowDropDown(false)}
-              value={unit}
-              setValue={value => {
-                setUnit(value);
-                handleChange('in_option_qty_uom_abbrev')(value);
-              }}
-              list={unitOptions}
-              activeColor={colors.accent}
-              dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
+          }
+          onChangeText={handleChange('in_option_qty')}
+          onBlur={handleBlur('in_option_qty')}
+          value={values.in_option_qty}
+          style={[styles.textInput, {flex: 1}]}
+          onFocus={() => {
+            onFocus && onFocus();
+          }}
+          keyboardType="numeric"
+          error={errors.in_option_qty && touched.in_option_qty ? true : false}
+        />
+        <QuantityUOMText
+          uomAbbrev={
+            values.use_measurement_per_piece
+              ? item?.uom_abbrev_per_piece
+              : item?.uom_abbrev
+          }
+          quantity={values.in_option_qty}
+          operationType="add"
+        />
+      </View>
+      <Dropdown
+        label={'Size/Quantity Unit'}
+        mode={'flat'}
+        visible={showDropDown}
+        showDropDown={() => setShowDropDown(true)}
+        onDismiss={() => setShowDropDown(false)}
+        value={unit}
+        hideMenuHeader
+        onSelect={value => {
+          setUnit(value);
+          handleChange('in_option_qty_uom_abbrev')(value);
+        }}
+        options={unitOptions}
+        activeColor={colors.accent}
+        dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
+      />
+      {renderUseMeasurementPerPieceCheckbox(formik)}
+      <View style={{flexDirection: 'row'}}>
+        <TextInput
+          style={[styles.textInput, {flex: 1}]}
+          label={
+            <TextInputLabel
+              label="Selling Price"
+              required
+              error={
+                errors.option_selling_price && touched.option_selling_price
+                  ? true
+                  : false
+              }
             />
-            {renderUseMeasurementPerPieceCheckbox(props)}
-            <View style={{flexDirection: 'row'}}>
-              <TextInput
-                style={[styles.textInput, {flex: 1}]}
-                label={
-                  <TextInputLabel
-                    label="Selling Price"
-                    required
-                    error={
-                      errors.option_selling_price &&
-                      touched.option_selling_price
-                        ? true
-                        : false
-                    }
-                  />
-                }
-                onChangeText={handleChange('option_selling_price')}
-                onBlur={handleBlur('option_selling_price')}
-                value={values.option_selling_price}
-                keyboardType="numeric"
-                error={
-                  errors.option_selling_price && touched.option_selling_price
-                    ? true
-                    : false
-                }
-              />
-              <QuantityUOMText
-                uomAbbrev={values.uom_abbrev}
-                prefixText={'Per '}
-              />
-            </View>
+          }
+          onChangeText={handleChange('option_selling_price')}
+          onBlur={handleBlur('option_selling_price')}
+          value={values.option_selling_price}
+          keyboardType="numeric"
+          error={
+            errors.option_selling_price && touched.option_selling_price
+              ? true
+              : false
+          }
+        />
+        <QuantityUOMText uomAbbrev={values.uom_abbrev} prefixText={'Per '} />
+      </View>
 
-            {/* <TextInput
+      {/* <TextInput
               multiline
               label="Remarks (Optional)"
               onChangeText={handleChange('remarks')}
@@ -336,22 +309,19 @@ const ModifierOptionForm = props => {
               }}
               error={errors.remarks && touched.remarks ? true : false}
             /> */}
-            {renderFormError(touched, errors)}
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              disabled={!dirty || !isValid || isSubmitting}
-              loading={isSubmitting}
-              style={{marginTop: 20}}>
-              Save
-            </Button>
-            <Button onPress={onCancel} style={{marginTop: 10}}>
-              Cancel
-            </Button>
-          </>
-        );
-      }}
-    </Formik>
+      {renderFormError(touched, errors)}
+      <Button
+        mode="contained"
+        onPress={handleSubmit}
+        disabled={!dirty || !isValid || isSubmitting}
+        loading={isSubmitting}
+        style={{marginTop: 20}}>
+        Save
+      </Button>
+      <Button onPress={onCancel} style={{marginTop: 10}}>
+        Cancel
+      </Button>
+    </>
   );
 };
 
