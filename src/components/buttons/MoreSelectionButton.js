@@ -1,6 +1,6 @@
 import React, {useEffect} from 'react';
-import {StyleSheet, Pressable, Text, View} from 'react-native';
-import {Subheading, useTheme} from 'react-native-paper';
+import {StyleSheet, Pressable, View} from 'react-native';
+import {Text, useTheme} from 'react-native-paper';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 const MoreSelectionButton = props => {
@@ -46,6 +46,7 @@ const MoreSelectionButton = props => {
     color: disabled ? colors.disabled : colors.primary,
     marginRight: 5,
     fontWeight: 'bold',
+    fontSize: 16,
   };
   const renderingValueProps = {
     style: renderingValueDefaultStyle,
@@ -67,21 +68,23 @@ const MoreSelectionButton = props => {
 
     if (value) {
       return (
-        <Subheading numberOfLines={1} style={renderingValueDefaultStyle}>
+        <Text numberOfLines={1} style={renderingValueDefaultStyle}>
           {trimTextLength(value)}
-        </Subheading>
+        </Text>
       );
     }
 
     return (
-      <Subheading
+      <Text
         style={{
+          ...renderingValueDefaultStyle,
           color: colors.primary,
           marginRight: 5,
+          fontWeight: 'normal',
           fontStyle: 'italic',
         }}>
         {placeholder}
-      </Subheading>
+      </Text>
     );
   };
 
