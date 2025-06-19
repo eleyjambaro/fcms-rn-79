@@ -1,20 +1,13 @@
-import React, {useState, useEffect} from 'react';
+import React from 'react';
 import {StyleSheet, ScrollView} from 'react-native';
 import {Chip, useTheme} from 'react-native-paper';
 
 const FiltersList = props => {
   const {filters = [], containerStyle, value = '', onChange} = props;
   const {colors} = useTheme();
-  const [currentValue, setCurrentValue] = useState(value);
-  const [currentLabel, setCurrentLabel] = useState('');
-
-  useEffect(() => {
-    onChange && onChange(currentValue, currentLabel);
-  }, [value, currentValue]);
 
   const handlePress = (value, label) => {
-    setCurrentValue(() => setCurrentValue(value));
-    setCurrentLabel(() => setCurrentLabel(label));
+    onChange && onChange(value, label);
   };
 
   return (
@@ -26,7 +19,6 @@ const FiltersList = props => {
         return (
           <Chip
             key={filter.label}
-            // selected={value === filter.value ? true : false}
             onPress={() => {
               handlePress(filter.value, filter.label);
               filter.handler && filter.handler();
@@ -39,10 +31,10 @@ const FiltersList = props => {
                   ? colors.disabled
                   : colors.neutralTint3,
               },
-              currentValue === filter.value && {backgroundColor: colors.accent},
+              value === filter.value && {backgroundColor: colors.accent},
             ]}
             disabled={filter?.disabled}
-            textStyle={[currentValue === filter.value && {fontWeight: 'bold'}]}
+            textStyle={[value === filter.value && {fontWeight: 'bold'}]}
             mode="outlined">
             {filter.label || ''}
           </Chip>
