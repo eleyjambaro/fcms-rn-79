@@ -1912,7 +1912,7 @@ const Account = props => {
           </View>
 
           {authUser?.is_root_account ? (
-            <View style={{alignItems: 'center'}}>
+            <View style={{alignItems: 'center', marginBottom: 40}}>
               <View
                 style={{
                   backgroundColor: colors.accent,
