@@ -61,19 +61,19 @@ const ItemValidationSchema = Yup.object().shape({
   add_measurement_per_piece: Yup.boolean(),
   uom_abbrev_per_piece: Yup.string().when('add_measurement_per_piece', {
     is: true,
-    then: Yup.string().required(),
-    otherwise: Yup.string().notRequired(),
+    then: () => Yup.string().required(),
+    otherwise: () => Yup.string().notRequired(),
   }),
   set_uom_to_uom_per_piece: Yup.boolean(),
   uom_abbrev_per_piece: Yup.string().when('set_uom_to_uom_per_piece', {
     is: true,
-    then: Yup.string().required(),
-    otherwise: Yup.string().notRequired(),
+    then: () => Yup.string().required(),
+    otherwise: () => Yup.string().notRequired(),
   }),
   qty_per_piece: Yup.string().when('uom_abbrev_per_piece', {
     is: uomAbbrevPerPiece => uomAbbrevPerPiece?.length > 0,
-    then: Yup.string().required(),
-    otherwise: Yup.string().notRequired(),
+    then: () => Yup.string().required(),
+    otherwise: () => Yup.string().notRequired(),
   }),
 });
 

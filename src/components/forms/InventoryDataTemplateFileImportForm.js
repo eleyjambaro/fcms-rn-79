@@ -25,11 +25,12 @@ const InventoryDataTemplateValidationSchema = Yup.object().shape({
   file_path: Yup.string().required('Required.'),
   sheets: Yup.array().when('select_multiple_sheets', {
     is: true,
-    then: Yup.array().min(1, 'Must have at least one selected worksheet.'),
+    then: () =>
+      Yup.array().min(1, 'Must have at least one selected worksheet.'),
   }),
   sheet: Yup.string().when('select_multiple_sheets', {
     is: false,
-    then: Yup.string().required('Must select a worksheet to import.'),
+    then: () => Yup.string().required('Must select a worksheet to import.'),
   }),
 });
 

@@ -28,7 +28,7 @@ const LocalUserAccountValidationSchema = Yup.object().shape({
     .required('User email field is required.'),
   password: Yup.string().when('edit_mode', {
     is: false,
-    then: Yup.string().required(),
+    then: () => Yup.string().required(),
   }),
   role_id: Yup.string().required(),
 });
