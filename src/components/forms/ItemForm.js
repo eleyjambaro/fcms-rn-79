@@ -1332,27 +1332,6 @@ const ItemForm = props => {
     );
   };
 
-  if (
-    editMode &&
-    !item?.is_finished_product &&
-    getItemInitStockLogStatus === 'loading'
-  ) {
-    return <DefaultLoadingScreen />;
-  }
-
-  if (
-    editMode &&
-    !item?.is_finished_product &&
-    getItemInitStockLogStatus === 'error'
-  ) {
-    return (
-      <DefaultErrorScreen
-        errorTitle="Oops!"
-        errorMessage="Something went wrong"
-      />
-    );
-  }
-
   const itemInitStockLog = getItemInitStockLogData?.result;
 
   let initialStockQty = initialValues.initial_stock_qty?.toString() || '0';
@@ -1462,6 +1441,27 @@ const ItemForm = props => {
   let sellingDetailsHeadingText = editMode
     ? 'Update Selling Price'
     : 'Input Selling Price';
+
+  if (
+    editMode &&
+    !item?.is_finished_product &&
+    getItemInitStockLogStatus === 'loading'
+  ) {
+    return <DefaultLoadingScreen />;
+  }
+
+  if (
+    editMode &&
+    !item?.is_finished_product &&
+    getItemInitStockLogStatus === 'error'
+  ) {
+    return (
+      <DefaultErrorScreen
+        errorTitle="Oops!"
+        errorMessage="Something went wrong"
+      />
+    );
+  }
 
   return (
     <>
