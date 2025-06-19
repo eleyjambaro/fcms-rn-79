@@ -34,7 +34,7 @@ const ScanPrinters = props => {
         key={printer.inner_mac_address}
         style={{marginTop: 30}}
         onPress={() => onPressListItem && onPressListItem({listItem: printer})}>
-        <Text>{`device_name: ${printer.device_name}, inner_mac_address: ${printer.inner_mac_address}`}</Text>
+        <Text>{`${printer.device_name}`}</Text>
       </TouchableOpacity>
     );
   };

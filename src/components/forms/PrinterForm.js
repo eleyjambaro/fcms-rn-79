@@ -217,6 +217,7 @@ const PrinterForm = props => {
                   contentContainerStyle={{
                     backgroundColor: 'white',
                     padding: 20,
+                    paddingBottom: 40,
                   }}>
                   <Title style={{marginBottom: 15, textAlign: 'center'}}>
                     Bluetooth devices list
