@@ -21,6 +21,7 @@ import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {BottomSheetModalProvider} from '@gorhom/bottom-sheet';
 import {gestureHandlerRootHOC} from 'react-native-gesture-handler';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
+import {TabsProvider} from 'react-native-paper-tabs';
 
 import ItemFormContextProvider from './src/context/providers/ItemFormContextProvider';
 import ExpenseFormContextProvider from './src/context/providers/ExpenseFormContextProvider';
@@ -141,7 +142,9 @@ export default function Main() {
                               <ItemFormContextProvider>
                                 <ExpenseFormContextProvider>
                                   <RecipeFormContextProvider>
-                                    <App />
+                                    <TabsProvider>
+                                      <App />
+                                    </TabsProvider>
                                   </RecipeFormContextProvider>
                                 </ExpenseFormContextProvider>
                               </ItemFormContextProvider>
