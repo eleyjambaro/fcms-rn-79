@@ -1,11 +1,12 @@
 import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 import {sign, decode} from 'react-native-pure-jwt';
 import DeviceInfo from 'react-native-device-info';
+import packageJson from '../../package.json';
 
 import {createNewOrGetDeviceImplantedUniqueId} from '../constants/deviceImplantedUniqueIdConfig';
 
 export const env = 'prod'; // change to 'dev' manualy when on development mode
-export const appVersion = '1.1.128';
+export const appVersion = packageJson.version;
 export const localUserDefaultRoleId = 2; // Encoder
 
 export const defaultAppConfig = {
