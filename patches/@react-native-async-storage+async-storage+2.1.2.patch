@@ -1,0 +1,19 @@
+diff --git a/node_modules/@react-native-async-storage/async-storage/android/build.gradle b/node_modules/@react-native-async-storage/async-storage/android/build.gradle
+index 4560dc7..7926e8c 100644
+--- a/node_modules/@react-native-async-storage/async-storage/android/build.gradle
++++ b/node_modules/@react-native-async-storage/async-storage/android/build.gradle
+@@ -42,9 +42,14 @@ android {
+         namespace "com.reactnativecommunity.asyncstorage"
+         buildFeatures {
+             buildConfig true
++            
+         }
+     }
+ 
++    buildFeatures {
++        viewBinding true
++    }
++
+     compileSdkVersion project.ext.AsyncStorageConfig.compileSdkVersion
+     // Used to override the NDK path/version by allowing users to customize
+     // the NDK path/version from their root project (e.g. for M1 support)
