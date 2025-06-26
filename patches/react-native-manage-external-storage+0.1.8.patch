@@ -1,0 +1,52 @@
+diff --git a/node_modules/react-native-manage-external-storage/src/index.tsx b/node_modules/react-native-manage-external-storage/src/index.tsx
+index 858d972..95fe902 100644
+--- a/node_modules/react-native-manage-external-storage/src/index.tsx
++++ b/node_modules/react-native-manage-external-storage/src/index.tsx
+@@ -2,24 +2,35 @@ import { NativeModules } from 'react-native';
+ var PermissionFile = NativeModules.PermissionFile;
+ 
+ 
+-export default  function ManageExternalStorage():any {
+-    // let result :any ;
+- return PermissionFile.checkAndGrantPermission(
++async function checkAndGrantPermission(onError: any, onSuccess: any) {
++   await PermissionFile.checkAndGrantPermission(
+     (err: any): any => {
+-      console.log("An Error Occured", err);
++      onError && onError(err)
+       return err
+     },
+-    (res: any): any => {
+-      return res;
++    (isGranted: any): any => {
++      onSuccess && onSuccess(isGranted)
++      return isGranted;
+     }
+   )
++}
+ 
+-//    console.log("From Dev", result);
+-  
+-//   return result
+- 
++async function checkPermission(onError: any, onSuccess: any) {
++  await PermissionFile.checkPermissionStatus(
++    (err: any): any => {
++      onError && onError(err)
++      return err
++    },
++    (isGranted: any): any => {
++      onSuccess && onSuccess(isGranted)
++      return isGranted;
++    }
++  )
+ }
+ 
+-ManageExternalStorage()
++export const ManageExternalStorage = {
++  checkAndGrantPermission,
++  checkPermission
++}
+ 
+-// export default PermissionFile
++export default ManageExternalStorage;
