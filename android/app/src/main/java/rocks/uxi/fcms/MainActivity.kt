@@ -1,4 +1,4 @@
-package com.fcms
+package rocks.uxi.fcms
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

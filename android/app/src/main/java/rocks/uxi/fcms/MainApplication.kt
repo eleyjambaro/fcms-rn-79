@@ -1,4 +1,4 @@
-package com.fcms
+package rocks.uxi.fcms
 
 import android.app.Application
 import com.facebook.react.PackageList
