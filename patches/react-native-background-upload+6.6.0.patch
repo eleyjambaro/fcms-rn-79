@@ -1,0 +1,31 @@
+diff --git a/node_modules/react-native-background-upload/android/build.gradle b/node_modules/react-native-background-upload/android/build.gradle
+index fa6963f..a4144cf 100644
+--- a/node_modules/react-native-background-upload/android/build.gradle
++++ b/node_modules/react-native-background-upload/android/build.gradle
+@@ -20,7 +20,6 @@ buildscript {
+ 
+ apply plugin: 'com.android.library'
+ apply plugin: 'kotlin-android'
+-apply plugin: 'kotlin-android-extensions'
+ 
+ def DEFAULT_COMPILE_SDK_VERSION = 28
+ def DEFAULT_BUILD_TOOLS_VERSION = "28.0.3"
+@@ -46,6 +45,9 @@ android {
+     lintOptions {
+         abortOnError false
+     }
++    buildFeatures {
++        viewBinding true
++    }
+ }
+ 
+ repositories {
+@@ -62,8 +64,6 @@ dependencies {
+ 
+     implementation 'com.facebook.react:react-native:+'
+ 
+-    implementation "org.jetbrains.kotlin:$_kotlinStdlib:$_kotlinVersion"
+-
+     implementation 'net.gotev:uploadservice-okhttp:4.7.0'
+ 
+     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.0.0'
