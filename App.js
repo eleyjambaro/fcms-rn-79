@@ -431,7 +431,7 @@ const App = () => {
   useEffect(() => {
     setIsInitializing(() => true);
 
-    checkRequiredPermissions();
+    // checkRequiredPermissions();
 
     // enableFileLogger();
 
