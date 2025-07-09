@@ -1077,7 +1077,7 @@ const Account = props => {
   const renderDataSyncAndBackupSection = () => {
     const Component = (
       <Drawer.Section title="Data Sync & Backup">
-        <Drawer.Item
+        {/* <Drawer.Item
           icon="cloud-upload-outline"
           label={`Send Data to Server (${appDefaults.appDisplayName} Cloud)`}
           onPress={async () => {
@@ -1096,7 +1096,7 @@ const Account = props => {
               return;
             }
           }}
-        />
+        /> */}
         {/* <Drawer.Item
               icon="cloud-download-outline"
               label="Get Data from Server"
