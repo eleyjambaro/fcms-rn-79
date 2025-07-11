@@ -21,7 +21,6 @@ import {
 import {Button, Dialog, Text, Portal} from 'react-native-paper';
 import {NavigationContainer} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ManageExternalStorage from 'react-native-manage-external-storage';
 import {useQuery} from '@tanstack/react-query';
 import {FileLogger} from 'react-native-file-logger';
 import * as RNFS from 'react-native-fs';
@@ -317,19 +316,8 @@ const App = () => {
 
     // for android 11 or higher
     if (sdkVersion >= 30) {
-      await ManageExternalStorage.checkPermission(
-        err => {
-          if (err) {
-            console.debug(err);
-          }
-        },
-        isGranted => {
-          if (!isGranted) {
-            setNeedStorageManagementPermissionScreenVisible(() => true);
-            onGranted && onGranted();
-          }
-        },
-      );
+      setNeedStorageManagementPermissionScreenVisible(() => true);
+      onGranted && onGranted();
     } else {
       // Check if write permission is already given or not
       let isWriteExternalStoragePermitted = await PermissionsAndroid.check(

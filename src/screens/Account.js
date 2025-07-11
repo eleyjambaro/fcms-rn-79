@@ -642,21 +642,8 @@ const Account = props => {
 
       // for android 11 or higher
       if (sdkVersion >= 30) {
-        await ManageExternalStorage.checkPermission(
-          err => {
-            if (err) {
-              console.debug(err);
-            }
-          },
-          isGranted => {
-            if (!isGranted) {
-              setNeedStorageManagementPermissionDialogVisible(() => true);
-            } else {
-              // Already have Permission
-              setBackupDialogVisible(() => true);
-            }
-          },
-        );
+        // no run-time permission is required
+        setBackupDialogVisible(() => true);
       } else {
         // Check if write permission is already given or not
         let isWriteExternalStoragePermitted = await PermissionsAndroid.check(
@@ -707,21 +694,8 @@ const Account = props => {
 
       // for android 11 or higher
       if (sdkVersion >= 30) {
-        await ManageExternalStorage.checkPermission(
-          err => {
-            if (err) {
-              console.debug(err);
-            }
-          },
-          isGranted => {
-            if (!isGranted) {
-              setNeedStorageManagementPermissionDialogVisible(() => true);
-            } else {
-              // Already have Permission
-              setRecoverDataDialogVisible(() => true);
-            }
-          },
-        );
+        // No need a run-time permission
+        setRecoverDataDialogVisible(() => true);
       } else {
         // Check if write permission is already given or not
         let isWriteExternalStoragePermitted = await PermissionsAndroid.check(
@@ -772,21 +746,8 @@ const Account = props => {
 
       // for android 11 or higher
       if (sdkVersion >= 30) {
-        await ManageExternalStorage.checkPermission(
-          err => {
-            if (err) {
-              console.debug(err);
-            }
-          },
-          isGranted => {
-            if (!isGranted) {
-              setNeedStorageManagementPermissionDialogVisible(() => true);
-            } else {
-              // Already have Permission
-              setDownloadEmptyInvDataTemplateDialogVisible(() => true);
-            }
-          },
-        );
+        // No need a run-time permission
+        setDownloadEmptyInvDataTemplateDialogVisible(() => true);
       } else {
         // Check if write permission is already given or not
         let isWriteExternalStoragePermitted = await PermissionsAndroid.check(
@@ -837,21 +798,8 @@ const Account = props => {
 
       // for android 11 or higher
       if (sdkVersion >= 30) {
-        await ManageExternalStorage.checkPermission(
-          err => {
-            if (err) {
-              console.debug(err);
-            }
-          },
-          isGranted => {
-            if (!isGranted) {
-              setNeedStorageManagementPermissionDialogVisible(() => true);
-            } else {
-              // Already have Permission
-              setImportInvDataTemplateDialogVisible(() => true);
-            }
-          },
-        );
+        // No need a run-time permission
+        setImportInvDataTemplateDialogVisible(() => true);
       } else {
         // Check if write permission is already given or not
         let isWriteExternalStoragePermitted = await PermissionsAndroid.check(
@@ -902,21 +850,8 @@ const Account = props => {
 
       // for android 11 or higher
       if (sdkVersion >= 30) {
-        await ManageExternalStorage.checkPermission(
-          err => {
-            if (err) {
-              console.debug(err);
-            }
-          },
-          isGranted => {
-            if (!isGranted) {
-              setNeedStorageManagementPermissionDialogVisible(() => true);
-            } else {
-              // Already have Permission
-              setExportInvDataTemplateDialogVisible(() => true);
-            }
-          },
-        );
+        // no need a run-time permission
+        setExportInvDataTemplateDialogVisible(() => true);
       } else {
         // Check if write permission is already given or not
         let isWriteExternalStoragePermitted = await PermissionsAndroid.check(

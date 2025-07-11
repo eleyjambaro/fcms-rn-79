@@ -103,26 +103,12 @@ const CompanyForm = props => {
     try {
       // for android 11 or higher
       if (sdkVersion >= 30) {
-        await ManageExternalStorage.checkPermission(
-          err => {
-            if (err) {
-              console.debug(err);
-            }
-          },
-          async isGranted => {
-            if (!isGranted) {
-              setNeedStorageManagementPermissionDialogVisible(() => true);
-            } else {
-              // Already have Permission
-              try {
-                await showFilePicker(formikProps);
-              } catch (error) {
-                console.debug(error);
-                throw error;
-              }
-            }
-          },
-        );
+        try {
+          await showFilePicker(formikProps);
+        } catch (error) {
+          console.debug(error);
+          throw error;
+        }
       } else {
         // Check if write permission is already given or not
         let isWriteExternalStoragePermitted = await PermissionsAndroid.check(

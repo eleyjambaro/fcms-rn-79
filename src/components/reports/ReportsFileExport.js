@@ -1173,21 +1173,8 @@ const ReportsFileExport = props => {
 
       // for android 11 or higher
       if (sdkVersion >= 30) {
-        await ManageExternalStorage.checkPermission(
-          err => {
-            if (err) {
-              console.debug(err);
-            }
-          },
-          isGranted => {
-            if (!isGranted) {
-              setNeedStorageManagementPermissionDialogVisible(() => true);
-            } else {
-              // Already have Permission
-              setExportOptionsModalVisible(() => true);
-            }
-          },
-        );
+        // No need a run-time permission
+        setExportOptionsModalVisible(() => true);
       } else {
         // Check if write permission is already given or not
         let isWriteExternalStoragePermitted = await PermissionsAndroid.check(
