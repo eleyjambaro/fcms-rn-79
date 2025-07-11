@@ -45,7 +45,7 @@ const LocalUserAccountProfile = props => {
             style={{marginRight: 18, backgroundColor: colors.neutralTint3}}
             labelStyle={{fontWeight: 'bold'}}
           />
-          <View style={{flex: 1}}>
+          <View>
             <Text
               style={{
                 fontSize: 18,
