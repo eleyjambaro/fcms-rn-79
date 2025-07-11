@@ -20,7 +20,7 @@ import {
 } from 'react-native-paper';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
-import DocumentPicker from '@react-native-documents/picker';
+import * as DocumentPicker from '@react-native-documents/picker';
 // import RNFetchBlob from 'react-native-fetch-blob';
 import RNFetchBlob from 'rn-fetch-blob';
 import ManageExternalStorage from 'react-native-manage-external-storage';
@@ -83,14 +83,14 @@ const CompanyForm = props => {
   const showFilePicker = async formikProps => {
     const {setFieldTouched, setFieldValue} = formikProps;
 
-    const [res] = await DocumentPicker.pick({
+    const [file] = await DocumentPicker.pick({
       allowMultiSelection: false,
       type: [DocumentPicker.types.images],
     });
 
-    setSelectedFile(() => res?.[0]);
+    setSelectedFile(() => file);
 
-    const stats = await RNFetchBlob.fs.stat(decodeURI(res?.[0]?.uri));
+    const stats = await RNFetchBlob.fs.stat(decodeURI(file?.uri));
 
     setFieldTouched('company_logo_path', true);
     setFieldValue('company_logo_path', stats.path);

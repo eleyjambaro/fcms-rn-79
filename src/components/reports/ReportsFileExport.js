@@ -34,7 +34,7 @@ import * as RNFS from 'react-native-fs';
 import XLSX from 'xlsx';
 import moment from 'moment';
 import FileViewer from 'react-native-file-viewer';
-import DocumentPicker from '@react-native-documents/picker';
+import * as DocumentPicker from '@react-native-documents/picker';
 import {
   BottomSheetModal,
   BottomSheetBackdrop,
@@ -1216,7 +1216,7 @@ const ReportsFileExport = props => {
 
   const handlePressDownloads = async () => {
     try {
-      const [res] = await DocumentPicker.pick({
+      const [file] = await DocumentPicker.pick({
         allowMultiSelection: false,
         type: [DocumentPicker.types.xlsx, DocumentPicker.types.xls],
       });
@@ -1230,7 +1230,7 @@ const ReportsFileExport = props => {
       // });
 
       // FileViewer alternative
-      setSelectedFile(() => res?.[0]);
+      setSelectedFile(() => file);
       setAppSuggestionsModalVisible(() => true);
     } catch (e) {
       // error

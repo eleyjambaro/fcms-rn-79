@@ -40,7 +40,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import DocumentPicker from '@react-native-documents/picker';
+import * as DocumentPicker from '@react-native-documents/picker';
 import RNFetchBlob from 'rn-fetch-blob';
 import RNRestart from 'react-native-restart';
 

@@ -10,7 +10,7 @@ import {
 import {Formik} from 'formik';
 import * as Yup from 'yup';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import DocumentPicker from '@react-native-documents/picker';
+import * as DocumentPicker from '@react-native-documents/picker';
 
 import SelectionButtonList from '../buttons/SelectionButtonList';
 import {readInventoryDataTemplateFile} from '../../localDbQueries/inventoryDataTemplate';
@@ -62,14 +62,23 @@ const InventoryDataTemplateFileImportForm = props => {
     const {setFieldValue, setFieldTouched} = formikProps;
 
     try {
-      const [res] = await DocumentPicker.pick({
+      const [file] = await DocumentPicker.pick({
         allowMultiSelection: false,
-        copyTo: 'cachesDirectory',
         type: [DocumentPicker.types.xlsx, DocumentPicker.types.xls],
       });
 
+      const [localCopy] = await DocumentPicker.keepLocalCopy({
+        files: [
+          {
+            uri: file.uri,
+            fileName: file.name,
+          },
+        ],
+        destination: 'cachesDirectory',
+      });
+
       const stats = await RNFetchBlob.fs.stat(
-        decodeURIComponent(res?.[0]?.fileCopyUri),
+        decodeURIComponent(localCopy?.localUri),
       );
 
       // const filePath = `${'/storage/emulated/0/Download/FCMS Inventory Data Template Populated (2).xlsx'}`;

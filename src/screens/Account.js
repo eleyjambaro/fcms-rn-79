@@ -36,7 +36,7 @@ import {
   saveBackupDataToThisDevice,
 } from '../localDbQueries/accounts';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import DocumentPicker from '@react-native-documents/picker';
+import * as DocumentPicker from '@react-native-documents/picker';
 import RNFetchBlob from 'rn-fetch-blob';
 
 import useAuthContext from '../hooks/useAuthContext';
@@ -893,7 +893,7 @@ const Account = props => {
 
   const handlePressDownloads = async () => {
     try {
-      const [res] = await DocumentPicker.pick({
+      const [file] = await DocumentPicker.pick({
         allowMultiSelection: false,
         type: [DocumentPicker.types.xlsx, DocumentPicker.types.xls],
       });
@@ -907,7 +907,7 @@ const Account = props => {
       // });
 
       // FileViewer alternative
-      setSelectedFile(() => res?.[0]);
+      setSelectedFile(() => file);
       setAppSuggestionsModalVisible(() => true);
     } catch (e) {
       // error
