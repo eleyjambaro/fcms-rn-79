@@ -40,6 +40,7 @@ import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingSc
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
 import appDefaults from '../constants/appDefaults';
 import useWindowProperties from '../hooks/useWindowProperties';
+import BannerAdComponent from '../components/ads/BannerAdComponent';
 
 const Home = props => {
   const {navigation} = props;
@@ -584,7 +585,7 @@ const Home = props => {
             fabStyle={{
               backgroundColor: colors.primary,
               elevation: 3,
-              marginBottom: 40,
+              marginBottom: 120,
             }}
             color={colors.dark}
             open={open}
@@ -684,7 +685,8 @@ const Home = props => {
             <View style={styles.row}>{renderHighlightedFirstRowButtons()}</View>
           </View>
 
-          <View style={[styles.group, {padding: groupPadding}]}>
+          <View
+            style={[styles.group, {padding: groupPadding, paddingBottom: 150}]}>
             {/* <View style={[styles.groupHeader]}>
               <Text
                 style={{
@@ -695,12 +697,14 @@ const Home = props => {
                 {'Inventory Management'}
               </Text>
             </View> */}
-
             {/* First row */}
             {renderMainButtons()}
           </View>
         </View>
       </ScrollView>
+      <View>
+        <BannerAdComponent />
+      </View>
     </>
   );
 };

@@ -51,6 +51,7 @@
     "react-native-file-viewer": "^2.1.5",
     "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.25.0",
+    "react-native-google-mobile-ads": "^15.4.0",
     "react-native-image-picker": "^8.2.1",
     "react-native-keep-awake": "^4.0.0",
     "react-native-manage-external-storage": "^0.1.8",

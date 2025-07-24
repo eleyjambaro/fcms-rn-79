@@ -24,6 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useQuery} from '@tanstack/react-query';
 import {FileLogger} from 'react-native-file-logger';
 import * as RNFS from 'react-native-fs';
+import mobileAds from 'react-native-google-mobile-ads';
 
 import AuthStack from './src/stacks/AuthStack';
 import withAuthContextProvider from './src/hoc/withAuthContextProvider';
@@ -361,7 +362,7 @@ const App = () => {
       } catch (error) {
         if (error.code === 'ENOENT') {
           // should prompt user to enable all files management permission
-          setNeedStorageManagementPermissionScreenVisible(true);
+          // setNeedStorageManagementPermissionScreenVisible(true);
         }
 
         throw error;
@@ -385,6 +386,21 @@ const App = () => {
 
       // await saveLicenseKey();
       // await removeLicenseKey();
+    } catch (error) {
+      console.debug(error);
+    } finally {
+      callback && callback();
+    }
+  }
+
+  async function initializeAppSegment3(callback) {
+    try {
+      mobileAds()
+        .initialize()
+        .then(adapterStatuses => {
+          // Initialization complete!
+          console.info('Mobile ads initialization complete!');
+        });
     } catch (error) {
       console.debug(error);
     } finally {
@@ -429,6 +445,8 @@ const App = () => {
       setIsInitializing(() => false);
       // FileLogger.disableConsoleCapture();
     }); // this segment requires permission
+
+    initializeAppSegment3();
   }, []);
 
   useEffect(() => {}, []);
