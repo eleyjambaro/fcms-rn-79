@@ -4,7 +4,7 @@ import {sign, decode} from 'react-native-pure-jwt';
 
 import {CloudAuthContext} from '../types';
 import keys from '../../keys';
-import {createNewOrGetDeviceImplantedUniqueId} from '../../constants/deviceImplantedUniqueIdConfig';
+import deviceInfo from '../../lib/deviceInfo';
 
 const CloudAuthContextProvider = props => {
   const {children} = props;
@@ -78,8 +78,8 @@ const CloudAuthContextProvider = props => {
 
         if (hasAuthToken) {
           authToken = await SecureStorage.getItem('cloudAuthToken');
-          const diuid = await createNewOrGetDeviceImplantedUniqueId();
-          let secretKey = diuid;
+          const deviceId = await deviceInfo.getDeviceId();
+          let secretKey = deviceId;
 
           // decode token
           const {payload} = await decode(

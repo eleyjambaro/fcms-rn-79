@@ -2,8 +2,7 @@ import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 import {sign, decode} from 'react-native-pure-jwt';
 import DeviceInfo from 'react-native-device-info';
 import packageJson from '../../package.json';
-
-import {createNewOrGetDeviceImplantedUniqueId} from '../constants/deviceImplantedUniqueIdConfig';
+import deviceInfo from '../lib/deviceInfo';
 
 export const env = 'prod'; // change to 'dev' manualy when on development mode
 export const appVersion = packageJson.version;
@@ -41,8 +40,8 @@ export async function getAppConfig() {
     const parsedLicenseToken = JSON.parse(licenseToken);
     const {lt: token, kp: keyPair} = parsedLicenseToken;
 
-    const diuid = await createNewOrGetDeviceImplantedUniqueId();
-    let secretKey = diuid + keyPair;
+    const deviceId = await deviceInfo.getDeviceId();
+    let secretKey = deviceId + keyPair;
 
     // decode token
     const {payload} = await decode(

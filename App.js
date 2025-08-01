@@ -82,7 +82,7 @@ import {
   deleteAllBatchPurchaseGroupsAndEntries,
   deleteUnconfirmedBatchPurchaseGroupsAndEntries,
 } from './src/localDbQueries/batchPurchase';
-import {createNewOrGetDeviceImplantedUniqueId} from './src/constants/deviceImplantedUniqueIdConfig';
+import deviceInfo from './src/lib/deviceInfo';
 
 const App = () => {
   const [
@@ -369,10 +369,11 @@ const App = () => {
       }
 
       /**
-       * Device Implanted Unique Identifier
+       * Device Info
        */
-      const diuid = await createNewOrGetDeviceImplantedUniqueId();
-      console.info('DIUID (Device Implanted Unique ID): ', diuid);
+
+      const deviceId = await deviceInfo.getDeviceId();
+      console.info('Device ID: ', deviceId);
 
       /**
        * Place other initialization here

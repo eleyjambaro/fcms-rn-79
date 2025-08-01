@@ -4,7 +4,7 @@ import {sign, decode} from 'react-native-pure-jwt';
 
 import {AuthContext} from '../types';
 import keys from '../../keys';
-import {createNewOrGetDeviceImplantedUniqueId} from '../../constants/deviceImplantedUniqueIdConfig';
+import deviceInfo from '../../lib/deviceInfo';
 
 const AuthContextProvider = props => {
   const {children} = props;
@@ -75,8 +75,8 @@ const AuthContextProvider = props => {
 
         if (hasAuthToken) {
           authToken = await SecureStorage.getItem('authToken');
-          const diuid = await createNewOrGetDeviceImplantedUniqueId();
-          let secretKey = diuid;
+          const deviceId = await deviceInfo.getDeviceId();
+          let secretKey = deviceId;
 
           // decode token
           const {payload} = await decode(

@@ -22,10 +22,10 @@ import {
 import getAppConfig from '../constants/appConfig';
 import {assignDefaultRoleToAnAccount, getUserAccountRole} from './roles';
 import DeviceInfo from 'react-native-device-info';
-import {createNewOrGetDeviceImplantedUniqueId} from '../constants/deviceImplantedUniqueIdConfig';
 import {getLicenseStatus} from './license';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 import manualDataRecovery from '../constants/dataRecovery';
+import deviceInfo from '../lib/deviceInfo';
 
 export const generateAuthToken = async (account, roleConfig) => {
   try {
@@ -49,8 +49,8 @@ export const generateAuthToken = async (account, roleConfig) => {
       authTokenPayload.role_config = roleConfig;
     }
 
-    const diuid = await createNewOrGetDeviceImplantedUniqueId();
-    let secretKey = diuid;
+    const deviceId = await deviceInfo.getDeviceId();
+    let secretKey = deviceId;
 
     const authToken = await sign(
       authTokenPayload,
@@ -89,8 +89,8 @@ export const getAuthTokenStatus = async ({queryKey}) => {
     if (hasAuthToken) {
       authToken = await SecureStorage.getItem('authToken');
 
-      const diuid = await createNewOrGetDeviceImplantedUniqueId();
-      let secretKey = diuid;
+      const deviceId = await deviceInfo.getDeviceId();
+      let secretKey = deviceId;
 
       try {
         // decode token
@@ -711,8 +711,9 @@ export const handleAccountCheckingForThisDevice = async () => {
 
     const configFileData = await getLocalAccountConfigFileData();
 
-    const diuid = await createNewOrGetDeviceImplantedUniqueId();
-    let secretKey = diuid;
+    const deviceId = await deviceInfo.getDeviceId();
+
+    let secretKey = deviceId;
 
     // verify if config file was generated from this device by verifying the token
     const {payload} = await decode(
@@ -845,8 +846,8 @@ export const saveAccountForThisDeviceLocally = async ({
       accounts,
     };
 
-    const diuid = await createNewOrGetDeviceImplantedUniqueId();
-    let secretKey = diuid;
+    const deviceId = await deviceInfo.getDeviceId();
+    let secretKey = deviceId;
 
     const localAccountConfigToken = await sign(
       tokenPayload,
@@ -964,8 +965,8 @@ export const saveUpdatedRootAccountAndCompaniesToThisDevice = async () => {
       accounts,
     };
 
-    const diuid = await createNewOrGetDeviceImplantedUniqueId();
-    let secretKey = diuid;
+    const deviceId = await deviceInfo.getDeviceId();
+    let secretKey = deviceId;
 
     const localAccountConfigToken = await sign(
       tokenPayload,

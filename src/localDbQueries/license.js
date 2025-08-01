@@ -8,8 +8,8 @@ import axios from 'axios';
 import keys from '../keys/index';
 import {getLocalAccountDBConnection} from '../localDb';
 import endpoints from '../constants/endpoints';
-import {createNewOrGetDeviceImplantedUniqueId} from '../constants/deviceImplantedUniqueIdConfig';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
+import deviceInfo from '../lib/deviceInfo';
 
 export const hasLicenseKey = async ({queryKey}) => {
   const [_key] = queryKey;
@@ -76,8 +76,8 @@ export const getLicenseStatus = async ({queryKey}) => {
       const {lt: token, kp: keyPair} = parsedLicenseToken;
       metadata = parsedLicenseToken.md;
 
-      const diuid = await createNewOrGetDeviceImplantedUniqueId();
-      let secretKey = diuid + keyPair;
+      const deviceId = await deviceInfo.getDeviceId();
+      let secretKey = deviceId + keyPair;
 
       try {
         // decode token
@@ -164,8 +164,8 @@ export const saveLicenseToken = async (licenseToken, keyPair) => {
       _ac: {},
     };
 
-    const diuid = await createNewOrGetDeviceImplantedUniqueId();
-    let secretKey = diuid + keyPair;
+    const deviceId = await deviceInfo.getDeviceId();
+    let secretKey = deviceId + keyPair;
 
     // decode token
     const {payload} = await decode(
@@ -225,8 +225,8 @@ export const activateLicense = async ({values, authState}) => {
     let accountUID = null;
     let companyUID = 'test';
 
-    const diuid = await createNewOrGetDeviceImplantedUniqueId();
-    let deviceUID = diuid;
+    const deviceId = await deviceInfo.getDeviceId();
+    let deviceUID = deviceId;
 
     let accounts = [];
     let companies = [];
