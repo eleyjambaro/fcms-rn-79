@@ -6,6 +6,7 @@ import {
   View,
   ScrollView,
   Pressable,
+  StatusBar,
   ToastAndroid,
 } from 'react-native';
 import {
@@ -579,6 +580,7 @@ const Home = props => {
 
   return (
     <>
+      <StatusBar barStyle={'dark-content'} />
       {isFocused && !expiredAuthTokenDialogVisible ? (
         <Portal>
           <FAB.Group
