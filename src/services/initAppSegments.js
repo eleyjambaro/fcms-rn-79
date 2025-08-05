@@ -1,4 +1,4 @@
-import {createLocalAccountTables, createTables, alterTables} from '../localDb';
+import {createTables, alterTables} from '../localDb';
 import {appVersion} from '../constants/appConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {deleteDefaultRoles, createDefaultRoles} from '../localDbQueries/roles';
@@ -18,7 +18,6 @@ import deviceInfo from '../lib/deviceInfo';
 import mobileAds from 'react-native-google-mobile-ads';
 
 export async function initializeSegment1() {
-  await createLocalAccountTables();
   await createTables();
   await alterTables(appVersion);
 

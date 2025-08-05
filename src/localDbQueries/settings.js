@@ -1,4 +1,4 @@
-import {getLocalAccountDBConnection} from '../localDb';
+import {getDBConnection} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {appStorageKeySeperator} from './appVersions';
 
@@ -46,7 +46,7 @@ export const createSetting = async ({values}) => {
   );`;
 
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
 
     return db.executeSql(query);
   } catch (error) {
@@ -67,7 +67,7 @@ export const getSettings = async ({queryKey}) => {
   }
 
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
     const results = await db.executeSql(query);
 
     let settings = [];
@@ -93,7 +93,7 @@ export const getSettings = async ({queryKey}) => {
 
 export const updateSettings = async ({values, onSuccess, onError}) => {
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
 
     if (!values.length > 0) {
       throw Error('values parameter for settings is missing');
@@ -176,7 +176,7 @@ export const getAllSettings = async ({queryKey}) => {
   let query = `SELECT * FROM settings`;
 
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
     const results = await db.executeSql(query);
 
     let settings = [];
@@ -202,7 +202,7 @@ export const getAllSettings = async ({queryKey}) => {
 
 export const deleteAllSettings = async () => {
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
 
     const query = `DELETE FROM settings`;
     await db.executeSql(query);
@@ -218,7 +218,7 @@ export const deletePreviousAppVersionDefaultSettings = async (
   currentVersion = '0.0.0',
 ) => {
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
 
     const query = `DELETE FROM settings WHERE app_version != '${currentVersion}'`;
     return db.executeSql(query);

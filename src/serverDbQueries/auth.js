@@ -6,7 +6,7 @@ import {
 } from '../utils/cloudAuthHelpers';
 import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 
-import {getLocalAccountDBConnection} from '../localDb';
+import {getDBConnection} from '../localDb';
 
 import urls from '../constants/urls';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
@@ -19,7 +19,7 @@ export const getDefaultCloudEmail = async () => {
   try {
     let email = null;
 
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
 
     const hasDefaultEmail = await SecureStorage.hasItem(defaultCloudEmailKey);
 

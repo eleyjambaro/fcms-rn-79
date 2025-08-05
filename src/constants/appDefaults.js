@@ -4,7 +4,6 @@ const externalStorageAppDirectoryName = 'FCMS_Config';
 
 export const appDefaults = {
   appDisplayName: 'FCMS',
-  localAccountDbName: 'FCMSLocalAccountDb',
   dbName: 'FCMSDb',
   packageName: 'rocks.uxi.fcms',
   externalStorageAppDirectoryName,

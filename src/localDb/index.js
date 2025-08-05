@@ -1,56 +1,35 @@
-import {
-  enablePromise,
-  openDatabase,
-  SQLiteDatabase,
-} from 'react-native-sqlite-storage';
-import * as RNFS from 'react-native-fs';
-import semver from 'semver';
-
+import {enablePromise, openDatabase} from 'react-native-sqlite-storage';
 import {appDefaults} from '../constants/appDefaults';
-import {env} from '../constants/appConfig';
 
 enablePromise(true);
 
 const dbName = appDefaults.dbName;
-const localAccountDbName = appDefaults.localAccountDbName;
-const packageName = 'rocks.uxi.fcms';
 
 export const getDBConnection = async () => {
   return openDatabase({name: dbName, location: 'default', readOnly: false});
 };
 
-export const getLocalAccountDBConnection = async () => {
-  return openDatabase({
-    name: localAccountDbName,
-    location: 'default',
-    readOnly: false,
-  });
-};
-
-export const createLocalAccountTables = async () => {
-  let db;
-
-  try {
-    db = await getLocalAccountDBConnection();
-  } catch (error) {
-    throw error;
-  }
-
-  // create table if not exists
-  const createRolesTableQuery = `CREATE TABLE IF NOT EXISTS roles (
+/**
+ * App Local Accounts & Config/Settings Table Queries
+ */
+// create table if not exists
+const createRolesTableQuery = `
+  CREATE TABLE IF NOT EXISTS roles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     role_uid VARCHAR,
     name VARCHAR,
     role_config_json VARCHAR,
     app_version VARCHAR,
     is_app_default INTEGER DEFAULT 0
-  );`;
+  );
+`;
 
-  /**
-   * Deprecated fields:
-   * - role, in favor of role_id
-   */
-  const createAccountsTableQuery = `CREATE TABLE IF NOT EXISTS accounts (
+/**
+ * Deprecated fields:
+ * - role, in favor of role_id
+ */
+const createAccountsTableQuery = `
+  CREATE TABLE IF NOT EXISTS accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_uid VARCHAR,
     username VARCHAR,
@@ -77,9 +56,11 @@ export const createLocalAccountTables = async () => {
     CONSTRAINT fk_role
     FOREIGN KEY (role_id)
     REFERENCES roles(id)
-  );`;
+  );
+`;
 
-  const createCompaniesTableQuery = `CREATE TABLE IF NOT EXISTS companies (
+const createCompaniesTableQuery = `
+  CREATE TABLE IF NOT EXISTS companies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     company_uid VARCHAR,
     company_name VARCHAR,
@@ -89,30 +70,22 @@ export const createLocalAccountTables = async () => {
     company_email VARCHAR,
     company_logo_path VARCHAR,
     branch VARCHAR
-  );`;
+  );
+`;
 
-  const createSettingsTableQuery = `CREATE TABLE IF NOT EXISTS settings (
+const createSettingsTableQuery = `
+  CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR,
     value VARCHAR,
     setting_group VARCHAR,
     setting_sub_group VARCHAR,
     app_version VARCHAR
-  );`;
-
-  try {
-    await db.executeSql(createRolesTableQuery);
-    await db.executeSql(createAccountsTableQuery);
-    await db.executeSql(createCompaniesTableQuery);
-    await db.executeSql(createSettingsTableQuery);
-  } catch (error) {
-    console.debug(error);
-    throw error;
-  }
-};
+  );
+`;
 
 /**
- * Create App Table Queries
+ * App Primary Feature Table Queries
  */
 
 const createAppVersionsTableQuery = `
@@ -746,6 +719,17 @@ export const createTables = async () => {
   }
 
   try {
+    /**
+     * App Local Accounts & Config/Settings
+     */
+    await db.executeSql(createRolesTableQuery);
+    await db.executeSql(createAccountsTableQuery);
+    await db.executeSql(createCompaniesTableQuery);
+    await db.executeSql(createSettingsTableQuery);
+
+    /**
+     * App Primary Feature Tables
+     */
     await db.executeSql(createAppVersionsTableQuery);
     await db.executeSql(createCategoriesTableQuery);
     await db.executeSql(createTaxesTableQuery);
@@ -1340,15 +1324,11 @@ export const executeSqlIfColumnNotExist = async (
   }
 };
 
-export const deleteTable = async (dbName, localAccountDb = false) => {
+export const deleteTable = async dbName => {
   let db;
 
   try {
-    if (localAccountDb) {
-      db = await getLocalAccountDBConnection();
-    } else {
-      db = await getDBConnection();
-    }
+    db = await getDBConnection();
   } catch (error) {
     throw error;
   }
