@@ -31,10 +31,8 @@ import RNRestart from 'react-native-restart';
 import ManageExternalStorage from 'react-native-manage-external-storage';
 import csvtojson from 'csvtojson';
 import convert from 'convert-units';
-import {
-  getLocalUserAccount,
-  saveBackupDataToThisDevice,
-} from '../localDbQueries/accounts';
+import {getLocalUserAccount} from '../localDbQueries/accounts';
+import {saveBackupDataToThisDevice} from '../lib/deviceData';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import * as DocumentPicker from '@react-native-documents/picker';
 import RNFetchBlob from 'rn-fetch-blob';
