@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getLocalAccountDBConnection, getDBConnection} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {sign, decode} from 'react-native-pure-jwt';
 import bcrypt from 'react-native-bcrypt';
@@ -132,7 +132,7 @@ export const hasRootAccount = async ({queryKey}) => {
   const query = `SELECT * FROM accounts WHERE is_root_account = 1`;
 
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     const result = await db.executeSql(query);
 
     return {
@@ -151,7 +151,7 @@ export const createAccount = async ({
   onError,
 }) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     let companies = [];
     let hasCompany = false;
@@ -304,7 +304,7 @@ export const createAccount = async ({
 
 export const getRootAccountUsername = async ({values}) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const getRootAccountQuery = `
       SELECT username FROM accounts WHERE is_root_account = 1
@@ -323,7 +323,7 @@ export const getRootAccountUsername = async ({values}) => {
 
 export const emergencyChangePassword = async ({values}) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     if (!values.password) {
       throw Error('Missing password field value.');
@@ -376,7 +376,7 @@ export const signInAccount = async ({
   onEmergencyPasswordRecovery,
 }) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const date = new Date();
     const month = ('0' + (date.getMonth() + 1)).slice(-2);
@@ -486,7 +486,7 @@ export const recreateRootAccountFromAccountsArray = async ({
   companies,
 }) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     if (!accounts || !accounts.length > 0) {
       throw Error('Accounts parameter is missing or no length.');
@@ -546,7 +546,7 @@ export const recreateRootAccountFromAccountsArray = async ({
 
 export const deleteAccount = async ({id}) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const query = `DELETE FROM accounts WHERE id = ${parseInt(id)}`;
     return db.executeSql(query);
@@ -558,7 +558,7 @@ export const deleteAccount = async ({id}) => {
 
 export const deleteAllAccounts = async () => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const query = `DELETE FROM accounts`;
     return db.executeSql(query);
@@ -900,7 +900,7 @@ export const saveAccountForThisDeviceLocally = async ({
 
 export const saveUpdatedRootAccountAndCompaniesToThisDevice = async () => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     /**
      * Get root account and companies
@@ -1026,7 +1026,7 @@ export const saveUpdatedRootAccountAndCompaniesToThisDevice = async () => {
  */
 export const saveUpdatedLocalUserAccountsToThisDevice = async () => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const accounts = [];
     const getLocalUserAccounts = `
@@ -1107,7 +1107,7 @@ export const createLocalUserAccount = async ({
   onError,
 }) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     const appConfig = await getAppConfig();
     const insertLimit = appConfig?.insertUserLimit;
 
@@ -1200,7 +1200,7 @@ export const getLocalUserAccounts = async ({queryKey, pageParam = 1}) => {
   });
 
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     const list = [];
     const offset = (pageParam - 1) * limit;
     const queryOrderBy = orderBy ? `ORDER BY ${orderBy} ASC` : '';
@@ -1246,7 +1246,7 @@ export const getLocalUserAccount = async ({queryKey, pageParam = 1}) => {
   const [_key, {id}] = queryKey;
 
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const getLocalUserAccountQuery = `
       SELECT *,
@@ -1275,7 +1275,7 @@ export const getLocalUserAccount = async ({queryKey, pageParam = 1}) => {
 
 export const updateLocalUserAccount = async ({id, updatedValues, onError}) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     /**
      * Check if email or email as username is already exists
@@ -1314,7 +1314,7 @@ export const updateLocalUserAccount = async ({id, updatedValues, onError}) => {
 
 export const deleteLocalUserAccount = async ({id}) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const query = `DELETE FROM accounts WHERE id = ${parseInt(id)}`;
     return db.executeSql(query);
@@ -1326,7 +1326,7 @@ export const deleteLocalUserAccount = async ({id}) => {
 
 export const recreateLocalUserAccounts = async ({localUserAccounts}) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     if (!localUserAccounts) {
       throw Error('localUserAccounts parameter is missing.');
@@ -1543,7 +1543,7 @@ export const deleteMyAccount = async ({
   enableBackupData = true,
 }) => {
   try {
-    const db = await getDBConnection();
+    const localAccountDb = await getLocalAccountDBConnection();
     /**
      * Validate root user account password
      */
@@ -1552,7 +1552,7 @@ export const deleteMyAccount = async ({
      * 1. Get root user account
      */
     const getRootUserAccountQuery = `SELECT * FROM accounts WHERE is_root_account = 1`;
-    const getRootUserAccountResult = await db.executeSql(
+    const getRootUserAccountResult = await localAccountDb.executeSql(
       getRootUserAccountQuery,
     );
     const fetchedRootUserAccount = getRootUserAccountResult[0].rows.item(0);
@@ -1629,11 +1629,13 @@ export const deleteMyAccount = async ({
       await saveBackupDataToThisDevice();
     }
 
+    const appDb = await getDBConnection();
+
     // delete all app db tables data
-    await deleteAllDbTablesData(db);
+    await deleteAllDbTablesData(appDb);
 
     // delete all local accounts db tables data
-    await deleteAllDbTablesData(db);
+    await deleteAllDbTablesData(localAccountDb);
 
     // clear secure storage
     for (let key in rnStorageKeys) {

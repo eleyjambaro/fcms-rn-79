@@ -5,7 +5,8 @@ const configDirName = `${appDisplayName}_Config`;
 const dataDirName = `${appDisplayName}_Data`;
 
 export const appDefaults = {
-  appDisplayName,
+  appDisplayName: 'FCMS',
+  localAccountDbName: 'FCMSLocalAccount.db',
   dbName: 'FCMS.db',
   packageName: 'rocks.uxi.fcms',
   configDirName,

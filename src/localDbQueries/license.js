@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 import keys from '../keys/index';
-import {getDBConnection} from '../localDb';
+import {getLocalAccountDBConnection} from '../localDb';
 import endpoints from '../constants/endpoints';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 import deviceInfo from '../lib/deviceInfo';
@@ -238,7 +238,7 @@ export const activateLicense = async ({values, authState}) => {
 
     const getRootAccountQuery = `SELECT * FROM accounts WHERE is_root_account = 1`;
 
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     const getRootAccountResult = await db.executeSql(getRootAccountQuery);
     const rootAccount = getRootAccountResult[0].rows.item(0);
 

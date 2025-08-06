@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getLocalAccountDBConnection} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createQueryFilter,
@@ -193,7 +193,7 @@ export const setDefaultPrinter = async ({id}) => {
   )}' WHERE name = 'default_printer_id'`;
 
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     await db.executeSql(query);
   } catch (error) {
     console.debug(error);

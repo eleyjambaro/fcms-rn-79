@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getLocalAccountDBConnection} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {appStorageKeySeperator} from './appVersions';
 import {localUserDefaultRoleId} from '../constants/appConfig';
@@ -52,7 +52,7 @@ export const getRoles = async ({queryKey, pageParam = 1}) => {
   }
 
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     const list = [];
     const offset = (pageParam - 1) * limit;
     const selectAllQuery = `SELECT * `;
@@ -91,7 +91,7 @@ export const getRole = async ({queryKey}) => {
   }
 
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     const result = await db.executeSql(query);
 
     return {
@@ -109,7 +109,7 @@ export const getUserAccountRole = async accountRoleId => {
       throw Error('Missing accountRoleId parameter');
     }
 
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const query = `SELECT * FROM roles WHERE id = ${parseInt(accountRoleId)}`;
     const result = await db.executeSql(query);
@@ -127,7 +127,7 @@ export const assignDefaultRoleToAnAccount = async accountId => {
       throw Error('Missing accountId parameter');
     }
 
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const updateAccountRoleToDefaultQuery = `
       UPDATE accounts
@@ -183,7 +183,7 @@ export const createRole = async ({values}) => {
   );`;
 
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     return db.executeSql(query);
   } catch (error) {
     console.debug(error);
@@ -223,7 +223,7 @@ export const createDefaultRoles = async (version = '0.0.0') => {
 
 export const deleteDefaultRoles = async () => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const query = `DELETE FROM roles WHERE is_app_default = 1`;
     await db.executeSql(query);

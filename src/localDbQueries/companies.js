@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getLocalAccountDBConnection} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {sign, decode} from 'react-native-pure-jwt';
 import * as RNFS from 'react-native-fs';
@@ -19,7 +19,7 @@ export const hasCompany = async ({queryKey}) => {
   const query = `SELECT COUNT(*) FROM companies`;
 
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     const result = await db.executeSql(query);
     const totalCount = result?.[0]?.rows?.raw()?.[0]?.['COUNT(*)'];
 
@@ -34,7 +34,7 @@ export const hasCompany = async ({queryKey}) => {
 
 export const createCompany = async ({values, onSuccess, onError}) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     /**
      * Create Company
@@ -94,7 +94,7 @@ export const getCompany = async ({queryKey}) => {
   const query = `SELECT * FROM companies ORDER BY id ASC LIMIT 1`;
 
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     const result = await db.executeSql(query);
     const company = result[0].rows.item(0);
 
@@ -115,7 +115,7 @@ export const getCurrentSelectedCompany = async () => {
   const query = `SELECT * FROM companies ORDER BY id ASC LIMIT 1`;
 
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
     const result = await db.executeSql(query);
     const company = result[0].rows.item(0);
 
@@ -128,7 +128,7 @@ export const getCurrentSelectedCompany = async () => {
 
 export const updateCompany = async ({updatedValues, onSuccess}) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     /**
      * Get Company
@@ -229,7 +229,7 @@ export const updateCompany = async ({updatedValues, onSuccess}) => {
 
 export const recreateAllCompanies = async ({companies}) => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     if (!companies || !companies.length > 0) {
       throw Error('Companies parameter is missing or no length.');
@@ -285,7 +285,7 @@ export const recreateAllCompanies = async ({companies}) => {
 
 export const deleteAllCompanies = async () => {
   try {
-    const db = await getDBConnection();
+    const db = await getLocalAccountDBConnection();
 
     const query = `DELETE FROM companies`;
     return db.executeSql(query);

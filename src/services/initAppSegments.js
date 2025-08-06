@@ -1,8 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import mobileAds from 'react-native-google-mobile-ads';
-
-import {createTables, alterTables} from '../localDb';
+import {createLocalAccountTables, createTables, alterTables} from '../localDb';
 import {appVersion} from '../constants/appConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {deleteDefaultRoles, createDefaultRoles} from '../localDbQueries/roles';
 import {
   deleteDefaultOperations,
@@ -15,8 +13,10 @@ import {
 import {deleteDefaultTaxes, createDefaultTaxes} from '../localDbQueries/taxes';
 import {deleteAllUnits, setDefaultUnits} from '../localData/units';
 import {handleNewAppVersion} from '../localDbQueries/appVersions';
+import mobileAds from 'react-native-google-mobile-ads';
 
 export async function initializeTablesAndHandleAppVersion() {
+  await createLocalAccountTables();
   await createTables();
   await alterTables(appVersion);
 
