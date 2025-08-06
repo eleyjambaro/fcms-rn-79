@@ -12,6 +12,7 @@ import {isLocalAccountSetupCompleted} from '../localDbQueries/accounts';
 
 export default function useAppInitialization({
   onAppPreviouslyInstalledDetected,
+  enabledPrevoiusDataCheck = false,
 } = {}) {
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -19,23 +20,26 @@ export default function useAppInitialization({
     const init = async () => {
       setIsInitializing(true);
       try {
-        const isSetupCompleted = await isLocalAccountSetupCompleted();
-        const appInstalledIndicatorExists =
-          await checkIfAppInstalledIndicatorExists();
-        const isExistingAppDataIgnored = await isIgnoredExistingAppData();
-        const isExistingAppDateRecovered = await isRecoveredExistingAppData();
+        if (enabledPrevoiusDataCheck) {
+          const isSetupCompleted = await isLocalAccountSetupCompleted();
+          const appInstalledIndicatorExists =
+            await checkIfAppInstalledIndicatorExists();
+          const isExistingAppDataIgnored = await isIgnoredExistingAppData();
+          const isExistingAppDateRecovered = await isRecoveredExistingAppData();
 
-        if (
-          !isSetupCompleted &&
-          appInstalledIndicatorExists &&
-          (!isExistingAppDataIgnored || isExistingAppDateRecovered)
-        ) {
-          onAppPreviouslyInstalledDetected &&
-            onAppPreviouslyInstalledDetected();
-        } else {
-          await initializeTablesAndHandleAppVersion();
+          if (
+            !isSetupCompleted &&
+            appInstalledIndicatorExists &&
+            (!isExistingAppDataIgnored || isExistingAppDateRecovered)
+          ) {
+            onAppPreviouslyInstalledDetected &&
+              onAppPreviouslyInstalledDetected();
+            await initializeOtherServices();
+            return;
+          }
         }
 
+        await initializeTablesAndHandleAppVersion();
         await initializeOtherServices();
       } catch (error) {
         console.error('Initialization error:', error);

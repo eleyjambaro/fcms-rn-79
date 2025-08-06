@@ -6,6 +6,7 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.os.Build
+import android.provider.OpenableColumns
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
@@ -215,6 +216,47 @@ class RNMediaStoreModule(private val reactContext: ReactApplicationContext) : Re
         } catch (e: Exception) {
             Log.e("RNMediaStore", "copyFileToMediaStore failed", e)
             promise.reject("COPY_FILE_ERROR", e)
+        }
+    }
+
+    @ReactMethod
+    fun copyFileFromMediaStore(documentUriString: String, destinationPath: String, promise: Promise) {
+        try {
+            val uri = Uri.parse(documentUriString)
+            val resolver: ContentResolver = reactContext.contentResolver
+
+            val fileName = resolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && nameIndex != -1) {
+                    cursor.getString(nameIndex)
+                } else {
+                    null
+                }
+            } ?: run {
+                promise.reject("InvalidUri", "Unable to determine file name from URI: $documentUriString")
+                return
+            }
+
+            val destFile = File(destinationPath, fileName)
+            destFile.parentFile?.mkdirs()
+
+            resolver.openInputStream(uri)?.use { inputStream ->
+                FileOutputStream(destFile).use { outputStream ->
+                    val buffer = ByteArray(4096)
+                    var bytesRead: Int
+                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        outputStream.write(buffer, 0, bytesRead)
+                    }
+                    outputStream.flush()
+                }
+                promise.resolve(true)
+            } ?: run {
+                promise.reject("FileNotFound", "Unable to open input stream from URI: $documentUriString")
+            }
+
+        } catch (e: Exception) {
+            Log.e("RNMediaStore", "copyFileFromMediaStore error", e)
+            promise.reject("CopyError", e.localizedMessage)
         }
     }
 }

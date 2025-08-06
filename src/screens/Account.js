@@ -32,7 +32,12 @@ import ManageExternalStorage from 'react-native-manage-external-storage';
 import csvtojson from 'csvtojson';
 import convert from 'convert-units';
 import {getLocalUserAccount} from '../localDbQueries/accounts';
-import {saveBackupDataToThisDevice} from '../lib/deviceData';
+import {
+  formatSelectedBackupFile,
+  restoreSelectedBackupDataFromThisDevice,
+  saveBackupDataToThisDevice,
+  selectBackupDataFromThisDevice,
+} from '../lib/deviceData';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import * as DocumentPicker from '@react-native-documents/picker';
 import RNFetchBlob from 'rn-fetch-blob';
@@ -187,6 +192,7 @@ const Account = props => {
     }
   };
 
+  // deprecated in favor of selectBackupDataFromThisDeviceToRecover
   const findBackupDataFromDownloads = async () => {
     setIsRecoverDbLoading(() => true);
 
@@ -280,56 +286,35 @@ const Account = props => {
     }
   };
 
+  const selectBackupDataFromThisDeviceToRecover = async () => {
+    setIsRecoverDbLoading(() => true);
+
+    try {
+      const file = await selectBackupDataFromThisDevice();
+      const backupFile = await formatSelectedBackupFile(file);
+
+      setFoundBackupDataInfo(() => backupFile);
+
+      // show to user the recovery file data
+      setFoundBackupDataInfoModalVisible(() => true);
+    } catch (error) {
+      console.debug(error);
+
+      if (error.code === 'ENOENT') {
+        setNeedStorageManagementPermissionDialogVisible(() => true);
+      } else {
+        setRecoverDataFailedDialogVisible(() => true);
+      }
+    } finally {
+      setIsRecoverDbLoading(() => false);
+      setRecoverDataDialogVisible(() => false);
+    }
+  };
+
   const recoverBackupDataFromDownloads = async () => {
     setIsRecoverDbLoading(() => true);
 
     try {
-      /**
-       * Locate database recovery directory (from device Downloads foler)
-       */
-      const dataRecoveryDirectoryName = manualDataRecovery.directoryName;
-
-      const dataRecoveryDirectoryPath = `${RNFS.DownloadDirectoryPath}/${dataRecoveryDirectoryName}`;
-
-      const dataRecoveryDirectoryExists = await RNFS.exists(
-        dataRecoveryDirectoryPath,
-      );
-
-      if (!dataRecoveryDirectoryExists) {
-        let errMsg = 'Database recovery directory not found.';
-        setErrorMessage(() => errMsg);
-        return;
-      }
-
-      /**
-       * Get database recovery config file
-       */
-      const configFileName = manualDataRecovery.configFileName;
-      const configFileJson = await RNFS.readFile(
-        `${dataRecoveryDirectoryPath}/${configFileName}`,
-        'utf8',
-      );
-
-      if (!configFileJson) {
-        let errMsg = 'Database backup config file not found.';
-        setErrorMessage(() => errMsg);
-        return;
-      }
-
-      const configFileData = JSON.parse(configFileJson);
-
-      // verify if config file was generated from user's device by verifying the token
-      const {payload} = await decode(
-        configFileData?.cfg_t, // the token
-        manualDataRecovery.configTokenKey, // the secret
-        {
-          skipValidation: true, // to skip signature and exp verification
-        },
-      );
-
-      const backupDbId = payload?.id;
-      const backupDbName = `${manualDataRecovery.backupDbPrefix}${backupDbId}`;
-
       /**
        * Locate databases path (where sqlite database file is located)
        *
@@ -345,8 +330,7 @@ const Account = props => {
        * from Downloads (database recovery directory)
        * to databases directory
        */
-      const dbBackupFilePath = `${dataRecoveryDirectoryPath}/${backupDbName}`;
-
+      const dbBackupFilePath = foundBackupDataInfo?.path;
       const dbBackupFileExists = await RNFS.exists(dbBackupFilePath);
 
       if (!dbBackupFileExists) {
@@ -361,7 +345,7 @@ const Account = props => {
       ) {
         await RNFS.moveFile(
           `${databasesDirectoryPath}/${appDefaults.dbName}`,
-          `${RNFS.ExternalDirectoryPath}/${
+          `${RNFS.DownloadDirectoryPath}/${
             appDefaults.dbName
           }_replaced_${Date.now()}`,
         );
@@ -374,12 +358,12 @@ const Account = props => {
       );
 
       // move the recovered backup database file to the app's files directory to keep a copy
-      await RNFS.moveFile(
-        dbBackupFilePath,
-        `${RNFS.ExternalDirectoryPath}/${
-          appDefaults.dbName
-        }_recovered_${Date.now()}`,
-      );
+      // await RNFS.moveFile(
+      //   dbBackupFilePath,
+      //   `${RNFS.DownloadDirectoryPath}/${
+      //     appDefaults.dbName
+      //   }_recovered_${Date.now()}`,
+      // );
 
       setRecoverDataSuccessDialogVisible(() => true);
       setFoundBackupDataInfoModalVisible(() => false);
@@ -1426,7 +1410,8 @@ const Account = props => {
             <Button
               onPress={() => {
                 setRecoverDataDialogVisible(() => false);
-                findBackupDataFromDownloads();
+                // findBackupDataFromDownloads();
+                selectBackupDataFromThisDeviceToRecover();
               }}>
               Next
             </Button>
@@ -1495,7 +1480,7 @@ const Account = props => {
                   <Text style={{color: 'gray'}}>Backup date and time: </Text>
                   <Text style={{fontWeight: 'bold'}}>{`${moment(
                     foundBackupDataInfo.backupDate,
-                  ).format('MMM DD, YYYY - HH:MM')}`}</Text>
+                  ).format('MMMM DD, YYYY, hh:mm A')}`}</Text>
                 </View>
               </View>
               <View>

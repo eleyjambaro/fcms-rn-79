@@ -1,4 +1,7 @@
 import * as RNFS from 'react-native-fs';
+import * as DocumentPicker from '@react-native-documents/picker';
+import moment from 'moment';
+import RNFetchBlob from 'rn-fetch-blob';
 
 import appDefaults from '../constants/appDefaults';
 import manualDataRecovery from '../constants/dataRecovery';
@@ -43,6 +46,63 @@ export const saveBackupDataToThisDevice = async () => {
         'application/octet-stream',
         'Download/FCMS_Data',
       );
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const selectBackupDataFromThisDevice = async () => {
+  try {
+    const [file] = await DocumentPicker.pick({
+      type: [DocumentPicker.types.allFiles],
+      allowMultiSelection: false,
+      allowVirtualFiles: true,
+      requestLongTermAccess: true,
+      presentationStyle: 'fullScreen',
+    });
+
+    return file;
+  } catch (err) {
+    if (!DocumentPicker.isCancel(err)) {
+      console.error('DocumentPicker Error:', err);
+    }
+  }
+};
+
+export const formatSelectedBackupFile = async file => {
+  if (!file || !file.name || !file.uri) return null;
+
+  const timestamp = file.name
+    .split(`${manualDataRecovery.backupDbPrefix}`)
+    .pop() // e.g.: "1754414900020.db"
+    .split('.')[0];
+  const backupDate = new Date(parseInt(timestamp));
+  const backupDateFormatted = moment(backupDate).format(
+    'MMMM DD, YYYY, hh:mm A',
+  );
+
+  const stats = await RNFetchBlob.fs.stat(decodeURI(file.uri));
+  const path = stats?.path;
+
+  return {
+    name: file.name,
+    uri: file.uri,
+    path,
+    backupDate: backupDate,
+    backupDateFormatted,
+  };
+};
+
+export const restoreSelectedBackupDataFromThisDevice = async ({
+  fileUri,
+  destinationPath,
+}) => {
+  try {
+    await ensureDataDirectoryExists();
+
+    if (fileUri && destinationPath) {
+      await appMediaStore.copyFileFromMediaStore(fileUri, destinationPath);
     }
   } catch (error) {
     throw error;

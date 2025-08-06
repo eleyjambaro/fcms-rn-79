@@ -80,3 +80,15 @@ export async function copyFileToMediaStore(
     return null;
   }
 }
+
+export async function copyFileFromMediaStore(documentUri, destinationFullPath) {
+  if (Platform.OS === 'android') {
+    return RNMediaStore.copyFileFromMediaStore(
+      documentUri,
+      destinationFullPath,
+    );
+  } else {
+    logIOS('copyFileFromMediaStore', documentUri, destinationFullPath);
+    return null;
+  }
+}
