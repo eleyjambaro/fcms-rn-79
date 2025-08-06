@@ -1,20 +1,42 @@
 import {useEffect, useState} from 'react';
 import {
-  initializeSegment1,
-  initializeSegment2,
-  initializeSegment3,
+  initializeTablesAndHandleAppVersion,
+  initializeOtherServices,
 } from '../services/initAppSegments';
+import {
+  checkIfAppInstalledIndicatorExists,
+  isIgnoredExistingAppData,
+  isRecoveredExistingAppData,
+} from '../lib/appInstalledIndicator';
+import {isLocalAccountSetupCompleted} from '../localDbQueries/accounts';
 
-export default function useAppInitialization() {
+export default function useAppInitialization({
+  onAppPreviouslyInstalledDetected,
+} = {}) {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     const init = async () => {
       setIsInitializing(true);
       try {
-        await initializeSegment1();
-        await initializeSegment2();
-        await initializeSegment3();
+        const isSetupCompleted = await isLocalAccountSetupCompleted();
+        const appInstalledIndicatorExists =
+          await checkIfAppInstalledIndicatorExists();
+        const isExistingAppDataIgnored = await isIgnoredExistingAppData();
+        const isExistingAppDateRecovered = await isRecoveredExistingAppData();
+
+        if (
+          !isSetupCompleted &&
+          appInstalledIndicatorExists &&
+          (!isExistingAppDataIgnored || isExistingAppDateRecovered)
+        ) {
+          onAppPreviouslyInstalledDetected &&
+            onAppPreviouslyInstalledDetected();
+        } else {
+          await initializeTablesAndHandleAppVersion();
+        }
+
+        await initializeOtherServices();
       } catch (error) {
         console.error('Initialization error:', error);
       } finally {

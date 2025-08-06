@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 
 import useAppLifecycle from './src/hooks/useAppLifecycle';
 import useAppInitialization from './src/hooks/useAppInitialization';
@@ -10,9 +10,9 @@ import FilesAndMediaReadAndWritePermissionNeeded from './src/screens/FilesAndMed
 import Splash from './src/screens/Splash';
 import AuthStack from './src/stacks/AuthStack';
 import RootStack from './src/stacks/RootStack';
+import ReinstallDetectedStack from './src/stacks/ReinstallDetectedStack';
 
 import withAccountSetupContextProvider from './src/hoc/withAccountSetupContextProvider';
-import withAuthContextProvider from './src/hoc/withAuthContextProvider';
 import useAuthContext from './src/hooks/useAuthContext';
 
 const App = () => {
@@ -23,10 +23,18 @@ const App = () => {
     needStorageManagementPermissionScreenVisible,
   } = usePermissions({enabled: false});
 
-  const {isInitializing} = useAppInitialization();
-  useAppLifecycle(); // handles app state change + refetch
+  const [reinstallDetectedStackVisible, setReinstallDetectedStackVisible] =
+    useState(false);
 
   const {ExpiredAuthDialog} = useExpiredAuthDialog();
+
+  const {isInitializing} = useAppInitialization({
+    onAppPreviouslyInstalledDetected: () => {
+      setReinstallDetectedStackVisible(() => true);
+    },
+  });
+
+  useAppLifecycle(); // handles app state change + refetch
 
   const renderContent = () => {
     if (needStorageManagementPermissionScreenVisible) {
@@ -39,6 +47,10 @@ const App = () => {
 
     if (isCheckingPermission || isInitializing) {
       return <Splash />;
+    }
+
+    if (reinstallDetectedStackVisible) {
+      return <ReinstallDetectedStack />;
     }
 
     if (!authState.authToken || !authState.authUser) {
@@ -56,4 +68,4 @@ const App = () => {
   );
 };
 
-export default withAccountSetupContextProvider(withAuthContextProvider(App));
+export default withAccountSetupContextProvider(App);

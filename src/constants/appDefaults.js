@@ -1,13 +1,18 @@
 import * as RNFS from 'react-native-fs';
 
-const externalStorageAppDirectoryName = 'FCMS_Config';
+const appDisplayName = 'FCMS';
+const configDirName = `${appDisplayName}_Config`;
+const dataDirName = `${appDisplayName}_Data`;
 
 export const appDefaults = {
-  appDisplayName: 'FCMS',
-  dbName: 'FCMSDb',
+  appDisplayName,
+  dbName: 'FCMS.db',
   packageName: 'rocks.uxi.fcms',
-  externalStorageAppDirectoryName,
-  externalStorageAppDirectoryPath: `${RNFS.DownloadDirectoryPath}/${externalStorageAppDirectoryName}`,
+  configDirName,
+  dataDirName,
+  externalStorageAppDirectoryPath: `${RNFS.DownloadDirectoryPath}/${configDirName}`,
+  configDirPath: `${RNFS.DownloadDirectoryPath}/${configDirName}`, // alias of externalStorageAppDirectoryPath
+  dataDirPath: `${RNFS.DownloadDirectoryPath}/${dataDirName}`,
 };
 
 export const appDefaultsTypeRefs = {

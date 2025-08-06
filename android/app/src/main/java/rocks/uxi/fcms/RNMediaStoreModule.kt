@@ -178,4 +178,43 @@ class RNMediaStoreModule(private val reactContext: ReactApplicationContext) : Re
             promise.reject("DELETE_DIRECTORY_ERROR", e)
         }
     }
+
+    @ReactMethod
+    fun copyFileToMediaStore(sourcePath: String, fileName: String, mimeType: String, destinationPath: String, promise: Promise) {
+        try {
+            val sourceFile = File(sourcePath)
+            if (!sourceFile.exists() || !sourceFile.isFile) {
+                throw FileNotFoundException("Source file not found: $sourcePath")
+            }
+
+            val relativePath = destinationPath.takeIf { it.isNotEmpty() } ?: Environment.DIRECTORY_DOWNLOADS
+
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            }
+
+            val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            } else {
+                MediaStore.Files.getContentUri("external")
+            }
+
+            val resolver = reactContext.contentResolver
+            val uri = resolver.insert(collection, values)
+                ?: throw IOException("Failed to create MediaStore entry")
+
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                FileInputStream(sourceFile).use { inputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            } ?: throw IOException("Failed to open output stream")
+
+            promise.resolve(uri.toString())
+        } catch (e: Exception) {
+            Log.e("RNMediaStore", "copyFileToMediaStore failed", e)
+            promise.reject("COPY_FILE_ERROR", e)
+        }
+    }
 }

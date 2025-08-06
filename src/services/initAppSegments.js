@@ -1,6 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import mobileAds from 'react-native-google-mobile-ads';
+
 import {createTables, alterTables} from '../localDb';
 import {appVersion} from '../constants/appConfig';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {deleteDefaultRoles, createDefaultRoles} from '../localDbQueries/roles';
 import {
   deleteDefaultOperations,
@@ -13,11 +15,8 @@ import {
 import {deleteDefaultTaxes, createDefaultTaxes} from '../localDbQueries/taxes';
 import {deleteAllUnits, setDefaultUnits} from '../localData/units';
 import {handleNewAppVersion} from '../localDbQueries/appVersions';
-import {handleAccountCheckingForThisDevice} from '../localDbQueries/accounts';
-import deviceInfo from '../lib/deviceInfo';
-import mobileAds from 'react-native-google-mobile-ads';
 
-export async function initializeSegment1() {
+export async function initializeTablesAndHandleAppVersion() {
   await createTables();
   await alterTables(appVersion);
 
@@ -42,13 +41,7 @@ export async function initializeSegment1() {
   await setDefaultUnits(appVersion);
 }
 
-export async function initializeSegment2() {
-  await handleAccountCheckingForThisDevice();
-  const deviceId = await deviceInfo.getDeviceId();
-  console.info('Device ID:', deviceId);
-}
-
-export async function initializeSegment3() {
+export async function initializeOtherServices() {
   await mobileAds().initialize();
   console.info('Mobile ads initialized.');
 }

@@ -23,9 +23,11 @@ import {BluetoothStateManager} from 'react-native-bluetooth-state-manager';
 import {DefaultPrinterContext} from '../types';
 import {getDefaultPrinter} from '../../localDbQueries/printers';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
+import useAuthContext from '../../hooks/useAuthContext';
 
 const DefaultPrinterContextProvider = props => {
   const {children} = props;
+  const [authState] = useAuthContext();
   const getDefaultPrinterResult = useQuery(
     ['defaultPrinter'],
     getDefaultPrinter,
@@ -206,6 +208,7 @@ const DefaultPrinterContextProvider = props => {
   }, [defaultPrinter, PrinterController]);
 
   useEffect(() => {
+    if (!authState.authToken || !authState.authUser) return;
     if (!defaultPrinter || !PrinterController) return;
 
     if (bluetoothState === 'PoweredOn') {
@@ -241,6 +244,9 @@ const DefaultPrinterContextProvider = props => {
   }, [defaultPrinter, PrinterController, bluetoothState]);
 
   useEffect(() => {
+    if (!authState.authToken || !authState.authUser) return;
+    if (!defaultPrinter || !PrinterController) return;
+
     let isLoading =
       getDefaultPrinterStatus === 'loading' ||
       printerState === 'initializing' ||

@@ -26,6 +26,8 @@ import {getLicenseStatus} from './license';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 import manualDataRecovery from '../constants/dataRecovery';
 import deviceInfo from '../lib/deviceInfo';
+import {saveBackupDataToThisDevice} from '../lib/deviceData';
+import {writeAppInstalledIndicator} from '../lib/appInstalledIndicator';
 
 export const generateAuthToken = async (account, roleConfig) => {
   try {
@@ -265,7 +267,9 @@ export const createAccount = async ({
       accounts.push(account);
 
       try {
-        await saveAccountForThisDeviceLocally({companies, accounts});
+        await saveBackupDataToThisDevice();
+        await writeAppInstalledIndicator();
+        await markLocalAccountSetupAsCompleted();
       } catch (error) {
         // undo the creation of the account
         await deleteAccount({id: account.id});
@@ -580,6 +584,7 @@ export const isLocalAccountSetupCompleted = async () => {
 
 export const markLocalAccountSetupAsCompleted = async () => {
   await AsyncStorage.setItem('isLocalAccountSetupCompleted', 'true');
+  console.info('Local account setup marked as completed.');
 };
 
 const getLocalAccountConfigFileData = async () => {
@@ -1393,7 +1398,7 @@ export const recreateLocalUserAccounts = async ({localUserAccounts}) => {
   }
 };
 
-export const saveBackupDataToThisDevice = async () => {
+export const __saveBackupDataToThisDevice = async () => {
   try {
     /**
      * Create database recovery directory (to the device Downloads folder)

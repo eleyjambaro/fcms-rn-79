@@ -7,7 +7,7 @@ export const appStorageKeySeperator = '_app_version_';
 export const handleNewAppVersion = async ({onNewVersionDetected}) => {
   const installedAppVersion = appVersion;
   let isNewVersion = false;
-  let isAppFirstTimeInstalled = false;
+  let isAppFreshInstalled = false;
 
   console.info('Current installed app version: ', appVersion);
 
@@ -27,9 +27,9 @@ export const handleNewAppVersion = async ({onNewVersionDetected}) => {
     console.info('Previously installed app version info: ', fetchedVersion);
 
     if (!fetchedVersion) {
-      isAppFirstTimeInstalled = true;
+      isAppFreshInstalled = true;
     } else {
-      isAppFirstTimeInstalled = false;
+      isAppFreshInstalled = false;
     }
 
     if (fetchedVersion && fetchedVersion.version === installedAppVersion) {
@@ -38,10 +38,10 @@ export const handleNewAppVersion = async ({onNewVersionDetected}) => {
       isNewVersion = true;
     }
 
-    console.info('Is app first-time-installed: ', isAppFirstTimeInstalled);
+    console.info('Is app fresh installed/reinstalled: ', isAppFreshInstalled);
     console.info('Is new version: ', isNewVersion);
 
-    if (isNewVersion || isAppFirstTimeInstalled) {
+    if (isNewVersion || isAppFreshInstalled) {
       /**
        * Delete/clean up all previous app versions
        */

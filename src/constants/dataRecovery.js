@@ -3,7 +3,7 @@ import {appDefaults} from './appDefaults';
 const dbPrefix = `${appDefaults.appDisplayName?.toLocaleLowerCase()}_dbr_`;
 
 export const manualDataRecovery = {
-  directoryName: `${appDefaults.appDisplayName}`,
+  directoryName: `${appDefaults.appDisplayName}_Data`,
   configFileName: 'dbr_cfg.json',
   backupDbPrefix: dbPrefix,
   configTokenKey: 'test', // should be device's Mac Address

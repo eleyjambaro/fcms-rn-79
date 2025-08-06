@@ -33,6 +33,7 @@ import AppConfigContextProvider from './src/context/providers/AppConfigContextPr
 import SalesCounterContextProvider from './src/context/providers/SalesCounterContextProvider';
 import CloudAuthContextProvider from './src/context/providers/CloudAuthContextProvider';
 import DefaultPrinterContextProvider from './src/context/providers/DefaultPrinterContextProvider';
+import AuthContextProvider from './src/context/providers/AuthContextProvider';
 
 const {
   LightTheme: adaptedNavigationLightTheme,
@@ -127,36 +128,38 @@ export default function Main() {
         }}>
         <CloudAuthContextProvider>
           <QueryClientProvider client={queryClient}>
-            <PaperProvider theme={theme}>
-              <AppConfigContextProvider>
-                <NavigationContainer
-                  theme={theme}
-                  ref={navigationRef}
-                  navigationInChildEnabled>
-                  <GestureHandlerRootView>
-                    <BottomSheetModalProvider>
-                      <SearchbarContextProvider>
-                        <DefaultPrinterContextProvider>
-                          <SalesCounterContextProvider>
-                            <AddedIngredientsContextProvider>
-                              <ItemFormContextProvider>
-                                <ExpenseFormContextProvider>
-                                  <RecipeFormContextProvider>
-                                    <TabsProvider>
-                                      <App />
-                                    </TabsProvider>
-                                  </RecipeFormContextProvider>
-                                </ExpenseFormContextProvider>
-                              </ItemFormContextProvider>
-                            </AddedIngredientsContextProvider>
-                          </SalesCounterContextProvider>
-                        </DefaultPrinterContextProvider>
-                      </SearchbarContextProvider>
-                    </BottomSheetModalProvider>
-                  </GestureHandlerRootView>
-                </NavigationContainer>
-              </AppConfigContextProvider>
-            </PaperProvider>
+            <AuthContextProvider>
+              <PaperProvider theme={theme}>
+                <AppConfigContextProvider>
+                  <NavigationContainer
+                    theme={theme}
+                    ref={navigationRef}
+                    navigationInChildEnabled>
+                    <GestureHandlerRootView>
+                      <BottomSheetModalProvider>
+                        <SearchbarContextProvider>
+                          <DefaultPrinterContextProvider>
+                            <SalesCounterContextProvider>
+                              <AddedIngredientsContextProvider>
+                                <ItemFormContextProvider>
+                                  <ExpenseFormContextProvider>
+                                    <RecipeFormContextProvider>
+                                      <TabsProvider>
+                                        <App />
+                                      </TabsProvider>
+                                    </RecipeFormContextProvider>
+                                  </ExpenseFormContextProvider>
+                                </ItemFormContextProvider>
+                              </AddedIngredientsContextProvider>
+                            </SalesCounterContextProvider>
+                          </DefaultPrinterContextProvider>
+                        </SearchbarContextProvider>
+                      </BottomSheetModalProvider>
+                    </GestureHandlerRootView>
+                  </NavigationContainer>
+                </AppConfigContextProvider>
+              </PaperProvider>
+            </AuthContextProvider>
           </QueryClientProvider>
         </CloudAuthContextProvider>
       </SafeAreaView>

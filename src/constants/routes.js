@@ -1,4 +1,6 @@
 export const routes = {
+  createNewOrUseExistingAppData: () => 'CreateNewOrUseExistingAppData',
+  selectExistingAppData: () => 'SelectExistingAppData',
   filesAndMediaManagementPermissionNeeded: () =>
     'FilesAndMediaManagementPermissionNeeded',
   accountSetup: () => 'AccountSetup',
