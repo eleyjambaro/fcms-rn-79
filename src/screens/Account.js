@@ -61,6 +61,7 @@ import InventoryDataTemplateFileImportForm from '../components/forms/InventoryDa
 import {adUnitIds} from '../constants/adUnitIds';
 import BannerAdComponent from '../components/ads/BannerAdComponent';
 import ConfirmationCheckbox from '../components/forms/ConfirmationCheckbox';
+import ManageListButton from '../components/buttons/ManageListButton';
 
 const Account = props => {
   const {navigation} = props;
@@ -1168,23 +1169,6 @@ const Account = props => {
   };
 
   const renderEditCompanyProfileButton = () => {
-    const Component = (
-      <Pressable
-        onPress={() => {
-          navigation.navigate(routes.updateCompany());
-        }}>
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: 'bold',
-            color: colors.primary,
-            textAlign: 'center',
-          }}>
-          {'Edit Company Profile'}
-        </Text>
-      </Pressable>
-    );
-
     const enabledModule = 'account.updateCompanyProfile';
 
     if (authUser.is_root_account) {
@@ -1207,7 +1191,15 @@ const Account = props => {
       return null;
     }
 
-    return Component;
+    return (
+      <ManageListButton
+        label="Edit Company Profile"
+        icon="pencil-outline"
+        onPress={() => {
+          navigation.navigate(routes.updateCompany());
+        }}
+      />
+    );
   };
 
   const renderExportOptionsModalContent = () => {

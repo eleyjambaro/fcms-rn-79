@@ -77,9 +77,11 @@ const AppIcon = props => {
 
   const renderSubText = () => {
     let iconSubText = subText;
+    let subTextMarginTop = 2;
 
     if (!mainText && !subText) {
       iconSubText = 'M G M T.   S Y S.';
+      subTextMarginTop = -2;
     }
 
     if (!iconSubText) return null;
@@ -88,7 +90,12 @@ const AppIcon = props => {
       <Text
         style={[
           styles.subText,
-          {fontSize: subTextFontSize, color: subTextColor},
+
+          {
+            fontSize: subTextFontSize,
+            color: subTextColor,
+            marginTop: subTextMarginTop,
+          },
         ]}
         numberOfLines={1}>{`${iconSubText}`}</Text>
     );
