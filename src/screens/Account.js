@@ -1677,7 +1677,7 @@ const Account = props => {
         <Dialog
           visible={foundBackupDataInfoModalVisible}
           onDismiss={() => setFoundBackupDataInfoModalVisible(() => false)}>
-          <Dialog.Title>Backup Data Available</Dialog.Title>
+          <Dialog.Title>Selected Backup Data</Dialog.Title>
           {foundBackupDataInfo && (
             <Dialog.Content>
               <View
@@ -1698,10 +1698,43 @@ const Account = props => {
                   ).format('MMMM DD, YYYY, hh:mm A')}`}</Text>
                 </View>
               </View>
-              <View>
-                <Text>
-                  Please check the backup date of your data and then proceed by
-                  tapping "Restore".
+              <View
+                style={{
+                  backgroundColor: '#fff3e0',
+                  borderRadius: 6,
+                  padding: 10,
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#ff9800',
+                }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginBottom: 5,
+                  }}>
+                  <MaterialCommunityIcons
+                    name="alert-circle-outline"
+                    size={16}
+                    color="#ff9800"
+                  />
+                  <Text
+                    style={{
+                      marginLeft: 5,
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      color: '#ff9800',
+                    }}>
+                    Important:
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: '#666',
+                    lineHeight: 16,
+                  }}>
+                  Please double check the backup date and time of your data
+                  before tapping "Restore".
                 </Text>
               </View>
               <View>
@@ -1717,6 +1750,8 @@ const Account = props => {
           <Dialog.Actions style={{justifyContent: 'space-around'}}>
             <Button
               disabled={!backupDataOverrideConfirmed}
+              textColor={colors.notification}
+              icon="alert-circle-check-outline"
               onPress={() => {
                 recoverBackupDataFromDownloads();
               }}>
