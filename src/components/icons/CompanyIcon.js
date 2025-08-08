@@ -31,8 +31,7 @@ const CompanyIcon = props => {
   const settings = getSettingsData?.resultMap;
   const company = getCompanyData?.result;
 
-  if (!settings) return null;
-  if (!company) return null;
+  if (!settings || !company) return <AppIcon {...props} />;
 
   let logoDisplayCompanyName = parseInt(settings.logo_display_company_name);
   let logoDisplayBranch = parseInt(settings.logo_display_branch);

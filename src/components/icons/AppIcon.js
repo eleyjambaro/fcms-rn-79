@@ -4,7 +4,7 @@ import React from 'react';
 
 const AppIcon = props => {
   const {
-    mainText,
+    mainText = 'Food Cost',
     subText = 'M G M T.   S Y S.',
     containerStyle,
     textContainerStyle,
