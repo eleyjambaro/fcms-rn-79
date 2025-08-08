@@ -1,6 +1,6 @@
 import {appDefaults} from './appDefaults';
 
-const dbPrefix = `${appDefaults.appDisplayName?.toLocaleLowerCase()}_dbr_`;
+const dbPrefix = `${appDefaults.appDisplayName?.toLocaleLowerCase()}_data_`;
 
 export const manualDataRecovery = {
   directoryName: `${appDefaults.appDisplayName}_Data`,

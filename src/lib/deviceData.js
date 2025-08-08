@@ -6,6 +6,7 @@ import RNFetchBlob from 'rn-fetch-blob';
 import appDefaults from '../constants/appDefaults';
 import manualDataRecovery from '../constants/dataRecovery';
 import * as appMediaStore from '../lib/appMediaStore';
+import {extractBackupTimestamp} from '../utils/stringHelpers';
 
 export const DATA_FOLDER = appDefaults.dataDirPath;
 
@@ -20,7 +21,11 @@ export const saveBackupDataToThisDevice = async () => {
   try {
     await ensureDataDirectoryExists();
 
-    const backupDbName = `${manualDataRecovery.backupDbPrefix}${Date.now()}.db`;
+    const now = new Date();
+    const formattedDateTime = moment(now).format('YYYY_MM_DD__HH-mm-A');
+    const backupDbName = `${
+      manualDataRecovery.backupDbPrefix
+    }${formattedDateTime}_${Date.now()}.db`;
 
     /**
      * Locate databases path (where sqlite database file is located)
@@ -77,10 +82,10 @@ export const selectBackupDataFromThisDevice = async () => {
 export const formatSelectedBackupFile = async file => {
   if (!file || !file.name || !file.uri) return null;
 
-  const timestamp = file.name
-    .split(`${manualDataRecovery.backupDbPrefix}`)
-    .pop() // e.g.: "1754414900020.db"
-    .split('.')[0];
+  const timestamp = extractBackupTimestamp(
+    file.name,
+    manualDataRecovery.backupDbPrefix,
+  );
   const backupDate = new Date(parseInt(timestamp));
   const backupDateFormatted = moment(backupDate).format(
     'MMMM DD, YYYY, hh:mm A',

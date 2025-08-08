@@ -5,6 +5,7 @@ import * as DocumentPicker from '@react-native-documents/picker';
 import moment from 'moment';
 
 import manualDataRecovery from '../constants/dataRecovery';
+import {extractBackupTimestamp} from '../utils/stringHelpers';
 
 export default function SelectExistingAppData() {
   const [selectedFile, setSelectedFile] = React.useState(null);
@@ -21,10 +22,10 @@ export default function SelectExistingAppData() {
 
       const file = result[0];
 
-      const timestamp = file?.name
-        .split(`${manualDataRecovery.backupDbPrefix}`)
-        ?.pop() // e.g.: "1754414900020.db"
-        .split('.')?.[0];
+      const timestamp = extractBackupTimestamp(
+        file?.name,
+        manualDataRecovery.backupDbPrefix,
+      );
       const backupDate = new Date(timestamp);
       const backupDateFormatted = moment(backupDate).format(
         'MMMM DD, YYYY, hh:mm A',

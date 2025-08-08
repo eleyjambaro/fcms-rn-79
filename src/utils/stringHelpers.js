@@ -190,3 +190,28 @@ export const padNumber = (num = 0, pad = '0000000000') => {
 
   return ans;
 };
+
+/**
+ * Extracts timestamp from backup file name
+ * Supports both old format: fcms_data_${timestamp}.db
+ * and new format: fcms_data_YYYY_MM_DD__HH-mm-A_${timestamp}.db
+ * @param {string} fileName - The backup file name
+ * @param {string} backupDbPrefix - The backup database prefix (e.g., 'fcms_data_')
+ * @returns {string} The timestamp as a string
+ */
+export const extractBackupTimestamp = (fileName, backupDbPrefix) => {
+  if (!fileName || !backupDbPrefix) {
+    return null;
+  }
+
+  // Remove file extension
+  const fileNameWithoutExtension = fileName.split('.')[0];
+
+  // Split by underscores to handle new format with date/time
+  const parts = fileNameWithoutExtension.split('_');
+
+  // Get the last part which is the timestamp
+  const timestamp = parts[parts.length - 1];
+
+  return timestamp;
+};

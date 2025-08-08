@@ -143,7 +143,7 @@ const UploadHistoryListItem = props => {
                 flex: 1,
               }}
               numberOfLines={1}>
-              {'Ref ID: ' + item.file_name?.split('fcms_dbr_')?.[1]}
+              {'Ref ID: ' + item.file_name?.split('fcms_data_')?.[1]}
             </Text>
           </View>
         </View>
