@@ -326,14 +326,13 @@ const Account = props => {
       const databasesDirectoryPath = paths.join('/');
 
       /**
-       * Copy sqlite database file (downloaded backup)
-       * from Downloads (database recovery directory)
-       * to databases directory
+       * Determine selected file source. Prefer content URI so it works after reinstall
+       * when SAF returns only a content:// URI without a stable filesystem path.
        */
-      const dbBackupFilePath = foundBackupDataInfo?.path;
-      const dbBackupFileExists = await RNFS.exists(dbBackupFilePath);
+      const selectedFileUri = foundBackupDataInfo?.uri || null;
+      const selectedFilePath = foundBackupDataInfo?.path || null;
 
-      if (!dbBackupFileExists) {
+      if (!selectedFileUri && !selectedFilePath) {
         let errMsg = 'Database backup file not found.';
         setErrorMessage(() => errMsg);
         return;
@@ -352,10 +351,15 @@ const Account = props => {
       }
 
       // replace with backup database file
-      await RNFS.copyFile(
-        dbBackupFilePath,
-        `${databasesDirectoryPath}/${appDefaults.dbName}`,
-      );
+      const destinationPath = `${databasesDirectoryPath}/${appDefaults.dbName}`;
+      if (selectedFileUri) {
+        await restoreSelectedBackupDataFromThisDevice({
+          fileUri: selectedFileUri,
+          destinationPath,
+        });
+      } else if (selectedFilePath) {
+        await RNFS.copyFile(selectedFilePath, destinationPath);
+      }
 
       // move the recovered backup database file to the app's files directory to keep a copy
       // await RNFS.moveFile(

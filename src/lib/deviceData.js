@@ -81,8 +81,14 @@ export const formatSelectedBackupFile = async file => {
     'MMMM DD, YYYY, hh:mm A',
   );
 
-  const stats = await RNFetchBlob.fs.stat(decodeURI(file.uri));
-  const path = stats?.path;
+  // Try to resolve a filesystem path, but allow null for content URIs
+  let path = null;
+  try {
+    const stats = await RNFetchBlob.fs.stat(decodeURI(file.uri));
+    path = stats?.path || null;
+  } catch (_e) {
+    path = null;
+  }
 
   return {
     name: file.name,
