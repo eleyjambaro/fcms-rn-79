@@ -27,6 +27,8 @@ import CompanyIcon from '../components/icons/CompanyIcon';
 import AccountForm from '../components/forms/AccountForm';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
+import BannerAdComponent from '../components/ads/BannerAdComponent';
+import {adUnitIds} from '../constants/adUnitIds';
 
 const Login = () => {
   const {colors} = useTheme();
@@ -166,6 +168,9 @@ const Login = () => {
           <LoginForm onSubmit={handleSubmit} />
         </View>
       </ScrollView>
+      <View>
+        <BannerAdComponent unitId={adUnitIds.loginScreenBanner} />
+      </View>
     </>
   );
 };
