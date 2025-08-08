@@ -1,94 +1,56 @@
-import {Platform, NativeModules} from 'react-native';
+import { NativeModules, Platform, PermissionsAndroid } from 'react-native';
+const { RNMediaStore } = NativeModules;
 
-const {RNMediaStore} = NativeModules;
-
-const logIOS = (method, ...args) => {
-  console.log(`[iOS Placeholder] ${method}:`, ...args);
-};
-
-export async function readFile(fileName, directory) {
-  if (Platform.OS === 'android') {
-    return RNMediaStore.readFile(fileName, directory);
-  } else {
-    logIOS('readFile', fileName, directory);
-    return null;
-  }
+async function ensureReadPermission() {
+  if (Platform.OS !== 'android') return true;
+  if (Platform.Version >= 29) return true; // scoped storage reads via content URIs often fine
+  const granted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+  if (granted) return true;
+  const res = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+  return res === PermissionsAndroid.RESULTS.GRANTED;
 }
 
-export async function writeFile(
-  fileName,
-  content,
-  mimeType = 'application/json',
-  directory,
-) {
-  if (Platform.OS === 'android') {
-    return RNMediaStore.writeFile(fileName, content, mimeType, directory);
-  } else {
-    logIOS('writeFile', fileName, content, mimeType, directory);
-    return null;
-  }
+async function ensureWritePermission() {
+  if (Platform.OS !== 'android') return true;
+  if (Platform.Version >= 29) return true; // scoped storage
+  const granted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE);
+  if (granted) return true;
+  const res = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE);
+  return res === PermissionsAndroid.RESULTS.GRANTED;
+}
+
+export async function writeFile(fileName, directory, base64Data) {
+  await ensureWritePermission();
+  return RNMediaStore.writeFile(fileName, directory || '', base64Data);
+}
+
+export async function readFile(fileName, directory) {
+  await ensureReadPermission();
+  return RNMediaStore.readFile(fileName, directory || '');
 }
 
 export async function deleteFile(fileName, directory) {
-  if (Platform.OS === 'android') {
-    return RNMediaStore.deleteFile(fileName, directory);
-  } else {
-    logIOS('deleteFile', fileName, directory);
-    return false;
-  }
+  await ensureWritePermission();
+  return RNMediaStore.deleteFile(fileName, directory || '');
 }
 
-export async function readDirectory(directory) {
-  if (Platform.OS === 'android') {
-    return RNMediaStore.readDirectory(directory);
-  } else {
-    logIOS('readDirectory', directory);
-    return [];
-  }
+export async function listFiles(directory) {
+  await ensureReadPermission();
+  return RNMediaStore.listFiles(directory || '');
 }
 
-export async function deleteDirectory(directory) {
-  if (Platform.OS === 'android') {
-    return RNMediaStore.deleteDirectory(directory);
-  } else {
-    logIOS('deleteDirectory', directory);
-    return 0;
-  }
+/**
+ * copyFile: sourcePath can be:
+ *  - absolute path: /storage/emulated/0/Download/myfile.pdf
+ *  - content URI: content://com.android.providers.documents/document/...
+ * For DocumentPicker, use the `uri` property you get back, or the file path if you copied the document locally.
+ */
+export async function copyFile(sourcePath, destDirectory, destFileName) {
+  await ensureWritePermission();
+  return RNMediaStore.copyFile(sourcePath, destDirectory || '', destFileName);
 }
 
-export async function copyFileToMediaStore(
-  sourcePath,
-  fileName,
-  mimeType,
-  destinationPath,
-) {
-  if (Platform.OS === 'android') {
-    return RNMediaStore.copyFileToMediaStore(
-      sourcePath,
-      fileName,
-      mimeType,
-      destinationPath,
-    );
-  } else {
-    logIOS(
-      'copyFileToMediaStore',
-      sourcePath,
-      fileName,
-      mimeType,
-      destinationPath,
-    );
-    return null;
-  }
-}
-
-export async function copyFileFromMediaStore(documentUri, destinationFullPath) {
-  if (Platform.OS === 'android') {
-    return RNMediaStore.copyFileFromMediaStore(
-      documentUri,
-      destinationFullPath,
-    );
-  } else {
-    logIOS('copyFileFromMediaStore', documentUri, destinationFullPath);
-    return null;
-  }
+export async function moveFile(sourcePath, destDirectory, destFileName) {
+  await ensureWritePermission();
+  return RNMediaStore.moveFile(sourcePath, destDirectory || '', destFileName);
 }

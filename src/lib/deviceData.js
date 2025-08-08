@@ -40,11 +40,10 @@ export const saveBackupDataToThisDevice = async () => {
     const dbFileExists = await RNFS.exists(dbFilePath);
 
     if (dbFileExists) {
-      await appMediaStore.copyFileToMediaStore(
+      await appMediaStore.copyFile(
         dbFilePath,
+        'FCMS_Data',
         `${backupDbName}`,
-        'application/octet-stream',
-        'Download/FCMS_Data',
       );
     }
   } catch (error) {
@@ -101,9 +100,33 @@ export const restoreSelectedBackupDataFromThisDevice = async ({
   try {
     await ensureDataDirectoryExists();
 
-    if (fileUri && destinationPath) {
-      await appMediaStore.copyFileFromMediaStore(fileUri, destinationPath);
+    if (!fileUri || !destinationPath) return;
+
+    const decodedUri = decodeURI(fileUri);
+
+    // If it's a plain filesystem path, copy directly
+    if (!decodedUri.startsWith('content://')) {
+      await RNFS.copyFile(decodedUri, destinationPath);
+      return;
     }
+
+    // Try to resolve a real path for the content URI
+    let resolvedPath = null;
+    try {
+      const stats = await RNFetchBlob.fs.stat(decodedUri);
+      resolvedPath = stats?.path || null;
+    } catch (_e) {
+      resolvedPath = null;
+    }
+
+    if (resolvedPath) {
+      await RNFS.copyFile(resolvedPath, destinationPath);
+      return;
+    }
+
+    // Fallback: stream read base64 from content URI then write to destination
+    const base64Data = await RNFetchBlob.fs.readFile(decodedUri, 'base64');
+    await RNFS.writeFile(destinationPath, base64Data, 'base64');
   } catch (error) {
     throw error;
   }

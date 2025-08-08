@@ -1,262 +1,461 @@
 package com.rnmediastore
 
-import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
-import android.database.Cursor
+import android.content.ContentResolver
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
-import android.provider.OpenableColumns
 import android.os.Environment
 import android.provider.MediaStore
-import android.util.Log
-
+import android.util.Base64
 import com.facebook.react.bridge.*
-
+import com.facebook.react.module.annotations.ReactModule
 import java.io.*
 
-class RNMediaStoreModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+@ReactModule(name = RNMediaStoreModule.NAME)
+class RNMediaStoreModule(reactContext: ReactApplicationContext) :
+    ReactContextBaseJavaModule(reactContext) {
 
-    override fun getName(): String {
-        return "RNMediaStore"
+    companion object {
+        const val NAME = "RNMediaStore"
     }
 
-    override fun getConstants(): Map<String, Any> {
-        return mapOf(
-            "DirectoryPath" to mapOf(
-                "Downloads" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath,
-                "Documents" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).absolutePath,
-                "Pictures" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).absolutePath,
-                "Movies" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).absolutePath,
-                "Music" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).absolutePath,
-                "DCIM" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).absolutePath,
-                "Screenshots" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).absolutePath + "/Screenshots"
-            )
-        )
-    }
+    override fun getName(): String = NAME
 
-    private fun getCollectionUri(directory: String?): Uri {
-        val dir = directory ?: Environment.DIRECTORY_DOWNLOADS
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+    // Helper to build relative path for MediaStore (must end with '/')
+    private fun buildRelativePath(directory: String?): String {
+        val dir = (directory ?: "").trim().trimStart('/').trimEnd('/')
+        return if (dir.isEmpty()) {
+            "${Environment.DIRECTORY_DOWNLOADS}/"
         } else {
-            MediaStore.Files.getContentUri("external")
+            "${Environment.DIRECTORY_DOWNLOADS}/$dir/"
         }
     }
 
-    @ReactMethod
-    fun writeFile(fileName: String, content: String, mimeType: String, directory: String?, promise: Promise) {
-        try {
-            val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                put(MediaStore.MediaColumns.RELATIVE_PATH, directory ?: Environment.DIRECTORY_DOWNLOADS)
-            }
-
-            val uri = reactContext.contentResolver.insert(getCollectionUri(directory), values)
-                ?: throw IOException("Failed to create MediaStore entry")
-
-            reactContext.contentResolver.openOutputStream(uri)?.use {
-                it.write(content.toByteArray())
-            } ?: throw IOException("Failed to open output stream")
-
-            promise.resolve(uri.toString())
-        } catch (e: Exception) {
-            Log.e("RNMediaStore", "writeFile failed", e)
-            promise.reject("WRITE_FILE_ERROR", e)
-        }
-    }
-
-    @ReactMethod
-    fun readFile(fileName: String, directory: String?, promise: Promise) {
-        try {
-            val collection = getCollectionUri(directory)
-            val relativePath = (directory ?: Environment.DIRECTORY_DOWNLOADS).let {
-                if (it.endsWith("/")) it else "$it/"
-            }
-
-            val selection = MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " + MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?"
-            val selectionArgs = arrayOf(fileName, "%$relativePath%")
-
-            val cursor = reactContext.contentResolver.query(collection, null, selection, selectionArgs, null)
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    val id = it.getInt(it.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
-                    val uri = Uri.withAppendedPath(collection, id.toString())
-                    val inputStream = reactContext.contentResolver.openInputStream(uri)
-                    val reader = BufferedReader(InputStreamReader(inputStream))
-                    val content = reader.readText()
-                    reader.close()
-                    promise.resolve(content)
-                    return
+    private fun findUriForFile(displayName: String, directory: String?): Uri? {
+        val resolver = reactApplicationContext.contentResolver
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val relPath = buildRelativePath(directory)
+            val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
+            val selectionArgs = arrayOf(displayName, relPath)
+            val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME)
+            resolver.query(MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, selection, selectionArgs, null).use { cursor ->
+                if (cursor != null && cursor.moveToFirst()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+                    return Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id.toString())
                 }
             }
-            throw FileNotFoundException("File not found: $fileName in $relativePath")
-        } catch (e: Exception) {
-            Log.e("RNMediaStore", "readFile failed", e)
-            promise.reject("READ_FILE_ERROR", e)
-        }
-    }
-
-    @ReactMethod
-    fun deleteFile(fileName: String, directory: String?, promise: Promise) {
-        try {
-            val uri = queryFileUri(fileName, directory) ?: throw FileNotFoundException("File not found: $fileName")
-            val deleted = reactContext.contentResolver.delete(uri, null, null)
-            promise.resolve(deleted > 0)
-        } catch (e: Exception) {
-            Log.e("RNMediaStore", "deleteFile failed", e)
-            promise.reject("DELETE_FILE_ERROR", e)
-        }
-    }
-
-    @ReactMethod
-    fun readDirectory(directory: String?, promise: Promise) {
-        try {
-            val collection = getCollectionUri(directory)
-            val projection = arrayOf(
-                MediaStore.MediaColumns.DISPLAY_NAME,
-                MediaStore.MediaColumns.SIZE,
-                MediaStore.MediaColumns.MIME_TYPE,
-                MediaStore.MediaColumns.DATE_ADDED
-            )
-
-            val cursor = reactContext.contentResolver.query(
-                collection,
-                projection,
-                MediaStore.MediaColumns.RELATIVE_PATH + "=?",
-                arrayOf((directory ?: Environment.DIRECTORY_DOWNLOADS) + "/"),
-                MediaStore.MediaColumns.DATE_ADDED + " DESC"
-            )
-
-            val fileList = Arguments.createArray()
-            cursor?.use {
-                while (it.moveToNext()) {
-                    val fileMap = Arguments.createMap()
-                    fileMap.putString("name", it.getString(0))
-                    fileMap.putDouble("size", it.getLong(1).toDouble())
-                    fileMap.putString("mimeType", it.getString(2))
-                    fileMap.putDouble("dateAdded", it.getLong(3).toDouble())
-                    fileList.pushMap(fileMap)
+        } else {
+            // API < Q: search MediaStore for display name and path or check file existence
+            val downloadsDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), directory ?: "")
+            val targetFile = File(downloadsDir, displayName)
+            if (targetFile.exists()) {
+                // Get content URI via MediaStore query by _data (deprecated but works pre-Q)
+                val selection = "${MediaStore.MediaColumns.DATA} = ?"
+                val selectionArgs = arrayOf(targetFile.absolutePath)
+                val projection = arrayOf(MediaStore.MediaColumns._ID)
+                resolver.query(MediaStore.Files.getContentUri("external"), projection, selection, selectionArgs, null).use { cursor ->
+                    if (cursor != null && cursor.moveToFirst()) {
+                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+                        val uri = Uri.withAppendedPath(MediaStore.Files.getContentUri("external"), id.toString())
+                        return uri
+                    }
                 }
             }
-            promise.resolve(fileList)
-        } catch (e: Exception) {
-            Log.e("RNMediaStore", "readDirectory failed", e)
-            promise.reject("READ_DIRECTORY_ERROR", e)
+        }
+        return null
+    }
+
+    private fun insertToMediaStore(destinationFileName: String, directory: String?, mime: String? = null): Uri? {
+        val resolver = reactApplicationContext.contentResolver
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, destinationFileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, mime ?: "application/octet-stream")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, buildRelativePath(directory))
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        }
+
+        return try {
+            resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+        } catch (ex: Exception) {
+            null
         }
     }
 
-    private fun queryFileUri(fileName: String, directory: String?): Uri? {
-        val collection = getCollectionUri(directory)
-        val relativePath = (directory ?: Environment.DIRECTORY_DOWNLOADS).let {
-            if (it.endsWith("/")) it else "$it/"
+    private fun finalizeMediaStoreUri(uri: Uri?, directory: String?) {
+        if (uri == null) return
+        val resolver = reactApplicationContext.contentResolver
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues()
+            values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+            try {
+                resolver.update(uri, values, null, null)
+            } catch (_: Exception) { /* best-effort */ }
+        } else {
+            // For older devices, trigger media scan so the file shows up in media providers
+            try {
+                val path = queryDataColumnForUri(uri)
+                if (!path.isNullOrEmpty()) {
+                    MediaScannerConnection.scanFile(reactApplicationContext, arrayOf(path), null, null)
+                }
+            } catch (_: Exception) { /* best-effort */ }
         }
-        val selection = MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " + MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?"
-        val selectionArgs = arrayOf(fileName, "%$relativePath%")
+    }
 
-        val cursor = reactContext.contentResolver.query(collection, null, selection, selectionArgs, null)
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val id = it.getInt(it.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
-                return Uri.withAppendedPath(collection, id.toString())
+    private fun queryDataColumnForUri(uri: Uri): String? {
+        val resolver = reactApplicationContext.contentResolver
+        val projection = arrayOf(MediaStore.MediaColumns.DATA)
+        resolver.query(uri, projection, null, null, null).use { cursor ->
+            if (cursor != null && cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
+                return cursor.getString(idx)
             }
         }
         return null
     }
 
     @ReactMethod
-    fun deleteDirectory(directory: String, promise: Promise) {
+    fun writeFile(fileName: String, directory: String?, base64Data: String, promise: Promise) {
         try {
-            val collection = getCollectionUri(directory)
-            val selection = MediaStore.MediaColumns.RELATIVE_PATH + "=?"
-            val selectionArgs = arrayOf("$directory/")
-
-            val deletedCount = reactContext.contentResolver.delete(collection, selection, selectionArgs)
-            promise.resolve(deletedCount)
-        } catch (e: Exception) {
-            Log.e("RNMediaStore", "deleteDirectory failed", e)
-            promise.reject("DELETE_DIRECTORY_ERROR", e)
-        }
-    }
-
-    @ReactMethod
-    fun copyFileToMediaStore(sourcePath: String, fileName: String, mimeType: String, destinationPath: String, promise: Promise) {
-        try {
-            val sourceFile = File(sourcePath)
-            if (!sourceFile.exists() || !sourceFile.isFile) {
-                throw FileNotFoundException("Source file not found: $sourcePath")
-            }
-
-            val relativePath = destinationPath.takeIf { it.isNotEmpty() } ?: Environment.DIRECTORY_DOWNLOADS
-
-            val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-            }
-
-            val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val bytes = Base64.decode(base64Data, Base64.DEFAULT)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val uri = insertToMediaStore(fileName, directory)
+                if (uri == null) {
+                    promise.reject("E_INSERT_FAILED", "Failed to create MediaStore entry for $fileName")
+                    return
+                }
+                try {
+                    reactApplicationContext.contentResolver.openOutputStream(uri).use { out ->
+                        if (out == null) throw IOException("OutputStream is null")
+                        out.write(bytes)
+                        out.flush()
+                    }
+                    finalizeMediaStoreUri(uri, directory)
+                    promise.resolve(uri.toString())
+                } catch (ex: Exception) {
+                    // Attempt to delete the created entry if write failed
+                    try { reactApplicationContext.contentResolver.delete(uri, null, null) } catch (_: Exception) {}
+                    promise.reject("E_WRITE_FAILED", "Failed to write file: ${ex.message}", ex)
+                }
             } else {
-                MediaStore.Files.getContentUri("external")
-            }
-
-            val resolver = reactContext.contentResolver
-            val uri = resolver.insert(collection, values)
-                ?: throw IOException("Failed to create MediaStore entry")
-
-            resolver.openOutputStream(uri)?.use { outputStream ->
-                FileInputStream(sourceFile).use { inputStream ->
-                    inputStream.copyTo(outputStream)
+                // Pre-Q: write to Downloads/<directory> and scan
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val targetDir = if (directory.isNullOrBlank()) downloadsDir else File(downloadsDir, directory)
+                if (!targetDir.exists()) {
+                    if (!targetDir.mkdirs()) {
+                        promise.reject("E_DIR_CREATE_FAILED", "Failed to create directory: ${targetDir.absolutePath}")
+                        return
+                    }
                 }
-            } ?: throw IOException("Failed to open output stream")
-
-            promise.resolve(uri.toString())
-        } catch (e: Exception) {
-            Log.e("RNMediaStore", "copyFileToMediaStore failed", e)
-            promise.reject("COPY_FILE_ERROR", e)
+                val targetFile = File(targetDir, fileName)
+                FileOutputStream(targetFile).use { out ->
+                    out.write(bytes)
+                    out.flush()
+                }
+                MediaScannerConnection.scanFile(reactApplicationContext, arrayOf(targetFile.absolutePath), null) { _, _ -> }
+                promise.resolve(targetFile.absolutePath)
+            }
+        } catch (ex: IllegalArgumentException) {
+            promise.reject("E_INVALID_BASE64", "Invalid Base64 data: ${ex.message}", ex)
+        } catch (ex: Exception) {
+            promise.reject("E_WRITE_FAILED", "Failed to write file: ${ex.message}", ex)
         }
     }
 
     @ReactMethod
-    fun copyFileFromMediaStore(documentUriString: String, destinationPath: String, promise: Promise) {
+    fun readFile(fileName: String, directory: String?, promise: Promise) {
         try {
-            val uri = Uri.parse(documentUriString)
-            val resolver: ContentResolver = reactContext.contentResolver
-
-            val fileName = resolver.query(uri, null, null, null, null)?.use { cursor ->
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (cursor.moveToFirst() && nameIndex != -1) {
-                    cursor.getString(nameIndex)
-                } else {
-                    null
+            val uri = findUriForFile(fileName, directory)
+            if (uri == null) {
+                // fallback: try file path on older devices
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val f = if (directory.isNullOrBlank()) File(downloadsDir, fileName) else File(File(downloadsDir, directory), fileName)
+                    if (f.exists()) {
+                        val bytes = f.inputStream().use { it.readBytes() }
+                        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        promise.resolve(base64)
+                        return
+                    }
                 }
-            } ?: run {
-                promise.reject("InvalidUri", "Unable to determine file name from URI: $documentUriString")
+                promise.reject("E_NOT_FOUND", "File not found: $fileName in $directory")
+                return
+            }
+            try {
+                val bytes = reactApplicationContext.contentResolver.openInputStream(uri).use { it?.readBytes() }
+                if (bytes == null) {
+                    promise.reject("E_READ_FAILED", "Failed to read file: $fileName")
+                    return
+                }
+                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                promise.resolve(base64)
+            } catch (ex: Exception) {
+                promise.reject("E_READ_FAILED", "Failed to read file: ${ex.message}", ex)
+            }
+        } catch (ex: Exception) {
+            promise.reject("E_READ_FAILED", "Failed to read file: ${ex.message}", ex)
+        }
+    }
+
+    @ReactMethod
+    fun deleteFile(fileName: String, directory: String?, promise: Promise) {
+        try {
+            val uri = findUriForFile(fileName, directory)
+            if (uri != null) {
+                try {
+                    val deleted = reactApplicationContext.contentResolver.delete(uri, null, null)
+                    if (deleted > 0) {
+                        promise.resolve(true)
+                    } else {
+                        promise.reject("E_DELETE_FAILED", "MediaStore delete returned 0 for $fileName")
+                    }
+                } catch (ex: SecurityException) {
+                    promise.reject("E_DELETE_SECURITY", "SecurityException while deleting: ${ex.message}", ex)
+                } catch (ex: Exception) {
+                    promise.reject("E_DELETE_FAILED", "Failed to delete file: ${ex.message}", ex)
+                }
+            } else {
+                // fallback for pre-Q: try delete from file system
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val target = if (directory.isNullOrBlank()) File(downloadsDir, fileName) else File(File(downloadsDir, directory), fileName)
+                    if (target.exists() && target.delete()) {
+                        MediaScannerConnection.scanFile(reactApplicationContext, arrayOf(target.absolutePath), null) { _, _ -> }
+                        promise.resolve(true)
+                        return
+                    }
+                }
+                promise.reject("E_NOT_FOUND", "File not found to delete: $fileName in $directory")
+            }
+        } catch (ex: Exception) {
+            promise.reject("E_DELETE_FAILED", "Failed to delete file: ${ex.message}", ex)
+        }
+    }
+
+    @ReactMethod
+    fun listFiles(directory: String?, promise: Promise) {
+        try {
+            val resolver = reactApplicationContext.contentResolver
+            val result = Arguments.createArray()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val relPath = buildRelativePath(directory)
+                val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
+                val selectionArgs = arrayOf(relPath)
+                val projection = arrayOf(MediaStore.MediaColumns.DISPLAY_NAME)
+                resolver.query(MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, selection, selectionArgs, null).use { cursor ->
+                    if (cursor != null) {
+                        val idx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+                        while (cursor.moveToNext()) {
+                            val name = cursor.getString(idx)
+                            result.pushString(name)
+                        }
+                    }
+                }
+                promise.resolve(result)
+            } else {
+                // Pre-Q: list files from filesystem directory
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val dirFile = if (directory.isNullOrBlank()) downloadsDir else File(downloadsDir, directory)
+                if (dirFile.exists() && dirFile.isDirectory) {
+                    val files = dirFile.listFiles()
+                    if (files != null) {
+                        files.sortBy { it.name }
+                        for (f in files) result.pushString(f.name)
+                    }
+                }
+                promise.resolve(result)
+            }
+        } catch (ex: Exception) {
+            promise.reject("E_LIST_FAILED", "Failed to list files: ${ex.message}", ex)
+        }
+    }
+
+    /**
+     * Copy a file from any supported source path (absolute file path or content:// URI)
+     * to Downloads/<destDirectory>/<destFileName>. Returns the destination URI (string) or path (pre-Q).
+     */
+    @ReactMethod
+    fun copyFile(sourcePath: String, destDirectory: String?, destFileName: String, promise: Promise) {
+        var destUri: Uri? = null
+        try {
+            // Resolve input stream from sourcePath
+            val inputStream: InputStream? = try {
+                if (sourcePath.startsWith("content://")) {
+                    reactApplicationContext.contentResolver.openInputStream(Uri.parse(sourcePath))
+                } else {
+                    // assume absolute file path
+                    FileInputStream(File(sourcePath))
+                }
+            } catch (ex: FileNotFoundException) {
+                null
+            }
+
+            if (inputStream == null) {
+                promise.reject("E_SOURCE_NOT_FOUND", "Source not found or cannot open: $sourcePath")
                 return
             }
 
-            val destFile = File(destinationPath, fileName)
-            destFile.parentFile?.mkdirs()
-
-            resolver.openInputStream(uri)?.use { inputStream ->
-                FileOutputStream(destFile).use { outputStream ->
-                    val buffer = ByteArray(4096)
-                    var bytesRead: Int
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                    }
-                    outputStream.flush()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                destUri = insertToMediaStore(destFileName, destDirectory)
+                if (destUri == null) {
+                    inputStream.close()
+                    promise.reject("E_INSERT_FAILED", "Failed to create destination entry for $destFileName")
+                    return
                 }
-                promise.resolve(true)
-            } ?: run {
-                promise.reject("FileNotFound", "Unable to open input stream from URI: $documentUriString")
+                try {
+                    reactApplicationContext.contentResolver.openOutputStream(destUri).use { out ->
+                        if (out == null) throw IOException("Destination OutputStream is null")
+                        inputStream.use { input ->
+                            val buffer = ByteArray(8192)
+                            var read: Int
+                            while (input.read(buffer).also { read = it } != -1) {
+                                out.write(buffer, 0, read)
+                            }
+                            out.flush()
+                        }
+                    }
+                    finalizeMediaStoreUri(destUri, destDirectory)
+                    promise.resolve(destUri.toString())
+                } catch (ex: Exception) {
+                    try { reactApplicationContext.contentResolver.delete(destUri, null, null) } catch (_: Exception) {}
+                    promise.reject("E_COPY_FAILED", "Failed to copy to destination: ${ex.message}", ex)
+                }
+            } else {
+                // Pre-Q: copy file to filesystem
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val targetDir = if (destDirectory.isNullOrBlank()) downloadsDir else File(downloadsDir, destDirectory)
+                if (!targetDir.exists()) {
+                    if (!targetDir.mkdirs()) {
+                        inputStream.close()
+                        promise.reject("E_DIR_CREATE_FAILED", "Failed to create directory: ${targetDir.absolutePath}")
+                        return
+                    }
+                }
+                val outFile = File(targetDir, destFileName)
+                FileOutputStream(outFile).use { out ->
+                    inputStream.use { input ->
+                        val buffer = ByteArray(8192)
+                        var read: Int
+                        while (input.read(buffer).also { read = it } != -1) {
+                            out.write(buffer, 0, read)
+                        }
+                        out.flush()
+                    }
+                }
+                MediaScannerConnection.scanFile(reactApplicationContext, arrayOf(outFile.absolutePath), null) { _, _ -> }
+                promise.resolve(outFile.absolutePath)
+            }
+        } catch (ex: SecurityException) {
+            promise.reject("E_COPY_SECURITY", "SecurityException while copying: ${ex.message}", ex)
+        } catch (ex: Exception) {
+            // Try to cleanup destUri if created
+            try { if (destUri != null) reactApplicationContext.contentResolver.delete(destUri, null, null) } catch (_: Exception) {}
+            promise.reject("E_COPY_FAILED", "Failed to copy file: ${ex.message}", ex)
+        }
+    }
+
+    /**
+     * Move = Copy then delete original (best-effort).
+     */
+    @ReactMethod
+    fun moveFile(sourcePath: String, destDirectory: String?, destFileName: String, promise: Promise) {
+        try {
+            // First copy the file
+            val inputStream = if (sourcePath.startsWith("content://")) {
+                val sourceUri = Uri.parse(sourcePath)
+                reactApplicationContext.contentResolver.openInputStream(sourceUri)
+            } else {
+                File(sourcePath).inputStream()
             }
 
-        } catch (e: Exception) {
-            Log.e("RNMediaStore", "copyFileFromMediaStore error", e)
-            promise.reject("CopyError", e.localizedMessage)
+            if (inputStream == null) {
+                promise.reject("E_SOURCE_NOT_FOUND", "Source not found or cannot open: $sourcePath")
+                return
+            }
+
+            var destUri: Uri? = null
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // Q+: use MediaStore
+                    destUri = insertToMediaStore(destFileName, destDirectory)
+                    if (destUri == null) {
+                        inputStream.close()
+                        promise.reject("E_INSERT_FAILED", "Failed to create destination entry for $destFileName")
+                        return
+                    }
+
+                    reactApplicationContext.contentResolver.openOutputStream(destUri)?.use { out ->
+                        inputStream.use { input ->
+                            val buffer = ByteArray(8192)
+                            var read: Int
+                            while (input.read(buffer).also { read = it } != -1) {
+                                out.write(buffer, 0, read)
+                            }
+                            out.flush()
+                        }
+                    }
+                    finalizeMediaStoreUri(destUri, destDirectory)
+                    
+                    // After successful copy, attempt to delete source
+                    try {
+                        if (sourcePath.startsWith("content://")) {
+                            val sourceUri = Uri.parse(sourcePath)
+                            reactApplicationContext.contentResolver.delete(sourceUri, null, null)
+                        } else {
+                            val f = File(sourcePath)
+                            if (f.exists()) {
+                                f.delete()
+                            }
+                        }
+                    } catch (_: Exception) { /* ignore deletion errors */ }
+                    
+                    promise.resolve(destUri.toString())
+                } else {
+                    // Pre-Q: copy file to filesystem
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val targetDir = if (destDirectory.isNullOrBlank()) downloadsDir else File(downloadsDir, destDirectory)
+                    if (!targetDir.exists()) {
+                        if (!targetDir.mkdirs()) {
+                            inputStream.close()
+                            promise.reject("E_DIR_CREATE_FAILED", "Failed to create directory: ${targetDir.absolutePath}")
+                            return
+                        }
+                    }
+                    val outFile = File(targetDir, destFileName)
+                    FileOutputStream(outFile).use { out ->
+                        inputStream.use { input ->
+                            val buffer = ByteArray(8192)
+                            var read: Int
+                            while (input.read(buffer).also { read = it } != -1) {
+                                out.write(buffer, 0, read)
+                            }
+                            out.flush()
+                        }
+                    }
+                    MediaScannerConnection.scanFile(reactApplicationContext, arrayOf(outFile.absolutePath), null) { _, _ -> }
+                    
+                    // After successful copy, attempt to delete source
+                    try {
+                        val f = File(sourcePath)
+                        if (f.exists()) {
+                            f.delete()
+                        }
+                    } catch (_: Exception) { /* ignore deletion errors */ }
+                    
+                    promise.resolve(outFile.absolutePath)
+                }
+            } catch (ex: SecurityException) {
+                try { if (destUri != null) reactApplicationContext.contentResolver.delete(destUri, null, null) } catch (_: Exception) {}
+                promise.reject("E_COPY_SECURITY", "SecurityException while copying: ${ex.message}", ex)
+            } catch (ex: Exception) {
+                try { if (destUri != null) reactApplicationContext.contentResolver.delete(destUri, null, null) } catch (_: Exception) {}
+                promise.reject("E_COPY_FAILED", "Failed to copy file: ${ex.message}", ex)
+            }
+        } catch (ex: Exception) {
+            promise.reject("E_MOVE_FAILED", "Failed to move file: ${ex.message}", ex)
         }
     }
 }
