@@ -105,8 +105,18 @@ const CombinedDarkTheme = {
 // Create a query client
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {networkMode: 'always'},
-    mutations: {networkMode: 'always'},
+    queries: {
+      networkMode: 'online',
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
+    mutations: {
+      networkMode: 'online',
+      retry: 1,
+    },
   },
 });
 
@@ -134,7 +144,12 @@ export default function Main() {
                   <NavigationContainer
                     theme={theme}
                     ref={navigationRef}
-                    navigationInChildEnabled>
+                    navigationInChildEnabled
+                    screenOptions={{
+                      headerShown: false,
+                      animation: 'slide_from_right',
+                      animationDuration: 200,
+                    }}>
                     <GestureHandlerRootView>
                       <BottomSheetModalProvider>
                         <SearchbarContextProvider>

@@ -91,115 +91,201 @@ import PaymentMethod from '../screens/PaymentMethod';
 import SplitPayment from '../screens/SplitPayment';
 import Printers from '../screens/Printers';
 import CreatePrinter from '../screens/CreatePrinter';
+import {screenTransitionConfig} from '../utils/ScreenOptimization';
 
 const Stack = createStackNavigator();
+
+// Memoize components to prevent unnecessary re-renders
+const MemoizedMainTab = React.memo(MainTab);
+const MemoizedCloudAccountMainTab = React.memo(CloudAccountMainTab);
+const MemoizedServingRecipes = React.memo(ServingRecipes);
+const MemoizedActivateLicense = React.memo(ActivateLicense);
+const MemoizedUpdateCompany = React.memo(UpdateCompany);
+const MemoizedAccount = React.memo(Account);
+const MemoizedLocalUserAccounts = React.memo(LocalUserAccounts);
+const MemoizedDeleteMyAccount = React.memo(DeleteMyAccount);
+const MemoizedCreateRecipe = React.memo(CreateRecipe);
+const MemoizedEditRecipe = React.memo(EditRecipe);
+const MemoizedRecipeView = React.memo(RecipeView);
+const MemoizedRecipeKind = React.memo(RecipeKind);
+const MemoizedCreateSubRecipe = React.memo(CreateSubRecipe);
+const MemoizedSelectRecipeIngredient = React.memo(SelectRecipeIngredient);
+const MemoizedProduceFinishedProductStock = React.memo(
+  ProduceFinishedProductStock,
+);
+const MemoizedCurrencies = React.memo(Currencies);
+const MemoizedVendors = React.memo(Vendors);
+const MemoizedSpoilage = React.memo(Spoilage);
+const MemoizedSelectSpoilageItem = React.memo(SelectSpoilageItem);
+const MemoizedItemsTab = React.memo(ItemsTab);
+const MemoizedAddItem = React.memo(AddItem);
+const MemoizedEditItem = React.memo(EditItem);
+const MemoizedItemCategory = React.memo(ItemCategory);
+const MemoizedItemUOM = React.memo(ItemUOM);
+const MemoizedItemTax = React.memo(ItemTax);
+const MemoizedItemVendor = React.memo(ItemVendor);
+const MemoizedAddItemUOM = React.memo(AddItemUOM);
+const MemoizedItemView = React.memo(ItemView);
+const MemoizedCategoryView = React.memo(CategoryView);
+const MemoizedItemSizeOptions = React.memo(ItemSizeOptions);
+const MemoizedPurchaseCategoryView = React.memo(PurchaseCategoryView);
+const MemoizedConfirmPurchases = React.memo(ConfirmPurchases);
+const MemoizedPurchaseEntryList = React.memo(PurchaseEntryList);
+const MemoizedStockUsageEntryList = React.memo(StockUsageEntryList);
+const MemoizedEndingInventory = React.memo(EndingInventory);
+const MemoizedSalesCounterItemsTab = React.memo(SalesCounterItemsTab);
+const MemoizedConfirmSales = React.memo(ConfirmSales);
+const MemoizedPaymentMethod = React.memo(PaymentMethod);
+const MemoizedSplitPayment = React.memo(SplitPayment);
+const MemoizedSalesInvoices = React.memo(SalesInvoices);
+const MemoizedSalesInvoiceView = React.memo(SalesInvoiceView);
+const MemoizedSalesOrders = React.memo(SalesOrders);
+const MemoizedSalesOrderGroupView = React.memo(SalesOrderGroupView);
+const MemoizedPrinters = React.memo(Printers);
+const MemoizedCreatePrinter = React.memo(CreatePrinter);
+const MemoizedItemAddedStocks = React.memo(ItemAddedStocks);
+const MemoizedPurchaseListHistory = React.memo(PurchaseListHistory);
+const MemoizedPurchaseListHistoryView = React.memo(PurchaseListHistoryView);
+const MemoizedConfirmStockUsage = React.memo(ConfirmStockUsage);
+const MemoizedStockUsageHistory = React.memo(StockUsageHistory);
+const MemoizedStockUsageHistoryView = React.memo(StockUsageHistoryView);
+const MemoizedScanBarcode = React.memo(ScanBarcode);
+const MemoizedManageStock = React.memo(ManageStock);
+const MemoizedItemPurchaseEntries = React.memo(ItemPurchaseEntries);
+const MemoizedRevenues = React.memo(Revenues);
+const MemoizedLogs = React.memo(Logs);
+const MemoizedLogView = React.memo(LogView);
+const MemoizedUpdateInventoryLog = React.memo(UpdateInventoryLog);
+const MemoizedExpenses = React.memo(Expenses);
+const MemoizedExpenseView = React.memo(ExpenseView);
+const MemoizedAddExpense = React.memo(AddExpense);
+const MemoizedExpenseGroup = React.memo(ExpenseGroup);
+const MemoizedReports = React.memo(Reports);
+const MemoizedFoodCostAnalysis = React.memo(FoodCostAnalysis);
+const MemoizedManageRevenueGroups = React.memo(ManageRevenueGroups);
+const MemoizedManageExpenseGroups = React.memo(ManageExpenseGroups);
+const MemoizedManageMonthlyExpenses = React.memo(ManageMonthlyExpenses);
+const MemoizedCategories = React.memo(Categories);
+const MemoizedMonthlyReportByItem = React.memo(MonthlyReportByItem);
+const MemoizedMonthlyReportByCategory = React.memo(MonthlyReportByCategory);
+const MemoizedCustomReportByItem = React.memo(CustomReportByItem);
+const MemoizedCustomReportByCategory = React.memo(CustomReportByCategory);
+const MemoizedItemReportView = React.memo(ItemReportView);
+const MemoizedTaxes = React.memo(Taxes);
+const MemoizedCounter = React.memo(Counter);
 
 const RootStack = () => {
   const navigation = useNavigation();
   const {colors} = useTheme();
 
   return (
-    <Stack.Navigator screenOptions={{headerShown: false}}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        ...screenTransitionConfig,
+      }}>
       <Stack.Group>
-        <Stack.Screen name={routes.mainTab()} component={MainTab} />
+        <Stack.Screen name={routes.mainTab()} component={MemoizedMainTab} />
       </Stack.Group>
       <Stack.Group>
         <Stack.Screen
           name={routes.cloudMainTab()}
-          component={CloudAccountMainTab}
+          component={MemoizedCloudAccountMainTab}
         />
       </Stack.Group>
       <Stack.Group screenOptions={{headerShown: true}}>
         <Stack.Screen
           name={routes.recipes()}
-          component={ServingRecipes}
+          component={MemoizedServingRecipes}
           options={{headerTitle: 'Recipes'}}
         />
       </Stack.Group>
       <Stack.Group screenOptions={{presentation: 'modal', headerShown: true}}>
         <Stack.Screen
           name={routes.activateLicense()}
-          component={ActivateLicense}
+          component={MemoizedActivateLicense}
           options={{headerTitle: 'Activate License'}}
         />
         <Stack.Screen
           name={routes.updateCompany()}
-          component={UpdateCompany}
+          component={MemoizedUpdateCompany}
           options={{headerTitle: 'Update Company'}}
         />
         <Stack.Screen
           name={routes.account()}
-          component={Account}
+          component={MemoizedAccount}
           options={{headerTitle: 'Account'}}
         />
         <Stack.Screen
           name={routes.localUserAccounts()}
           options={{headerTitle: 'Manage Users'}}>
           {props => {
-            return <LocalUserAccounts {...props} viewMode="manage-users" />;
+            return (
+              <MemoizedLocalUserAccounts {...props} viewMode="manage-users" />
+            );
           }}
         </Stack.Screen>
         <Stack.Screen
           name={routes.deleteMyAccount()}
-          component={DeleteMyAccount}
+          component={MemoizedDeleteMyAccount}
           options={{headerTitle: 'Delete Account'}}></Stack.Screen>
         <Stack.Screen
           name={routes.createRecipe()}
-          component={CreateRecipe}
+          component={MemoizedCreateRecipe}
           options={{headerTitle: 'Create Recipe'}}
         />
         <Stack.Screen
           name={routes.editRecipe()}
-          component={EditRecipe}
+          component={MemoizedEditRecipe}
           options={{headerTitle: 'Edit Recipe'}}
         />
         <Stack.Screen
           name={routes.recipeView()}
-          component={RecipeView}
+          component={MemoizedRecipeView}
           options={{headerTitle: 'Recipe'}}
         />
         <Stack.Screen
           name={routes.recipeKind()}
-          component={RecipeKind}
+          component={MemoizedRecipeKind}
           options={{headerTitle: 'Recipe Kind'}}
         />
         <Stack.Screen
           name={routes.createSubRecipe()}
-          component={CreateSubRecipe}
+          component={MemoizedCreateSubRecipe}
           options={{headerTitle: 'Create Sub Recipe'}}
         />
         <Stack.Screen
           name={routes.selectRecipeIngredient()}
-          component={SelectRecipeIngredient}
+          component={MemoizedSelectRecipeIngredient}
           options={{headerTitle: 'Select Recipe Ingredient'}}
         />
         <Stack.Screen
           name={routes.produceFinishedProductStock()}
-          component={ProduceFinishedProductStock}
+          component={MemoizedProduceFinishedProductStock}
           options={{headerTitle: 'Add Finished Product Yield'}}
         />
       </Stack.Group>
       <Stack.Group screenOptions={{presentation: 'modal', headerShown: true}}>
         <Stack.Screen
           name={routes.currencies()}
-          component={Currencies}
+          component={MemoizedCurrencies}
           options={{headerTitle: 'Select Currency'}}
         />
         <Stack.Screen
           name={routes.vendors()}
           options={{headerTitle: 'Vendors'}}>
           {props => {
-            return <Vendors {...props} viewMode="list" />;
+            return <MemoizedVendors {...props} viewMode="list" />;
           }}
         </Stack.Screen>
         <Stack.Screen
           name={routes.spoilage()}
-          component={Spoilage}
+          component={MemoizedSpoilage}
           options={{headerTitle: 'Spoilage / Wastage'}}
         />
         <Stack.Screen
           name={routes.selectSpoilageItem()}
-          component={SelectSpoilageItem}
+          component={MemoizedSelectSpoilageItem}
           options={{headerTitle: 'Select Spoilage Item'}}
         />
 
@@ -207,65 +293,68 @@ const RootStack = () => {
           name={routes.items()}
           options={{headerTitle: 'Inventory'}}>
           {props => (
-            <ItemsTab {...props} listItemDisplayMode="display-quantity" />
+            <MemoizedItemsTab
+              {...props}
+              listItemDisplayMode="display-quantity"
+            />
           )}
         </Stack.Screen>
 
         <Stack.Screen
           name={routes.addItem()}
-          component={AddItem}
+          component={MemoizedAddItem}
           options={{headerTitle: 'Register Item'}}
         />
         <Stack.Screen
           name={routes.editItem()}
-          component={EditItem}
+          component={MemoizedEditItem}
           options={{headerTitle: 'Edit Item'}}
         />
         <Stack.Screen
           name={routes.itemCategory()}
-          component={ItemCategory}
+          component={MemoizedItemCategory}
           options={{headerTitle: 'Item Category'}}
         />
         <Stack.Screen
           name={routes.itemUOM()}
-          component={ItemUOM}
+          component={MemoizedItemUOM}
           options={{headerTitle: 'Unit of Measurement'}}
         />
         <Stack.Screen
           name={routes.itemTax()}
-          component={ItemTax}
+          component={MemoizedItemTax}
           options={{headerTitle: 'Item Tax'}}
         />
         <Stack.Screen
           name={routes.itemVendor()}
-          component={ItemVendor}
+          component={MemoizedItemVendor}
           options={{headerTitle: 'Item Vendor'}}
         />
         <Stack.Screen
           name={routes.addItemUOM()}
-          component={AddItemUOM}
+          component={MemoizedAddItemUOM}
           options={{headerTitle: 'Add Unit of Measurement'}}
         />
         <Stack.Screen
           name={routes.itemView()}
-          component={ItemView}
+          component={MemoizedItemView}
           options={{headerTitle: 'Item'}}
         />
         <Stack.Screen
           name={routes.categoryView()}
-          component={CategoryView}
+          component={MemoizedCategoryView}
           options={{headerTitle: 'Category'}}
         />
         <Stack.Screen
           name={routes.itemSizeOptions()}
-          component={ItemSizeOptions}
+          component={MemoizedItemSizeOptions}
           options={{headerTitle: 'Size Options'}}
         />
         <Stack.Screen
           name={routes.purchases()}
           options={{headerTitle: 'Purchases'}}>
           {props => (
-            <ItemsTab
+            <MemoizedItemsTab
               {...props}
               viewMode="purchases"
               listItemDisplayMode="display-cost"
@@ -274,17 +363,17 @@ const RootStack = () => {
         </Stack.Screen>
         <Stack.Screen
           name={routes.purchaseCategoryView()}
-          component={PurchaseCategoryView}
+          component={MemoizedPurchaseCategoryView}
           options={{headerTitle: 'Purchase Category'}}
         />
         <Stack.Screen
           name={routes.confirmPurchases()}
-          component={ConfirmPurchases}
+          component={MemoizedConfirmPurchases}
           options={{headerTitle: 'Confirm Purchases'}}
         />
         <Stack.Screen
           name={routes.purchaseEntryList()}
-          component={PurchaseEntryList}
+          component={MemoizedPurchaseEntryList}
           options={{
             headerTitle: 'Batch Purchase Entry',
             headerRight: () => {
@@ -317,7 +406,7 @@ const RootStack = () => {
         />
         <Stack.Screen
           name={routes.stockUsageEntryList()}
-          component={StockUsageEntryList}
+          component={MemoizedStockUsageEntryList}
           options={{
             headerTitle: 'Batch Stock Usage Entry',
             headerRight: () => {
@@ -350,7 +439,7 @@ const RootStack = () => {
         />
         <Stack.Screen
           name={routes.endingInventory()}
-          component={EndingInventory}
+          component={MemoizedEndingInventory}
           options={{
             headerTitle: 'Ending Inventory',
             headerRight: () => {
@@ -378,7 +467,7 @@ const RootStack = () => {
             headerTitle: 'Sales Register',
           }}>
           {props => (
-            <SalesCounterItemsTab
+            <MemoizedSalesCounterItemsTab
               {...props}
               listItemDisplayMode="display-sale-qty"
               counterMode="sales-register"
@@ -391,7 +480,7 @@ const RootStack = () => {
             headerTitle: 'Sales Order Register',
           }}>
           {props => (
-            <SalesCounterItemsTab
+            <MemoizedSalesCounterItemsTab
               {...props}
               listItemDisplayMode="display-sale-qty"
               counterMode="sales-order-register"
@@ -400,181 +489,183 @@ const RootStack = () => {
         </Stack.Screen>
         <Stack.Screen
           name={routes.confirmSales()}
-          component={ConfirmSales}
+          component={MemoizedConfirmSales}
           options={{headerTitle: 'Review Sales'}}
         />
         <Stack.Screen
           name={routes.paymentMethod()}
-          component={PaymentMethod}
+          component={MemoizedPaymentMethod}
           options={{headerTitle: 'Payment Method'}}
         />
         <Stack.Screen
           name={routes.splitPayment()}
-          component={SplitPayment}
+          component={MemoizedSplitPayment}
           options={{headerTitle: 'Split Payment'}}
         />
         <Stack.Screen
           name={routes.salesInvoices()}
-          component={SalesInvoices}
+          component={MemoizedSalesInvoices}
           options={{headerTitle: 'Sales Invoices'}}
         />
         <Stack.Screen
           name={routes.salesInvoiceView()}
-          component={SalesInvoiceView}
+          component={MemoizedSalesInvoiceView}
           options={{headerTitle: 'Sales Invoice'}}
         />
         <Stack.Screen
           name={routes.salesOrderGroups()}
-          component={SalesOrders}
+          component={MemoizedSalesOrders}
           options={{headerTitle: 'Sales Orders'}}
         />
         <Stack.Screen
           name={routes.salesOrderGroupView()}
-          component={SalesOrderGroupView}
+          component={MemoizedSalesOrderGroupView}
           options={{headerTitle: 'Sales Order'}}
         />
         <Stack.Screen
           name={routes.printers()}
           options={{headerTitle: 'Printers'}}>
           {props => {
-            return <Printers {...props} viewMode="manage-printers" />;
+            return <MemoizedPrinters {...props} viewMode="manage-printers" />;
           }}
         </Stack.Screen>
         <Stack.Screen
           name={routes.createPrinter()}
-          component={CreatePrinter}
+          component={MemoizedCreatePrinter}
           options={{headerTitle: 'Create Printer'}}
         />
         <Stack.Screen
           name={routes.itemAddedStocks()}
-          component={ItemAddedStocks}
+          component={MemoizedItemAddedStocks}
           options={{headerTitle: 'Item Added Stocks'}}
         />
         <Stack.Screen
           name={routes.purchaseListHistory()}
-          component={PurchaseListHistory}
+          component={MemoizedPurchaseListHistory}
           options={{headerTitle: 'Batch Purchase History'}}
         />
         <Stack.Screen
           name={routes.purchaseListHistoryView()}
-          component={PurchaseListHistoryView}
+          component={MemoizedPurchaseListHistoryView}
           options={{headerTitle: 'Purchased Items'}}
         />
         <Stack.Screen
           name={routes.confirmStockUsage()}
-          component={ConfirmStockUsage}
+          component={MemoizedConfirmStockUsage}
           options={{headerTitle: 'Confirm Stock Usage'}}
         />
         <Stack.Screen
           name={routes.stockUsageHistory()}
-          component={StockUsageHistory}
+          component={MemoizedStockUsageHistory}
           options={{headerTitle: 'Stock Usage History'}}
         />
         <Stack.Screen
           name={routes.stockUsageHistoryView()}
-          component={StockUsageHistoryView}
+          component={MemoizedStockUsageHistoryView}
           options={{headerTitle: 'Used Items'}}
         />
         <Stack.Screen
           name={routes.scanBarcode()}
-          component={ScanBarcode}
+          component={MemoizedScanBarcode}
           options={{headerTitle: 'Scan Barcode'}}
         />
         <Stack.Screen
           name={routes.manageStock()}
-          component={ManageStock}
+          component={MemoizedManageStock}
           options={{headerTitle: 'Manage Stock'}}
         />
         <Stack.Screen
           name={routes.itemPurchaseEntries()}
-          component={ItemPurchaseEntries}
+          component={MemoizedItemPurchaseEntries}
           options={{headerTitle: 'Item Purchase Entries'}}
         />
         <Stack.Screen
           name={routes.revenues()}
-          component={Revenues}
+          component={MemoizedRevenues}
           options={{headerTitle: 'Revenues'}}
         />
         <Stack.Screen
           name={routes.logs()}
-          component={Logs}
+          component={MemoizedLogs}
           options={{headerTitle: 'Inventory Operation Logs'}}
         />
         <Stack.Screen
           name={routes.logView()}
-          component={LogView}
+          component={MemoizedLogView}
           options={{headerTitle: 'Log Details'}}
         />
         <Stack.Screen
           name={routes.updateInventoryLog()}
-          component={UpdateInventoryLog}
+          component={MemoizedUpdateInventoryLog}
           options={{headerTitle: 'Update Inventory Log'}}
         />
         <Stack.Screen
           name={routes.expenses()}
-          component={Expenses}
+          component={MemoizedExpenses}
           options={{headerTitle: 'Expenses'}}
         />
         <Stack.Screen
           name={routes.expenseView()}
-          component={ExpenseView}
+          component={MemoizedExpenseView}
           options={{headerTitle: 'Expenses'}}
         />
         <Stack.Screen
           name={routes.addExpense()}
-          component={AddExpense}
+          component={MemoizedAddExpense}
           options={{headerTitle: 'Add Expense'}}
         />
         <Stack.Screen
           name={routes.expenseGroups()}
-          component={ExpenseGroup}
+          component={MemoizedExpenseGroup}
           options={{headerTitle: 'Expense Group'}}
         />
         {/* Report Screens */}
         <Stack.Screen
           name={routes.reports()}
-          component={Reports}
+          component={MemoizedReports}
           options={{headerTitle: 'Reports'}}
         />
         <Stack.Screen
           name={routes.foodCostAnalysis()}
-          component={FoodCostAnalysis}
+          component={MemoizedFoodCostAnalysis}
           options={{headerTitle: 'Revenue and Expense Groups'}}
         />
         <Stack.Screen
           name={routes.manageRevenueGroups()}
-          component={ManageRevenueGroups}
+          component={MemoizedManageRevenueGroups}
           options={{headerTitle: 'Manage Revenue Groups'}}
         />
         <Stack.Screen
           name={routes.manageExpenseGroups()}
-          component={ManageExpenseGroups}
+          component={MemoizedManageExpenseGroups}
           options={{headerTitle: 'Manage Expense Groups'}}
         />
         <Stack.Screen
           name={routes.manageMonthlyExpenses()}
-          component={ManageMonthlyExpenses}
+          component={MemoizedManageMonthlyExpenses}
           options={{headerTitle: 'Manage Monthly Expenses'}}
         />
         <Stack.Screen
           name={routes.manageCategories()}
           options={{headerTitle: 'Manage Categories'}}>
           {props => {
-            return <Categories {...props} viewMode="manage-categories" />;
+            return (
+              <MemoizedCategories {...props} viewMode="manage-categories" />
+            );
           }}
         </Stack.Screen>
         <Stack.Screen
           name={routes.manageTaxes()}
           options={{headerTitle: 'Manage Taxes'}}>
           {props => {
-            return <Taxes {...props} viewMode="manage-taxes" />;
+            return <MemoizedTaxes {...props} viewMode="manage-taxes" />;
           }}
         </Stack.Screen>
         <Stack.Screen
           name={routes.manageVendors()}
           options={{headerTitle: 'Manage Vendors'}}>
           {props => {
-            return <Vendors {...props} viewMode="manage-vendors" />;
+            return <MemoizedVendors {...props} viewMode="manage-vendors" />;
           }}
         </Stack.Screen>
         <Stack.Screen
@@ -599,7 +690,7 @@ const RootStack = () => {
         />
         <Stack.Screen
           name={routes.monthlyReportByItem()}
-          component={MonthlyReportByItem}
+          component={MemoizedMonthlyReportByItem}
           options={{
             headerTitle: 'Monthly Report | Item',
             headerRight: () => {
@@ -609,7 +700,7 @@ const RootStack = () => {
         />
         <Stack.Screen
           name={routes.monthlyReportByCategory()}
-          component={MonthlyReportByCategory}
+          component={MemoizedMonthlyReportByCategory}
           options={{
             headerTitle: 'Monthly Report | Category',
             headerRight: () => {
@@ -619,7 +710,7 @@ const RootStack = () => {
         />
         <Stack.Screen
           name={routes.customReportByItem()}
-          component={CustomReportByItem}
+          component={MemoizedCustomReportByItem}
           options={{
             headerTitle: 'Date Filtered Report | Item',
             headerRight: () => {
@@ -630,7 +721,7 @@ const RootStack = () => {
         />
         <Stack.Screen
           name={routes.customReportByCategory()}
-          component={CustomReportByCategory}
+          component={MemoizedCustomReportByCategory}
           options={{
             headerTitle: 'Date Filtered Report | Category',
             headerRight: () => {
@@ -641,7 +732,7 @@ const RootStack = () => {
         />
         <Stack.Screen
           name={routes.itemReportView()}
-          component={ItemReportView}
+          component={MemoizedItemReportView}
           options={{headerTitle: 'Item Report'}}
         />
       </Stack.Group>

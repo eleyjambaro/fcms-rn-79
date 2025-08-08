@@ -22,7 +22,17 @@ import UnauthorizedAccount from '../screens/UnauthorizedAccount';
 
 const Tab = createBottomTabNavigator();
 
-export default function MainTab(props) {
+// Memoize components to prevent unnecessary re-renders
+const MemoizedHome = React.memo(Home);
+const MemoizedItems = React.memo(Items);
+const MemoizedReports = React.memo(Reports);
+const MemoizedInventory = React.memo(Inventory);
+const MemoizedPurchaseEntryList = React.memo(PurchaseEntryList);
+const MemoizedStockUsageEntryList = React.memo(StockUsageEntryList);
+const MemoizedSettings = React.memo(Settings);
+const MemoizedUnauthorizedAccount = React.memo(UnauthorizedAccount);
+
+const MainTab = React.memo(function MainTab(props) {
   const {navigation} = props;
   const {colors} = useTheme();
   const [{authUser}] = useAuthContext();
@@ -31,21 +41,21 @@ export default function MainTab(props) {
 
   const renderReportsTabScreen = () => {
     const enabledModule = 'reports';
-    let component = Reports;
+    let component = MemoizedReports;
 
     if (authUser.is_root_account) {
       // remain to default values
     } else if (userRoleConfig?.enable?.[0] === '*') {
       // disable overrides enabled behavior
       if (userRoleConfig?.disable?.includes(enabledModule)) {
-        component = UnauthorizedAccount;
+        component = MemoizedUnauthorizedAccount;
       } else {
         // remain to default values
       }
     } else if (userRoleConfig?.enable?.includes(enabledModule)) {
       // disable overrides enabled behavior
       if (userRoleConfig?.disable?.includes(enabledModule)) {
-        component = UnauthorizedAccount;
+        component = MemoizedUnauthorizedAccount;
       } else {
         // remain to default values
       }
@@ -58,21 +68,21 @@ export default function MainTab(props) {
 
   const renderSettingsTabScreen = () => {
     const enabledModule = 'settings';
-    let component = Settings;
+    let component = MemoizedSettings;
 
     if (authUser.is_root_account) {
       // remain to default values
     } else if (userRoleConfig?.enable?.[0] === '*') {
       // disable overrides enabled behavior
       if (userRoleConfig?.disable?.includes(enabledModule)) {
-        component = UnauthorizedAccount;
+        component = MemoizedUnauthorizedAccount;
       } else {
         // remain to default values
       }
     } else if (userRoleConfig?.enable?.includes(enabledModule)) {
       // disable overrides enabled behavior
       if (userRoleConfig?.disable?.includes(enabledModule)) {
-        component = UnauthorizedAccount;
+        component = MemoizedUnauthorizedAccount;
       } else {
         // remain to default values
       }
@@ -134,10 +144,12 @@ export default function MainTab(props) {
         tabBarInactiveTintColor: colors.dark,
         tabBarStyle: {height: 74},
         tabBarItemStyle: {marginVertical: 15},
+        lazy: true, // Enable lazy loading for tabs
+        unmountOnBlur: false, // Keep tabs mounted to prevent flickering
       })}>
       <Tab.Screen
         name={routes.home()}
-        component={Home}
+        component={MemoizedHome}
         options={{
           headerTitle: '',
           headerLeft: () => (
@@ -222,4 +234,6 @@ export default function MainTab(props) {
       </Tab.Group> */}
     </Tab.Navigator>
   );
-}
+});
+
+export default MainTab;
