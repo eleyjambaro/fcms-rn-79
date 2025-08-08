@@ -40,11 +40,7 @@ export const saveBackupDataToThisDevice = async () => {
     const dbFileExists = await RNFS.exists(dbFilePath);
 
     if (dbFileExists) {
-      await appMediaStore.copyFile(
-        dbFilePath,
-        'FCMS_Data',
-        `${backupDbName}`,
-      );
+      await appMediaStore.copyFile(dbFilePath, 'FCMS_Data', `${backupDbName}`);
     }
   } catch (error) {
     throw error;
@@ -54,12 +50,21 @@ export const saveBackupDataToThisDevice = async () => {
 export const selectBackupDataFromThisDevice = async () => {
   try {
     const [file] = await DocumentPicker.pick({
-      type: [DocumentPicker.types.allFiles],
+      type: [
+        'application/x-sqlite3',
+        'application/vnd.sqlite3',
+        'application/octet-stream',
+      ],
       allowMultiSelection: false,
       allowVirtualFiles: true,
       requestLongTermAccess: true,
       presentationStyle: 'fullScreen',
     });
+
+    // Additional validation to ensure the file has .db extension
+    if (file && file.name && !file.name.toLowerCase().endsWith('.db')) {
+      throw new Error('Please select a valid .db file');
+    }
 
     return file;
   } catch (err) {

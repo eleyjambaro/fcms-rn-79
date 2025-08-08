@@ -675,10 +675,10 @@ const Account = props => {
     try {
       const {enableRecoverDataLocally} = await getAppConfig();
 
-      if (!enableRecoverDataLocally) {
-        setDisabledFeatureModalVisible(() => true);
-        return;
-      }
+      // if (!enableRecoverDataLocally) {
+      //   setDisabledFeatureModalVisible(() => true);
+      //   return;
+      // }
 
       // for android 11 or higher
       if (sdkVersion >= 30) {

@@ -192,9 +192,9 @@ const UpdateCompany = () => {
             onSubmit={handleSubmit}
           />
         </ScrollView>
-        <View>
-          <BannerAdComponent unitId={adUnitIds.companyProfileScreenBanner} />
-        </View>
+      </View>
+      <View>
+        <BannerAdComponent unitId={adUnitIds.companyProfileScreenBanner} />
       </View>
     </>
   );

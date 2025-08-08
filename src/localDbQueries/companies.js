@@ -1,7 +1,7 @@
 import {getLocalAccountDBConnection} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {sign, decode} from 'react-native-pure-jwt';
-import * as RNFS from 'react-native-fs';
+import {copyFile} from '../lib/appMediaStore';
 import uuid from 'react-native-uuid';
 
 import {
@@ -12,7 +12,6 @@ import {trimTextLength} from '../utils/stringHelpers';
 import {keys} from '../constants/keys';
 import appDefaults from '../constants/appDefaults';
 import {setDefaultCloudEmail} from '../serverDbQueries/auth';
-import {saveUpdatedRootAccountAndCompaniesToThisDevice} from './accounts';
 
 export const hasCompany = async ({queryKey}) => {
   const [_key] = queryKey;
@@ -150,38 +149,29 @@ export const updateCompany = async ({updatedValues, onSuccess}) => {
 
     if (hasNewSelectedLogoFile) {
       /**
-       * Create app directory on the device
-       */
-      const appDirectoryExists = await RNFS.exists(
-        appDefaults.externalStorageAppDirectoryPath,
-      );
-
-      if (!appDirectoryExists) {
-        await RNFS.mkdir(appDefaults.externalStorageAppDirectoryPath);
-      }
-
-      /**
-       * Create {appDirectory}/companies/{company_uid}/logo path on the device
-       */
-      const companyLogoDirectoryPath = `${appDefaults.externalStorageAppDirectoryPath}/companies/${company.company_uid}/logo`;
-      const companyLogoDirectoryExists = await RNFS.exists(
-        companyLogoDirectoryPath,
-      );
-
-      if (!companyLogoDirectoryExists) {
-        await RNFS.mkdir(companyLogoDirectoryPath);
-      }
-
-      /**
        * Copy the selected logo file from its path to the app's company logo directory
+       * Using appMediaStore which automatically creates directories if they don't exist
        */
-      let datedCompanyLogoPath = `${companyLogoDirectoryPath}/${Date.now()}`;
-      await RNFS.copyFile(
-        updatedValues.company_logo_path,
-        datedCompanyLogoPath,
-      );
+      // Relative path for copyFile directory parameter
+      const companyLogoDirectoryRelative = `${appDefaults.configDirName}/companies/${company.company_uid}/logo`;
+      // Absolute path for React Native Image rendering
+      const companyLogoDirectoryAbsolute = `${appDefaults.configDirPath}/companies/${company.company_uid}/logo`;
 
-      companyLogoPath = datedCompanyLogoPath;
+      const datedCompanyLogoFileName = `${Date.now()}`;
+      const datedCompanyLogoFilePath = `${companyLogoDirectoryAbsolute}/${datedCompanyLogoFileName}`;
+
+      try {
+        await copyFile(
+          updatedValues.company_logo_path,
+          companyLogoDirectoryRelative,
+          datedCompanyLogoFileName,
+        );
+
+        companyLogoPath = datedCompanyLogoFilePath;
+      } catch (error) {
+        console.debug('Failed to copy company logo file:', error);
+        throw new Error('Failed to copy company logo file.');
+      }
     }
 
     /**
@@ -217,7 +207,11 @@ export const updateCompany = async ({updatedValues, onSuccess}) => {
         await db.executeSql(updateRootAccountQuery);
       }
 
-      await saveUpdatedRootAccountAndCompaniesToThisDevice();
+      /**
+       * TODO: saveUpdatedRootAccountAndCompaniesToThisDevice is deprecated. Remove this
+       * when the feature is removed from the app.
+       */
+      // await saveUpdatedRootAccountAndCompaniesToThisDevice();
       onSuccess && onSuccess({company_id: company.id});
     }
   } catch (error) {

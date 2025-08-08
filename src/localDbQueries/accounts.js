@@ -898,6 +898,7 @@ export const saveAccountForThisDeviceLocally = async ({
   }
 };
 
+// Deprecated
 export const saveUpdatedRootAccountAndCompaniesToThisDevice = async () => {
   try {
     const db = await getLocalAccountDBConnection();
