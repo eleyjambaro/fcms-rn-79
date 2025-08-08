@@ -24,6 +24,8 @@ import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingSc
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
 import appDefaults from '../constants/appDefaults';
+import BannerAdComponent from '../components/ads/BannerAdComponent';
+import {adUnitIds} from '../constants/adUnitIds';
 
 const ActivateLicense = props => {
   const {navigation} = props;
@@ -259,6 +261,9 @@ const ActivateLicense = props => {
       />
       <View style={[styles.container, {backgroundColor: colors.surface}]}>
         {renderContent()}
+      </View>
+      <View>
+        <BannerAdComponent unitId={adUnitIds.activateLicenseScreenBanner} />
       </View>
     </>
   );

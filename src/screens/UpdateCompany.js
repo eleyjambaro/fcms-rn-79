@@ -25,6 +25,8 @@ import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingSc
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
 import AppIcon from '../components/icons/AppIcon';
 import {getSettings, updateSettings} from '../localDbQueries/settings';
+import BannerAdComponent from '../components/ads/BannerAdComponent';
+import {adUnitIds} from '../constants/adUnitIds';
 
 const UpdateCompany = () => {
   const {colors} = useTheme();
@@ -190,6 +192,9 @@ const UpdateCompany = () => {
             onSubmit={handleSubmit}
           />
         </ScrollView>
+        <View>
+          <BannerAdComponent unitId={adUnitIds.companyProfileScreenBanner} />
+        </View>
       </View>
     </>
   );

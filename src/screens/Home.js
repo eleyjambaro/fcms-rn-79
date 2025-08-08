@@ -42,7 +42,7 @@ import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen
 import appDefaults from '../constants/appDefaults';
 import useWindowProperties from '../hooks/useWindowProperties';
 import BannerAdComponent from '../components/ads/BannerAdComponent';
-import { adUnitIds } from '../constants/adUnitIds';
+import {adUnitIds} from '../constants/adUnitIds';
 
 const Home = props => {
   const {navigation} = props;

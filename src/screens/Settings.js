@@ -4,6 +4,8 @@ import {Drawer, useTheme} from 'react-native-paper';
 import useAuthContext from '../hooks/useAuthContext';
 import {useNavigation} from '@react-navigation/native';
 import routes from '../constants/routes';
+import BannerAdComponent from '../components/ads/BannerAdComponent';
+import {adUnitIds} from '../constants/adUnitIds';
 
 const Settings = () => {
   const [active, setActive] = React.useState('');
@@ -12,49 +14,50 @@ const Settings = () => {
   const navigation = useNavigation();
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.surface}]}>
-      <Drawer.Section title="General">
-        <Drawer.Item
-          style={styles.itemStyle}
-          label="Account"
-          onPress={() => {
-            navigation.navigate(routes.account());
-          }}
-        />
-        <Drawer.Item
-          style={styles.itemStyle}
-          label="Company Profile"
-          onPress={() => {
-            navigation.navigate(routes.updateCompany());
-          }}
-        />
-        <Drawer.Item
-          style={[styles.itemStyle]}
-          label="Currency"
-          onPress={() => {
-            navigation.navigate(routes.currencies());
-          }}
-        />
-      </Drawer.Section>
-      <Drawer.Section title="Devices">
-        <Drawer.Item
-          style={styles.itemStyle}
-          label="Printers"
-          onPress={() => {
-            navigation.navigate(routes.printers());
-          }}
-        />
-      </Drawer.Section>
-      <Drawer.Section title="Activation">
-        <Drawer.Item
-          style={styles.itemStyle}
-          label="Activate License"
-          onPress={() => {
-            navigation.navigate(routes.activateLicense());
-          }}
-        />
-      </Drawer.Section>
-      {/* <Drawer.Section title="Food Costing">
+    <>
+      <View style={[styles.container, {backgroundColor: colors.surface}]}>
+        <Drawer.Section title="General">
+          <Drawer.Item
+            style={styles.itemStyle}
+            label="Account"
+            onPress={() => {
+              navigation.navigate(routes.account());
+            }}
+          />
+          <Drawer.Item
+            style={styles.itemStyle}
+            label="Company Profile"
+            onPress={() => {
+              navigation.navigate(routes.updateCompany());
+            }}
+          />
+          <Drawer.Item
+            style={[styles.itemStyle]}
+            label="Currency"
+            onPress={() => {
+              navigation.navigate(routes.currencies());
+            }}
+          />
+        </Drawer.Section>
+        <Drawer.Section title="Devices">
+          <Drawer.Item
+            style={styles.itemStyle}
+            label="Printers"
+            onPress={() => {
+              navigation.navigate(routes.printers());
+            }}
+          />
+        </Drawer.Section>
+        <Drawer.Section title="Activation">
+          <Drawer.Item
+            style={styles.itemStyle}
+            label="Activate License"
+            onPress={() => {
+              navigation.navigate(routes.activateLicense());
+            }}
+          />
+        </Drawer.Section>
+        {/* <Drawer.Section title="Food Costing">
         <Drawer.Item
           style={styles.itemStyle}
           label="Ideal Food Cost"
@@ -73,7 +76,11 @@ const Settings = () => {
           onPress={() => {}}
         />
       </Drawer.Section> */}
-    </View>
+      </View>
+      <View>
+        <BannerAdComponent unitId={adUnitIds.settingsScreenBanner} />
+      </View>
+    </>
   );
 };
 

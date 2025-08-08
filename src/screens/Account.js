@@ -58,6 +58,8 @@ import LocalUserAccountProfile from '../components/accounts/LocalUserAccountProf
 import {insertTemplateDataToDb} from '../localDbQueries/inventoryDataTemplate';
 import InventoryDataTemplateFileExportForm from '../components/forms/InventoryDataTemplateFileExportForm';
 import InventoryDataTemplateFileImportForm from '../components/forms/InventoryDataTemplateFileImportForm';
+import {adUnitIds} from '../constants/adUnitIds';
+import BannerAdComponent from '../components/ads/BannerAdComponent';
 
 const Account = props => {
   const {navigation} = props;
@@ -1885,6 +1887,9 @@ const Account = props => {
           </View>
         </View>
       </ScrollView>
+      <View>
+        <BannerAdComponent unitId={adUnitIds.accountScreenBanner} />
+      </View>
     </>
   );
 };
