@@ -60,6 +60,7 @@ import InventoryDataTemplateFileExportForm from '../components/forms/InventoryDa
 import InventoryDataTemplateFileImportForm from '../components/forms/InventoryDataTemplateFileImportForm';
 import {adUnitIds} from '../constants/adUnitIds';
 import BannerAdComponent from '../components/ads/BannerAdComponent';
+import ConfirmationCheckbox from '../components/forms/ConfirmationCheckbox';
 
 const Account = props => {
   const {navigation} = props;
@@ -105,6 +106,8 @@ const Account = props => {
     useState();
   const [foundBackupDataInfo, setFoundBackupDataInfo] = useState(null);
   const [foundBackupDataInfoModalVisible, setFoundBackupDataInfoModalVisible] =
+    useState(false);
+  const [backupDataOverrideConfirmed, setBackupDataOverrideConfirmed] =
     useState(false);
   const [disabledFeatureModalVisible, setDisabledFeatureModalVisible] =
     useState(false);
@@ -1701,10 +1704,19 @@ const Account = props => {
                   tapping "Restore".
                 </Text>
               </View>
+              <View>
+                <ConfirmationCheckbox
+                  status={backupDataOverrideConfirmed}
+                  onPress={status => setBackupDataOverrideConfirmed(!status)}
+                  text="I understand that restoring backup data will override my current data"
+                  containerStyle={{paddingLeft: 0}}
+                />
+              </View>
             </Dialog.Content>
           )}
           <Dialog.Actions style={{justifyContent: 'space-around'}}>
             <Button
+              disabled={!backupDataOverrideConfirmed}
               onPress={() => {
                 recoverBackupDataFromDownloads();
               }}>
@@ -1713,6 +1725,7 @@ const Account = props => {
             <Button
               onPress={() => {
                 setFoundBackupDataInfoModalVisible(() => false);
+                setBackupDataOverrideConfirmed(false);
               }}>
               Cancel
             </Button>

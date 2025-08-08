@@ -8,7 +8,13 @@ const ConfirmationCheckbox = props => {
   const renderText = () => {
     if (!text) return null;
 
-    return <Text style={{fontSize: 16, marginLeft: 3}}>{text}</Text>;
+    return (
+      <View style={{flex: 1}}>
+        <Text style={{fontSize: 16, marginLeft: 3, flexWrap: 'wrap'}}>
+          {text}
+        </Text>
+      </View>
+    );
   };
   return (
     <View
