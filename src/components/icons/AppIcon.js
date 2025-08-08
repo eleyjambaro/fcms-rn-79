@@ -20,7 +20,7 @@ const AppIcon = props => {
 
   let iconSource = require('../../assets/iconicMark/fcms_icon_colored_tp_bg.png');
   let iconSize = size;
-  let mainTextFontSize = iconSize - 56;
+  let mainTextFontSize = 25;
   let subTextFontSize = mainTextFontSize - 15;
 
   let iconColor = null;
@@ -93,6 +93,7 @@ const AppIcon = props => {
 
           {
             fontSize: subTextFontSize,
+            fontWeight: 'bold',
             color: subTextColor,
             marginTop: subTextMarginTop,
           },

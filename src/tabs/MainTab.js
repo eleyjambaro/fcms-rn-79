@@ -142,7 +142,7 @@ export default function MainTab(props) {
           headerTitle: '',
           headerLeft: () => (
             <CompanyIcon
-              size={28}
+              size={29}
               variant="horizontal"
               containerStyle={{paddingLeft: 15, marginRight: -10}}
             />

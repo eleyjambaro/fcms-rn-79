@@ -2077,7 +2077,10 @@ const Account = props => {
         style={{backgroundColor: colors.surface}}>
         <View style={[styles.container, {backgroundColor: colors.surface}]}>
           <View style={{marginBottom: 15, alignItems: 'center'}}>
-            <CompanyIcon containerStyle={{marginTop: 40, marginBottom: 0}} />
+            <CompanyIcon
+              size={150}
+              containerStyle={{marginTop: 40, marginBottom: 0}}
+            />
             {renderEditCompanyProfileButton()}
           </View>
 
