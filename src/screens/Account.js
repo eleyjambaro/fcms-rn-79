@@ -1408,9 +1408,215 @@ const Account = props => {
           onDismiss={() => setRecoverDataDialogVisible(() => false)}>
           <Dialog.Title>Recover Data from this Device</Dialog.Title>
           <Dialog.Content>
-            <Text>
-              You're about to recover your backed up data saved on this device.
-            </Text>
+            {/* Backup File Location Guide */}
+            <View
+              style={{
+                backgroundColor: '#f5f5f5',
+                borderRadius: 8,
+                padding: 15,
+                marginBottom: 15,
+              }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 10,
+                }}>
+                <MaterialCommunityIcons
+                  name="folder-open-outline"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    fontWeight: 'bold',
+                    fontSize: 16,
+                    color: colors.dark,
+                  }}>
+                  Where to find your backup files:
+                </Text>
+              </View>
+
+              <View style={{marginBottom: 12}}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    marginBottom: 8,
+                  }}>
+                  <View
+                    style={{
+                      backgroundColor: colors.primary,
+                      borderRadius: 12,
+                      width: 24,
+                      height: 24,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 10,
+                      marginTop: 2,
+                    }}>
+                    <Text
+                      style={{
+                        color: 'white',
+                        fontSize: 12,
+                        fontWeight: 'bold',
+                      }}>
+                      1
+                    </Text>
+                  </View>
+                  <Text style={{flex: 1, lineHeight: 20}}>
+                    Tap <Text style={{fontWeight: 'bold'}}>Browse Files</Text>{' '}
+                    button below
+                  </Text>
+                </View>
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    marginBottom: 8,
+                  }}>
+                  <View
+                    style={{
+                      backgroundColor: colors.primary,
+                      borderRadius: 12,
+                      width: 24,
+                      height: 24,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 10,
+                      marginTop: 2,
+                    }}>
+                    <Text
+                      style={{
+                        color: 'white',
+                        fontSize: 12,
+                        fontWeight: 'bold',
+                      }}>
+                      2
+                    </Text>
+                  </View>
+                  <Text style={{flex: 1, lineHeight: 20}}>
+                    Navigate to{' '}
+                    <Text style={{fontWeight: 'bold', color: colors.primary}}>
+                      Downloads
+                    </Text>{' '}
+                    folder
+                  </Text>
+                </View>
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    marginBottom: 8,
+                  }}>
+                  <View
+                    style={{
+                      backgroundColor: colors.primary,
+                      borderRadius: 12,
+                      width: 24,
+                      height: 24,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 10,
+                      marginTop: 2,
+                    }}>
+                    <Text
+                      style={{
+                        color: 'white',
+                        fontSize: 12,
+                        fontWeight: 'bold',
+                      }}>
+                      3
+                    </Text>
+                  </View>
+                  <Text style={{flex: 1, lineHeight: 20}}>
+                    Look for the{' '}
+                    <Text style={{fontWeight: 'bold', color: colors.primary}}>
+                      FCMS_Data
+                    </Text>{' '}
+                    folder
+                  </Text>
+                </View>
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                  }}>
+                  <View
+                    style={{
+                      backgroundColor: colors.primary,
+                      borderRadius: 12,
+                      width: 24,
+                      height: 24,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 10,
+                      marginTop: 2,
+                    }}>
+                    <Text
+                      style={{
+                        color: 'white',
+                        fontSize: 12,
+                        fontWeight: 'bold',
+                      }}>
+                      4
+                    </Text>
+                  </View>
+                  <Text style={{flex: 1, lineHeight: 20}}>
+                    Your backup files end with{' '}
+                    <Text style={{fontWeight: 'bold', color: colors.primary}}>
+                      .db
+                    </Text>{' '}
+                    extension
+                  </Text>
+                </View>
+              </View>
+
+              <View
+                style={{
+                  backgroundColor: '#e3f2fd',
+                  borderRadius: 6,
+                  padding: 10,
+                  borderLeftWidth: 4,
+                  borderLeftColor: colors.primary,
+                }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginBottom: 5,
+                  }}>
+                  <MaterialCommunityIcons
+                    name="information-outline"
+                    size={16}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={{
+                      marginLeft: 5,
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      color: colors.primary,
+                    }}>
+                    Tip:
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: '#666',
+                    lineHeight: 16,
+                  }}>
+                  When you tap "Browse Files", you'll be prompted to select the
+                  backup file. The file picker will automatically filter to show
+                  only .db files for easier selection.
+                </Text>
+              </View>
+            </View>
           </Dialog.Content>
           <Dialog.Actions style={{justifyContent: 'space-around'}}>
             <Button
@@ -1419,7 +1625,7 @@ const Account = props => {
                 // findBackupDataFromDownloads();
                 selectBackupDataFromThisDeviceToRecover();
               }}>
-              Next
+              Browse Files
             </Button>
             <Button
               onPress={() => {
