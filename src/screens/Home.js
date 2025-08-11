@@ -175,6 +175,10 @@ const Home = props => {
       mainButton === 'counter' ||
       mainButton === 'salesOrders'
     ) {
+      if (env === 'dev') {
+        return true;
+      }
+
       if (appConfigFromLicense?.enableSales) {
         return true;
       } else {

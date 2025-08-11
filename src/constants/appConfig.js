@@ -4,9 +4,9 @@ import DeviceInfo from 'react-native-device-info';
 import packageJson from '../../package.json';
 import deviceInfo from '../lib/deviceInfo';
 
-export const env = 'prod'; // change to 'dev' manualy when on development mode
+export const env = __DEV__ ? 'dev' : 'prod'; // change to 'prod' manualy to test production environment
 export const appVersion = packageJson.version;
-export const localUserDefaultRoleId = 2; // Encoder
+export const localUserDefaultRoleId = 2; // Encoders
 
 export const defaultAppConfig = {
   version: appVersion,
@@ -23,6 +23,21 @@ export const defaultAppConfig = {
   enableExportInventoryDataTemplate: true,
 };
 
+const devAppConfig = {
+  ...defaultAppConfig,
+  insertLimit: 0,
+  insertItemLimitPerCategory: 0,
+  insertCategoryLimit: 0,
+  insertUserLimit: 0,
+  /* Data Sync & Backup */
+  enableBackupDataLocally: true,
+  enableRecoverDataLocally: true,
+  enableExportReports: true,
+  /* Inventory Data Template */
+  enableImportInventoryDataTemplate: true,
+  enableExportInventoryDataTemplate: true,
+};
+
 export async function getAppConfig() {
   try {
     let licenseToken = null;
@@ -34,6 +49,10 @@ export async function getAppConfig() {
     }
 
     if (!licenseToken) {
+      if (env === 'dev') {
+        return devAppConfig;
+      }
+
       return defaultAppConfig;
     }
 
