@@ -4,6 +4,8 @@ import useAppLifecycle from './src/hooks/useAppLifecycle';
 import useAppInitialization from './src/hooks/useAppInitialization';
 import usePermissions from './src/hooks/usePermissions';
 import useExpiredAuthDialog from './src/hooks/useExpiredAuthDialog';
+import {useVersionCheck} from './src/hooks/useVersionCheck';
+import UpdatePromptModal from './src/components/modals/UpdatePromptModal';
 
 import FilesAndMediaManagementPermissionNeeded from './src/screens/FilesAndMediaManagementPermissionNeeded';
 import FilesAndMediaReadAndWritePermissionNeeded from './src/screens/FilesAndMediaReadAndWritePermissionNeeded';
@@ -60,9 +62,26 @@ const App = () => {
     return <RootStack />;
   };
 
+  const {
+    showUpdateModal,
+    hideUpdateModal,
+    isForceUpdate,
+    currentVersion,
+    latestVersion,
+    storeUrl,
+  } = useVersionCheck();
+
   return (
     <>
       <ExpiredAuthDialog />
+      <UpdatePromptModal
+        visible={showUpdateModal}
+        onDismiss={hideUpdateModal}
+        isForceUpdate={isForceUpdate}
+        currentVersion={currentVersion}
+        latestVersion={latestVersion}
+        storeUrl={storeUrl}
+      />
       {renderContent()}
     </>
   );
