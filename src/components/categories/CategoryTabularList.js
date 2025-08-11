@@ -229,7 +229,11 @@ const CategoryTabularList = props => {
       return (
         <DataTable.Row style={[tableRowStyle]}>
           <DataTable.Cell>{item.category_name}</DataTable.Cell>
-          <DataTable.Cell numeric>
+          <DataTable.Cell
+            numeric
+            style={{
+              alignSelf: 'center',
+            }}>
             {
               <MaterialCommunityIcons
                 name="chevron-double-right"
@@ -318,7 +322,11 @@ const CategoryTabularList = props => {
           <DataTable.Cell>
             <Text style={{fontWeight: 'bold'}}>{revenueGroupTotalLabel}</Text>
           </DataTable.Cell>
-          <DataTable.Cell numeric>
+          <DataTable.Cell
+            numeric
+            style={{
+              alignSelf: 'center',
+            }}>
             {
               <MaterialCommunityIcons
                 name="chevron-double-right"
@@ -424,7 +432,11 @@ const CategoryTabularList = props => {
           <DataTable.Cell>
             <Text style={{fontWeight: 'bold'}}>Grand Total</Text>
           </DataTable.Cell>
-          <DataTable.Cell numeric>
+          <DataTable.Cell
+            numeric
+            style={{
+              alignSelf: 'center',
+            }}>
             {
               <MaterialCommunityIcons
                 name="chevron-double-right"
@@ -544,20 +556,10 @@ const CategoryTabularList = props => {
 
   const items = getAllPagesData();
 
-  const chartColors = [
-    colors.primary,
-    colors.accent,
-    'green',
-    colors.notification,
-    colors.error,
-    colors.text,
-  ];
-
-  const chartData = items.map((item, index) => {
+  const itemCategories = items.map((item, index) => {
     return {
       ...item,
       totalCost: item.grand_total_cost || 0,
-      color: chartColors[index],
     };
   });
 
@@ -597,7 +599,7 @@ const CategoryTabularList = props => {
                 </DataTable.Title>
               </DataTable.Header>
               <FlatList
-                data={chartData}
+                data={itemCategories}
                 renderItem={props => {
                   return renderItem({...props, tableColumnNumber: 1});
                 }}
@@ -648,7 +650,7 @@ const CategoryTabularList = props => {
                 </DataTable.Title>
               </DataTable.Header>
               <FlatList
-                data={chartData}
+                data={itemCategories}
                 renderItem={props => {
                   return renderItem({...props, tableColumnNumber: 2});
                 }}
@@ -693,7 +695,7 @@ const CategoryTabularList = props => {
                 </DataTable.Title>
               </DataTable.Header>
               <FlatList
-                data={chartData}
+                data={itemCategories}
                 renderItem={props => {
                   return renderItem({...props, tableColumnNumber: 3});
                 }}
@@ -741,7 +743,7 @@ const CategoryTabularList = props => {
                 </DataTable.Title>
               </DataTable.Header>
               <FlatList
-                data={chartData}
+                data={itemCategories}
                 renderItem={props => {
                   return renderItem({...props, tableColumnNumber: 4});
                 }}
