@@ -1,6 +1,7 @@
 import {Platform} from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import semver from 'semver';
+import axios from 'axios';
 
 // Replace these with your actual store URLs
 const STORE_URLS = {
@@ -11,13 +12,35 @@ const STORE_URLS = {
 // We can replace this with an API call to our backend
 const getLatestVersion = async () => {
   // This is a placeholder. In production, we should fetch this from our backend
-  const latestVersions = {
+  let latestVersions = {
     ios: '0.0.0',
     android: '1.0.7',
     minimumSupported: '1.0.0',
   };
 
-  return latestVersions;
+  try {
+    const {data} = await axios.get(
+      'https://uxi-fcms-developers.github.io/app-version/version.json',
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+
+    if (!data) throw Error('Invalid data response.');
+
+    latestVersions = data;
+    return latestVersions;
+  } catch (error) {
+    console.warn(
+      'Getting version and minimum supported version from backend error:',
+      error,
+    );
+
+    // Fallback to the hardcoded versions if the API call fails
+    return latestVersions;
+  }
 };
 
 export const checkVersion = async () => {
