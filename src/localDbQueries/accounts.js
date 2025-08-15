@@ -358,7 +358,7 @@ export const emergencyChangePassword = async ({values}) => {
     /**
      * Resave updated root account to this device
      */
-    await saveUpdatedRootAccountAndCompaniesToThisDevice();
+    // await saveUpdatedRootAccountAndCompaniesToThisDevice();
 
     return {
       result: rootAccount,
@@ -536,7 +536,7 @@ export const recreateRootAccountFromAccountsArray = async ({
     await db.executeSql(insertRootAccountQuery);
 
     if (!rootAccountEmail && company && company.company_email) {
-      await saveUpdatedRootAccountAndCompaniesToThisDevice();
+      // await saveUpdatedRootAccountAndCompaniesToThisDevice();
     }
   } catch (error) {
     console.debug(error);
@@ -1184,7 +1184,7 @@ export const createLocalUserAccount = async ({
     );
 
     if (createLocalUserAccountResult[0].rowsAffected > 0) {
-      await saveUpdatedLocalUserAccountsToThisDevice();
+      // await saveUpdatedLocalUserAccountsToThisDevice()
     }
   } catch (error) {
     console.debug(error);
