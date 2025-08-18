@@ -96,6 +96,7 @@ import CreateSellingMenu from '../screens/CreateSellingMenu';
 import SelectSellingMenuItems from '../screens/SelectSellingMenuItems';
 import SellingMenuView from '../screens/SellingMenuView';
 import {screenTransitionConfig} from '../utils/ScreenOptimization';
+import EditSellingMenu from '../screens/EditSellingMenu';
 
 const Stack = createStackNavigator();
 
@@ -181,6 +182,7 @@ const MemoizedSellingMenu = React.memo(SellingMenu);
 const MemoizedCreateSellingMenu = React.memo(CreateSellingMenu);
 const MemoizedSelectSellingMenuItems = React.memo(SelectSellingMenuItems);
 const MemoizedSellingMenuView = React.memo(SellingMenuView);
+const MemoizedEditSellingMenu = React.memo(EditSellingMenu);
 
 const RootStack = () => {
   const navigation = useNavigation();
@@ -762,6 +764,11 @@ const RootStack = () => {
           name={routes.sellingMenuView()}
           component={MemoizedSellingMenuView}
           options={{headerTitle: 'Menu'}}
+        />
+        <Stack.Screen
+          name={routes.editSellingMenu()}
+          component={MemoizedEditSellingMenu}
+          options={{headerTitle: 'Edit Menu'}}
         />
       </Stack.Group>
     </Stack.Navigator>
