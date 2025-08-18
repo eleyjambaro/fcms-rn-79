@@ -81,7 +81,7 @@ const ItemSizeOptionList = props => {
   const getAllPagesData = () => {
     let pagesData = [];
 
-    if (data.pages) {
+    if (data?.pages) {
       for (let page of data.pages) {
         pagesData.push(...page.result);
       }
@@ -89,6 +89,15 @@ const ItemSizeOptionList = props => {
 
     return pagesData;
   };
+
+  // Auto-select if there's only one option
+  useEffect(() => {
+    const allData = getAllPagesData();
+    if (allData.length === 1 && onChange) {
+      setFocusedItem(allData[0]);
+      onChange(allData[0]);
+    }
+  }, [data?.pages]);
 
   const renderFooter = () => {
     if (isFetchingNextPage) {
@@ -124,12 +133,14 @@ const ItemSizeOptionList = props => {
     );
   }
 
+  const allData = getAllPagesData();
+
   return (
     <>
       <FlatList
         contentContainerStyle={listContentContainerStyle}
         style={[{backgroundColor: colors.surface}, listStyle]}
-        data={getAllPagesData()}
+        data={allData}
         keyExtractor={item => item.option_id}
         renderItem={renderItem}
         onEndReached={loadMore}
@@ -154,6 +165,13 @@ const ItemSizeOptionList = props => {
           />
         }
       />
+      {!focusedItem && allData.length > 1 && (
+        <View style={{paddingHorizontal: 5, paddingTop: 5}}>
+          <Text style={{fontSize: 16, color: colors.notification}}>
+            Select size option
+          </Text>
+        </View>
+      )}
     </>
   );
 };
