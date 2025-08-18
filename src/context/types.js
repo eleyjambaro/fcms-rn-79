@@ -11,3 +11,5 @@ export const AddedIngredientsContext = createContext();
 export const SearchbarContext = createContext();
 export const SalesCounterContext = createContext();
 export const DefaultPrinterContext = createContext();
+export const SellingMenuFormContext = createContext();
+export const AddedSellingMenuItemsContext = createContext();

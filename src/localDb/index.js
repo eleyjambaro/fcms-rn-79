@@ -732,6 +732,57 @@ const createRevenueCategoriesTableQuery = `
   );
 `;
 
+const createSellingMenusTableQuery = `
+  CREATE TABLE IF NOT EXISTS selling_menus (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    is_draft INTEGER DEFAULT 1,
+    name VARCHAR,
+    date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_saved DATETIME
+  );
+`;
+
+const createSellingMenuItemsTableQuery = `
+  CREATE TABLE IF NOT EXISTS selling_menu_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    selling_menu_id INTEGER,
+    item_id INTEGER,
+    modifier_option_id INTEGER,
+
+    /*
+      in_menu_qty is a multiplier of modifier_options.in_option_qty
+      e.g.:
+
+      item_name: "Coke"
+      option_name: "Per Glass"
+      in_option_qty: 8
+      in_option_qty_uom_abbrev: "oz"
+      in_menu_qty: 1
+
+      It means:
+      The menu includes 1 Glass (8 oz) of Coke.
+
+      IF in_menu_qty is 2, with the same example above, it means:
+      The menu includes 2 Glasses (8 oz each glass: a total of 16 oz) of Coke.
+    */
+    in_menu_qty REAL,
+
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_selling_menu
+    FOREIGN KEY (selling_menu_id)
+    REFERENCES selling_menus(id),
+
+    CONSTRAINT fk_item
+    FOREIGN KEY (item_id)
+    REFERENCES items(id),
+
+    CONSTRAINT fk_modifier_option
+    FOREIGN KEY (modifier_option_id)
+    REFERENCES modifier_options(id)
+  );
+`;
+
 export const createTables = async () => {
   let db;
 
@@ -775,6 +826,8 @@ export const createTables = async () => {
     await db.executeSql(createSavedPrintersTableQuery);
     await db.executeSql(createModifiersTableQuery);
     await db.executeSql(createModifierOptionsTableQuery);
+    await db.executeSql(createSellingMenusTableQuery);
+    await db.executeSql(createSellingMenuItemsTableQuery);
   } catch (error) {
     console.debug(error);
     throw error;

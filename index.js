@@ -29,6 +29,9 @@ import SearchbarContextProvider from './src/context/providers/SearchbarContextPr
 import RecipeFormContextProvider from './src/context/providers/RecipeFormContextProvider';
 
 import AddedIngredientsContextProvider from './src/context/providers/AddedIngredientsContextProvider';
+import SellingMenuFormContextProvider from './src/context/providers/SellingMenuFormContextProvider';
+import AddedSellingMenuItemsContextProvider from './src/context/providers/AddedSellingMenuItemsContextProvider';
+
 import AppConfigContextProvider from './src/context/providers/AppConfigContextProvider';
 import SalesCounterContextProvider from './src/context/providers/SalesCounterContextProvider';
 import CloudAuthContextProvider from './src/context/providers/CloudAuthContextProvider';
@@ -159,9 +162,13 @@ export default function Main() {
                                 <ItemFormContextProvider>
                                   <ExpenseFormContextProvider>
                                     <RecipeFormContextProvider>
-                                      <TabsProvider>
-                                        <App />
-                                      </TabsProvider>
+                                      <SellingMenuFormContextProvider>
+                                        <AddedSellingMenuItemsContextProvider>
+                                          <TabsProvider>
+                                            <App />
+                                          </TabsProvider>
+                                        </AddedSellingMenuItemsContextProvider>
+                                      </SellingMenuFormContextProvider>
                                     </RecipeFormContextProvider>
                                   </ExpenseFormContextProvider>
                                 </ItemFormContextProvider>

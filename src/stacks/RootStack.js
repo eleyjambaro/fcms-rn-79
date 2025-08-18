@@ -91,6 +91,10 @@ import PaymentMethod from '../screens/PaymentMethod';
 import SplitPayment from '../screens/SplitPayment';
 import Printers from '../screens/Printers';
 import CreatePrinter from '../screens/CreatePrinter';
+import SellingMenu from '../screens/SellingMenu';
+import CreateSellingMenu from '../screens/CreateSellingMenu';
+import SelectSellingMenuItems from '../screens/SelectSellingMenuItems';
+import SellingMenuView from '../screens/SellingMenuView';
 import {screenTransitionConfig} from '../utils/ScreenOptimization';
 
 const Stack = createStackNavigator();
@@ -173,6 +177,10 @@ const MemoizedCustomReportByCategory = React.memo(CustomReportByCategory);
 const MemoizedItemReportView = React.memo(ItemReportView);
 const MemoizedTaxes = React.memo(Taxes);
 const MemoizedCounter = React.memo(Counter);
+const MemoizedSellingMenu = React.memo(SellingMenu);
+const MemoizedCreateSellingMenu = React.memo(CreateSellingMenu);
+const MemoizedSelectSellingMenuItems = React.memo(SelectSellingMenuItems);
+const MemoizedSellingMenuView = React.memo(SellingMenuView);
 
 const RootStack = () => {
   const navigation = useNavigation();
@@ -734,6 +742,26 @@ const RootStack = () => {
           name={routes.itemReportView()}
           component={MemoizedItemReportView}
           options={{headerTitle: 'Item Report'}}
+        />
+        <Stack.Screen
+          name={routes.sellingMenu()}
+          component={MemoizedSellingMenu}
+          options={{headerTitle: 'Selling Menu'}}
+        />
+        <Stack.Screen
+          name={routes.createSellingMenu()}
+          component={MemoizedCreateSellingMenu}
+          options={{headerTitle: 'Create Menu'}}
+        />
+        <Stack.Screen
+          name={routes.selectSellingMenuItems()}
+          component={MemoizedSelectSellingMenuItems}
+          options={{headerTitle: 'Select Menu Items'}}
+        />
+        <Stack.Screen
+          name={routes.sellingMenuView()}
+          component={MemoizedSellingMenuView}
+          options={{headerTitle: 'Menu'}}
         />
       </Stack.Group>
     </Stack.Navigator>

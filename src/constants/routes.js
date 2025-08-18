@@ -1,3 +1,5 @@
+import {deleteSellingMenu} from '../localDbQueries/sellingMenus';
+
 export const routes = {
   createNewOrUseExistingAppData: () => 'CreateNewOrUseExistingAppData',
   selectExistingAppData: () => 'SelectExistingAppData',
@@ -101,6 +103,12 @@ export const routes = {
   customReportByItem: () => 'CustomReportByItem',
   customReportByCategory: () => 'CustomReportByCategory',
   itemReportView: () => 'ItemReportView',
+  sellingMenu: () => 'SellingMenu',
+  createSellingMenu: () => 'CreateSellingMenu',
+  editSellingMenu: () => 'EditSellingMenu',
+  deleteSellingMenu: () => 'DeleteSellingMenu',
+  sellingMenuView: () => 'SellingMenuView',
+  selectSellingMenuItems: () => 'SelectSellingMenuItems',
 };
 
 export default routes;

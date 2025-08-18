@@ -156,16 +156,19 @@ const Home = props => {
   const mainFirstRowButtons = ['recipes', 'revenues', 'inventory'];
   const mainSecondRowButtons = ['logs', 'vendors', 'spoilage'];
   const mainThirdRowButtons = ['salesLog', 'counter', 'salesOrders'];
+  const mainFourthRowButtons = ['sellingMenu'];
   const allButtons = [
     ...highlightedFirstRowButtons,
     ...mainFirstRowButtons,
     ...mainSecondRowButtons,
     ...mainThirdRowButtons,
+    ...mainFourthRowButtons,
   ];
   let allMainButtons = [
     ...mainFirstRowButtons,
     ...mainSecondRowButtons,
     ...mainThirdRowButtons,
+    ...mainFourthRowButtons,
   ];
 
   // Remove unabled features
@@ -457,6 +460,31 @@ const Home = props => {
         />
         <Text numberOfLines={3} style={styles.buttonText}>
           Sales Orders
+        </Text>
+      </Pressable>
+    ),
+    sellingMenu: (
+      <Pressable
+        key={routes.sellingMenu()}
+        style={[
+          styles.button,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.neutralTint3,
+            height: buttonHeight,
+            width: buttonWidth,
+          },
+        ]}
+        onPress={() => {
+          navigation.navigate(routes.sellingMenu());
+        }}>
+        <MaterialCommunityIcons
+          name="food-fork-drink"
+          size={37}
+          color={colors.dark}
+        />
+        <Text numberOfLines={3} style={styles.buttonText}>
+          Selling Menu
         </Text>
       </Pressable>
     ),
