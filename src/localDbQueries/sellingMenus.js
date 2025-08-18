@@ -694,3 +694,14 @@ export const deleteSellingMenuItem = async ({id}) => {
     throw Error('Failed to delete selling menu item.');
   }
 };
+
+export const getSellingMenuTotalSellingPrice = async () => {
+  try {
+    return {
+      totalPrice: 0,
+    };
+  } catch (error) {
+    console.debug(error);
+    throw Error('Failed to get selling menu total selling price.');
+  }
+};

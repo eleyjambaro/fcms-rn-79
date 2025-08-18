@@ -354,14 +354,8 @@ const AddedSellingMenuItemList = props => {
       />
       {showFooter && (
         <View>
-          <GrandTotal
-            label={`Total Cost (Gross)`}
-            value={0}
-            labelStyle={{fontSize: 14}}
-            valueStyle={{fontSize: 16}}
-            containerStyle={{backgroundColor: colors.neutralTint4}}
-          />
-          <GrandTotal label="Total Cost (Net)" value={0} />
+          {/** TODO: get the selling menu total price */}
+          <GrandTotal label="Total Selling Price" value={0} />
           <View
             style={{
               backgroundColor: 'white',

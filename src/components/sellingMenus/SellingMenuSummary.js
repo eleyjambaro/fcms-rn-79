@@ -6,35 +6,32 @@ import commaNumber from 'comma-number';
 import {useQuery} from '@tanstack/react-query';
 import {useNavigation} from '@react-navigation/native';
 
-import {ingredients} from '../../__dummyData';
-import {getRecipeTotalCost} from '../../localDbQueries/recipes';
+import {getSellingMenuTotalSellingPrice} from '../../localDbQueries/sellingMenus';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import routes from '../../constants/routes';
 
 const SellingMenuSummary = props => {
-  const {recipe, containerStyle, onPressItemOptions} = props;
+  const {sellingMenu, containerStyle, onPressItemOptions} = props;
   const {colors} = useTheme();
   const navigation = useNavigation();
   const currencySymbol = useCurrencySymbol();
   const {status: recipeTotalCostStatus, data: recipeTotalCostData} = useQuery(
-    ['recipeTotalCost', {recipeId: recipe.id}],
-    getRecipeTotalCost,
+    ['sellingMenuTotalSellingPrice', {sellingMenuId: sellingMenu.id}],
+    getSellingMenuTotalSellingPrice,
   );
-  const numOfServing = recipe.yield;
-  const menuPrice = recipe.selling_price_with_vat;
+  const numOfServing = sellingMenu.yield;
+  const menuPrice = sellingMenu.selling_price_with_vat;
   const VAT = 1.12;
   const sellingPriceWithoutVAT = menuPrice / VAT;
 
   const totalCostNet = recipeTotalCostData?.totalCostNet;
-  const totalCostNetPerServing = totalCostNet / recipe.yield;
+  const totalCostNetPerServing = totalCostNet / sellingMenu.yield;
   const totalCost = recipeTotalCostData?.totalCost;
-  const totalCostPerServing = totalCost / recipe.yield;
+  const totalCostPerServing = totalCost / sellingMenu.yield;
 
-  const recipeCostPercentage = (totalCostNet / sellingPriceWithoutVAT) * 100;
-
-  const renderRecipeDetails = () => {
+  const renderSellingMenuDetails = () => {
     if (recipeTotalCostStatus === 'loading') {
       return <DefaultLoadingScreen />;
     }
@@ -48,152 +45,10 @@ const SellingMenuSummary = props => {
       );
     }
 
-    return (
-      <View style={styles.detailsContainer}>
-        <View style={styles.detailsListItem}>
-          <Text style={{fontWeight: 'bold'}}>Recipe Yield:</Text>
-          <Text
-            style={{
-              marginLeft: 7,
-              fontWeight: 'bold',
-              color: colors.dark,
-            }}>
-            {`${numOfServing} serving${numOfServing > 1 ? 's' : ''}`}
-          </Text>
-        </View>
-        <View style={styles.detailsListItem}>
-          <View>
-            <Text style={{fontWeight: 'bold', marginBottom: 5}}>
-              Cost Per Yield
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                marginLeft: 10,
-                alignItems: 'center',
-              }}>
-              <Text
-                style={{
-                  marginLeft: 7,
-                  fontWeight: 'bold',
-                }}>
-                Gross:
-              </Text>
-              <Text
-                style={{
-                  marginLeft: 7,
-                  fontWeight: 'bold',
-                  color: colors.dark,
-                  fontSize: 16,
-                }}>
-                {`${currencySymbol} ${commaNumber(
-                  totalCostPerServing.toFixed(2),
-                )}`}
-              </Text>
-              <Text
-                style={{
-                  marginLeft: 5,
-                  color: colors.dark,
-                }}>
-                {`/ Serving`}
-              </Text>
-            </View>
-
-            <View
-              style={{
-                flexDirection: 'row',
-                marginLeft: 10,
-                alignItems: 'center',
-              }}>
-              <Text
-                style={{
-                  marginLeft: 7,
-                  fontWeight: 'bold',
-                }}>
-                Net:
-              </Text>
-              <Text
-                style={{
-                  marginLeft: 7,
-                  fontWeight: 'bold',
-                  color: colors.dark,
-                  fontSize: 16,
-                }}>
-                {`${currencySymbol} ${commaNumber(
-                  totalCostNetPerServing.toFixed(2),
-                )}`}
-              </Text>
-              <Text
-                style={{
-                  marginLeft: 5,
-                  color: colors.dark,
-                }}>
-                {`/ Serving`}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* <View style={styles.detailsListItem}>
-          <Text style={{fontWeight: 'bold'}}>Recipe Cost Percentage:</Text>
-          <Text
-            style={{
-              marginLeft: 7,
-              fontWeight: 'bold',
-              color: colors.dark,
-            }}>
-            {`${commaNumber(recipeCostPercentage.toFixed(2))}`}
-          </Text>
-          <Text
-            style={{
-              marginLeft: 5,
-              color: colors.dark,
-            }}>
-            {`%`}
-          </Text>
-        </View> */}
-        {/* <View style={styles.detailsListItem}>
-          <Text
-            style={{fontWeight: 'bold'}}>{`Selling Price (without VAT):`}</Text>
-          <Text
-            style={{
-              marginLeft: 7,
-              fontWeight: 'bold',
-              color: colors.dark,
-            }}>
-            {`${currencySymbol} ${sellingPriceWithoutVAT.toFixed(2)}`}
-          </Text>
-          <Text
-            style={{
-              marginLeft: 5,
-
-              color: colors.dark,
-            }}>
-            {`/ Serving`}
-          </Text>
-        </View> */}
-        {/* <View style={styles.detailsListItem}>
-          <Text
-            style={{fontWeight: 'bold'}}>{`Selling Price (Menu Price):`}</Text>
-          <Text
-            style={{
-              marginLeft: 7,
-              fontWeight: 'bold',
-              color: colors.dark,
-            }}>
-            {`${currencySymbol} ${commaNumber(menuPrice.toFixed(2))}`}
-          </Text>
-          <Text
-            style={{
-              marginLeft: 5,
-
-              color: colors.dark,
-            }}>
-            {`/ Serving`}
-          </Text>
-        </View> */}
-      </View>
-    );
+    /**
+     * TODO: Display selling menu details
+     */
+    return null;
   };
 
   return (
@@ -209,7 +64,7 @@ const SellingMenuSummary = props => {
           alignItems: 'center',
         }}>
         <Headline numberOfLines={3} style={{flex: 1, marginRight: 10}}>
-          {recipe.name}
+          {sellingMenu.name}
         </Headline>
         <View
           style={{
@@ -223,20 +78,20 @@ const SellingMenuSummary = props => {
         </View>
       </View>
 
-      {renderRecipeDetails()}
+      {renderSellingMenuDetails()}
 
-      <View style={[styles.actionsContainer, {flexDirection: 'row'}]}>
+      {/* <View style={[styles.actionsContainer, {flexDirection: 'row'}]}>
         <Button
           style={{flex: 1}}
           mode="contained"
           onPress={() => {
             navigation.navigate(routes.produceFinishedProductStock(), {
-              recipe_id: recipe.id,
+              recipe_id: sellingMenu.id,
             });
           }}>
           Yield Now
         </Button>
-      </View>
+      </View> */}
     </View>
   );
 };
