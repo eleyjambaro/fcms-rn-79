@@ -695,10 +695,32 @@ export const deleteSellingMenuItem = async ({id}) => {
   }
 };
 
-export const getSellingMenuTotalSellingPrice = async () => {
-  try {
+export const getSellingMenuTotalSellingPrice = async ({queryKey}) => {
+  const [_key, {sellingMenuId}] = queryKey;
+
+  if (!sellingMenuId) {
     return {
       totalPrice: 0,
+      totalPriceNet: 0,
+      totalPriceTax: 0,
+    };
+  }
+
+  try {
+    const db = await getDBConnection();
+
+    const query = `
+      SELECT SUM(modifier_options.option_selling_price * selling_menu_items.in_menu_qty) as totalPrice
+      FROM selling_menu_items
+      INNER JOIN modifier_options ON modifier_options.id = selling_menu_items.modifier_option_id
+      WHERE selling_menu_items.selling_menu_id = ${sellingMenuId}
+    `;
+
+    const result = await db.executeSql(query);
+    const totals = result[0].rows.item(0);
+
+    return {
+      totalPrice: totals.totalPrice || 0,
     };
   } catch (error) {
     console.debug(error);

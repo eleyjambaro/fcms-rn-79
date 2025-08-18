@@ -43,6 +43,7 @@ import {
   createSellingMenuItem,
   deleteSellingMenuItem,
   getSellingMenuItems,
+  getSellingMenuTotalSellingPrice,
 } from '../../localDbQueries/sellingMenus';
 import ListLoadingFooter from '../../components/stateIndicators/ListLoadingFooter';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
@@ -100,6 +101,11 @@ const AddedSellingMenuItemList = props => {
       queryClient.invalidateQueries('sellingMenuItems');
     },
   });
+  const {status: sellingMenuTotalPriceStatus, data: sellingMenuTotalPriceData} =
+    useQuery(
+      ['sellingMenuTotalPrice', {sellingMenuId}],
+      getSellingMenuTotalSellingPrice,
+    );
 
   const itemOptions = [
     {
@@ -354,8 +360,10 @@ const AddedSellingMenuItemList = props => {
       />
       {showFooter && (
         <View>
-          {/** TODO: get the selling menu total price */}
-          <GrandTotal label="Total Selling Price" value={0} />
+          <GrandTotal
+            label="Total Selling Price"
+            value={sellingMenuTotalPriceData?.totalPrice || 0}
+          />
           <View
             style={{
               backgroundColor: 'white',
