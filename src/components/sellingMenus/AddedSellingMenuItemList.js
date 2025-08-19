@@ -51,6 +51,7 @@ import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScr
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
 import SellingMenuItemForm from '../forms/SellingMenuItemForm';
+import ListEmpty from '../stateIndicators/ListEmpty';
 
 const AddedSellingMenuItemList = props => {
   const {sellingMenuId, backAction, showFooter = false, containerStyle} = props;
@@ -271,6 +272,19 @@ const AddedSellingMenuItemList = props => {
     return null;
   };
 
+  const emptyListActions = [
+    {
+      icon: 'plus',
+      iconSize: 17,
+      label: 'Add menu item',
+      handler: () => {
+        navigation.navigate(routes.selectSellingMenuItems(), {
+          selling_menu_id: sellingMenuId,
+        });
+      },
+    },
+  ];
+
   if (status === 'loading') {
     return <DefaultLoadingScreen />;
   }
@@ -339,17 +353,7 @@ const AddedSellingMenuItemList = props => {
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
         ListFooterComponent={renderFooter}
-        ListEmptyComponent={
-          <View
-            style={{
-              flex: 1,
-              padding: 20,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}>
-            <Text>No menu items added</Text>
-          </View>
-        }
+        ListEmptyComponent={<ListEmpty actions={emptyListActions} />}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching && !isFetchingNextPage}

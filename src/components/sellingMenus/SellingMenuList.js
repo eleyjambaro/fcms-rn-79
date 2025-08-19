@@ -30,6 +30,7 @@ import {
   deleteSellingMenu,
   getSellingMenus,
 } from '../../localDbQueries/sellingMenus';
+import ListEmpty from '../stateIndicators/ListEmpty';
 
 const SellingMenuList = props => {
   const {filter, backAction} = props;
@@ -209,6 +210,17 @@ const SellingMenuList = props => {
     );
   };
 
+  const emptyListActions = [
+    {
+      icon: 'plus',
+      iconSize: 17,
+      label: 'Create new menu',
+      handler: () => {
+        navigation.navigate(routes.createSellingMenu());
+      },
+    },
+  ];
+
   if (status === 'loading') {
     return <DefaultLoadingScreen />;
   }
@@ -251,17 +263,7 @@ const SellingMenuList = props => {
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
         ListFooterComponent={renderFooter}
-        ListEmptyComponent={
-          <View
-            style={{
-              flex: 1,
-              padding: 20,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}>
-            <Text>No data to display</Text>
-          </View>
-        }
+        ListEmptyComponent={<ListEmpty actions={emptyListActions} />}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching && !isFetchingNextPage}
