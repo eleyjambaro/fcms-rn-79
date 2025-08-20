@@ -546,20 +546,51 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
 
 export const getAllSellingMenuItems = async () => {
   const query = `
-    SELECT * FROM selling_menu_items;
+    SELECT *,
+    selling_menu_items.id AS id,
+    items.id AS item_id,
+    items.name AS name,
+    items.name AS item_name,
+    selling_menus.id AS menu_id,
+    selling_menus.name AS menu_name,
+    modifier_options.id AS option_id
+    FROM selling_menu_items
+
+    INNER JOIN items
+    ON items.id = selling_menu_items.item_id
+    INNER JOIN selling_menus
+    ON selling_menus.id = selling_menu_items.selling_menu_id
+    LEFT JOIN modifier_options
+    ON modifier_options.id = selling_menu_items.modifier_option_id
+    ;
   `;
   try {
-    let allIngredients = [];
     const db = await getDBConnection();
     const results = await db.executeSql(query);
+
+    let allSellingMenuItems = [];
+    let resultMapBySellingMenuId = {};
+
     results.forEach(result => {
       for (let index = 0; index < result.rows.length; index++) {
-        allIngredients.push(result.rows.item(index));
+        let item = result.rows.item(index);
+        allSellingMenuItems.push(item);
+
+        if (item) {
+          if (resultMapBySellingMenuId[item.selling_menu_id]?.length > 0) {
+            let sellingMenuItemArray =
+              resultMapBySellingMenuId[item.selling_menu_id];
+            sellingMenuItemArray.push(item);
+          } else {
+            resultMapBySellingMenuId[item.selling_menu_id] = [item];
+          }
+        }
       }
     });
 
     return {
-      result: allIngredients,
+      result: allSellingMenuItems,
+      resultMapBySellingMenuId,
     };
   } catch (error) {
     console.debug(error);

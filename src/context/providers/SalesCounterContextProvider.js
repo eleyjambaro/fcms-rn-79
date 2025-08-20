@@ -71,6 +71,62 @@ const SalesCounterContextProvider = props => {
     });
   }, [saleItems]);
 
+  const updateSaleItem = (
+    item,
+    qty = '1',
+    autoIncreaseSaleQty = true,
+    enableStockQtyValidation = false,
+  ) => {
+    if (!item) return;
+
+    // id to get item from saleItems
+    let saleItemRefId;
+    let sellingPrice;
+
+    if (item.option_id) {
+      saleItemRefId = `${item.item_id}&&${item.option_id}`;
+      sellingPrice = parseFloat(item.option_selling_price || 0);
+    } else {
+      saleItemRefId = `${item.item_id}`;
+      sellingPrice = parseFloat(item.unit_selling_price || 0);
+    }
+
+    let saleQty = qty ? parseFloat(qty) : '';
+
+    if (autoIncreaseSaleQty) {
+      saleQty = parseFloat(saleItems?.[saleItemRefId]?.saleQty || 0) + saleQty;
+    }
+
+    const saleSubtotal = sellingPrice * parseFloat(saleQty || 0);
+
+    if (
+      enableStockQtyValidation &&
+      item.current_stock_qty &&
+      saleQty > item.current_stock_qty
+    ) {
+      setErrors(currentState => {
+        return {
+          ...currentState,
+          [saleItemRefId]: 'Insufficient stock!',
+        };
+      });
+    }
+
+    setSaleItems(currentState => {
+      return {
+        ...currentState,
+        [saleItemRefId]: {
+          ...item,
+          saleItemRefId,
+          saleQty,
+          saleSubtotal,
+          sale_qty: saleQty, // alias
+          subtotal_amount: saleSubtotal, // alias
+        },
+      };
+    });
+  };
+
   const actions = useMemo(
     () => ({
       setFocusedItem,
@@ -263,6 +319,9 @@ const SalesCounterContextProvider = props => {
           };
         });
       },
+      // combination of updateSaleItemWithUnitSellingPrice and updateSaleItemWithSizeOption to deprecate that two functions
+      // TODO: deprecate updateSaleItemWithUnitSellingPrice and updateSaleItemWithSizeOption functions
+      updateSaleItem,
       updateSaleItemWithUnitSellingPrice: (
         item,
         qty = '1',
@@ -348,6 +407,13 @@ const SalesCounterContextProvider = props => {
             },
           };
         });
+      },
+      addSellingMenuItemsAsSaleItems: sellingMenuItems => {
+        if (!sellingMenuItems?.length) return;
+
+        for (let item of sellingMenuItems) {
+          updateSaleItem(item);
+        }
       },
       updateSaleItemFromSalesOrder: (
         item,

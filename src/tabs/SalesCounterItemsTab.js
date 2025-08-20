@@ -5,6 +5,7 @@ import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs
 import SalesCounterItems from '../screens/SalesCounterItems';
 import routes from '../constants/routes';
 import SalesRegisterHeader from '../components/headers/SalesRegisterHeader';
+import SalesCounterSellingMenus from '../screens/SalesCounterSellingMenus.js';
 
 const TopTab = createMaterialTopTabNavigator();
 
@@ -100,14 +101,14 @@ const SalesCounterItemsTab = props => {
           },
         })}>
         <TopTab.Screen
-          name="SalesCounterItems"
-          options={{tabBarLabel: 'All Items'}}>
+          name="SalesCounterSellingMenus"
+          options={{tabBarLabel: 'Menus'}}>
           {props => (
-            <SalesCounterItems
+            <SalesCounterSellingMenus
               {...props}
               counterMode={counterMode}
               viewMode={viewMode}
-              listItemDisplayMode={listItemDisplayMode}
+              showScanBarcodeButton={false}
             />
           )}
         </TopTab.Screen>
@@ -122,6 +123,18 @@ const SalesCounterItemsTab = props => {
               viewMode={viewMode}
               listItemDisplayMode={listItemDisplayMode}
               showScanBarcodeButton={false}
+            />
+          )}
+        </TopTab.Screen>
+        <TopTab.Screen
+          name="SalesCounterItems"
+          options={{tabBarLabel: 'All Items'}}>
+          {props => (
+            <SalesCounterItems
+              {...props}
+              counterMode={counterMode}
+              viewMode={viewMode}
+              listItemDisplayMode={listItemDisplayMode}
             />
           )}
         </TopTab.Screen>
