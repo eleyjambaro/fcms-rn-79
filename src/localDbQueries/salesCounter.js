@@ -174,6 +174,12 @@ export const confirmSaleEntries = async ({
         unitSellingPrice = parseFloat(item.option_selling_price || 0);
       }
 
+      if (item.menu_id) {
+        inSizeQty = parseFloat(item.in_menu_qty);
+        inSizeQtyUOMAbbrev = item.in_option_qty_uom_abbrev;
+        unitSellingPrice = parseFloat(item.option_selling_price || 0);
+      }
+
       const unitSellingPriceNet =
         unitSellingPrice / (taxRatePercentage / 100 + 1);
       const unitSellingPriceTax = unitSellingPrice - unitSellingPriceNet;
