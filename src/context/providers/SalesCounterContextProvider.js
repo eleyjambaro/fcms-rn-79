@@ -412,7 +412,7 @@ const SalesCounterContextProvider = props => {
         if (!sellingMenuItems?.length) return;
 
         for (let item of sellingMenuItems) {
-          updateSaleItem(item);
+          updateSaleItem(item, item.in_menu_qty);
         }
       },
       updateSaleItemFromSalesOrder: (
