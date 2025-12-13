@@ -1,17 +1,10 @@
 import {env} from './appConfig';
 
-const endpointBaseUrl =
-  env === 'dev'
-    ? 'https://ap-southeast-1.aws.data.mongodb-api.com/app/data-wdedy/endpoint'
-    : 'https://ap-southeast-1.aws.data.mongodb-api.com/app/data-vfhxg/endpoint';
-
 export const endpoints = {
   activateLicense:
     env === 'dev'
-      ? () =>
-          'https://ap-southeast-1.aws.data.mongodb-api.com/app/data-wdedy/endpoint/licenses/activate'
-      : () =>
-          'https://ap-southeast-1.aws.data.mongodb-api.com/app/data-vfhxg/endpoint/licenses/activate',
+      ? () => 'http://127.0.0.1:5001/fcms-e7d85/us-central1/activateLicense'
+      : () => 'https://activatelicense-f64subkjaq-uc.a.run.app',
 };
 
 export default endpoints;

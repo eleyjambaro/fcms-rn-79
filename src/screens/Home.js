@@ -171,12 +171,13 @@ const Home = props => {
     ...mainFourthRowButtons,
   ];
 
-  // Remove unabled features
+  // Remove disabled features
   const enabledFeatureButtons = allMainButtons.filter(mainButton => {
     if (
       mainButton === 'salesLog' ||
       mainButton === 'counter' ||
-      mainButton === 'salesOrders'
+      mainButton === 'salesOrders' ||
+      mainButton === 'sellingMenu'
     ) {
       if (env === 'dev') {
         return true;

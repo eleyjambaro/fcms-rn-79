@@ -293,9 +293,7 @@ export const activateLicense = async ({values, authState}) => {
 
     // call API endpoint
     try {
-      response = await axios.post(endpoints.activateLicense(), requestBody, {
-        headers: configRequestHeader(),
-      });
+      response = await axios.post(endpoints.activateLicense(), requestBody);
     } catch (error) {
       console.debug(error.message);
 
