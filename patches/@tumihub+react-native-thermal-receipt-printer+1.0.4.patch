@@ -1,15 +1,21 @@
 diff --git a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/build.gradle b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/build.gradle
-index 3bd16c7..caed91a 100644
+index 3bd16c7..0f80973 100644
 --- a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/build.gradle
 +++ b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/build.gradle
-@@ -1,8 +1,8 @@
+@@ -1,12 +1,12 @@
  apply plugin: 'com.android.library'
  
  android {
 -    compileSdkVersion = 29
 -    buildToolsVersion = "29.0.2"
-+    compileSdkVersion rootProject.ext.compileSdkVersion
-+    buildToolsVersion rootProject.ext.buildToolsVersion
++    compileSdkVersion = 35
++    buildToolsVersion = "35.0.0"
  
      defaultConfig {
-         minSdkVersion 16
+-        minSdkVersion 16
+-        targetSdkVersion 29
++        minSdkVersion 24
++        targetSdkVersion 35
+         versionCode 1
+         versionName "1.0"
+ 

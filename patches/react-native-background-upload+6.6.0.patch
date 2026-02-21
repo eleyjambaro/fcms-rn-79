@@ -1,31 +1,62 @@
 diff --git a/node_modules/react-native-background-upload/android/build.gradle b/node_modules/react-native-background-upload/android/build.gradle
-index fa6963f..a4144cf 100644
+index fa6963f..e6b540f 100755
 --- a/node_modules/react-native-background-upload/android/build.gradle
 +++ b/node_modules/react-native-background-upload/android/build.gradle
-@@ -20,7 +20,6 @@ buildscript {
+@@ -1,46 +1,31 @@
+ buildscript {
+-    ext {
+-        kotlinVersion = '1.6.0'
+-        buildToolsVersion = '29.0.2'
+-        compileSdkVersion = 29
+-        targetSdkVersion = 29
+-        minSdkVersion = 18
+-    }
+-    ext.detoxKotlinVersion = ext.kotlinVersion
+-
+     repositories {
+-        mavenCentral()
+         google()
++        mavenCentral()
+     }
+     dependencies {
+-        classpath 'com.android.tools.build:gradle:3.5.3'
+-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
++        // Explicitly set the versions to match your root project's AGP and Kotlin
++        classpath("com.android.tools.build:gradle:8.8.2") 
++        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21")
+     }
+ }
  
  apply plugin: 'com.android.library'
  apply plugin: 'kotlin-android'
 -apply plugin: 'kotlin-android-extensions'
- 
- def DEFAULT_COMPILE_SDK_VERSION = 28
- def DEFAULT_BUILD_TOOLS_VERSION = "28.0.3"
-@@ -46,6 +45,9 @@ android {
-     lintOptions {
-         abortOnError false
-     }
-+    buildFeatures {
-+        viewBinding true
-+    }
- }
- 
- repositories {
-@@ -62,8 +64,6 @@ dependencies {
- 
-     implementation 'com.facebook.react:react-native:+'
- 
--    implementation "org.jetbrains.kotlin:$_kotlinStdlib:$_kotlinVersion"
 -
-     implementation 'net.gotev:uploadservice-okhttp:4.7.0'
+-def DEFAULT_COMPILE_SDK_VERSION = 28
+-def DEFAULT_BUILD_TOOLS_VERSION = "28.0.3"
+-def DEFAULT_TARGET_SDK_VERSION = 28
+-
+-def safeExtGet(prop, fallback) {
+-    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+-}
++apply plugin: 'kotlin-parcelize' // Replaces the deprecated extensions
  
-     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.0.0'
+ android {
+-    compileSdkVersion safeExtGet('compileSdkVersion', DEFAULT_COMPILE_SDK_VERSION)
+-    buildToolsVersion safeExtGet('buildToolsVersion', DEFAULT_BUILD_TOOLS_VERSION)
++    // Manually force to 35 to match your app and previous fixes
++    compileSdkVersion 35
++    buildToolsVersion "35.0.0"
+ 
+     defaultConfig {
+-        minSdkVersion 21
+-        targetSdkVersion safeExtGet('targetSdkVersion', DEFAULT_TARGET_SDK_VERSION)
++        minSdkVersion 24
++        targetSdkVersion 35
+         versionCode 1
+         versionName "1.0"
+         ndk {
+-            abiFilters "armeabi-v7a", "x86"
++            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64" // Updated for modern devices
+         }
+     }
+     lintOptions {
