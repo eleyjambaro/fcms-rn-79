@@ -84,6 +84,13 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 15
         versionName "1.0.11"
+        
+        externalNativeBuild {
+            cmake {
+                // Forces the compiler/linker to use 16KB alignment
+                arguments "-DANDROID_EXT_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+            }
+        }
     }
     signingConfigs {
         release {
@@ -115,6 +122,8 @@ android {
     }
     packagingOptions {
         jniLibs {
+            // This is critical: it tells Android to keep libs uncompressed
+            // so they can be page-aligned on the device memory.
             useLegacyPackaging = false
         }
     }

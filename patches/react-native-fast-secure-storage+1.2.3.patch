@@ -1,0 +1,21 @@
+diff --git a/node_modules/react-native-fast-secure-storage/android/build.gradle b/node_modules/react-native-fast-secure-storage/android/build.gradle
+index c7c6647..51d8154 100644
+--- a/node_modules/react-native-fast-secure-storage/android/build.gradle
++++ b/node_modules/react-native-fast-secure-storage/android/build.gradle
+@@ -83,8 +83,14 @@ android {
+     buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
+     externalNativeBuild {
+       cmake {
+-        cppFlags "-O2 -frtti -fexceptions -Wall -Wno-unused-variable -fstack-protector-all"
+-        arguments "-DANDROID_STL=c++_shared"
++        // 1. Added the max-page-size flag to cppFlags
++        cppFlags "-O2 -frtti -fexceptions -Wall -Wno-unused-variable -fstack-protector-all -Wl,-z,max-page-size=16384"
++        
++        // 2. Added the explicit linker argument and page size support flag
++        arguments "-DANDROID_STL=c++_shared",
++                  "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
++                  "-DANDROID_EXT_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
++                  
+         abiFilters (*reactNativeArchitectures())
+       }
+     }

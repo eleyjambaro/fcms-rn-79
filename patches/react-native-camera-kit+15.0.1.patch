@@ -1,0 +1,43 @@
+diff --git a/node_modules/react-native-camera-kit/android/build.gradle b/node_modules/react-native-camera-kit/android/build.gradle
+index 846aeae..adeb173 100644
+--- a/node_modules/react-native-camera-kit/android/build.gradle
++++ b/node_modules/react-native-camera-kit/android/build.gradle
+@@ -21,14 +21,18 @@ android {
+     compileSdkVersion = 34
+     defaultConfig {
+         minSdkVersion = 24
+-        // noinspection ExpiredTargetSdkVersion
+         targetSdkVersion = 34
+         versionCode 1
+         versionName "1.0"
+         ndk {
+-            abiFilters "arm64-v8a", "x86"
++            abiFilters "arm64-v8a", "x86_64" // Added x86_64 as per Play Store error
++        }
++        // Force page alignment for any potential internal native builds
++        packagingOptions {
++            jniLibs {
++                useLegacyPackaging = false
++            }
+         }
+-        buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
+     }
+     lintOptions {
+         warning 'InvalidPackage'
+@@ -49,7 +53,7 @@ dependencies {
+     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
+ 
+     // CameraX core library using the camera2 implementation
+-    def camerax_version = "1.1.0"
++    def camerax_version = "1.4.1"
+     // The following line is optional, as the core library is included indirectly by camera-camera2
+     implementation "androidx.camera:camera-core:${camerax_version}"
+     implementation "androidx.camera:camera-camera2:${camerax_version}"
+@@ -64,6 +68,7 @@ dependencies {
+     // If you want to additionally use the CameraX Extensions library
+     // implementation "androidx.camera:camera-extensions:${camerax_version}"
+ 
++    // ML Kit 17.3.0 is usually okay, but let's ensure it's up to date
+     implementation 'com.google.mlkit:barcode-scanning:17.3.0'
+ }
+ repositories {
