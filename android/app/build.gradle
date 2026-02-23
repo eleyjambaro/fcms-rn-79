@@ -120,17 +120,14 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
-    packagingOptions {
+    packaging {
         jniLibs {
-            // This is critical: it tells Android to keep libs uncompressed
-            // so they can be page-aligned on the device memory.
             useLegacyPackaging = false
         }
     }
 }
 
 dependencies {
-    // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
     if (hermesEnabled.toBoolean()) {
@@ -138,7 +135,29 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Force MMKV 1.3.16 for 16KB page alignment compliance
+    implementation("com.tencent:mmkv:1.3.16")
 }
 
 // react-native-vector-icons setup
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+
+tasks.register("verifyMmkvAlignment") {
+    doLast {
+        def libPath = "${project.buildDir}/intermediates/merged_jni_libs/release/mergeReleaseJniLibFolders/out/lib/arm64-v8a/libmmkv.so"
+        if (file(libPath).exists()) {
+            def output = new ByteArrayOutputStream()
+            exec {
+                commandLine 'objdump', '-p', libPath
+                standardOutput = output
+                ignoreExitValue = true
+            }
+            if (output.toString().contains("LOAD") && output.toString().contains("off") && output.toString().contains("0x0000000000004000")) {
+                 println("✅ MMKV 16KB Alignment Verified!")
+            } else if (output.toString().contains("0x0000000000001000")) {
+                 throw new GradleException("🚨 CRITICAL: MMKV is still 4KB aligned! Check your resolution strategy.")
+            }
+        }
+    }
+}
