@@ -131,7 +131,7 @@ export const insertTemplateDataToDb = async ({
       /* Check category name */
       if (!item.category_name) {
         listItemError = true;
-        let errorMessage = `Your ${appDefaults} IDT item list contains item without category name value`;
+        let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item without category name value`;
 
         if (item.count) {
           errorMessage += ` found on count number ${item.count} of the list.`;
@@ -145,7 +145,7 @@ export const insertTemplateDataToDb = async ({
       /* Check item name */
       if (!item.item_name) {
         listItemError = true;
-        let errorMessage = `Your ${appDefaults} IDT item list contains item without item name value`;
+        let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item without item name value`;
 
         if (item.count) {
           errorMessage += ` found on count number ${item.count} of the list.`;
@@ -159,7 +159,7 @@ export const insertTemplateDataToDb = async ({
       /* Check item uom abbrev */
       if (!item.uom_abbrev) {
         listItemError = true;
-        let errorMessage = `Your ${appDefaults} IDT item list contains item without unit of measurement (uom_abbrev) value`;
+        let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item without unit of measurement (uom_abbrev) value`;
 
         if (item.count) {
           errorMessage += ` found on count number ${item.count} of the list.`;
@@ -181,7 +181,7 @@ export const insertTemplateDataToDb = async ({
         if (error) {
           console.debug(error);
           listItemError = error;
-          let errorMessage = `Your ${appDefaults} IDT item list contains unsupported unit "${item.uom_abbrev}". Use one of: ml, mg, kg, pc, and so on. Found an item named "${item.item_name}" with invalid UOM Abbrev value`;
+          let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains unsupported unit "${item.uom_abbrev}". Use one of: ml, mg, kg, pc, and so on. Found an item named "${item.item_name}" with invalid UOM Abbrev value`;
 
           if (item.count) {
             errorMessage += ` on count number ${item.count} of the list.`;
@@ -197,7 +197,7 @@ export const insertTemplateDataToDb = async ({
       // Item UOM should be PC if UOM Per Piece is set
       if (item.uom_abbrev_per_piece && itemUOMAbbrev.toLowerCase() !== 'ea') {
         listItemError = true;
-        let errorMessage = `Your ${appDefaults} IDT item list contains item with invalid UOM. You can only use Item UOM Per Piece and Qty Per Piece if the item UOM value is "PC". Found an item named "${item.item_name}" with invalid UOM value`;
+        let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with invalid UOM. You can only use Item UOM Per Piece and Qty Per Piece if the item UOM value is "PC". Found an item named "${item.item_name}" with invalid UOM value`;
 
         if (item.count) {
           errorMessage += ` on count number ${item.count} of the list.`;
@@ -211,7 +211,7 @@ export const insertTemplateDataToDb = async ({
       // Item UOM should be PC if Qty Per Piece is set
       if (item.qty_per_piece && itemUOMAbbrev.toLowerCase() !== 'ea') {
         listItemError = true;
-        let errorMessage = `Your ${appDefaults} IDT item list contains item with invalid UOM. You can only use Item UOM Per Piece and Qty Per Piece if the item UOM value is "PC". Found an item named "${item.item_name}" with invalid UOM value`;
+        let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with invalid UOM. You can only use Item UOM Per Piece and Qty Per Piece if the item UOM value is "PC". Found an item named "${item.item_name}" with invalid UOM value`;
 
         if (item.count) {
           errorMessage += ` on count number ${item.count} of the list.`;
@@ -228,7 +228,7 @@ export const insertTemplateDataToDb = async ({
         (item.qty_per_piece && !item.uom_abbrev_per_piece)
       ) {
         listItemError = true;
-        let errorMessage = `Your ${appDefaults} IDT item list contains item with invalid values. Item "UOM Per Piece" is required if "Qty Per Piece" has a value, and vice versa. Found an item named "${item.item_name}" with invalid values`;
+        let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with invalid values. Item "UOM Per Piece" is required if "Qty Per Piece" has a value, and vice versa. Found an item named "${item.item_name}" with invalid values`;
 
         if (item.count) {
           errorMessage += ` on count number ${item.count} of the list.`;
@@ -253,7 +253,7 @@ export const insertTemplateDataToDb = async ({
           if (error) {
             console.debug(error);
             listItemError = error;
-            let errorMessage = `Your ${appDefaults} IDT item list contains unsupported UOM Per Piece "${item.uom_abbrev_per_piece}". Use one of: ml, mg, kg, pc, and so on. Found an item named "${item.item_name}" with invalid UOM Per Piece value`;
+            let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains unsupported UOM Per Piece "${item.uom_abbrev_per_piece}". Use one of: ml, mg, kg, pc, and so on. Found an item named "${item.item_name}" with invalid UOM Per Piece value`;
 
             if (item.count) {
               errorMessage += ` on count number ${item.count} of the list.`;
@@ -273,7 +273,7 @@ export const insertTemplateDataToDb = async ({
 
         if (item.qty_per_piece === '-' || isNaN(parsedQtyPerPiece)) {
           listItemError = true;
-          let errorMessage = `Your ${appDefaults} IDT item list contains item with invalid Qty Per Piece value. Valid quantity should be in decimal format e.g., 20, 20.75. Found an item named "${item.item_name}" with invalid Qty Per Piece value`;
+          let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with invalid Qty Per Piece value. Valid quantity should be in decimal format e.g., 20, 20.75. Found an item named "${item.item_name}" with invalid Qty Per Piece value`;
 
           if (item.count) {
             errorMessage += ` on count number ${item.count} of the list. Invalid value: ${item.initial_stock_qty}.`;
@@ -292,7 +292,7 @@ export const insertTemplateDataToDb = async ({
         // Support '-' unit cost value
         if (isNaN(parsedUnitCost) && item.unit_cost !== '-') {
           listItemError = true;
-          let errorMessage = `Your ${appDefaults} IDT item list contains item with invalid unit cost format. Valid unit cost should be in decimal format e.g., 20, 20.75. Found an item named "${item.item_name}" with invalid unit cost value`;
+          let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with invalid unit cost format. Valid unit cost should be in decimal format e.g., 20, 20.75. Found an item named "${item.item_name}" with invalid unit cost value`;
 
           if (item.count) {
             errorMessage += ` on count number ${item.count} of the list. Invalid value: ${item.unit_cost}.`;
@@ -311,7 +311,7 @@ export const insertTemplateDataToDb = async ({
         // Support '-' total cost value
         if (isNaN(parsedTotalCost) && item.total_cost !== '-') {
           listItemError = true;
-          let errorMessage = `Your ${appDefaults} IDT item list contains item with invalid total cost format. Valid total cost should be in decimal format e.g., 200, 200.75. Found an item named "${item.item_name}" with invalid total cost value`;
+          let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with invalid total cost format. Valid total cost should be in decimal format e.g., 200, 200.75. Found an item named "${item.item_name}" with invalid total cost value`;
 
           if (item.count) {
             errorMessage += ` on count number ${item.count} of the list. Invalid value: ${item.total_cost}.`;
@@ -329,7 +329,7 @@ export const insertTemplateDataToDb = async ({
 
         if (isNaN(parsedInitStockQty)) {
           listItemError = true;
-          let errorMessage = `Your ${appDefaults} IDT item list contains item with invalid stock quantity value. Valid stock quantity should be in decimal format e.g., 20, 20.75. Found an item named "${item.item_name}" with invalid stock quantity value`;
+          let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with invalid stock quantity value. Valid stock quantity should be in decimal format e.g., 20, 20.75. Found an item named "${item.item_name}" with invalid stock quantity value`;
 
           if (item.count) {
             errorMessage += ` on count number ${item.count} of the list. Invalid value: ${item.initial_stock_qty}.`;
