@@ -810,7 +810,7 @@ const Logs = () => {
             </Pressable> */}
           </View>
         </View>
-        <View>
+        <View style={{width: '100%'}}>
           <FiltersList
             filters={categoryFilterSelections}
             value={itemLogListFilters['items.category_id']}

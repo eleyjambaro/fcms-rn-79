@@ -130,30 +130,30 @@ export default function Main() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView
-        style={{
-          flex: 1,
-          backgroundColor: theme.colors.surface,
-        }}
-        edges={{
-          bottom: 'maximum',
-          top: 'off',
-        }}>
-        <CloudAuthContextProvider>
-          <QueryClientProvider client={queryClient}>
-            <AuthContextProvider>
-              <PaperProvider theme={theme}>
-                <AppConfigContextProvider>
-                  <NavigationContainer
-                    theme={theme}
-                    ref={navigationRef}
-                    navigationInChildEnabled
-                    screenOptions={{
-                      headerShown: false,
-                      animation: 'slide_from_right',
-                      animationDuration: 200,
-                    }}>
-                    <GestureHandlerRootView>
+      <GestureHandlerRootView>
+        <SafeAreaView
+          style={{
+            flex: 1,
+            backgroundColor: theme.colors.surface,
+          }}
+          edges={{
+            bottom: 'maximum',
+            top: 'off',
+          }}>
+          <CloudAuthContextProvider>
+            <QueryClientProvider client={queryClient}>
+              <AuthContextProvider>
+                <PaperProvider theme={theme}>
+                  <AppConfigContextProvider>
+                    <NavigationContainer
+                      theme={theme}
+                      ref={navigationRef}
+                      navigationInChildEnabled
+                      screenOptions={{
+                        headerShown: false,
+                        animation: 'slide_from_right',
+                        animationDuration: 200,
+                      }}>
                       <BottomSheetModalProvider>
                         <SearchbarContextProvider>
                           <DefaultPrinterContextProvider>
@@ -177,16 +177,16 @@ export default function Main() {
                           </DefaultPrinterContextProvider>
                         </SearchbarContextProvider>
                       </BottomSheetModalProvider>
-                    </GestureHandlerRootView>
-                  </NavigationContainer>
-                </AppConfigContextProvider>
-              </PaperProvider>
-            </AuthContextProvider>
-          </QueryClientProvider>
-        </CloudAuthContextProvider>
-      </SafeAreaView>
+                    </NavigationContainer>
+                  </AppConfigContextProvider>
+                </PaperProvider>
+              </AuthContextProvider>
+            </QueryClientProvider>
+          </CloudAuthContextProvider>
+        </SafeAreaView>
+      </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 }
 
-AppRegistry.registerComponent(appName, () => gestureHandlerRootHOC(Main));
+AppRegistry.registerComponent(appName, () => Main);

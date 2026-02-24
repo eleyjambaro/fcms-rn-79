@@ -102,7 +102,7 @@ export const screenTransitionConfig = {
   animation: 'slide_from_right',
   animationDuration: 200,
   gestureEnabled: true,
-  gestureDirection: 'horizontal',
+  // gestureDirection: 'horizontal',
   cardStyleInterpolator: ({current, layouts}) => {
     return {
       cardStyle: {

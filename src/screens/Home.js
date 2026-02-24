@@ -168,7 +168,7 @@ const Home = props => {
     ...mainFirstRowButtons,
     ...mainSecondRowButtons,
     ...mainThirdRowButtons,
-    ...mainFourthRowButtons,
+    // ...mainFourthRowButtons, // temporily remove selling menu
   ];
 
   // Remove disabled features
