@@ -45,6 +45,10 @@ import ItemSellingSizeOptions from './components/ItemSellingSizeOptions';
 import {getItemSellingSizeModifierOptions} from '../../localDbQueries/modifiers';
 import PressableSectionHeading from '../headings/PressableSectionHeading';
 
+// ---------------------------------------------------------------------------
+// Validation schema
+// ---------------------------------------------------------------------------
+
 const ItemValidationSchema = Yup.object({
   edit_mode: Yup.boolean(),
   category_id: Yup.string().required('Required'),
@@ -70,6 +74,7 @@ const ItemValidationSchema = Yup.object({
     otherwise: () => Yup.string().notRequired(),
   }),
   set_uom_to_uom_per_piece: Yup.boolean(),
+  // Note: uom_abbrev_per_piece is intentionally declared twice (mirrors original)
   uom_abbrev_per_piece: Yup.string().when('set_uom_to_uom_per_piece', {
     is: true,
     then: () => Yup.string().required(),
@@ -83,44 +88,97 @@ const ItemValidationSchema = Yup.object({
   selling_size_options: Yup.array(),
 });
 
+// ---------------------------------------------------------------------------
+// Default initial values factory
+// ---------------------------------------------------------------------------
+
+const getDefaultInitialValues = item => ({
+  category_id: '',
+  tax_id: '',
+  vendor_id: '',
+  name: '',
+  barcode: '',
+  uom_id: 2,
+  uom_abbrev: '',
+  unit_cost: '',
+  total_cost: '',
+  cost_input_mode: item?.uom_abbrev_per_piece ? 'total_cost' : 'unit_cost',
+  add_measurement_per_piece: false,
+  set_uom_to_uom_per_piece: false,
+  uom_abbrev_per_piece: '',
+  qty_per_piece: '',
+  initial_stock_qty: '',
+  low_stock_level: '',
+  beginning_inventory_date: '',
+  initial_stock_applied_tax_id: '',
+  initial_stock_vendor_id: '',
+  official_receipt_number: '',
+  unit_selling_price: '',
+  sales_tax_id: '',
+  selling_size_options: [],
+  adjustment_qty: '',
+  remarks: '',
+});
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Formats a Date object into "YYYY-MM-DD HH:mm:ss".
+ */
+const formatDatetimeString = date => {
+  const pad = n => ('0' + n).slice(-2);
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate(),
+    )} ` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+      date.getSeconds(),
+    )}`
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Small pure render helpers (no formik coupling)
+// ---------------------------------------------------------------------------
+
+const renderLoadingOrError = (status, errorText) => {
+  if (status === 'loading') {
+    return null; // callers decide what to show while loading
+  }
+  if (status === 'error') {
+    return <Text variant="titleMedium">{errorText}</Text>;
+  }
+  return null;
+};
+
+const ActivityLoader = ({colors}) => (
+  <ActivityIndicator
+    animating
+    color={colors.primary}
+    style={{marginRight: 5}}
+    size="small"
+  />
+);
+
+// ---------------------------------------------------------------------------
+// ItemForm
+// ---------------------------------------------------------------------------
+
 const ItemForm = props => {
   const {
     item,
-    initialValues = {
-      category_id: '',
-      tax_id: '',
-      vendor_id: '',
-      name: '',
-      barcode: '',
-      uom_id: 2,
-      uom_abbrev: '',
-      unit_cost: '',
-      total_cost: '',
-      cost_input_mode: item?.uom_abbrev_per_piece ? 'total_cost' : 'unit_cost', // 'total_cost' or 'unit_cost'
-      add_measurement_per_piece: false,
-      set_uom_to_uom_per_piece: false,
-      uom_abbrev_per_piece: '',
-      qty_per_piece: '',
-      initial_stock_qty: '',
-      low_stock_level: '',
-      beginning_inventory_date: '',
-      initial_stock_applied_tax_id: '',
-      initial_stock_vendor_id: '',
-      official_receipt_number: '',
-      // sales
-      unit_selling_price: '',
-      sales_tax_id: '',
-      // selling size/qty option
-      selling_size_options: [],
-      adjustment_qty: '',
-      remarks: '',
-    },
+    initialValues = getDefaultInitialValues(item),
     onSubmit,
     editMode = false,
   } = props;
+
   const {colors} = useTheme();
   const navigation = useNavigation();
   const {setFormikActions} = useItemFormContext();
+
+  // ---- dialog / modal visibility state ----
   const [
     unitOfMeasurementRequiredDialogVisible,
     setUnitOfMeasurementRequiredDialogVisible,
@@ -136,78 +194,84 @@ const ItemForm = props => {
     setConfirmClearAllSellingSizeOptions,
   ] = useState(false);
   const [addOptionModalVisible, setAddOptionModalVisible] = useState(false);
-  const [isInitStockFieldsVisible, setIsInitStockFieldsVisible] = useState(
-    // editMode ? false : true,
-    false,
-  );
+
+  // ---- section visibility state ----
+  const [isInitStockFieldsVisible, setIsInitStockFieldsVisible] =
+    useState(false);
   const [isSellingDetailsFieldsVisible, setIsSellingDetailsFieldsVisible] =
-    useState(
-      // editMode ? false : true,
-      false,
-    );
+    useState(false);
+
+  // ---- selection ID state (drives react-query) ----
   const [categoryId, setCategoryId] = useState(null);
   const [taxId, setTaxId] = useState(null);
   const [vendorId, setVendorId] = useState(null);
   const [initStockAppliedTaxId, setInitStockAppliedTaxId] = useState(null);
   const [initStockVendorId, setInitStockVendorId] = useState(null);
   const [salesTaxId, setSalesTaxId] = useState(null);
+
+  // ---- date / picker state ----
+  const defaultDate = initialValues.beginning_inventory_date
+    ? new Date(initialValues.beginning_inventory_date?.split(' ')?.[0])
+    : new Date();
+
+  const [date, setDate] = useState(defaultDate);
+  const [datetimeString, setDatetimeString] = useState(() =>
+    formatDatetimeString(defaultDate),
+  );
+  const [dateTimePickerMode, setDateTimePickerMode] = useState('date');
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+
+  // ---- selling size option focus ----
+  const [focusedSellingSizeOption, setFocusedSellingSizeOption] =
+    useState(null);
+
+  // -------------------------------------------------------------------------
+  // Queries
+  // -------------------------------------------------------------------------
+
   const {status: getCategoryStatus, data: getCategoryData} = useQuery(
     ['category', {id: categoryId}],
     getCategory,
-    {
-      enabled: categoryId ? true : false,
-    },
+    {enabled: !!categoryId},
   );
+
   const {status: getTaxStatus, data: getTaxData} = useQuery(
     ['tax', {id: taxId}],
     getTax,
-    {
-      enabled: taxId ? true : false,
-    },
+    {enabled: !!taxId},
   );
+
   const {status: getVendorStatus, data: getVendorData} = useQuery(
     ['vendor', {id: vendorId}],
     getVendor,
-    {
-      enabled: vendorId ? true : false,
-    },
+    {enabled: !!vendorId},
   );
 
   const {status: getItemInitStockLogStatus, data: getItemInitStockLogData} =
     useQuery(
       ['itemInitialStockLog', {itemId: item?.item_id}],
       getItemInitialStockLog,
-      {
-        enabled:
-          editMode && item?.item_id && !item?.is_finished_product
-            ? true
-            : false,
-      },
+      {enabled: editMode && !!item?.item_id && !item?.is_finished_product},
     );
 
   const {
     status: getInitStockAppliedTaxStatus,
     data: getInitStockAppliedTaxData,
-    isFetching: getInitStockAppliedTaxIsFetching,
   } = useQuery(['initStockAppliedTax', {id: initStockAppliedTaxId}], getTax, {
-    enabled: initStockAppliedTaxId ? true : false,
+    enabled: !!initStockAppliedTaxId,
   });
 
-  const {
-    status: getInitStockVendorStatus,
-    data: getInitStockVendorData,
-    isFetching: getInitStockVendorIsFetching,
-  } = useQuery(['initStockVendor', {id: initStockVendorId}], getVendor, {
-    enabled: initStockVendorId ? true : false,
-  });
+  const {status: getInitStockVendorStatus, data: getInitStockVendorData} =
+    useQuery(['initStockVendor', {id: initStockVendorId}], getVendor, {
+      enabled: !!initStockVendorId,
+    });
 
-  const {
-    status: getSalesTaxStatus,
-    data: getSalesTaxData,
-    isFetching: getSalesTaxIsFetching,
-  } = useQuery(['salesTax', {id: salesTaxId}], getTax, {
-    enabled: salesTaxId ? true : false,
-  });
+  const {status: getSalesTaxStatus, data: getSalesTaxData} = useQuery(
+    ['salesTax', {id: salesTaxId}],
+    getTax,
+    {enabled: !!salesTaxId},
+  );
 
   const {
     status: getItemSellingSizeModifierOptionsStatus,
@@ -215,62 +279,34 @@ const ItemForm = props => {
   } = useQuery(
     ['itemSellingSizeModifierOptions', {itemId: item?.item_id}],
     getItemSellingSizeModifierOptions,
-    {
-      enabled: editMode && item?.item_id ? true : false,
-    },
+    {enabled: editMode && !!item?.item_id},
   );
 
-  const defaultDate = initialValues.beginning_inventory_date
-    ? new Date(initialValues.beginning_inventory_date?.split(' ')?.[0])
-    : new Date();
-  const [date, setDate] = useState(defaultDate);
-  const month = ('0' + (date.getMonth() + 1)).slice(-2);
-  const day = ('0' + date.getDate()).slice(-2);
-  const year = date.getFullYear();
-  const hours = ('0' + date.getHours()).slice(-2);
-  const minutes = ('0' + date.getMinutes()).slice(-2);
-  const seconds = ('0' + date.getSeconds()).slice(-2);
-  const datetimeStringFormat = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-  const [datetimeString, setDatetimeString] = useState(datetimeStringFormat);
-  const [dateTimePickerMode, setDateTimePickerMode] = useState('date');
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  // -------------------------------------------------------------------------
+  // Effects
+  // -------------------------------------------------------------------------
 
   useEffect(() => {
-    setDatetimeString(currentDatetimeString => {
-      const updatedDatetimeString = datetimeStringFormat;
-      if (updatedDatetimeString !== currentDatetimeString) {
-        return updatedDatetimeString;
-      } else {
-        return currentDatetimeString;
-      }
-    });
+    const formatted = formatDatetimeString(date);
+    setDatetimeString(current => (formatted !== current ? formatted : current));
   }, [date]);
 
   useEffect(() => {
     const itemInitStockLog = getItemInitStockLogData?.result;
     if (itemInitStockLog) {
       setDate(
-        () =>
-          new Date(itemInitStockLog.beginning_inventory_date?.split(' ')?.[0]),
+        new Date(itemInitStockLog.beginning_inventory_date?.split(' ')?.[0]),
       );
     }
   }, [getItemInitStockLogData]);
 
-  const [focusedSellingSizeOption, setFocusedSellingSizeOption] =
-    useState(null);
+  // -------------------------------------------------------------------------
+  // Event handlers
+  // -------------------------------------------------------------------------
 
-  const showMode = currentMode => {
+  const showMode = mode => {
     setShowCalendar(true);
-    setDateTimePickerMode(currentMode);
-  };
-
-  const showDatepicker = () => {
-    showMode('date');
-  };
-
-  const showTimepicker = () => {
-    showMode('time');
+    setDateTimePickerMode(mode);
   };
 
   const handleDateTimePickerChange = (_event, selectedDate) => {
@@ -279,37 +315,133 @@ const ItemForm = props => {
     setDate(currentDate);
   };
 
-  const handleMonthChange = selectedDate => {
-    setDate(() => new Date(selectedDate));
+  const handleMonthChange = selectedDate => setDate(new Date(selectedDate));
+
+  const handleCategoryChange = id => setCategoryId(id);
+  const handleTaxChange = id => setTaxId(id);
+  const handleVendorChange = id => setVendorId(id);
+  const handleInitStockAppliedTaxChange = id => setInitStockAppliedTaxId(id);
+  const handleInitStockVendorChange = id => setInitStockVendorId(id);
+  const handleSalesTaxChange = id => setSalesTaxId(id);
+
+  /** Shared helper: navigate to a selection screen after storing formik actions. */
+  const navigateWithFormikActions = (formikActions, routeName, params) => {
+    setFormikActions(() => formikActions);
+    navigation.navigate(routeName, params);
   };
 
-  const handlePressQuantityInput = () => {
-    navigation.navigate('ManageStock', {item});
+  // -------------------------------------------------------------------------
+  // Value renderers (status → UI node)
+  // -------------------------------------------------------------------------
+
+  const renderCategoryValue = (status, data, props) => {
+    if (!categoryId) return null;
+    if (status === 'loading') return <ActivityLoader colors={colors} />;
+    if (status === 'error')
+      return (
+        <Text variant="titleMedium" style={props.style}>
+          Something went wrong
+        </Text>
+      );
+    if (!data?.result) return null;
+    return (
+      <Text variant="titleMedium" {...props}>
+        {props?.trimTextLength(data.result.name)}
+      </Text>
+    );
   };
 
-  const handleCategoryChange = categoryId => {
-    setCategoryId(() => categoryId);
+  const renderTaxValue = (status, data, props) => {
+    if (status === 'loading') return <ActivityLoader colors={colors} />;
+    if (status === 'error')
+      return (
+        <Text variant="titleMedium" style={props.style}>
+          Something went wrong
+        </Text>
+      );
+    if (!data?.result) return null;
+    return (
+      <Text variant="titleMedium" {...props}>
+        {props?.trimTextLength(
+          `${data.result.name} (${data.result.rate_percentage}%)`,
+        )}
+      </Text>
+    );
   };
 
-  const handleTaxChange = taxId => {
-    setTaxId(() => taxId);
+  const renderVendorValue = (status, data, props) => {
+    if (status === 'loading') return <ActivityLoader colors={colors} />;
+    if (status === 'error')
+      return (
+        <Text variant="titleMedium" style={props.style}>
+          Something went wrong
+        </Text>
+      );
+    if (!data?.result) return null;
+    return (
+      <Text variant="titleMedium" {...props}>
+        {props?.trimTextLength(data.result.vendor_display_name)}
+      </Text>
+    );
   };
 
-  const handleVendorChange = vendorId => {
-    setVendorId(() => vendorId);
+  const renderUOMValue = (unitAbbrev, props) => {
+    if (!unitAbbrev) return null;
+    const UOM =
+      unitAbbrev === 'ea' ? 'Piece' : convert().describe(unitAbbrev).singular;
+    return (
+      <Text variant="titleMedium" {...props}>
+        {props?.trimTextLength(UOM)}
+      </Text>
+    );
   };
 
-  const handleInitStockAppliedTaxChange = taxId => {
-    setInitStockAppliedTaxId(() => taxId);
+  // -------------------------------------------------------------------------
+  // Per-piece measurement visibility helpers
+  // -------------------------------------------------------------------------
+
+  const shouldShowPerPieceFields = values => {
+    const {add_measurement_per_piece, set_uom_to_uom_per_piece, uom_abbrev} =
+      values;
+
+    if (!editMode && uom_abbrev === 'ea' && add_measurement_per_piece)
+      return true;
+    if (
+      editMode &&
+      item.uom_abbrev === 'ea' &&
+      !item.uom_abbrev_per_piece &&
+      !item.qty_per_piece &&
+      add_measurement_per_piece
+    )
+      return true;
+    if (editMode && item.uom_abbrev !== 'ea' && set_uom_to_uom_per_piece)
+      return true;
+    if (
+      editMode &&
+      item.uom_abbrev === 'ea' &&
+      item.uom_abbrev_per_piece &&
+      item.qty_per_piece
+    )
+      return true;
+    return false;
   };
 
-  const handleInitStockVendorChange = vendorId => {
-    setInitStockVendorId(() => vendorId);
+  const isPerPieceReadOnly = values => {
+    if (
+      editMode &&
+      item.uom_abbrev === 'ea' &&
+      item.uom_abbrev_per_piece &&
+      item.qty_per_piece
+    )
+      return true;
+    if (editMode && item.uom_abbrev !== 'ea' && values.set_uom_to_uom_per_piece)
+      return true;
+    return false;
   };
 
-  const handleSalesTaxChange = taxId => {
-    setSalesTaxId(() => taxId);
-  };
+  // -------------------------------------------------------------------------
+  // Section renderers
+  // -------------------------------------------------------------------------
 
   const renderMeasurementPerPieceButton = formikProps => {
     const {
@@ -320,87 +452,40 @@ const ItemForm = props => {
       setFieldTouched,
       setFieldError,
     } = formikProps;
+    if (!shouldShowPerPieceFields(values)) return null;
 
-    if (
-      (!editMode &&
-        values.uom_abbrev === 'ea' &&
-        values.add_measurement_per_piece) ||
-      (editMode &&
-        item.uom_abbrev === 'ea' &&
-        !item.uom_abbrev_per_piece &&
-        !item.qty_per_piece &&
-        values.add_measurement_per_piece) ||
-      (editMode &&
-        item.uom_abbrev !== 'ea' &&
-        values.set_uom_to_uom_per_piece === true) || // readonly
-      (editMode &&
-        item.uom_abbrev === 'ea' &&
-        item.uom_abbrev_per_piece &&
-        item.qty_per_piece) // readonly mode
-    ) {
-      const isReadOnly =
-        (editMode &&
-          (item.uom_abbrev === 'ea' &&
-          item.uom_abbrev_per_piece &&
-          item.qty_per_piece
-            ? true
-            : false)) ||
-        (editMode &&
-        item.uom_abbrev !== 'ea' &&
-        values.set_uom_to_uom_per_piece === true
-          ? true
-          : false);
+    const readOnly = isPerPieceReadOnly(values);
 
-      return (
-        <MoreSelectionButton
-          containerStyle={{marginTop: -1}}
-          placeholder="Select Unit"
-          label="UOM Per Piece (Per Package)"
-          required
-          disabled={isReadOnly}
-          renderValueCurrentValue={values.uom_abbrev_per_piece}
-          renderValue={(_value, renderingValueProps) =>
-            renderUOMValue(values.uom_abbrev_per_piece, renderingValueProps)
-          }
-          onPress={() => {
-            setFormikActions(() => ({
-              setFieldValue,
-              setFieldTouched,
-              setFieldError,
-            }));
-
-            navigation.navigate('ItemUOM', {
+    return (
+      <MoreSelectionButton
+        containerStyle={{marginTop: -1}}
+        placeholder="Select Unit"
+        label="UOM Per Piece (Per Package)"
+        required
+        disabled={readOnly}
+        renderValueCurrentValue={values.uom_abbrev_per_piece}
+        renderValue={(_value, renderingValueProps) =>
+          renderUOMValue(values.uom_abbrev_per_piece, renderingValueProps)
+        }
+        onPress={() =>
+          navigateWithFormikActions(
+            {setFieldValue, setFieldTouched, setFieldError},
+            'ItemUOM',
+            {
               uom_abbrev: values.uom_abbrev_per_piece,
               uom_abbrev_field_key: 'uom_abbrev_per_piece',
-            });
-          }}
-          error={
-            errors.uom_abbrev_per_piece && touched.uom_abbrev_per_piece
-              ? true
-              : false
-          }
-        />
-      );
-    }
+            },
+          )
+        }
+        error={!!(errors.uom_abbrev_per_piece && touched.uom_abbrev_per_piece)}
+      />
+    );
   };
 
   const renderQuantityPerPieceInput = formikProps => {
-    const {
-      handleChange,
-      handleBlur,
-      handleSubmit,
-      setFieldValue,
-      values,
-      errors,
-      touched,
-      isValid,
-      dirty,
-      isSubmitting,
-      setFieldTouched,
-      setFieldError,
-    } = formikProps;
+    const {handleChange, handleBlur, values, errors, touched} = formikProps;
 
-    if (
+    const show =
       (!editMode &&
         values.uom_abbrev === 'ea' &&
         values.add_measurement_per_piece) ||
@@ -411,210 +496,138 @@ const ItemForm = props => {
         values.add_measurement_per_piece) ||
       (editMode &&
         item.uom_abbrev !== 'ea' &&
-        values.set_uom_to_uom_per_piece === true) ||
-      (editMode && item.uom_abbrev === 'ea' && item.uom_abbrev_per_piece)
-    ) {
-      const isReadOnly = false;
+        values.set_uom_to_uom_per_piece) ||
+      (editMode && item.uom_abbrev === 'ea' && item.uom_abbrev_per_piece);
 
-      return (
-        <View style={{flexDirection: 'row'}}>
-          <TextInput
-            label={
-              <TextInputLabel
-                label="Qty. Per Piece / Item Net Wt."
-                required
-                disabled={isReadOnly || editMode}
-                error={
-                  errors.qty_per_piece && touched.qty_per_piece ? true : false
-                }
-              />
-            }
-            disabled={isReadOnly || editMode}
-            onChangeText={handleChange('qty_per_piece')}
-            onBlur={handleBlur('qty_per_piece')}
-            value={values.qty_per_piece}
-            style={[styles.textInput, {flex: 1}]}
-            keyboardType="numeric"
-            error={errors.qty_per_piece && touched.qty_per_piece ? true : false}
-          />
-          <QuantityUOMText
-            textStyle={isReadOnly || editMode ? {color: colors.disabled} : {}}
-            uomAbbrev={values.uom_abbrev_per_piece}
-            quantity={values.qty_per_piece}
-            concatText={' each'}
-          />
-        </View>
-      );
-    }
+    if (!show) return null;
+
+    const disabled = editMode; // isReadOnly is always false per original
+
+    return (
+      <View style={{flexDirection: 'row'}}>
+        <TextInput
+          label={
+            <TextInputLabel
+              label="Qty. Per Piece / Item Net Wt."
+              required
+              disabled={disabled}
+              error={!!(errors.qty_per_piece && touched.qty_per_piece)}
+            />
+          }
+          disabled={disabled}
+          onChangeText={handleChange('qty_per_piece')}
+          onBlur={handleBlur('qty_per_piece')}
+          value={values.qty_per_piece}
+          style={[styles.textInput, {flex: 1}]}
+          keyboardType="numeric"
+          error={!!(errors.qty_per_piece && touched.qty_per_piece)}
+        />
+        <QuantityUOMText
+          textStyle={disabled ? {color: colors.disabled} : {}}
+          uomAbbrev={values.uom_abbrev_per_piece}
+          quantity={values.qty_per_piece}
+          concatText={' each'}
+        />
+      </View>
+    );
   };
 
   const renderAddMeasurementPerPieceCheckbox = formikProps => {
-    const {
-      handleChange,
-      handleBlur,
-      handleSubmit,
-      setFieldValue,
-      values,
-      errors,
-      touched,
-      isValid,
-      dirty,
-      isSubmitting,
-      setFieldTouched,
-      setFieldError,
-      setErrors,
-    } = formikProps;
+    const {setFieldValue, values, setFieldTouched, setFieldError} = formikProps;
 
-    if (
+    const show =
       (editMode &&
         item.uom_abbrev === 'ea' &&
         !item.uom_abbrev_per_piece &&
         !item.qty_per_piece) ||
-      (!editMode && values.uom_abbrev === 'ea')
-    ) {
-      return (
-        <View style={{marginVertical: 10}}>
-          <ConfirmationCheckbox
-            status={values.add_measurement_per_piece}
-            text="Set a UOM Per Piece / Item Net Wt."
-            containerStyle={{paddingTop: 5, paddingBottom: 5}}
-            onPress={() => {
-              if (values.add_measurement_per_piece === true) {
-                /**
-                 * Reset measurement per piece field values
-                 */
-                setFieldValue('uom_abbrev_per_piece', '');
-                setFieldTouched('uom_abbrev_per_piece', false);
-                setFieldError('uom_abbrev_per_piece', null);
+      (!editMode && values.uom_abbrev === 'ea');
 
-                setFieldValue('qty_per_piece', '');
-                setFieldTouched('qty_per_piece', false);
-                setFieldError('qty_per_piece', null);
+    if (!show) return null;
 
-                setFieldTouched('add_measurement_per_piece', true);
-                setFieldValue('add_measurement_per_piece', false);
-              } else {
-                setFieldValue('uom_abbrev_per_piece', '');
-                setFieldValue('qty_per_piece', '');
+    const handleToggle = () => {
+      if (values.add_measurement_per_piece) {
+        setFieldValue('uom_abbrev_per_piece', '');
+        setFieldTouched('uom_abbrev_per_piece', false);
+        setFieldError('uom_abbrev_per_piece', null);
+        setFieldValue('qty_per_piece', '');
+        setFieldTouched('qty_per_piece', false);
+        setFieldError('qty_per_piece', null);
+        setFieldTouched('add_measurement_per_piece', true);
+        setFieldValue('add_measurement_per_piece', false);
+      } else {
+        setFieldValue('uom_abbrev_per_piece', '');
+        setFieldValue('qty_per_piece', '');
+        setFieldTouched('add_measurement_per_piece', true);
+        setFieldValue('add_measurement_per_piece', true);
+        setFieldValue('cost_input_mode', 'total_cost');
+      }
+    };
 
-                setFieldTouched('add_measurement_per_piece', true);
-                setFieldValue('add_measurement_per_piece', true);
-
-                // set cost input mode to total_cost
-                setFieldValue('cost_input_mode', 'total_cost');
-              }
-            }}
-          />
-          <HelperText
-            visible={true}
-            style={{
-              color: colors.dark,
-              fontStyle: 'italic',
-              marginVertical: 5,
-            }}>
-            {
-              <Text style={{fontStyle: 'italic'}}>
-                {`* You can set a UOM (unit of measurement) per piece if this item has another unit in each package. e.g., You have 12 PC of 1.5 KG Cheese. Tick the checkbox, and then below, you can set "KG" as item UOM per Piece, and 1.5 as its Quantity per Piece (or Item Net Wt.).`}
-              </Text>
-            }
-          </HelperText>
-        </View>
-      );
-    }
+    return (
+      <View style={{marginVertical: 10}}>
+        <ConfirmationCheckbox
+          status={values.add_measurement_per_piece}
+          text="Set a UOM Per Piece / Item Net Wt."
+          containerStyle={{paddingTop: 5, paddingBottom: 5}}
+          onPress={handleToggle}
+        />
+        <HelperText
+          visible
+          style={{color: colors.dark, fontStyle: 'italic', marginVertical: 5}}>
+          <Text style={{fontStyle: 'italic'}}>
+            {`* You can set a UOM (unit of measurement) per piece if this item has another unit in each package. e.g., You have 12 PC of 1.5 KG Cheese. Tick the checkbox, and then below, you can set "KG" as item UOM per Piece, and 1.5 as its Quantity per Piece (or Item Net Wt.).`}
+          </Text>
+        </HelperText>
+      </View>
+    );
   };
 
   const renderSetUOMToUOMPerPieceCheckbox = formikProps => {
-    const {
-      handleChange,
-      handleBlur,
-      handleSubmit,
-      setFieldValue,
-      values,
-      errors,
-      touched,
-      isValid,
-      dirty,
-      isSubmitting,
-      setFieldTouched,
-      setFieldError,
-      setErrors,
-    } = formikProps;
+    const {setFieldValue, values, setFieldTouched, setFieldError} = formikProps;
 
-    if (editMode && item.uom_abbrev !== 'ea') {
-      return (
-        <View style={{marginVertical: 10}}>
-          <ConfirmationCheckbox
-            status={values.set_uom_to_uom_per_piece}
-            text="Convert current UOM to UOM Per Piece"
-            containerStyle={{paddingTop: 5, paddingBottom: 5}}
-            onPress={() => {
-              if (values.set_uom_to_uom_per_piece === true) {
-                /**
-                 * Reset measurement per piece field values
-                 */
-                setFieldValue('uom_abbrev_per_piece', '');
-                setFieldTouched('uom_abbrev_per_piece', false);
-                setFieldError('uom_abbrev_per_piece', null);
+    if (!editMode || item.uom_abbrev === 'ea') return null;
 
-                setFieldValue('qty_per_piece', '');
-                setFieldTouched('qty_per_piece', false);
-                setFieldError('qty_per_piece', null);
+    const handleToggle = () => {
+      if (values.set_uom_to_uom_per_piece) {
+        setFieldValue('uom_abbrev_per_piece', '');
+        setFieldTouched('uom_abbrev_per_piece', false);
+        setFieldError('uom_abbrev_per_piece', null);
+        setFieldValue('qty_per_piece', '');
+        setFieldTouched('qty_per_piece', false);
+        setFieldError('qty_per_piece', null);
+        setFieldTouched('set_uom_to_uom_per_piece', true);
+        setFieldValue('set_uom_to_uom_per_piece', false);
+      } else {
+        setFieldValue('uom_abbrev', 'ea');
+        setFieldValue('uom_abbrev_per_piece', item.uom_abbrev);
+        setFieldValue('qty_per_piece', '');
+        setFieldTouched('set_uom_to_uom_per_piece', true);
+        setFieldValue('set_uom_to_uom_per_piece', true);
+      }
+    };
 
-                setFieldTouched('set_uom_to_uom_per_piece', true);
-                setFieldValue('set_uom_to_uom_per_piece', false);
-              } else {
-                setFieldValue('uom_abbrev', 'ea');
-
-                setFieldValue('uom_abbrev_per_piece', item.uom_abbrev);
-
-                setFieldValue('qty_per_piece', '');
-
-                setFieldTouched('set_uom_to_uom_per_piece', true);
-                setFieldValue('set_uom_to_uom_per_piece', true);
-              }
-            }}
-          />
-          <HelperText
-            visible={true}
-            style={{
-              color: colors.dark,
-              fontStyle: 'italic',
-              marginVertical: 5,
-            }}>
-            {
-              <Text style={{fontStyle: 'italic'}}>
-                {`* You can convert this item's current UOM (unit of measurement) to UOM Per Piece if this item's current UOM is based on the unit of each package. e.g., This item is an existing 18 KG of Cheese and you want it to convert to 12 PC of 1.5 KG Cheese. Tick the checkbox, and then below, the "KG" will be set as item UOM Per Piece, and you can set the 1.5 as its Quantity per Piece (or Item Net Wt.).`}
-              </Text>
-            }
-          </HelperText>
-        </View>
-      );
-    }
+    return (
+      <View style={{marginVertical: 10}}>
+        <ConfirmationCheckbox
+          status={values.set_uom_to_uom_per_piece}
+          text="Convert current UOM to UOM Per Piece"
+          containerStyle={{paddingTop: 5, paddingBottom: 5}}
+          onPress={handleToggle}
+        />
+        <HelperText
+          visible
+          style={{color: colors.dark, fontStyle: 'italic', marginVertical: 5}}>
+          <Text style={{fontStyle: 'italic'}}>
+            {`* You can convert this item's current UOM (unit of measurement) to UOM Per Piece if this item's current UOM is based on the unit of each package. e.g., This item is an existing 18 KG of Cheese and you want it to convert to 12 PC of 1.5 KG Cheese. Tick the checkbox, and then below, the "KG" will be set as item UOM Per Piece, and you can set the 1.5 as its Quantity per Piece (or Item Net Wt.).`}
+          </Text>
+        </HelperText>
+      </View>
+    );
   };
 
   const renderQuantityInput = formikProps => {
-    const {
-      handleChange,
-      handleBlur,
-      setFieldValue,
-      values,
-      errors,
-      touched,
-      setFieldTouched,
-      setFieldError,
-    } = formikProps;
-
-    // if (editMode) {
-    //   return (
-    //     <Pressable onPress={handlePressQuantityInput}>
-    //       <TextInput
-    //         label="Initial Stock Quantity"
-    //         editable={false}
-    //         value={props.values.initial_stock_qty}
-    //       />
-    //     </Pressable>
-    //   );
-    // }
+    const {handleChange, handleBlur, setFieldValue, values, errors, touched} =
+      formikProps;
 
     return (
       <View style={{flexDirection: 'row'}}>
@@ -624,29 +637,25 @@ const ItemForm = props => {
             <TextInputLabel
               label={`Pre-${appDefaults.appDisplayName} Total Stock Quantity`}
               required
-              error={
-                errors.initial_stock_qty && touched.initial_stock_qty
-                  ? true
-                  : false
-              }
+              error={!!(errors.initial_stock_qty && touched.initial_stock_qty)}
             />
           }
           onChangeText={value => {
             const initialStockQty = parseFloat(value || 0);
 
             if (values.cost_input_mode === 'total_cost') {
-              const totalCost = parseFloat(values?.total_cost || 0);
+              const totalCost = parseFloat(values.total_cost || 0);
               const calculatedUnitCost =
                 totalCost && initialStockQty ? totalCost / initialStockQty : 0;
-
-              setFieldValue('unit_cost', calculatedUnitCost?.toString());
+              setFieldValue('unit_cost', calculatedUnitCost.toString());
             }
 
             if (values.cost_input_mode === 'unit_cost') {
               const unitCost = parseFloat(values.unit_cost || 0);
-              const calculatedTotalCost = unitCost * initialStockQty;
-
-              setFieldValue('total_cost', calculatedTotalCost?.toString());
+              setFieldValue(
+                'total_cost',
+                (unitCost * initialStockQty).toString(),
+              );
             }
 
             handleChange('initial_stock_qty')(value);
@@ -654,9 +663,7 @@ const ItemForm = props => {
           onBlur={handleBlur('initial_stock_qty')}
           value={values.initial_stock_qty}
           keyboardType="numeric"
-          error={
-            errors.initial_stock_qty && touched.initial_stock_qty ? true : false
-          }
+          error={!!(errors.initial_stock_qty && touched.initial_stock_qty)}
         />
         <QuantityUOMText
           uomAbbrev={values.uom_abbrev}
@@ -677,271 +684,115 @@ const ItemForm = props => {
       setFieldError,
     } = formikProps;
 
-    if (editMode) {
-      return (
-        <MoreSelectionButton
-          containerStyle={{marginTop: -1}}
-          placeholder="Select Tax"
-          label="Item Default Tax"
-          renderValueCurrentValue={values.tax_id}
-          renderValue={(_value, renderingValueProps) => {
-            if (!taxId) return null;
-            return renderTaxValue(
-              getTaxStatus,
-              getTaxData,
-              renderingValueProps,
-            );
-          }}
-          onChangeValue={currentValue => {
-            handleTaxChange(currentValue);
-            handleChange('tax_id')(currentValue);
-          }}
-          onPress={() => {
-            setFormikActions(() => ({
-              setFieldValue,
-              setFieldTouched,
-              setFieldError,
-            }));
-
-            navigation.navigate(routes.itemTax(), {
-              tax_id: values.tax_id,
-              tax_id_field_key: 'tax_id',
-            });
-          }}
-          error={errors.tax_id && touched.tax_id ? true : false}
-        />
-      );
-    }
-  };
-
-  const renderCategoryValue = (status, data, props) => {
-    if (!categoryId) return null;
-
-    if (status === 'loading') {
-      return (
-        <ActivityIndicator
-          animating={true}
-          color={colors.primary}
-          style={{marginRight: 5}}
-          size="small"
-        />
-      );
-    }
-
-    if (status === 'error') {
-      return (
-        <Text variant="titleMedium" style={props.style}>
-          Something went wrong
-        </Text>
-      );
-    }
-
-    if (!data || !data.result) return null;
+    if (!editMode) return null;
 
     return (
-      <Text variant="titleMedium" {...props}>
-        {props?.trimTextLength(data.result?.name)}
-      </Text>
-    );
-  };
-
-  const renderTaxValue = (status, data, props) => {
-    if (status === 'loading') {
-      return (
-        <ActivityIndicator
-          animating={true}
-          color={colors.primary}
-          style={{marginRight: 5}}
-          size="small"
-        />
-      );
-    }
-
-    if (status === 'error') {
-      return (
-        <Text variant="titleMedium" style={props.style}>
-          Something went wrong
-        </Text>
-      );
-    }
-
-    if (!data || !data.result) return null;
-
-    return (
-      <Text variant="titleMedium" {...props}>
-        {props?.trimTextLength(
-          `${data.result?.name} (${data.result?.rate_percentage}%)`,
-        )}
-      </Text>
-    );
-  };
-
-  const renderVendorValue = (status, data, props) => {
-    if (status === 'loading') {
-      return (
-        <ActivityIndicator
-          animating={true}
-          color={colors.primary}
-          style={{marginRight: 5}}
-          size="small"
-        />
-      );
-    }
-
-    if (status === 'error') {
-      return (
-        <Text variant="titleMedium" style={props.style}>
-          Something went wrong
-        </Text>
-      );
-    }
-
-    if (!data || !data.result) return null;
-
-    return (
-      <Text variant="titleMedium" {...props}>
-        {props?.trimTextLength(`${data.result?.vendor_display_name}`)}
-      </Text>
-    );
-  };
-
-  const renderUOMValue = (unitAbbrev, props) => {
-    if (!unitAbbrev) return null;
-
-    const UOM =
-      unitAbbrev === 'ea' ? 'Piece' : convert().describe(unitAbbrev).singular;
-
-    return (
-      <Text variant="titleMedium" {...props}>
-        {props?.trimTextLength(`${UOM}`)}
-      </Text>
-    );
-  };
-
-  const renderTaxCalculation = values => {
-    const tax = getInitStockAppliedTaxData?.result;
-
-    return (
-      <TaxCalculation
-        item={values}
-        tax={tax}
-        taxAmountLabel={`Pre-${appDefaults.appDisplayName} Tax Amount`}
+      <MoreSelectionButton
         containerStyle={{marginTop: -1}}
+        placeholder="Select Tax"
+        label="Item Default Tax"
+        renderValueCurrentValue={values.tax_id}
+        renderValue={(_value, renderingValueProps) => {
+          if (!taxId) return null;
+          return renderTaxValue(getTaxStatus, getTaxData, renderingValueProps);
+        }}
+        onChangeValue={currentValue => {
+          handleTaxChange(currentValue);
+          handleChange('tax_id')(currentValue);
+        }}
+        onPress={() =>
+          navigateWithFormikActions(
+            {setFieldValue, setFieldTouched, setFieldError},
+            routes.itemTax(),
+            {tax_id: values.tax_id, tax_id_field_key: 'tax_id'},
+          )
+        }
+        error={!!(errors.tax_id && touched.tax_id)}
       />
     );
   };
 
+  const renderTaxCalculation = values => (
+    <TaxCalculation
+      item={values}
+      tax={getInitStockAppliedTaxData?.result}
+      taxAmountLabel={`Pre-${appDefaults.appDisplayName} Tax Amount`}
+      containerStyle={{marginTop: -1}}
+    />
+  );
+
   const renderDeletedInitStockAppliedTax = () => {
-    let deletedInitialStockAppliedTax = null;
-
     if (!editMode) return null;
-
     if (
       getItemInitStockLogStatus === 'loading' ||
       getInitStockAppliedTaxStatus === 'loading'
-    ) {
+    )
       return null;
-    }
-
     if (
       getItemInitStockLogStatus === 'error' ||
       getInitStockAppliedTaxStatus === 'error'
-    ) {
+    )
       return null;
-    }
 
     const itemInitStockLog = getItemInitStockLogData?.result;
-    const initStockAppliedTax = getInitStockAppliedTaxData?.result;
-
     if (!itemInitStockLog) return null;
 
-    if (
+    const initStockAppliedTax = getInitStockAppliedTaxData?.result;
+    const isDeleted =
       itemInitStockLog.ref_tax_id &&
       parseInt(initStockAppliedTaxId) !== 0 &&
-      !initStockAppliedTax
-    ) {
-      deletedInitialStockAppliedTax = {
-        name: itemInitStockLog.adjustment_tax_name,
-        rate_percentage: itemInitStockLog.adjustment_tax_rate_percentage,
-      };
-    }
+      !initStockAppliedTax;
 
-    if (!deletedInitialStockAppliedTax) return null;
+    if (!isDeleted) return null;
 
     return (
       <HelperText
-        visible={true}
-        style={{
-          color: colors.dark,
-          fontStyle: 'italic',
-          marginVertical: 5,
-        }}>
-        {
-          <Text style={{fontStyle: 'italic'}}>
-            {`* This item's Pre-${appDefaults.appDisplayName} stock has`}{' '}
-          </Text>
-        }
-        {
-          <Text style={{fontWeight: 'bold', fontStyle: 'italic'}}>
-            {`${deletedInitialStockAppliedTax?.name} (${deletedInitialStockAppliedTax?.rate_percentage}%)`}
-          </Text>
-        }{' '}
+        visible
+        style={{color: colors.dark, fontStyle: 'italic', marginVertical: 5}}>
+        <Text style={{fontStyle: 'italic'}}>
+          {`* This item's Pre-${appDefaults.appDisplayName} stock has`}{' '}
+        </Text>
+        <Text style={{fontWeight: 'bold', fontStyle: 'italic'}}>
+          {`${itemInitStockLog.adjustment_tax_name} (${itemInitStockLog.adjustment_tax_rate_percentage}%)`}
+        </Text>{' '}
         tax applied on it. You can select a new tax to update if only needed.
       </HelperText>
     );
   };
 
   const renderDeletedInitStockVendor = () => {
-    let deletedInitialStockVendor = null;
-
     if (!editMode) return null;
-
     if (
       getItemInitStockLogStatus === 'loading' ||
       getInitStockVendorStatus === 'loading'
-    ) {
+    )
       return null;
-    }
-
     if (
       getItemInitStockLogStatus === 'error' ||
       getInitStockVendorStatus === 'error'
-    ) {
+    )
       return null;
-    }
 
     const itemInitStockLog = getItemInitStockLogData?.result;
-    const initStockVendor = getInitStockVendorData?.result;
-
     if (!itemInitStockLog) return null;
 
-    if (
+    const initStockVendor = getInitStockVendorData?.result;
+    const isDeleted =
       itemInitStockLog.ref_vendor_id &&
       parseInt(initStockVendorId) !== 0 &&
-      !initStockVendor
-    ) {
-      deletedInitialStockVendor = {
-        vendor_display_name: itemInitStockLog.vendor_display_name,
-      };
-    }
+      !initStockVendor;
 
-    if (!deletedInitialStockVendor) return null;
+    if (!isDeleted) return null;
 
     return (
       <HelperText
-        visible={true}
-        style={{
-          color: colors.dark,
-          fontStyle: 'italic',
-          marginVertical: 5,
-        }}>
-        {<Text style={{fontStyle: 'italic'}}>{`* `}</Text>}
-        {
-          <Text style={{fontWeight: 'bold', fontStyle: 'italic'}}>
-            {`${deletedInitialStockVendor?.vendor_display_name}`}
-          </Text>
-        }{' '}
-        {`vendor of this item's Pre-${appDefaults.appDisplayName} stock was deleted. You can select a new vendor to update if only needed.`}
+        visible
+        style={{color: colors.dark, fontStyle: 'italic', marginVertical: 5}}>
+        <Text style={{fontStyle: 'italic'}}>{`* `}</Text>
+        <Text style={{fontWeight: 'bold', fontStyle: 'italic'}}>
+          {itemInitStockLog.vendor_display_name}
+        </Text>
+        {` vendor of this item's Pre-${appDefaults.appDisplayName} stock was deleted. You can select a new vendor to update if only needed.`}
       </HelperText>
     );
   };
@@ -950,24 +801,17 @@ const ItemForm = props => {
     const {
       handleChange,
       handleBlur,
-      handleSubmit,
       setFieldValue,
       values,
       errors,
       touched,
-      isValid,
-      dirty,
-      isSubmitting,
       setFieldTouched,
       setFieldError,
     } = formikProps;
 
     if (!isInitStockFieldsVisible) return null;
 
-    if (editMode && status === 'loading') {
-      return <DefaultLoadingScreen />;
-    }
-
+    if (editMode && status === 'loading') return <DefaultLoadingScreen />;
     if (editMode && status === 'error') {
       return (
         <DefaultErrorScreen
@@ -980,37 +824,36 @@ const ItemForm = props => {
     const itemInitStockLog = data?.result;
     if (editMode && !itemInitStockLog) return null;
 
+    // Determine deleted tax / vendor for display
     let deletedInitialStockAppliedTax = null;
+    if (
+      getInitStockAppliedTaxStatus === 'success' &&
+      itemInitStockLog?.ref_tax_id &&
+      !getInitStockAppliedTaxData?.result
+    ) {
+      deletedInitialStockAppliedTax = {
+        name: itemInitStockLog.adjustment_tax_name,
+        rate_percentage: itemInitStockLog.adjustment_tax_rate_percentage,
+      };
+    }
+
     let deletedInitialStockVendor = null;
-
-    if (getInitStockAppliedTaxStatus === 'success') {
-      const initStockAppliedTax = getInitStockAppliedTaxData?.result;
-
-      if (
-        itemInitStockLog &&
-        itemInitStockLog.ref_tax_id &&
-        !initStockAppliedTax
-      ) {
-        deletedInitialStockAppliedTax = {
-          name: itemInitStockLog.adjustment_tax_name,
-          rate_percentage: itemInitStockLog.adjustment_tax_rate_percentage,
-        };
-      }
+    if (
+      getInitStockVendorStatus === 'success' &&
+      itemInitStockLog?.ref_vendor_id &&
+      !getInitStockVendorData?.result
+    ) {
+      deletedInitialStockVendor = {
+        vendor_display_name: itemInitStockLog.vendor_display_name,
+      };
     }
 
-    if (getInitStockVendorStatus === 'success') {
-      const initStockVendor = getInitStockVendorData?.result;
-
-      if (
-        itemInitStockLog &&
-        itemInitStockLog.ref_vendor_id &&
-        !initStockVendor
-      ) {
-        deletedInitialStockVendor = {
-          vendor_display_name: itemInitStockLog.vendor_display_name,
-        };
-      }
-    }
+    const makeFormikNav = routeName => params =>
+      navigateWithFormikActions(
+        {setFieldValue, setFieldTouched, setFieldError},
+        routeName,
+        params,
+      );
 
     return (
       <>
@@ -1018,33 +861,27 @@ const ItemForm = props => {
           label="Beginning Inventory"
           value={moment(datetimeString.split(' ')[0]).format('MMM YYYY')}
           required
-          // containerStyle={{marginTop: -1}}
-          onPress={() => {
-            setShowMonthPicker(() => true);
-          }}
-          renderIcon={({iconSize, iconColor}) => {
-            return (
-              <MaterialCommunityIcons
-                name="chevron-down"
-                size={iconSize}
-                color={iconColor}
-              />
-            );
-          }}
+          onPress={() => setShowMonthPicker(true)}
+          renderIcon={({iconSize, iconColor}) => (
+            <MaterialCommunityIcons
+              name="chevron-down"
+              size={iconSize}
+              color={iconColor}
+            />
+          )}
         />
+
         {renderQuantityInput(formikProps)}
 
         <RadioButton.Group
           onValueChange={newValue => {
-            if (newValue === 'total_cost') {
-              setFieldTouched('unit_cost', false);
-            } else if (newValue === 'unit_cost') {
+            if (newValue === 'total_cost') setFieldTouched('unit_cost', false);
+            else if (newValue === 'unit_cost')
               setFieldTouched('total_cost', false);
-            }
-
             setFieldValue('cost_input_mode', newValue);
           }}
           value={values.cost_input_mode}>
+          {/* Unit Cost row */}
           <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <View style={{flexDirection: 'row', flex: 1}}>
               <TextInput
@@ -1053,38 +890,31 @@ const ItemForm = props => {
                   <TextInputLabel
                     label="Unit Cost (Including tax)"
                     required
-                    error={errors.unit_cost && touched.unit_cost ? true : false}
+                    error={!!(errors.unit_cost && touched.unit_cost)}
                   />
                 }
-                disabled={
-                  values.cost_input_mode === 'total_cost' ? true : false
-                }
+                disabled={values.cost_input_mode === 'total_cost'}
                 onChangeText={value => {
                   const unitCost = parseFloat(value || 0);
-                  const initialStockQty = parseFloat(
-                    values.initial_stock_qty || 0,
-                  );
-                  const calculatedTotalCost = unitCost * initialStockQty;
-
-                  setFieldValue('total_cost', calculatedTotalCost?.toString());
+                  const qty = parseFloat(values.initial_stock_qty || 0);
+                  setFieldValue('total_cost', (unitCost * qty).toString());
                   handleChange('unit_cost')(value);
                 }}
                 onBlur={handleBlur('unit_cost')}
                 value={values.unit_cost}
                 keyboardType="numeric"
-                error={errors.unit_cost && touched.unit_cost ? true : false}
+                error={!!(errors.unit_cost && touched.unit_cost)}
               />
               <QuantityUOMText
                 uomAbbrev={values.uom_abbrev}
-                prefixText={'Per '}
-                disabled={
-                  values.cost_input_mode === 'total_cost' ? true : false
-                }
+                prefixText="Per "
+                disabled={values.cost_input_mode === 'total_cost'}
               />
             </View>
             <RadioButton value="unit_cost" color={colors.primary} />
           </View>
 
+          {/* Total Cost row */}
           <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <View style={{flexDirection: 'row', flex: 1}}>
               <TextInput
@@ -1093,36 +923,29 @@ const ItemForm = props => {
                   <TextInputLabel
                     label="Total Cost (Including tax)"
                     required
-                    error={
-                      errors.total_cost && touched.total_cost ? true : false
-                    }
+                    error={!!(errors.total_cost && touched.total_cost)}
                   />
                 }
-                disabled={values.cost_input_mode === 'unit_cost' ? true : false}
+                disabled={values.cost_input_mode === 'unit_cost'}
                 onChangeText={value => {
                   const totalCost = parseFloat(value || 0);
-                  const initialStockQty = parseFloat(
-                    values.initial_stock_qty || 0,
-                  );
+                  const qty = parseFloat(values.initial_stock_qty || 0);
                   const calculatedUnitCost =
-                    totalCost && initialStockQty
-                      ? totalCost / initialStockQty
-                      : 0;
-
-                  setFieldValue('unit_cost', calculatedUnitCost?.toString());
+                    totalCost && qty ? totalCost / qty : 0;
+                  setFieldValue('unit_cost', calculatedUnitCost.toString());
                   handleChange('total_cost')(value);
                 }}
                 onBlur={handleBlur('total_cost')}
                 value={values.total_cost}
                 keyboardType="numeric"
-                error={errors.total_cost && touched.total_cost ? true : false}
+                error={!!(errors.total_cost && touched.total_cost)}
               />
               <QuantityUOMText
                 quantity={values.initial_stock_qty}
                 uomAbbrev={values.uom_abbrev}
-                prefixText={'Total '}
-                concatText={' Cost'}
-                disabled={values.cost_input_mode === 'unit_cost' ? true : false}
+                prefixText="Total "
+                concatText=" Cost"
+                disabled={values.cost_input_mode === 'unit_cost'}
               />
             </View>
             <RadioButton value="total_cost" color={colors.primary} />
@@ -1145,29 +968,21 @@ const ItemForm = props => {
           onChangeValue={currentValue => {
             handleInitStockAppliedTaxChange(currentValue);
             handleChange('initial_stock_applied_tax_id')(currentValue);
-
-            // update sales tax as well
             if (currentValue && currentValue !== '0') {
               handleChange('sales_tax_id')(currentValue);
             }
           }}
-          onPress={() => {
-            setFormikActions(() => ({
-              setFieldValue,
-              setFieldTouched,
-              setFieldError,
-            }));
-
-            navigation.navigate(routes.itemTax(), {
+          onPress={() =>
+            makeFormikNav(routes.itemTax())({
               tax_id: values.initial_stock_applied_tax_id,
               tax_id_field_key: 'initial_stock_applied_tax_id',
-            });
-          }}
+            })
+          }
           error={
-            errors.initial_stock_applied_tax_id &&
-            touched.initial_stock_applied_tax_id
-              ? true
-              : false
+            !!(
+              errors.initial_stock_applied_tax_id &&
+              touched.initial_stock_applied_tax_id
+            )
           }
         />
         {renderDeletedInitStockAppliedTax()}
@@ -1190,127 +1005,75 @@ const ItemForm = props => {
             handleInitStockVendorChange(currentValue);
             handleChange('initial_stock_vendor_id')(currentValue);
           }}
-          onPress={() => {
-            setFormikActions(() => ({
-              setFieldValue,
-              setFieldTouched,
-              setFieldError,
-            }));
-
-            navigation.navigate(routes.itemVendor(), {
+          onPress={() =>
+            makeFormikNav(routes.itemVendor())({
               vendor_id: values.initial_stock_vendor_id,
               vendor_id_field_key: 'initial_stock_vendor_id',
-            });
-          }}
+            })
+          }
           error={
-            errors.initial_stock_vendor_id && touched.initial_stock_vendor_id
-              ? true
-              : false
+            !!(
+              errors.initial_stock_vendor_id && touched.initial_stock_vendor_id
+            )
           }
         />
         {renderDeletedInitStockVendor()}
+
         <TextInput
           label={`Pre-${appDefaults.appDisplayName} Stock Official Receipt # (Optional)`}
           onChangeText={handleChange('official_receipt_number')}
           onBlur={handleBlur('official_receipt_number')}
           value={values.official_receipt_number}
           error={
-            errors.official_receipt_number && touched.official_receipt_number
-              ? true
-              : false
+            !!(
+              errors.official_receipt_number && touched.official_receipt_number
+            )
           }
         />
+
         <TextInput
-          style={[styles.textInput]}
+          style={styles.textInput}
           label={
             <TextInputLabel
               label="Low Stock Level"
               required
-              error={
-                errors.low_stock_level && touched.low_stock_level ? true : false
-              }
+              error={!!(errors.low_stock_level && touched.low_stock_level)}
             />
           }
           onChangeText={handleChange('low_stock_level')}
           onBlur={handleBlur('low_stock_level')}
           value={values.low_stock_level}
           keyboardType="numeric"
-          error={
-            errors.low_stock_level && touched.low_stock_level ? true : false
-          }
+          error={!!(errors.low_stock_level && touched.low_stock_level)}
         />
+
         <TextInput
           multiline
           label={`Pre-${appDefaults.appDisplayName} Stock Remarks (Optional)`}
           onChangeText={handleChange('remarks')}
           onBlur={handleBlur('remarks')}
           value={values.remarks}
-          error={errors.remarks && touched.remarks ? true : false}
+          error={!!(errors.remarks && touched.remarks)}
         />
       </>
     );
   };
 
   const renderSellingDetailsFields = formikProps => {
-    const {
-      handleChange,
-      handleBlur,
-      handleSubmit,
-      setFieldValue,
-      values,
-      errors,
-      touched,
-      isValid,
-      dirty,
-      isSubmitting,
-      setFieldTouched,
-      setFieldError,
-    } = formikProps;
+    const {setFieldValue, values} = formikProps;
 
     if (!isSellingDetailsFieldsVisible) return null;
 
     return (
       <>
-        {/* <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <View style={{flexDirection: 'row', flex: 1}}>
-            <TextInput
-              style={[styles.textInput, {flex: 1}]}
-              label={
-                <TextInputLabel
-                  label="Unit Selling Price"
-                  required
-                  error={
-                    errors.unit_selling_price && touched.unit_selling_price
-                      ? true
-                      : false
-                  }
-                />
-              }
-              onChangeText={handleChange('unit_selling_price')}
-              onBlur={handleBlur('unit_selling_price')}
-              value={values.unit_selling_price}
-              keyboardType="numeric"
-              error={
-                errors.unit_selling_price && touched.unit_selling_price
-                  ? true
-                  : false
-              }
-            />
-            <QuantityUOMText
-              uomAbbrev={values.uom_abbrev}
-              prefixText={'Per '}
-            />
-          </View>
-        </View> */}
-
         <ItemSellingSizeOptions
           listItems={values.selling_size_options}
           listItemKey="option_id"
           containerStyle={{marginTop: 10}}
           onPressItem={() => {}}
-          onPressDeleteListItem={(listItem, _index) => {
-            setFocusedSellingSizeOption(() => listItem);
-            setConfirmDeleteSellingSizeOptionDialogVisible(() => true);
+          onPressDeleteListItem={listItem => {
+            setFocusedSellingSizeOption(listItem);
+            setConfirmDeleteSellingSizeOptionDialogVisible(true);
           }}
         />
 
@@ -1320,11 +1083,10 @@ const ItemForm = props => {
           style={{marginTop: 10}}
           onPress={() => {
             if (!values.uom_abbrev) {
-              setUnitOfMeasurementRequiredDialogVisible(() => true);
+              setUnitOfMeasurementRequiredDialogVisible(true);
               return;
             }
-
-            setAddOptionModalVisible(() => true);
+            setAddOptionModalVisible(true);
           }}>
           Add Selling Size Option
         </Button>
@@ -1332,49 +1094,61 @@ const ItemForm = props => {
     );
   };
 
+  // -------------------------------------------------------------------------
+  // Derive initial formik values from props + query data
+  // -------------------------------------------------------------------------
+
   const itemInitStockLog = getItemInitStockLogData?.result;
 
-  let initialStockQty = initialValues.initial_stock_qty?.toString() || '0';
-  let unitCost = initialValues.unit_cost?.toString() || '0';
-  let totalCost = '0';
-  let initialStockUnitCost =
+  const initialStockQty = (
     editMode && itemInitStockLog
-      ? itemInitStockLog.adjustment_unit_cost?.toFixed(2).toString()
-      : unitCost;
-  let initialStockAppliedTaxId =
-    initialValues.initial_stock_applied_tax_id?.toString() || '';
-  let initialStockVendorId =
-    initialValues.initial_stock_vendor_id?.toString() || '';
+      ? itemInitStockLog.adjustment_qty
+      : initialValues.initial_stock_qty ?? 0
+  ).toString();
 
-  let initialStockOfficialReceiptNumber = initialValues.official_receipt_number;
-  let initialStockRemarks = initialValues.remarks || '';
+  const initialStockUnitCost = (
+    editMode && itemInitStockLog
+      ? itemInitStockLog.adjustment_unit_cost?.toFixed(2)
+      : initialValues.unit_cost ?? 0
+  ).toString();
 
-  if (editMode && itemInitStockLog) {
-    initialStockQty = itemInitStockLog.adjustment_qty.toString();
-    // initial stock unit cost should be the gross cost and not the net unit cost
-    initialStockUnitCost = itemInitStockLog.adjustment_unit_cost
-      ?.toFixed(2)
-      .toString();
-
-    initialStockAppliedTaxId = itemInitStockLog.ref_tax_id?.toString() || '';
-    initialStockVendorId = itemInitStockLog.ref_vendor_id?.toString() || '';
-    initialStockOfficialReceiptNumber =
-      itemInitStockLog.official_receipt_number;
-    initialStockRemarks = itemInitStockLog.remarks;
-  }
-
-  if (itemInitStockLog) {
-    totalCost =
-      (
+  const totalCost = itemInitStockLog
+    ? (
         parseFloat(itemInitStockLog.adjustment_unit_cost) *
         parseFloat(itemInitStockLog.adjustment_qty)
-      ).toString() || '0';
-  }
+      ).toString()
+    : '0';
 
-  let sellingSizeOptions =
+  const initialStockAppliedTaxId = (
+    editMode && itemInitStockLog
+      ? itemInitStockLog.ref_tax_id ?? ''
+      : initialValues.initial_stock_applied_tax_id ?? ''
+  ).toString();
+
+  const initialStockVendorId = (
+    editMode && itemInitStockLog
+      ? itemInitStockLog.ref_vendor_id ?? ''
+      : initialValues.initial_stock_vendor_id ?? ''
+  ).toString();
+
+  const initialStockOfficialReceiptNumber =
+    editMode && itemInitStockLog
+      ? itemInitStockLog.official_receipt_number
+      : initialValues.official_receipt_number;
+
+  const initialStockRemarks =
+    editMode && itemInitStockLog
+      ? itemInitStockLog.remarks
+      : initialValues.remarks || '';
+
+  const sellingSizeOptions =
     editMode && getItemSellingSizeModifierOptionsData?.result?.length
       ? getItemSellingSizeModifierOptionsData.result
       : initialValues.selling_size_options || [];
+
+  // -------------------------------------------------------------------------
+  // Formik
+  // -------------------------------------------------------------------------
 
   const formik = useFormik({
     initialValues: {
@@ -1388,7 +1162,7 @@ const ItemForm = props => {
       uom_abbrev: initialValues.uom_abbrev || '',
       unit_cost: initialStockUnitCost,
       total_cost: totalCost,
-      cost_input_mode: initialValues.cost_input_mode || 'unit_cost', // 'total_cost' or 'unit_cost'
+      cost_input_mode: initialValues.cost_input_mode || 'unit_cost',
       add_measurement_per_piece: false,
       set_uom_to_uom_per_piece: false,
       uom_abbrev_per_piece: initialValues.uom_abbrev_per_piece || '',
@@ -1400,7 +1174,6 @@ const ItemForm = props => {
       initial_stock_applied_tax_id: initialStockAppliedTaxId,
       initial_stock_vendor_id: initialStockVendorId,
       official_receipt_number: initialStockOfficialReceiptNumber,
-      // sales
       unit_selling_price: initialValues.unit_selling_price?.toString() || '0',
       sales_tax_id: initialValues.sales_tax_id?.toString() || '',
       selling_size_options: sellingSizeOptions,
@@ -1426,21 +1199,21 @@ const ItemForm = props => {
     setValues,
   } = formik;
 
-  let itemDetailsHeadingText = editMode
-    ? 'Update Item Details'
-    : 'Item Details';
+  // -------------------------------------------------------------------------
+  // Section heading texts
+  // -------------------------------------------------------------------------
 
-  let itemBasicSettingsHeadingText = editMode
-    ? 'Update Item Basic Settings'
-    : 'Item Basic Settings';
-
-  let initStockSectionHeadingText = editMode
+  const initStockSectionHeadingText = editMode
     ? `Update Pre-${appDefaults.appDisplayName} Stock & Cost`
     : `Input Pre-${appDefaults.appDisplayName} Stock Cost & Tax`;
 
-  let sellingDetailsHeadingText = editMode
+  const sellingDetailsHeadingText = editMode
     ? 'Update Selling Price'
     : 'Input Selling Price';
+
+  // -------------------------------------------------------------------------
+  // Early returns for loading / error states
+  // -------------------------------------------------------------------------
 
   if (
     editMode &&
@@ -1463,27 +1236,31 @@ const ItemForm = props => {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Shared date-string updater used in both pickers
+  // -------------------------------------------------------------------------
+
+  const applySelectedDate = (selectedDate, formikHandleChange) => {
+    const formatted = formatDatetimeString(selectedDate);
+    formikHandleChange('beginning_inventory_date')(formatted);
+  };
+
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
+
   return (
     <>
-      {/* Old version uses DateTimePicker */}
+      {/* ── Date / Month Pickers ── */}
       {showCalendar && (
         <DateTimePicker
           testID="dateTimePicker"
           value={date}
           mode={dateTimePickerMode}
-          is24Hour={true}
+          is24Hour
           onChange={(_event, selectedDate) => {
             handleDateTimePickerChange(_event, selectedDate);
-
-            const month = ('0' + (selectedDate.getMonth() + 1)).slice(-2);
-            const day = ('0' + selectedDate.getDate()).slice(-2);
-            const year = selectedDate.getFullYear();
-            const hours = ('0' + selectedDate.getHours()).slice(-2);
-            const minutes = ('0' + selectedDate.getMinutes()).slice(-2);
-            const seconds = ('0' + selectedDate.getSeconds()).slice(-2);
-            const selectedDateStringFormat = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-
-            handleChange('beginning_inventory_date')(selectedDateStringFormat);
+            applySelectedDate(selectedDate, handleChange);
           }}
         />
       )}
@@ -1493,29 +1270,15 @@ const ItemForm = props => {
           transparent
           animationType="fade"
           visible={showMonthPicker}
-          onRequestClose={() => {
-            setShowMonthPicker(() => false);
-          }}>
+          onRequestClose={() => setShowMonthPicker(false)}>
           <View style={styles.modalContentContainer}>
             <View style={styles.modalContent}>
               <MonthPicker
                 selectedDate={date}
                 onMonthChange={selectedValue => {
                   const selectedDate = new Date(selectedValue);
-
                   handleMonthChange(selectedDate);
-
-                  const month = ('0' + (selectedDate.getMonth() + 1)).slice(-2);
-                  const day = ('0' + selectedDate.getDate()).slice(-2);
-                  const year = selectedDate.getFullYear();
-                  const hours = ('0' + selectedDate.getHours()).slice(-2);
-                  const minutes = ('0' + selectedDate.getMinutes()).slice(-2);
-                  const seconds = ('0' + selectedDate.getSeconds()).slice(-2);
-                  const selectedDateStringFormat = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-
-                  handleChange('beginning_inventory_date')(
-                    selectedDateStringFormat,
-                  );
+                  applySelectedDate(selectedDate, handleChange);
                 }}
                 currentMonthTextStyle={{
                   color: colors.accent,
@@ -1529,7 +1292,7 @@ const ItemForm = props => {
                 }}
               />
               <Button
-                onPress={() => setShowMonthPicker(() => false)}
+                onPress={() => setShowMonthPicker(false)}
                 style={styles.modalConfirmButton}>
                 OK
               </Button>
@@ -1538,12 +1301,11 @@ const ItemForm = props => {
         </Modal>
       )}
 
+      {/* ── Dialogs ── */}
       <Portal>
         <Dialog
           visible={unitOfMeasurementRequiredDialogVisible}
-          onDismiss={() =>
-            setUnitOfMeasurementRequiredDialogVisible(() => false)
-          }>
+          onDismiss={() => setUnitOfMeasurementRequiredDialogVisible(false)}>
           <Dialog.Title>Item UOM is required!</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">
@@ -1553,9 +1315,7 @@ const ItemForm = props => {
           </Dialog.Content>
           <Dialog.Actions style={{justifyContent: 'space-around'}}>
             <Button
-              onPress={() =>
-                setUnitOfMeasurementRequiredDialogVisible(() => false)
-              }>
+              onPress={() => setUnitOfMeasurementRequiredDialogVisible(false)}>
               Okay
             </Button>
           </Dialog.Actions>
@@ -1566,8 +1326,8 @@ const ItemForm = props => {
         <Dialog
           visible={updateUOMWarningDialogVisible}
           onDismiss={() => {
-            setUpdateUOMWarningDialogVisible(() => false);
-            setConfirmClearAllSellingSizeOptions(() => false);
+            setUpdateUOMWarningDialogVisible(false);
+            setConfirmClearAllSellingSizeOptions(false);
           }}>
           <Dialog.Title>Attention!</Dialog.Title>
           <Dialog.Content>
@@ -1581,11 +1341,11 @@ const ItemForm = props => {
             <ConfirmationCheckbox
               status={confirmClearAllSellingSizeOptions}
               text="Clear size options listed below"
-              onPress={() => {
+              onPress={() =>
                 setConfirmClearAllSellingSizeOptions(
                   !confirmClearAllSellingSizeOptions,
-                );
-              }}
+                )
+              }
             />
           </Dialog.Content>
           <Dialog.Actions style={{justifyContent: 'space-around'}}>
@@ -1595,36 +1355,27 @@ const ItemForm = props => {
                   ? colors.notification
                   : colors.disabled
               }
-              disabled={confirmClearAllSellingSizeOptions ? false : true}
+              disabled={!confirmClearAllSellingSizeOptions}
               onPress={() => {
                 if (!confirmClearAllSellingSizeOptions) return;
-
-                // delete selling size options
-                setValues({
-                  ...values,
-                  selling_size_options: [],
-                });
-
-                setFormikActions(() => ({
-                  setFieldValue,
-                  setFieldTouched,
-                  setFieldError,
-                }));
-
-                navigation.navigate('ItemUOM', {
-                  uom_abbrev: values.uom_abbrev,
-                  uom_abbrev_field_key: 'uom_abbrev',
-                  is_uom_abbrev_required: true,
-                });
-
-                setUpdateUOMWarningDialogVisible(() => false);
+                setValues({...values, selling_size_options: []});
+                navigateWithFormikActions(
+                  {setFieldValue, setFieldTouched, setFieldError},
+                  'ItemUOM',
+                  {
+                    uom_abbrev: values.uom_abbrev,
+                    uom_abbrev_field_key: 'uom_abbrev',
+                    is_uom_abbrev_required: true,
+                  },
+                );
+                setUpdateUOMWarningDialogVisible(false);
               }}>
               Edit now
             </Button>
             <Button
               onPress={() => {
-                setUpdateUOMWarningDialogVisible(() => false);
-                setConfirmClearAllSellingSizeOptions(() => false);
+                setUpdateUOMWarningDialogVisible(false);
+                setConfirmClearAllSellingSizeOptions(false);
               }}>
               Cancel
             </Button>
@@ -1636,14 +1387,14 @@ const ItemForm = props => {
         <Dialog
           visible={confirmDeleteSellingSizeOptionDialogVisible}
           onDismiss={() =>
-            setConfirmDeleteSellingSizeOptionDialogVisible(() => false)
+            setConfirmDeleteSellingSizeOptionDialogVisible(false)
           }>
           <Dialog.Title>Delete selling size option?</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">
               {`Are you sure you want to delete ${
                 focusedSellingSizeOption?.option_name
-                  ? `"${focusedSellingSizeOption?.option_name}" `
+                  ? `"${focusedSellingSizeOption.option_name}" `
                   : ''
               }selling size option?`}
             </Text>
@@ -1654,28 +1405,18 @@ const ItemForm = props => {
               color={colors.notification}
               onPress={() => {
                 if (!focusedSellingSizeOption) return;
-
-                let sellingSizeOptions = values.selling_size_options || [];
-
-                let filteredSellingSizeOptions = sellingSizeOptions.filter(
-                  option =>
-                    option.option_id != focusedSellingSizeOption.option_id,
+                const filtered = (values.selling_size_options || []).filter(
+                  opt => opt.option_id != focusedSellingSizeOption.option_id,
                 );
-
-                setFieldValue(
-                  'selling_size_options',
-                  filteredSellingSizeOptions,
-                );
-
-                setFocusedSellingSizeOption(() => null);
-
-                setConfirmDeleteSellingSizeOptionDialogVisible(() => false);
+                setFieldValue('selling_size_options', filtered);
+                setFocusedSellingSizeOption(null);
+                setConfirmDeleteSellingSizeOptionDialogVisible(false);
               }}>
               Delete
             </Button>
             <Button
               onPress={() =>
-                setConfirmDeleteSellingSizeOptionDialogVisible(() => false)
+                setConfirmDeleteSellingSizeOptionDialogVisible(false)
               }>
               Cancel
             </Button>
@@ -1697,7 +1438,6 @@ const ItemForm = props => {
             style={{marginBottom: 15, textAlign: 'center'}}>
             Size/Quantity Option
           </Text>
-
           <ModifierOptionForm
             itemId={item?.id}
             initialValues={{
@@ -1706,17 +1446,15 @@ const ItemForm = props => {
               qty_per_piece: values.qty_per_piece,
             }}
             onSubmit={(formValues, formActions) => {
-              console.log(formValues);
-
               if (!formValues.option_id) {
                 formValues.option_id = `temp_id_${uuid.v4()}`;
               }
-
-              let sellingSizeOptions = values.selling_size_options || [];
-              sellingSizeOptions.push(formValues);
-
-              setFieldValue('selling_size_options', sellingSizeOptions);
-              setAddOptionModalVisible(() => false);
+              const updated = [
+                ...(values.selling_size_options || []),
+                formValues,
+              ];
+              setFieldValue('selling_size_options', updated);
+              setAddOptionModalVisible(false);
               formActions.resetForm();
             }}
             onCancel={() => setAddOptionModalVisible(false)}
@@ -1724,14 +1462,15 @@ const ItemForm = props => {
         </RNPaperModal>
       </Portal>
 
+      {/* ── Form body ── */}
       <FormRequiredFieldsHelperText />
-
       <PreventGoBack navigation={navigation} hasUnsavedChanges={dirty} />
 
       <SectionHeading
-        headingText={itemDetailsHeadingText}
+        headingText={editMode ? 'Update Item Details' : 'Item Details'}
         containerStyle={{marginTop: 15}}
       />
+
       <MoreSelectionButton
         placeholder="Select Category"
         label="Category"
@@ -1748,32 +1487,29 @@ const ItemForm = props => {
           handleCategoryChange(currentValue);
           handleChange('category_id')(currentValue);
         }}
-        onPress={() => {
-          setFormikActions(() => ({
-            setFieldValue,
-            setFieldTouched,
-            setFieldError,
-          }));
-
-          navigation.navigate(routes.itemCategory(), {
-            category_id: values.category_id,
-          });
-        }}
-        error={errors.category_id && touched.category_id ? true : false}
+        onPress={() =>
+          navigateWithFormikActions(
+            {setFieldValue, setFieldTouched, setFieldError},
+            routes.itemCategory(),
+            {category_id: values.category_id},
+          )
+        }
+        error={!!(errors.category_id && touched.category_id)}
       />
+
       <TextInput
         style={styles.textInput}
         label={
           <TextInputLabel
             label="Item Name"
             required
-            error={errors.name && touched.name ? true : false}
+            error={!!(errors.name && touched.name)}
           />
         }
         onChangeText={handleChange('name')}
         onBlur={handleBlur('name')}
         value={values.name}
-        error={errors.name && touched.name ? true : false}
+        error={!!(errors.name && touched.name)}
         autoCapitalize="words"
       />
 
@@ -1792,37 +1528,35 @@ const ItemForm = props => {
           style={{position: 'absolute', top: 18, right: 15}}
         />
       </View>
+
       <MoreSelectionButton
         containerStyle={{marginTop: -2}}
         placeholder="Select Unit"
         label="Unit of Measurement"
-        disabled={editMode ? true : false}
+        disabled={editMode}
         required
         renderValueCurrentValue={values.uom_abbrev}
         renderValue={(_value, renderingValueProps) =>
           renderUOMValue(values.uom_abbrev, renderingValueProps)
         }
         onPress={() => {
-          // show update UOM warning
           if (values.selling_size_options?.length > 0) {
-            setUpdateUOMWarningDialogVisible(() => true);
+            setUpdateUOMWarningDialogVisible(true);
             return;
           }
-
-          setFormikActions(() => ({
-            setFieldValue,
-            setFieldTouched,
-            setFieldError,
-          }));
-
-          navigation.navigate('ItemUOM', {
-            uom_abbrev: values.uom_abbrev,
-            uom_abbrev_field_key: 'uom_abbrev',
-            is_uom_abbrev_required: true,
-          });
+          navigateWithFormikActions(
+            {setFieldValue, setFieldTouched, setFieldError},
+            'ItemUOM',
+            {
+              uom_abbrev: values.uom_abbrev,
+              uom_abbrev_field_key: 'uom_abbrev',
+              is_uom_abbrev_required: true,
+            },
+          );
         }}
-        error={errors.uom_abbrev && touched.uom_abbrev ? true : false}
+        error={!!(errors.uom_abbrev && touched.uom_abbrev)}
       />
+
       {renderAddMeasurementPerPieceCheckbox(formik)}
       {renderSetUOMToUOMPerPieceCheckbox(formik)}
       {renderMeasurementPerPieceButton(formik)}
@@ -1832,11 +1566,9 @@ const ItemForm = props => {
         <SectionHeading
           headingText={initStockSectionHeadingText}
           containerStyle={{marginTop: 20}}
-          switchVisible={true}
+          switchVisible
           switchValue={isInitStockFieldsVisible}
-          onSwitchValueChange={() => {
-            setIsInitStockFieldsVisible(() => !isInitStockFieldsVisible);
-          }}
+          onSwitchValueChange={() => setIsInitStockFieldsVisible(v => !v)}
         />
       )}
 
@@ -1851,23 +1583,17 @@ const ItemForm = props => {
         <PressableSectionHeading
           headingText={sellingDetailsHeadingText}
           containerStyle={{marginTop: 20}}
-          onPress={() => {
-            navigation.navigate(routes.itemSizeOptions(), {
-              item_id: item?.id,
-            });
-          }}
+          onPress={() =>
+            navigation.navigate(routes.itemSizeOptions(), {item_id: item?.id})
+          }
         />
       ) : (
         <SectionHeading
           headingText={sellingDetailsHeadingText}
           containerStyle={{marginTop: 20}}
-          switchVisible={true}
+          switchVisible
           switchValue={isSellingDetailsFieldsVisible}
-          onSwitchValueChange={() => {
-            setIsSellingDetailsFieldsVisible(
-              () => !isSellingDetailsFieldsVisible,
-            );
-          }}
+          onSwitchValueChange={() => setIsSellingDetailsFieldsVisible(v => !v)}
         />
       )}
 
@@ -1881,16 +1607,19 @@ const ItemForm = props => {
         style={{marginTop: 40}}>
         {editMode ? 'Save Changes' : 'Save'}
       </Button>
+
       <Button
-        onPress={() => {
-          navigation.goBack();
-        }}
+        onPress={() => navigation.goBack()}
         style={{marginTop: 10, marginBottom: 25}}>
         Cancel
       </Button>
     </>
   );
 };
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   textInput: {},
