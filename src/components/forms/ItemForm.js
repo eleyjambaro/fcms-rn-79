@@ -38,12 +38,13 @@ import TextInputLabel from './TextInputLabel';
 import FormRequiredFieldsHelperText from './FormRequiredFieldsHelperText';
 import QuantityUOMText from './QuantityUOMText';
 import ConfirmationCheckbox from './ConfirmationCheckbox';
-import PreventGoBack from '../utils/PreventGoBack';
 import appDefaults from '../../constants/appDefaults';
 import ModifierOptionForm from './ModifierOptionForm';
 import ItemSellingSizeOptions from './components/ItemSellingSizeOptions';
 import {getItemSellingSizeModifierOptions} from '../../localDbQueries/modifiers';
 import PressableSectionHeading from '../headings/PressableSectionHeading';
+import {Dropdown} from 'react-native-paper-dropdown';
+import PreventGoBack from '../utils/PreventGoBack';
 
 // ---------------------------------------------------------------------------
 // Validation schema
@@ -86,6 +87,7 @@ const ItemValidationSchema = Yup.object({
     otherwise: () => Yup.string().notRequired(),
   }),
   selling_size_options: Yup.array(),
+  packaging_type: Yup.string().notRequired(),
 });
 
 // ---------------------------------------------------------------------------
@@ -118,6 +120,7 @@ const getDefaultInitialValues = item => ({
   selling_size_options: [],
   adjustment_qty: '',
   remarks: '',
+  packaging_type: '',
 });
 
 // ---------------------------------------------------------------------------
@@ -163,8 +166,27 @@ const ActivityLoader = ({colors}) => (
 );
 
 // ---------------------------------------------------------------------------
-// ItemForm
+// Constants
 // ---------------------------------------------------------------------------
+
+const PACKAGING_TYPE_OPTIONS = [
+  {label: 'None', value: ''},
+  {label: 'Bag', value: 'bag'},
+  {label: 'Bottle', value: 'bottle'},
+  {label: 'Box', value: 'box'},
+  {label: 'Bundle', value: 'bundle'},
+  {label: 'Can', value: 'can'},
+  {label: 'Carton', value: 'carton'},
+  {label: 'Crate', value: 'crate'},
+  {label: 'Drum', value: 'drum'},
+  {label: 'Jar', value: 'jar'},
+  {label: 'Pack', value: 'pack'},
+  {label: 'Pail', value: 'pail'},
+  {label: 'Pouch', value: 'pouch'},
+  {label: 'Sack', value: 'sack'},
+  {label: 'Tray', value: 'tray'},
+  {label: 'Tube', value: 'tube'},
+];
 
 const ItemForm = props => {
   const {
@@ -225,6 +247,9 @@ const ItemForm = props => {
   // ---- selling size option focus ----
   const [focusedSellingSizeOption, setFocusedSellingSizeOption] =
     useState(null);
+
+  // ---- packaging type dropdown ----
+  const [showPackagingDropDown, setShowPackagingDropDown] = useState(false);
 
   // -------------------------------------------------------------------------
   // Queries
@@ -482,10 +507,11 @@ const ItemForm = props => {
     );
   };
 
-  const renderQuantityPerPieceInput = formikProps => {
-    const {handleChange, handleBlur, values, errors, touched} = formikProps;
+  const renderPerPieceFields = formikProps => {
+    const {handleChange, handleBlur, setFieldValue, values, errors, touched} =
+      formikProps;
 
-    const show =
+    const showQtyPerPiece =
       (!editMode &&
         values.uom_abbrev === 'ea' &&
         values.add_measurement_per_piece) ||
@@ -499,36 +525,52 @@ const ItemForm = props => {
         values.set_uom_to_uom_per_piece) ||
       (editMode && item.uom_abbrev === 'ea' && item.uom_abbrev_per_piece);
 
-    if (!show) return null;
-
     const disabled = editMode; // isReadOnly is always false per original
 
     return (
-      <View style={{flexDirection: 'row'}}>
-        <TextInput
-          label={
-            <TextInputLabel
-              label="Qty. Per Piece / Item Net Wt."
-              required
+      <>
+        {showQtyPerPiece && (
+          <View style={{flexDirection: 'row'}}>
+            <TextInput
+              label={
+                <TextInputLabel
+                  label="Qty. Per Piece / Item Net Wt."
+                  required
+                  disabled={disabled}
+                  error={!!(errors.qty_per_piece && touched.qty_per_piece)}
+                />
+              }
               disabled={disabled}
+              onChangeText={handleChange('qty_per_piece')}
+              onBlur={handleBlur('qty_per_piece')}
+              value={values.qty_per_piece}
+              style={[styles.textInput, {flex: 1}]}
+              keyboardType="numeric"
               error={!!(errors.qty_per_piece && touched.qty_per_piece)}
             />
-          }
-          disabled={disabled}
-          onChangeText={handleChange('qty_per_piece')}
-          onBlur={handleBlur('qty_per_piece')}
-          value={values.qty_per_piece}
-          style={[styles.textInput, {flex: 1}]}
-          keyboardType="numeric"
-          error={!!(errors.qty_per_piece && touched.qty_per_piece)}
+            <QuantityUOMText
+              textStyle={disabled ? {color: colors.disabled} : {}}
+              uomAbbrev={values.uom_abbrev_per_piece}
+              quantity={values.qty_per_piece}
+              concatText={' each'}
+            />
+          </View>
+        )}
+
+        <Dropdown
+          label="Packaging Type (Optional)"
+          mode="flat"
+          visible={showPackagingDropDown}
+          showDropDown={() => setShowPackagingDropDown(true)}
+          onDismiss={() => setShowPackagingDropDown(false)}
+          value={values.packaging_type}
+          hideMenuHeader
+          onSelect={value => setFieldValue('packaging_type', value ?? '')}
+          options={PACKAGING_TYPE_OPTIONS}
+          activeColor={colors.accent}
+          dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
         />
-        <QuantityUOMText
-          textStyle={disabled ? {color: colors.disabled} : {}}
-          uomAbbrev={values.uom_abbrev_per_piece}
-          quantity={values.qty_per_piece}
-          concatText={' each'}
-        />
-      </View>
+      </>
     );
   };
 
@@ -1178,6 +1220,7 @@ const ItemForm = props => {
       sales_tax_id: initialValues.sales_tax_id?.toString() || '',
       selling_size_options: sellingSizeOptions,
       remarks: initialStockRemarks,
+      packaging_type: initialValues.packaging_type || '',
     },
     validationSchema: ItemValidationSchema,
     onSubmit,
@@ -1560,7 +1603,7 @@ const ItemForm = props => {
       {renderAddMeasurementPerPieceCheckbox(formik)}
       {renderSetUOMToUOMPerPieceCheckbox(formik)}
       {renderMeasurementPerPieceButton(formik)}
-      {renderQuantityPerPieceInput(formik)}
+      {renderPerPieceFields(formik)}
 
       {!item?.is_finished_product && (
         <SectionHeading

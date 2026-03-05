@@ -222,6 +222,7 @@ const createItemsTableQuery = `
     current_stock_qty REAL,
     low_stock_level REAL,
     unit_selling_price REAL,
+    packaging_type VARCHAR,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT fk_category
@@ -1242,6 +1243,20 @@ export const alterTables = async currentAppVersion => {
         db,
         'payments',
         'change_amount',
+        addNewTableColumnsQuery,
+      );
+
+      /**
+       * New columns from version 1.1.121
+       */
+      addNewTableColumnsQuery = `
+        ALTER TABLE items ADD COLUMN packaging_type VARCHAR DEFAULT NULL;
+      `;
+
+      await executeSqlIfColumnNotExist(
+        db,
+        'items',
+        'packaging_type',
         addNewTableColumnsQuery,
       );
 

@@ -90,14 +90,6 @@ const EditItem = () => {
         onSubmit={handleSubmit}
         editMode={true}
       />
-      {/* <Divider />
-      <Button
-        mode="contained"
-        color={colors.accent}
-        onPress={() => navigation.goBack()}
-        style={{marginVertical: 20}}>
-        Delete Item
-      </Button> */}
     </ScrollView>
   );
 };

@@ -353,7 +353,8 @@ export const registerItem = async ({
       uom_abbrev_per_piece,
       qty_per_piece,
       barcode,
-      low_stock_level
+      low_stock_level,
+      packaging_type
     )
     
     VALUES(
@@ -372,7 +373,8 @@ export const registerItem = async ({
       '${item.uom_abbrev_per_piece}',
       ${parseFloat(item.qty_per_piece || 0)},
       '${item.barcode || ''}',
-      ${parseFloat(item.low_stock_level)}
+      ${parseFloat(item.low_stock_level)},
+      '${item.packaging_type ? item.packaging_type.replace(/\'/g, "''") : ''}'
     );`;
 
     let insertItemResult = null;
@@ -1100,7 +1102,12 @@ export const updateItem = async ({
       qty_per_piece = ${parseFloat(updatedValues.qty_per_piece || 0)},
       barcode = '${updatedValues.barcode || ''}',
       unit_selling_price = ${parseFloat(updatedValues.unit_selling_price || 0)},
-      low_stock_level = ${parseFloat(updatedValues.low_stock_level)}
+      low_stock_level = ${parseFloat(updatedValues.low_stock_level)},
+      packaging_type = '${
+        updatedValues.packaging_type
+          ? updatedValues.packaging_type.replace(/\'/g, "''")
+          : ''
+      }'
       WHERE id = ${id}
     `;
 

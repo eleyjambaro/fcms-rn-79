@@ -4,8 +4,8 @@ import DeviceInfo from 'react-native-device-info';
 import packageJson from '../../package.json';
 import deviceInfo from '../lib/deviceInfo';
 
-// export const env = __DEV__ ? 'dev' : 'prod'; // change to 'prod' manualy to test production environment
-export const env = 'prod';
+export const env = __DEV__ ? 'dev' : 'prod'; // change to 'prod' manualy to test production environment
+// export const env = 'prod';
 export const appVersion = packageJson.version;
 export const localUserDefaultRoleId = 2; // Encoders
 
