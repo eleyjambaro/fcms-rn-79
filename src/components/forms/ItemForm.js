@@ -530,46 +530,47 @@ const ItemForm = props => {
     return (
       <>
         {showQtyPerPiece && (
-          <View style={{flexDirection: 'row'}}>
-            <TextInput
-              label={
-                <TextInputLabel
-                  label="Qty. Per Piece / Item Net Wt."
-                  required
-                  disabled={disabled}
-                  error={!!(errors.qty_per_piece && touched.qty_per_piece)}
-                />
-              }
-              disabled={disabled}
-              onChangeText={handleChange('qty_per_piece')}
-              onBlur={handleBlur('qty_per_piece')}
-              value={values.qty_per_piece}
-              style={[styles.textInput, {flex: 1}]}
-              keyboardType="numeric"
-              error={!!(errors.qty_per_piece && touched.qty_per_piece)}
+          <>
+            <View style={{flexDirection: 'row'}}>
+              <TextInput
+                label={
+                  <TextInputLabel
+                    label="Qty. Per Piece / Item Net Wt."
+                    required
+                    disabled={disabled}
+                    error={!!(errors.qty_per_piece && touched.qty_per_piece)}
+                  />
+                }
+                disabled={disabled}
+                onChangeText={handleChange('qty_per_piece')}
+                onBlur={handleBlur('qty_per_piece')}
+                value={values.qty_per_piece}
+                style={[styles.textInput, {flex: 1}]}
+                keyboardType="numeric"
+                error={!!(errors.qty_per_piece && touched.qty_per_piece)}
+              />
+              <QuantityUOMText
+                textStyle={disabled ? {color: colors.disabled} : {}}
+                uomAbbrev={values.uom_abbrev_per_piece}
+                quantity={values.qty_per_piece}
+                concatText={' each'}
+              />
+            </View>
+            <Dropdown
+              label="Packaging Type (Optional)"
+              mode="flat"
+              visible={showPackagingDropDown}
+              showDropDown={() => setShowPackagingDropDown(true)}
+              onDismiss={() => setShowPackagingDropDown(false)}
+              value={values.packaging_type}
+              hideMenuHeader
+              onSelect={value => setFieldValue('packaging_type', value ?? '')}
+              options={PACKAGING_TYPE_OPTIONS}
+              activeColor={colors.accent}
+              dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
             />
-            <QuantityUOMText
-              textStyle={disabled ? {color: colors.disabled} : {}}
-              uomAbbrev={values.uom_abbrev_per_piece}
-              quantity={values.qty_per_piece}
-              concatText={' each'}
-            />
-          </View>
+          </>
         )}
-
-        <Dropdown
-          label="Packaging Type (Optional)"
-          mode="flat"
-          visible={showPackagingDropDown}
-          showDropDown={() => setShowPackagingDropDown(true)}
-          onDismiss={() => setShowPackagingDropDown(false)}
-          value={values.packaging_type}
-          hideMenuHeader
-          onSelect={value => setFieldValue('packaging_type', value ?? '')}
-          options={PACKAGING_TYPE_OPTIONS}
-          activeColor={colors.accent}
-          dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
-        />
       </>
     );
   };
