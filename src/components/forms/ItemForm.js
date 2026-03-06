@@ -199,6 +199,7 @@ const ItemForm = props => {
   const {colors} = useTheme();
   const navigation = useNavigation();
   const {setFormikActions} = useItemFormContext();
+  const [isCancelPreventGoBack, setIsCancelPreventGoBack] = useState(false);
 
   // ---- dialog / modal visibility state ----
   const [
@@ -1224,7 +1225,9 @@ const ItemForm = props => {
       packaging_type: initialValues.packaging_type || '',
     },
     validationSchema: ItemValidationSchema,
-    onSubmit,
+    onSubmit: (...props) => {
+      onSubmit(...props, {setIsCancelPreventGoBack});
+    },
   });
 
   const {
@@ -1508,7 +1511,11 @@ const ItemForm = props => {
 
       {/* ── Form body ── */}
       <FormRequiredFieldsHelperText />
-      <PreventGoBack navigation={navigation} hasUnsavedChanges={dirty} />
+      <PreventGoBack
+        navigation={navigation}
+        hasUnsavedChanges={dirty}
+        cancelPrevention={isCancelPreventGoBack}
+      />
 
       <SectionHeading
         headingText={editMode ? 'Update Item Details' : 'Item Details'}

@@ -1,30 +1,35 @@
 import React, {useEffect, useState} from 'react';
 import {Dialog, Paragraph, Button, Portal, useTheme} from 'react-native-paper';
 
-function PreventGoBack({navigation, hasUnsavedChanges}) {
+function PreventGoBack({
+  navigation,
+  hasUnsavedChanges,
+  cancelPrevention = false,
+}) {
   const {colors} = useTheme();
+
   const [exitDialogVisible, setExitDialogVisible] = useState(false);
   const [event, setEvent] = useState(null);
 
-  // Keep a ref so the beforeRemove listener always reads the latest value
-  // without needing to be re-registered every time it changes.
-  const hasUnsavedChangesRef = React.useRef(hasUnsavedChanges);
   useEffect(() => {
-    hasUnsavedChangesRef.current = hasUnsavedChanges;
-  }, [hasUnsavedChanges]);
+    if (cancelPrevention) return;
 
-  useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', e => {
-      // Read the ref — always current, never stale
-      if (!hasUnsavedChangesRef.current) {
+      if (!hasUnsavedChanges) {
+        // If we don't have unsaved changes, then we don't need to do anything
         return;
       }
+
+      // Prevent default behavior of leaving the screen
       e.preventDefault();
+
+      // Prompt the user before leaving the screen
       setExitDialogVisible(() => true);
       setEvent(() => e);
     });
+
     return unsubscribe;
-  }, [navigation]); // only re-register when navigation changes, not on every dirty change
+  }, [navigation, hasUnsavedChanges, cancelPrevention]);
 
   return (
     <Portal>
@@ -48,6 +53,7 @@ function PreventGoBack({navigation, hasUnsavedChanges}) {
           <Button
             onPress={() => {
               if (!event) return;
+
               setExitDialogVisible(() => false);
               navigation.dispatch(event.data.action);
             }}

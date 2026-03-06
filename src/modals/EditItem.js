@@ -29,8 +29,9 @@ const EditItem = () => {
   const {config} = useAppConfigContext();
   const [limitReachedMessage, setLimitReachedMessage] = useState('');
 
-  const handleSubmit = async (values, actions) => {
+  const handleSubmit = async (values, actions, otherActions) => {
     console.log(values);
+    otherActions?.setIsCancelPreventGoBack?.(true);
 
     try {
       await updateItemMutation.mutateAsync({
