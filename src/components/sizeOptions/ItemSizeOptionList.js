@@ -79,25 +79,47 @@ const ItemSizeOptionList = props => {
         }
       },
       networkMode: 'always',
+      refetchOnMount: 'always',
     },
   );
   const queryClient = useQueryClient();
+
   const createItemSellingSizeOptionMutation = useMutation(
     createItemSellingSizeOption,
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('itemSellingSizeModifierOptions');
+        // Invalidate and refetch with exact query key
+        queryClient.invalidateQueries([
+          'itemSellingSizeModifierOptions',
+          {filter, itemId},
+        ]);
+        queryClient.refetchQueries([
+          'itemSellingSizeModifierOptions',
+          {filter, itemId},
+        ]);
+        // Also invalidate the item query to update modifier count
+        queryClient.invalidateQueries(['item', {id: itemId}]);
       },
     },
   );
+
   const deleteItemSellingSizeOptionMutation = useMutation(
     deleteItemSellingSizeOption,
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('itemSellingSizeModifierOptions');
+        queryClient.invalidateQueries([
+          'itemSellingSizeModifierOptions',
+          {filter, itemId},
+        ]);
+        queryClient.refetchQueries([
+          'itemSellingSizeModifierOptions',
+          {filter, itemId},
+        ]);
+        queryClient.invalidateQueries(['item', {id: itemId}]);
       },
     },
   );
+
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
 
   const showDeleteDialog = () => setDeleteDialogVisible(true);
@@ -187,11 +209,14 @@ const ItemSizeOptionList = props => {
         itemId,
         values,
       });
+
+      // Close modal and reset form AFTER mutation succeeds
+      setAddOptionModalVisible(false);
+      actions.resetForm();
     } catch (error) {
       console.debug(error);
-    } finally {
-      setAddOptionModalVisible(() => false);
-      actions.resetForm();
+      // Only reset submitting state on error
+      actions.setSubmitting(false);
     }
   };
 
@@ -282,7 +307,9 @@ const ItemSizeOptionList = props => {
       <Portal>
         <RNPaperModal
           visible={addOptionModalVisible}
-          onDismiss={() => setAddOptionModalVisible(false)}
+          onDismiss={() => {
+            setAddOptionModalVisible(false);
+          }}
           contentContainerStyle={{
             backgroundColor: colors.surface,
             padding: 10,
@@ -292,16 +319,20 @@ const ItemSizeOptionList = props => {
             Size/Quantity Option
           </Title>
 
-          <ModifierOptionForm
-            itemId={itemId}
-            initialValues={{
-              in_option_qty_uom_abbrev: item.uom_abbrev,
-              uom_abbrev_per_piece: item.uom_abbrev_per_piece,
-              qty_per_piece: item.qty_per_piece,
-            }}
-            onSubmit={handleSubmit}
-            onCancel={() => setAddOptionModalVisible(false)}
-          />
+          {/* Only render form when modal is visible */}
+          {addOptionModalVisible && (
+            <ModifierOptionForm
+              key={`modifier-form-${Date.now()}`} // Force remount on each open
+              itemId={itemId}
+              initialValues={{
+                in_option_qty_uom_abbrev: item.uom_abbrev,
+                uom_abbrev_per_piece: item.uom_abbrev_per_piece,
+                qty_per_piece: item.qty_per_piece,
+              }}
+              onSubmit={handleSubmit}
+              onCancel={() => setAddOptionModalVisible(false)}
+            />
+          )}
         </RNPaperModal>
       </Portal>
 
