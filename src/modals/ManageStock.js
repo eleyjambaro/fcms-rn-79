@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,7 @@ import {
   TabScreen,
   useTabIndex,
   useTabNavigation,
+  TabsProvider,
 } from 'react-native-paper-tabs';
 import {
   useQuery,
@@ -30,77 +31,6 @@ import TestModeLimitModal from '../components/modals/TestModeLimitModal';
 import {getItem, deleteItem} from '../localDbQueries/items';
 import {addInventoryLog} from '../localDbQueries/inventoryLogs';
 
-// Create a wrapper component to use the tab navigation hook
-const TabsContent = ({
-  colors,
-  fromEndingInventory,
-  itemId,
-  adjustmentQty,
-  monthYearDate,
-  operationID,
-  showItemStockDetails,
-  setShowItemStockDetails,
-  handleSubmit,
-  handleCancel,
-}) => {
-  const goTo = useTabNavigation();
-
-  // Reset to Add tab when component mounts or when fromEndingInventory changes
-  useEffect(() => {
-    goTo(0); // Navigate to index 0 (Add tab)
-  }, [goTo, fromEndingInventory]);
-
-  return (
-    <Tabs
-      defaultIndex={0}
-      uppercase={false}
-      style={{
-        backgroundColor: colors.surface,
-        borderBottomWidth: 2,
-        borderBottomColor: colors.neutralTint5,
-      }}
-      disableSwipe={fromEndingInventory ? true : false}>
-      <TabScreen label="Add" icon="plus-box-outline">
-        <KeyboardAvoidingView
-          style={{flex: 1, backgroundColor: 'white', padding: 10}}>
-          <ScrollView style={{flex: 1}} showsVerticalScrollIndicator={false}>
-            <AddStockForm
-              itemId={itemId}
-              fromEndingInventory={fromEndingInventory}
-              initialValues={{
-                adjustment_qty: adjustmentQty,
-                adjustment_date: monthYearDate,
-                operation_id: operationID,
-                cost_input_mode: 'unit_cost',
-              }}
-              onFocus={() => {
-                setShowItemStockDetails(() => false);
-              }}
-              onSubmit={handleSubmit}
-              onCancel={handleCancel}
-            />
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </TabScreen>
-      <TabScreen
-        label="Remove"
-        icon="minus-box-outline"
-        disabled={fromEndingInventory}>
-        <KeyboardAvoidingView
-          style={{flex: 1, backgroundColor: 'white', padding: 10}}>
-          <ScrollView style={{flex: 1}} showsVerticalScrollIndicator={false}>
-            <RemoveStockForm
-              itemId={itemId}
-              onSubmit={handleSubmit}
-              onCancel={handleCancel}
-            />
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </TabScreen>
-    </Tabs>
-  );
-};
-
 const ManageStock = props => {
   const {navigation} = props;
   const route = useRoute();
@@ -114,12 +44,19 @@ const ManageStock = props => {
   const {status, data} = useQuery(['item', {id: itemId}], getItem);
   const [showItemStockDetails, setShowItemStockDetails] = useState(false);
   const [limitReachedMessage, setLimitReachedMessage] = useState('');
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [currentTabIndex, setCurrentTabIndex] = useState(0);
 
-  // Force re-render when screen comes into focus
+  // Reset to Add tab when screen comes into focus (skip first mount)
+  const isMounted = useRef(false);
+
   useFocusEffect(
     React.useCallback(() => {
-      setRefreshKey(prev => prev + 1);
+      if (isMounted.current) {
+        // Only reset if not first mount
+        setCurrentTabIndex(0);
+      } else {
+        isMounted.current = true;
+      }
     }, []),
   );
 
@@ -158,6 +95,14 @@ const ManageStock = props => {
     navigation.goBack();
   };
 
+  const handleTabChange = newIndex => {
+    // Prevent changing to Remove tab if fromEndingInventory
+    if (fromEndingInventory && newIndex === 1) {
+      return;
+    }
+    setCurrentTabIndex(newIndex);
+  };
+
   if (!itemId) return null;
 
   if (status === 'loading') {
@@ -193,19 +138,59 @@ const ManageStock = props => {
         showStockDetails={showItemStockDetails}
         showItemOptionsButton={false}
       />
-      <TabsContent
-        key={refreshKey}
-        colors={colors}
-        fromEndingInventory={fromEndingInventory}
-        itemId={itemId}
-        adjustmentQty={adjustmentQty}
-        monthYearDate={monthYearDate}
-        operationID={operationID}
-        showItemStockDetails={showItemStockDetails}
-        setShowItemStockDetails={setShowItemStockDetails}
-        handleSubmit={handleSubmit}
-        handleCancel={handleCancel}
-      />
+      <TabsProvider defaultIndex={currentTabIndex}>
+        <Tabs
+          uppercase={false}
+          style={{
+            backgroundColor: colors.surface,
+            borderBottomWidth: 2,
+            borderBottomColor: colors.neutralTint5,
+          }}
+          disableSwipe={fromEndingInventory ? true : false}
+          onChangeIndex={handleTabChange}>
+          <TabScreen label="Add" icon="plus-box-outline">
+            <KeyboardAvoidingView
+              style={{flex: 1, backgroundColor: 'white', padding: 10}}>
+              <ScrollView
+                style={{flex: 1}}
+                showsVerticalScrollIndicator={false}>
+                <AddStockForm
+                  itemId={itemId}
+                  fromEndingInventory={fromEndingInventory}
+                  initialValues={{
+                    adjustment_qty: adjustmentQty,
+                    adjustment_date: monthYearDate,
+                    operation_id: operationID,
+                    cost_input_mode: 'unit_cost',
+                  }}
+                  onFocus={() => {
+                    setShowItemStockDetails(() => false);
+                  }}
+                  onSubmit={handleSubmit}
+                  onCancel={handleCancel}
+                />
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </TabScreen>
+          <TabScreen
+            label="Remove"
+            icon="minus-box-outline"
+            disabled={fromEndingInventory}>
+            <KeyboardAvoidingView
+              style={{flex: 1, backgroundColor: 'white', padding: 10}}>
+              <ScrollView
+                style={{flex: 1}}
+                showsVerticalScrollIndicator={false}>
+                <RemoveStockForm
+                  itemId={itemId}
+                  onSubmit={handleSubmit}
+                  onCancel={handleCancel}
+                />
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </TabScreen>
+        </Tabs>
+      </TabsProvider>
     </View>
   );
 };
