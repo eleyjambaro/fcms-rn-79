@@ -140,10 +140,10 @@ const RemoveStockForm = props => {
         <View style={{marginVertical: 10}}>
           <ConfirmationCheckbox
             status={values.use_measurement_per_piece}
+            heading={'Remove stock using a different measurements?'}
             text={`Use item's UOM per Piece (${formatUOMAbbrev(
               item?.uom_abbrev_per_piece,
             )})`}
-            containerStyle={{paddingTop: 5, paddingBottom: 5}}
             onPress={() => {
               setFieldTouched('use_measurement_per_piece', true);
               setFieldValue(

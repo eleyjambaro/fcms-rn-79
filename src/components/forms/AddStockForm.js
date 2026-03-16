@@ -229,10 +229,10 @@ const AddStockForm = props => {
         <View style={{marginVertical: 10}}>
           <ConfirmationCheckbox
             status={values.use_measurement_per_piece}
+            heading={'Add stock using a different measurement?'}
             text={`Use item's UOM per Piece (${formatUOMAbbrev(
               item?.uom_abbrev_per_piece,
             )})`}
-            containerStyle={{paddingTop: 5, paddingBottom: 5}}
             onPress={() => {
               if (values.use_measurement_per_piece === false) {
                 // Reset cost

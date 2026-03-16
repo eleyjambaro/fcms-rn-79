@@ -194,6 +194,7 @@ const ItemForm = props => {
     initialValues = getDefaultInitialValues(item),
     onSubmit,
     editMode = false,
+    resetSectionedFieldsOnToggle = true,
   } = props;
 
   const {colors} = useTheme();
@@ -1211,6 +1212,7 @@ const ItemForm = props => {
       set_uom_to_uom_per_piece: false,
       uom_abbrev_per_piece: initialValues.uom_abbrev_per_piece || '',
       qty_per_piece: initialValues.qty_per_piece?.toString() || '',
+      packaging_type: initialValues.packaging_type || '',
       initial_stock_unit_cost: initialStockUnitCost,
       initial_stock_qty: initialStockQty,
       low_stock_level: initialValues.low_stock_level?.toString() || '0',
@@ -1222,7 +1224,6 @@ const ItemForm = props => {
       sales_tax_id: initialValues.sales_tax_id?.toString() || '',
       selling_size_options: sellingSizeOptions,
       remarks: initialStockRemarks,
-      packaging_type: initialValues.packaging_type || '',
     },
     validationSchema: ItemValidationSchema,
     onSubmit: (...props) => {
@@ -1619,7 +1620,26 @@ const ItemForm = props => {
           containerStyle={{marginTop: 20}}
           switchVisible
           switchValue={isInitStockFieldsVisible}
-          onSwitchValueChange={() => setIsInitStockFieldsVisible(v => !v)}
+          onSwitchValueChange={() => {
+            if (resetSectionedFieldsOnToggle) {
+              // reset first the default values of init stock fields on toggle
+              setValues(prevValues => ({
+                ...prevValues,
+                initial_stock_unit_cost: initialStockUnitCost,
+                initial_stock_qty: initialStockQty,
+                low_stock_level:
+                  initialValues.low_stock_level?.toString() || '0',
+                beginning_inventory_date: datetimeString,
+                initial_stock_applied_tax_id: initialStockAppliedTaxId,
+                initial_stock_vendor_id: initialStockVendorId,
+                official_receipt_number: initialStockOfficialReceiptNumber,
+                remarks: initialStockRemarks,
+              }));
+            }
+
+            // toggle init stock fields
+            setIsInitStockFieldsVisible(v => !v);
+          }}
         />
       )}
 

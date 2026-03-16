@@ -112,12 +112,12 @@ const ModifierOptionForm = props => {
         <View style={{marginVertical: 10}}>
           <ConfirmationCheckbox
             status={values.use_measurement_per_piece}
+            heading={'Create this size option using a different measurement?'}
             text={`Use item's UOM per Piece (${formatUOMAbbrev(
               editMode
                 ? item?.uom_abbrev_per_piece
                 : initialValues.uom_abbrev_per_piece,
             )})`}
-            containerStyle={{paddingTop: 5, paddingBottom: 5}}
             onPress={() => {
               let uomAbbrevValue;
 
