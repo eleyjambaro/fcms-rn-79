@@ -44,6 +44,7 @@ const InventoryDataTemplateFileImportForm = props => {
     },
     onSubmit,
     onCancel,
+    // NOTE: Not now but in the future we may allow user to select multiple sheets
     selectMultipleSheets = false,
     submitButtonTitle = 'Proceed',
   } = props;
