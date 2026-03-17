@@ -12,6 +12,82 @@ import RNFetchBlob from 'rn-fetch-blob';
 import {extractNumber} from '../utils/stringHelpers';
 import appDefaults from '../constants/appDefaults';
 
+/**
+ * Parse date from Excel - handles multiple formats
+ * @param {string|number|Date} dateValue - The date value from Excel
+ * @returns {Date|null} - Parsed date or null if invalid
+ */
+const parseExcelDate = dateValue => {
+  // Handle empty/null/undefined
+  if (!dateValue) return null;
+
+  // If it's already a Date object
+  if (dateValue instanceof Date) {
+    return isNaN(dateValue.getTime()) ? null : dateValue;
+  }
+
+  // If it's a number (Excel serial date)
+  if (typeof dateValue === 'number') {
+    // Excel serial dates are typically > 1000
+    if (dateValue > 1000) {
+      // Excel dates are days since 1900-01-01 (with leap year bug adjustment)
+      const excelEpoch = new Date(1900, 0, 1);
+      const date = new Date(
+        excelEpoch.getTime() + (dateValue - 2) * 24 * 60 * 60 * 1000,
+      );
+      return isNaN(date.getTime()) ? null : date;
+    }
+  }
+
+  // If it's a string
+  if (typeof dateValue === 'string') {
+    const trimmed = dateValue.trim();
+
+    // Empty string
+    if (!trimmed) return null;
+
+    // Check if it's a string representation of a number (Excel serial as string)
+    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+      const serial = parseFloat(trimmed);
+      if (serial > 1000) {
+        const excelEpoch = new Date(1900, 0, 1);
+        const date = new Date(
+          excelEpoch.getTime() + (serial - 2) * 24 * 60 * 60 * 1000,
+        );
+        return isNaN(date.getTime()) ? null : date;
+      }
+    }
+
+    // Try parsing as ISO date (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      const date = new Date(trimmed);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Try parsing MM/DD/YYYY or DD/MM/YYYY
+    const parts = trimmed.split(/[-/]/);
+    if (parts.length === 3) {
+      // Assume MM/DD/YYYY (US format)
+      const month = parseInt(parts[0], 10) - 1; // JavaScript months are 0-indexed
+      const day = parseInt(parts[1], 10);
+      const year = parseInt(parts[2], 10);
+
+      if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+    }
+
+    // Last resort: try native Date parsing
+    const date = new Date(trimmed);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+};
+
 const removeDuplicatesFromArray = (array, valueKey) => {
   return array.reduce((result, element) => {
     let normalize = x => (typeof x === 'string' ? x.toLowerCase() : x);
@@ -351,6 +427,55 @@ export const insertTemplateDataToDb = async ({
 
           if (item.count) {
             errorMessage += ` on count number ${item.count} of the list.`;
+          } else {
+            errorMessage += '.';
+          }
+          onError && onError({errorMessage});
+          return;
+        }
+      }
+
+      /* DEBUG: Log purchase date value */
+      if (item.purchase_date) {
+        console.log('DEBUG - Purchase Date Info:');
+        console.log('  Item:', item.item_name);
+        console.log('  Raw Value:', item.purchase_date);
+        console.log('  Type:', typeof item.purchase_date);
+        console.log('  Is Number:', typeof item.purchase_date === 'number');
+        console.log(
+          '  String Test:',
+          /^\d+(\.\d+)?$/.test(String(item.purchase_date)),
+        );
+      }
+
+      /* Validate purchase date */
+      if (item.purchase_date) {
+        // Parse the date using helper function
+        const purchaseDate = parseExcelDate(item.purchase_date);
+
+        if (!purchaseDate || isNaN(purchaseDate.getTime())) {
+          listItemError = true;
+          let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with invalid purchase date format. Valid date formats include: YYYY-MM-DD (e.g., 2024-01-15), MM/DD/YYYY (e.g., 01/15/2024), or Excel date format. Found an item named "${item.item_name}" with invalid purchase date value`;
+
+          if (item.count) {
+            errorMessage += ` on count number ${item.count} of the list. Invalid value: ${item.purchase_date}.`;
+          } else {
+            errorMessage += '.';
+          }
+          onError && onError({errorMessage});
+          return;
+        }
+
+        // Validate that purchase date is not in the future
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Start of today
+
+        if (purchaseDate > today) {
+          listItemError = true;
+          let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with purchase date in the future. Purchase date cannot be later than today. Found an item named "${item.item_name}" with future purchase date`;
+
+          if (item.count) {
+            errorMessage += ` on count number ${item.count} of the list. Invalid value: ${item.purchase_date}.`;
           } else {
             errorMessage += '.';
           }
@@ -992,7 +1117,9 @@ export const insertTemplateDataToDb = async ({
 
     if (notExistingItems.length > 0) {
       /**
-       * Insert inserted item's initial stock (Pre-app Stock)
+       * Insert inventory logs for imported items
+       * - operation_id 1 = Initial Stock (Pre-App Stock) - when no purchase date
+       * - operation_id 2 = New Purchase - when purchase date is provided
        */
       let insertInventoryLogsQuery = `
         INSERT INTO inventory_logs (
@@ -1081,20 +1208,41 @@ export const insertTemplateDataToDb = async ({
         const unitCostNet = unitCost / (taxRatePercentage / 100 + 1);
         const unitCostTax = unitCost - unitCostNet;
 
-        const beginningInventoryDateFixedValue = beginningInventoryDate
-          ? `datetime('${beginningInventoryDate}', 'start of month')`
-          : `datetime('now', 'start of month')`;
-        const adjustmentDateFixedValue = beginningInventoryDate
-          ? `datetime('${beginningInventoryDate}', 'start of month', '-1 day')`
-          : `datetime('now', 'start of month', '-1 day')`;
-
         const remarks = item.remarks
           ? `'${item?.remarks?.replace(/\'/g, "''")}'`
           : 'null';
 
-        // operation_id 1 is equal to Initial Stock (Pre-App Stock)
+        /**
+         * Determine operation type and dates based on purchase_date field
+         */
+        let operationId;
+        let adjustmentDateValue;
+        let beginningInventoryDateValue;
+
+        if (item.purchase_date) {
+          // If purchase date is provided: New Purchase (operation_id = 2)
+          operationId = 2;
+
+          // Parse the purchase date using helper function
+          const purchaseDate = parseExcelDate(item.purchase_date);
+          const purchaseDateISO = purchaseDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+          adjustmentDateValue = `datetime('${purchaseDateISO}')`;
+          beginningInventoryDateValue = 'null';
+        } else {
+          // If no purchase date: Initial Stock (operation_id = 1)
+          operationId = 1;
+
+          beginningInventoryDateValue = beginningInventoryDate
+            ? `datetime('${beginningInventoryDate}', 'start of month')`
+            : `datetime('now', 'start of month')`;
+          adjustmentDateValue = beginningInventoryDate
+            ? `datetime('${beginningInventoryDate}', 'start of month', '-1 day')`
+            : `datetime('now', 'start of month', '-1 day')`;
+        }
+
         insertInventoryLogsQuery += `(
-          1,
+          ${operationId},
           ${itemId},
           ${taxId},
           ${vendorId},
@@ -1106,8 +1254,8 @@ export const insertTemplateDataToDb = async ({
           ${taxRatePercentage},
           ${taxName},
           ${initialStockQty},
-          ${adjustmentDateFixedValue},
-          ${beginningInventoryDateFixedValue},
+          ${adjustmentDateValue},
+          ${beginningInventoryDateValue},
           ${remarks}
         )`;
 

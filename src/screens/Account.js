@@ -414,6 +414,7 @@ const Account = props => {
         'Stock Vendor',
         'Stock OR Number',
         'Remarks',
+        'Purchase Date (If new purchase)',
       ], // table columns
       ['1'],
       ['2'],
@@ -437,6 +438,7 @@ const Account = props => {
       {wch: 50},
       {wch: 35},
       {wch: 70}, // Remarks
+      {wch: 35}, // Purchase Date (If new purchase)
     ];
 
     /**
@@ -587,6 +589,7 @@ const Account = props => {
           'vendor_name',
           'official_receipt_number',
           'remarks',
+          'purchase_date',
         ],
       })
         .fromString(itemsCSV)
