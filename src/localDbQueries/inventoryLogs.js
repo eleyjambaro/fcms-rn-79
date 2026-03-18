@@ -1310,7 +1310,8 @@ export const getItemInitialStockLog = async ({queryKey}) => {
     const db = await getDBConnection();
 
     /**
-     * Get item initial stock inventory log
+     * Get item initial stock inventory log (operation_id = 1)
+     * Returns null if no initial stock log exists (e.g., item created via IDT with purchase date)
      */
     const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = ${parseInt(
       itemId,
@@ -1321,12 +1322,10 @@ export const getItemInitialStockLog = async ({queryKey}) => {
     );
     const log = getItemInitStockLogResult[0].rows.item(0);
 
-    if (!log) {
-      throw new Error('Failed to fetch item initial stock log.');
-    }
-
+    // Return null if no initial stock log found (not an error)
+    // This is normal for items imported via IDT with a purchase date
     return {
-      result: log,
+      result: log || null,
     };
   } catch (error) {
     console.debug(error);

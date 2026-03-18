@@ -867,7 +867,9 @@ const ItemForm = props => {
     }
 
     const itemInitStockLog = data?.result;
-    if (editMode && !itemInitStockLog) return null;
+    // NOTE: Don't return null if itemInitStockLog is missing
+    // Items created via IDT with purchase date won't have an initial stock log (operation_id = 1)
+    // We'll use zero values as defaults
 
     // Determine deleted tax / vendor for display
     let deletedInitialStockAppliedTax = null;
@@ -1145,15 +1147,21 @@ const ItemForm = props => {
 
   const itemInitStockLog = getItemInitStockLogData?.result;
 
+  // If no initial stock log exists (e.g., item created via IDT with purchase date),
+  // use zero values as defaults
   const initialStockQty = (
     editMode && itemInitStockLog
       ? itemInitStockLog.adjustment_qty
+      : editMode && !itemInitStockLog
+      ? 0 // No initial stock log = zero pre-app stock
       : initialValues.initial_stock_qty ?? 0
   ).toString();
 
   const initialStockUnitCost = (
     editMode && itemInitStockLog
       ? itemInitStockLog.adjustment_unit_cost?.toFixed(2)
+      : editMode && !itemInitStockLog
+      ? 0 // No initial stock log = zero cost
       : initialValues.unit_cost ?? 0
   ).toString();
 
@@ -1165,26 +1173,22 @@ const ItemForm = props => {
     : '0';
 
   const initialStockAppliedTaxId = (
-    editMode && itemInitStockLog
-      ? itemInitStockLog.ref_tax_id ?? ''
-      : initialValues.initial_stock_applied_tax_id ?? ''
-  ).toString();
+    editMode && itemInitStockLog ? itemInitStockLog.ref_tax_id ?? '' : ''
+  ) // No initial stock log = no tax
+    .toString();
 
   const initialStockVendorId = (
-    editMode && itemInitStockLog
-      ? itemInitStockLog.ref_vendor_id ?? ''
-      : initialValues.initial_stock_vendor_id ?? ''
-  ).toString();
+    editMode && itemInitStockLog ? itemInitStockLog.ref_vendor_id ?? '' : ''
+  ) // No initial stock log = no vendor
+    .toString();
 
   const initialStockOfficialReceiptNumber =
     editMode && itemInitStockLog
       ? itemInitStockLog.official_receipt_number
-      : initialValues.official_receipt_number;
+      : ''; // No initial stock log = no OR number
 
   const initialStockRemarks =
-    editMode && itemInitStockLog
-      ? itemInitStockLog.remarks
-      : initialValues.remarks || '';
+    editMode && itemInitStockLog ? itemInitStockLog.remarks : ''; // No initial stock log = no remarks
 
   const sellingSizeOptions =
     editMode && getItemSellingSizeModifierOptionsData?.result?.length
