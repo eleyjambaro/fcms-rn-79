@@ -1,13 +1,14 @@
 import {getDBConnection} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {appStorageKeySeperator} from './appVersions';
+import appDefaults from '../constants/appDefaults';
 
 export const inventoryDefaultOperations = [
   // add stock
   {
     id: 1,
     type: 'add_stock',
-    name: 'Initial Stock',
+    name: `Pre-${appDefaults.appDisplayName} Stock`,
     is_app_default: 1,
     order: 0,
   },
