@@ -415,6 +415,7 @@ const Account = props => {
         'Stock OR Number',
         'Remarks',
         'Purchase Date (If new purchase)',
+        'Transfer In Date (If new transfer)',
       ], // table columns
       ['1'],
       ['2'],
@@ -425,20 +426,21 @@ const Account = props => {
     const itemsWorksheet = XLSX.utils.aoa_to_sheet(itemsTable);
     itemsWorksheet['!cols'] = [
       {wch: 7}, // Count
-      {wch: 30},
-      {wch: 50},
-      {wch: 15},
-      {wch: 25},
-      {wch: 20},
-      {wch: 25},
-      {wch: 15},
-      {wch: 30},
-      {wch: 30},
-      {wch: 15},
-      {wch: 50},
-      {wch: 35},
-      {wch: 70}, // Remarks
-      {wch: 35}, // Purchase Date (If new purchase)
+      {wch: 18}, // Category Name
+      {wch: 30}, // Item Name
+      {wch: 15}, // UOM (Abbrev)
+      {wch: 18}, // Total Stock Qty
+      {wch: 20}, // Unit Cost (Gross)
+      {wch: 20}, // Total Cost (Gross)
+      {wch: 15}, // UOM Per Piece
+      {wch: 30}, // Qty Per Piece / Item Net Wt.
+      {wch: 15}, // Tax Name
+      {wch: 15}, // Tax Rate (%)
+      {wch: 20}, // Stock Vendor
+      {wch: 20}, // Stock OR Number
+      {wch: 30}, // Remarks
+      {wch: 35}, // Purchase Date
+      {wch: 35}, // Transfer In Date  ← NEW
     ];
 
     /**
@@ -590,6 +592,7 @@ const Account = props => {
           'official_receipt_number',
           'remarks',
           'purchase_date',
+          'transfer_in_date',
         ],
       })
         .fromString(itemsCSV)

@@ -13,24 +13,20 @@ import {extractNumber} from '../utils/stringHelpers';
 import appDefaults from '../constants/appDefaults';
 
 /**
- * Parse date from Excel - handles multiple formats
- * @param {string|number|Date} dateValue - The date value from Excel
- * @returns {Date|null} - Parsed date or null if invalid
+ * Parse date values from Excel/CSV into JavaScript Date objects.
+ * Handles: Excel serial numbers, MM/DD/YYYY strings, YYYY-MM-DD strings.
  */
 const parseExcelDate = dateValue => {
-  // Handle empty/null/undefined
   if (!dateValue) return null;
 
-  // If it's already a Date object
+  // Already a Date object
   if (dateValue instanceof Date) {
     return isNaN(dateValue.getTime()) ? null : dateValue;
   }
 
-  // If it's a number (Excel serial date)
+  // Excel serial number
   if (typeof dateValue === 'number') {
-    // Excel serial dates are typically > 1000
     if (dateValue > 1000) {
-      // Excel dates are days since 1900-01-01 (with leap year bug adjustment)
       const excelEpoch = new Date(1900, 0, 1);
       const date = new Date(
         excelEpoch.getTime() + (dateValue - 2) * 24 * 60 * 60 * 1000,
@@ -39,14 +35,12 @@ const parseExcelDate = dateValue => {
     }
   }
 
-  // If it's a string
+  // String values
   if (typeof dateValue === 'string') {
     const trimmed = dateValue.trim();
-
-    // Empty string
     if (!trimmed) return null;
 
-    // Check if it's a string representation of a number (Excel serial as string)
+    // Excel serial as string
     if (/^\d+(\.\d+)?$/.test(trimmed)) {
       const serial = parseFloat(trimmed);
       if (serial > 1000) {
@@ -58,29 +52,49 @@ const parseExcelDate = dateValue => {
       }
     }
 
-    // Try parsing as ISO date (YYYY-MM-DD)
-    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-      const date = new Date(trimmed);
-      return isNaN(date.getTime()) ? null : date;
-    }
-
-    // Try parsing MM/DD/YYYY or DD/MM/YYYY
-    const parts = trimmed.split(/[-/]/);
-    if (parts.length === 3) {
-      // Assume MM/DD/YYYY (US format)
-      const month = parseInt(parts[0], 10) - 1; // JavaScript months are 0-indexed
-      const day = parseInt(parts[1], 10);
-      const year = parseInt(parts[2], 10);
-
+    // MM/DD/YYYY format
+    const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slashMatch) {
+      const month = parseInt(slashMatch[1], 10) - 1;
+      const day = parseInt(slashMatch[2], 10);
+      const year = parseInt(slashMatch[3], 10);
       if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
         const date = new Date(year, month, day);
-        if (!isNaN(date.getTime())) {
+        if (
+          !isNaN(date.getTime()) &&
+          date.getMonth() === month &&
+          date.getDate() === day
+        ) {
           return date;
         }
       }
     }
 
-    // Last resort: try native Date parsing
+    // ISO date YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      const date = new Date(trimmed);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // MM-DD-YYYY with dashes
+    const dashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (dashMatch) {
+      const month = parseInt(dashMatch[1], 10) - 1;
+      const day = parseInt(dashMatch[2], 10);
+      const year = parseInt(dashMatch[3], 10);
+      if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+        const date = new Date(year, month, day);
+        if (
+          !isNaN(date.getTime()) &&
+          date.getMonth() === month &&
+          date.getDate() === day
+        ) {
+          return date;
+        }
+      }
+    }
+
+    // Last resort
     const date = new Date(trimmed);
     return isNaN(date.getTime()) ? null : date;
   }
@@ -435,6 +449,19 @@ export const insertTemplateDataToDb = async ({
         }
       }
 
+      /* Validate mutual exclusivity: cannot have both purchase_date and transfer_in_date */
+      if (item.purchase_date && item.transfer_in_date) {
+        listItemError = true;
+        let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with both Purchase Date and Transfer In Date. An item cannot have both dates in the same row...`;
+        if (item.count) {
+          errorMessage += ` on count number ${item.count} of the list.`;
+        } else {
+          errorMessage += '.';
+        }
+        onError && onError({errorMessage});
+        return;
+      }
+
       /* DEBUG: Log purchase date value */
       if (item.purchase_date) {
         console.log('DEBUG - Purchase Date Info:');
@@ -476,6 +503,37 @@ export const insertTemplateDataToDb = async ({
 
           if (item.count) {
             errorMessage += ` on count number ${item.count} of the list. Invalid value: ${item.purchase_date}.`;
+          } else {
+            errorMessage += '.';
+          }
+          onError && onError({errorMessage});
+          return;
+        }
+      }
+
+      /* Validate transfer in date */
+      if (item.transfer_in_date) {
+        const transferInDate = parseExcelDate(item.transfer_in_date);
+
+        if (!transferInDate || isNaN(transferInDate.getTime())) {
+          listItemError = true;
+          let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with invalid transfer in date format...`;
+          if (item.count) {
+            errorMessage += ` on count number ${item.count} of the list. Invalid value: ${item.transfer_in_date}.`;
+          } else {
+            errorMessage += '.';
+          }
+          onError && onError({errorMessage});
+          return;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (transferInDate > today) {
+          listItemError = true;
+          let errorMessage = `Your ${appDefaults.appDisplayName} IDT item list contains item with transfer in date in the future...`;
+          if (item.count) {
+            errorMessage += ` on count number ${item.count} of the list. Invalid value: ${item.transfer_in_date}.`;
           } else {
             errorMessage += '.';
           }
@@ -1212,27 +1270,25 @@ export const insertTemplateDataToDb = async ({
           ? `'${item?.remarks?.replace(/\'/g, "''")}'`
           : 'null';
 
-        /**
-         * Determine operation type and dates based on purchase_date field
-         */
+        /* Create inventory log */
         let operationId;
         let adjustmentDateValue;
         let beginningInventoryDateValue;
 
         if (item.purchase_date) {
-          // If purchase date is provided: New Purchase (operation_id = 2)
-          operationId = 2;
-
-          // Parse the purchase date using helper function
+          operationId = 2; // New Purchase
           const purchaseDate = parseExcelDate(item.purchase_date);
-          const purchaseDateISO = purchaseDate.toISOString().split('T')[0]; // YYYY-MM-DD
-
+          const purchaseDateISO = purchaseDate.toISOString().split('T')[0];
           adjustmentDateValue = `datetime('${purchaseDateISO}')`;
           beginningInventoryDateValue = 'null';
+        } else if (item.transfer_in_date) {
+          operationId = 4; // Stock Transfer In
+          const transferInDate = parseExcelDate(item.transfer_in_date);
+          const transferInDateISO = transferInDate.toISOString().split('T')[0];
+          adjustmentDateValue = `datetime('${transferInDateISO}')`;
+          beginningInventoryDateValue = 'null';
         } else {
-          // If no purchase date: Initial Stock (operation_id = 1)
-          operationId = 1;
-
+          operationId = 1; // Initial Stock
           beginningInventoryDateValue = beginningInventoryDate
             ? `datetime('${beginningInventoryDate}', 'start of month')`
             : `datetime('now', 'start of month')`;
