@@ -1256,7 +1256,7 @@ const ItemForm = props => {
   // -------------------------------------------------------------------------
 
   const initStockSectionHeadingText = editMode
-    ? `Update Pre-${appDefaults.appDisplayName} Stock & Cost`
+    ? `Update Pre-${appDefaults.appDisplayName} Stock Cost & Tax`
     : `Input Pre-${appDefaults.appDisplayName} Stock Cost & Tax`;
 
   const sellingDetailsHeadingText = editMode
@@ -1316,7 +1316,6 @@ const ItemForm = props => {
           }}
         />
       )}
-
       {showMonthPicker && (
         <Modal
           transparent
@@ -1352,7 +1351,6 @@ const ItemForm = props => {
           </View>
         </Modal>
       )}
-
       {/* ── Dialogs ── */}
       <Portal>
         <Dialog
@@ -1373,7 +1371,6 @@ const ItemForm = props => {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-
       <Portal>
         <Dialog
           visible={updateUOMWarningDialogVisible}
@@ -1434,7 +1431,6 @@ const ItemForm = props => {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-
       <Portal>
         <Dialog
           visible={confirmDeleteSellingSizeOptionDialogVisible}
@@ -1475,7 +1471,6 @@ const ItemForm = props => {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-
       <Portal>
         <RNPaperModal
           visible={addOptionModalVisible}
@@ -1513,7 +1508,6 @@ const ItemForm = props => {
           />
         </RNPaperModal>
       </Portal>
-
       {/* ── Form body ── */}
       <FormRequiredFieldsHelperText />
       <PreventGoBack
@@ -1521,12 +1515,10 @@ const ItemForm = props => {
         hasUnsavedChanges={dirty}
         cancelPrevention={isCancelPreventGoBack}
       />
-
       <SectionHeading
         headingText={editMode ? 'Update Item Details' : 'Item Details'}
         containerStyle={{marginTop: 15}}
       />
-
       <MoreSelectionButton
         placeholder="Select Category"
         label="Category"
@@ -1552,7 +1544,6 @@ const ItemForm = props => {
         }
         error={!!(errors.category_id && touched.category_id)}
       />
-
       <TextInput
         style={styles.textInput}
         label={
@@ -1568,7 +1559,6 @@ const ItemForm = props => {
         error={!!(errors.name && touched.name)}
         autoCapitalize="words"
       />
-
       <View style={{flexDirection: 'row'}}>
         <TextInput
           label="Item Barcode (Optional)"
@@ -1584,7 +1574,6 @@ const ItemForm = props => {
           style={{position: 'absolute', top: 18, right: 15}}
         />
       </View>
-
       <MoreSelectionButton
         containerStyle={{marginTop: -2}}
         placeholder="Select Unit"
@@ -1612,47 +1601,65 @@ const ItemForm = props => {
         }}
         error={!!(errors.uom_abbrev && touched.uom_abbrev)}
       />
-
       {renderAddMeasurementPerPieceCheckbox(formik)}
       {renderSetUOMToUOMPerPieceCheckbox(formik)}
       {renderMeasurementPerPieceButton(formik)}
       {renderPerPieceFields(formik)}
 
       {!item?.is_finished_product && (
-        <SectionHeading
-          headingText={initStockSectionHeadingText}
-          containerStyle={{marginTop: 20}}
-          switchVisible
-          switchValue={isInitStockFieldsVisible}
-          onSwitchValueChange={() => {
-            if (resetSectionedFieldsOnToggle) {
-              // reset first the default values of init stock fields on toggle
-              setValues(prevValues => ({
-                ...prevValues,
-                initial_stock_unit_cost: initialStockUnitCost,
-                initial_stock_qty: initialStockQty,
-                low_stock_level:
-                  initialValues.low_stock_level?.toString() || '0',
-                beginning_inventory_date: datetimeString,
-                initial_stock_applied_tax_id: initialStockAppliedTaxId,
-                initial_stock_vendor_id: initialStockVendorId,
-                official_receipt_number: initialStockOfficialReceiptNumber,
-                remarks: initialStockRemarks,
-              }));
-            }
+        <>
+          {editMode ? (
+            <PressableSectionHeading
+              headingText={initStockSectionHeadingText}
+              containerStyle={{marginTop: 20}}
+              onPress={() => {
+                const initStockLog = getItemInitStockLogData?.result;
+                if (initStockLog) {
+                  navigation.navigate(routes.updateInventoryLog(), {
+                    item_id: item?.id,
+                    log_id: initStockLog.id,
+                  });
+                }
+              }}
+            />
+          ) : (
+            <>
+              <SectionHeading
+                headingText={initStockSectionHeadingText}
+                containerStyle={{marginTop: 20}}
+                switchVisible
+                switchValue={isInitStockFieldsVisible}
+                onSwitchValueChange={() => {
+                  if (resetSectionedFieldsOnToggle) {
+                    // reset first the default values of init stock fields on toggle
+                    setValues(prevValues => ({
+                      ...prevValues,
+                      initial_stock_unit_cost: initialStockUnitCost,
+                      initial_stock_qty: initialStockQty,
+                      low_stock_level:
+                        initialValues.low_stock_level?.toString() || '0',
+                      beginning_inventory_date: datetimeString,
+                      initial_stock_applied_tax_id: initialStockAppliedTaxId,
+                      initial_stock_vendor_id: initialStockVendorId,
+                      official_receipt_number:
+                        initialStockOfficialReceiptNumber,
+                      remarks: initialStockRemarks,
+                    }));
+                  }
 
-            // toggle init stock fields
-            setIsInitStockFieldsVisible(v => !v);
-          }}
-        />
+                  // toggle init stock fields
+                  setIsInitStockFieldsVisible(v => !v);
+                }}
+              />
+              {renderInitStockFields(
+                getItemInitStockLogStatus,
+                getItemInitStockLogData,
+                formik,
+              )}
+            </>
+          )}
+        </>
       )}
-
-      {!item?.is_finished_product &&
-        renderInitStockFields(
-          getItemInitStockLogStatus,
-          getItemInitStockLogData,
-          formik,
-        )}
 
       {editMode ? (
         <PressableSectionHeading
@@ -1671,9 +1678,7 @@ const ItemForm = props => {
           onSwitchValueChange={() => setIsSellingDetailsFieldsVisible(v => !v)}
         />
       )}
-
       {renderSellingDetailsFields(formik)}
-
       <Button
         mode="contained"
         onPress={handleSubmit}
@@ -1682,7 +1687,6 @@ const ItemForm = props => {
         style={{marginTop: 40}}>
         {editMode ? 'Save Changes' : 'Save'}
       </Button>
-
       <Button
         onPress={() => navigation.goBack()}
         style={{marginTop: 10, marginBottom: 25}}>
