@@ -180,11 +180,13 @@ const PACKAGING_TYPE_OPTIONS = [
   {label: 'Crate', value: 'crate'},
   {label: 'Drum', value: 'drum'},
   {label: 'Jar', value: 'jar'},
+  {label: 'Loaf', value: 'loaf'},
   {label: 'Pack', value: 'pack'},
   {label: 'Pail', value: 'pail'},
   {label: 'Pouch', value: 'pouch'},
   {label: 'Sack', value: 'sack'},
   {label: 'Tray', value: 'tray'},
+  {label: 'Tub', value: 'tub'},
   {label: 'Tube', value: 'tube'},
 ];
 
