@@ -483,6 +483,16 @@ const AddStockForm = props => {
                   return operation.list_item_order !== 0 && operation.id !== 2;
                 }
 
+                // Do not hide operation id 1 (Pre-App Stock) if it's a Pre-App Stock Log itself even if its list_item_order is 0 (hidden)
+                if (
+                  editMode &&
+                  inventoryLog &&
+                  inventoryLog.operation_id === 1
+                ) {
+                  if (operation.id === 1) return true;
+                }
+
+                // display all inventory operation except with the list_item_order 0 (hidden)
                 return operation.list_item_order !== 0;
               })
               .map(operation => {
