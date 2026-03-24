@@ -58,12 +58,6 @@ const ItemValidationSchema = Yup.object({
     .max(50, 'Too Long!')
     .required('Required'),
   uom_abbrev: Yup.string().required('Required'),
-  unit_cost: Yup.string().required('Required'),
-  total_cost: Yup.string().required('Required'),
-  initial_stock_qty: Yup.string()
-    .min(1, 'Too Short!')
-    .max(50, 'Too Long!')
-    .required('Required'),
   low_stock_level: Yup.string()
     .min(1, 'Too Short!')
     .max(50, 'Too Long!')
@@ -75,7 +69,6 @@ const ItemValidationSchema = Yup.object({
     otherwise: () => Yup.string().notRequired(),
   }),
   set_uom_to_uom_per_piece: Yup.boolean(),
-  // Note: uom_abbrev_per_piece is intentionally declared twice (mirrors original)
   uom_abbrev_per_piece: Yup.string().when('set_uom_to_uom_per_piece', {
     is: true,
     then: () => Yup.string().required(),
@@ -1172,7 +1165,7 @@ const ItemForm = props => {
         parseFloat(itemInitStockLog.adjustment_unit_cost) *
         parseFloat(itemInitStockLog.adjustment_qty)
       ).toString()
-    : '0';
+    : '';
 
   const initialStockAppliedTaxId = (
     editMode && itemInitStockLog ? itemInitStockLog.ref_tax_id ?? '' : ''
