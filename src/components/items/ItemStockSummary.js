@@ -4,7 +4,6 @@ import {
   useTheme,
   Headline,
   Chip,
-  Icon,
   Button,
   Divider,
   Subheading,
@@ -17,14 +16,15 @@ import commaNumber from 'comma-number';
 import {useQuery} from '@tanstack/react-query';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
+} from 'react-native-reanimated';
 
-import {categories, items} from '../../__dummyData';
 import routes from '../../constants/routes';
-import {
-  getItemAvgUnitCost,
-  getItemCostPercentage,
-  getItemCurrentStockQuantity,
-} from '../../localDbQueries/inventoryLogs';
+import {getItemCostPercentage} from '../../localDbQueries/inventoryLogs';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
@@ -45,11 +45,35 @@ const ItemStockSummary = props => {
   const {status: itemCostPercentageStatus, data: itemCostPercentageData} =
     useQuery(['itemCostPercentage', {itemId: item.id}], getItemCostPercentage);
   const [showDetails, setShowDetails] = useState(showStockDetails);
+  const progress = useSharedValue(showStockDetails ? 1 : 0);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: contentHeight * progress.value,
+    opacity: progress.value,
+    overflow: 'hidden',
+  }));
+
+  const chevronStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          rotate: `${interpolate(progress.value, [0, 1], [0, 180])}deg`,
+        },
+      ],
+    };
+  });
 
   const [infoDialogVisible, setInfoDialogVisible] = useState(false);
 
   const showInfoDialog = () => setInfoDialogVisible(true);
   const hideInfoDialog = () => setInfoDialogVisible(false);
+
+  const toggleDetails = () => {
+    const next = !showDetails;
+    setShowDetails(next);
+    progress.value = withTiming(next ? 1 : 0, {duration: 250});
+  };
 
   const renderCostPerPackage = () => {
     if (item.uom_abbrev_per_piece && item.qty_per_piece) {
@@ -234,6 +258,106 @@ const ItemStockSummary = props => {
     }
   };
 
+  const renderDetailsContent = () => (
+    <View style={[styles.detailsContainer]}>
+      <Pressable
+        style={{position: 'absolute', top: -15, right: 0}}
+        onPress={() =>
+          navigation.navigate(routes.itemReportView(), {item_id: item.id})
+        }>
+        <Text style={{fontWeight: 'bold', color: colors.primary}}>
+          View Report
+        </Text>
+      </Pressable>
+
+      <View
+        style={{flexDirection: 'row', alignItems: 'center', marginBottom: 5}}>
+        <MaterialCommunityIcons
+          name="chart-box-outline"
+          size={25}
+          color={colors.dark}
+        />
+        <Subheading style={{marginLeft: 8, fontWeight: 'bold'}}>
+          Report Summary
+        </Subheading>
+      </View>
+
+      <View style={styles.detailsListItem}>
+        <View>
+          <Text style={{fontWeight: 'bold', marginBottom: 5}}>
+            Average Unit Cost:
+          </Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              marginLeft: 10,
+              alignItems: 'center',
+            }}>
+            <Text
+              style={{
+                marginLeft: 7,
+                fontWeight: 'bold',
+                color: colors.dark,
+                fontSize: 16,
+              }}>
+              {`${currencySymbol} ${commaNumber(
+                parseFloat(item?.avg_unit_cost_net || 0).toFixed(2),
+              )}`}
+            </Text>
+            <Text
+              style={{
+                marginLeft: 5,
+                color: colors.dark,
+                fontSize: 16,
+              }}>
+              {`/ ${formatUOMAbbrev(item.uom_abbrev)}`}
+            </Text>
+          </View>
+
+          {renderCostPerPackage()}
+        </View>
+      </View>
+      <View style={styles.detailsListItem}>
+        <Text style={{fontWeight: 'bold'}}>Cost Percentage (COGS %):</Text>
+        {renderCostPercentageValue()}
+      </View>
+
+      <View style={styles.detailsListItem}>
+        <View>
+          <Text style={{fontWeight: 'bold'}}>Current Stock Quantity:</Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              marginLeft: 10,
+              alignItems: 'center',
+            }}>
+            <Text
+              style={{
+                marginLeft: 7,
+                fontWeight: 'bold',
+                color: colors.dark,
+                fontSize: 16,
+              }}>
+              {`${commaNumber(
+                parseFloat(item.current_stock_qty || 0).toFixed(2),
+              )}`}
+            </Text>
+            <Text
+              style={{
+                marginLeft: 5,
+                color: colors.dark,
+                fontWeight: 'bold',
+              }}>
+              {`${formatUOMAbbrev(item.uom_abbrev)}`}
+            </Text>
+          </View>
+
+          {renderQtyPerPackage()}
+        </View>
+      </View>
+    </View>
+  );
+
   if (!item) return null;
 
   if (itemCostPercentageStatus === 'loading') {
@@ -329,6 +453,7 @@ const ItemStockSummary = props => {
           {backgroundColor: colors.surface},
           containerStyle,
         ]}>
+        {/* HEADER */}
         <View
           style={{
             flexDirection: 'row',
@@ -392,186 +517,36 @@ const ItemStockSummary = props => {
           </View>
         </ScrollView>
 
-        <Divider style={{marginTop: 15, marginBottom: 15}} />
+        <Divider style={{marginVertical: 15}} />
 
-        {showDetails && (
-          <View style={[styles.detailsContainer, {marginTop: 0}]}>
-            <Pressable
-              style={{position: 'absolute', top: -15, right: 0}}
-              onPress={() => {
-                navigation.navigate(routes.itemReportView(), {
-                  item_id: item.id,
-                });
-              }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: 'bold',
-                  marginVertical: 20,
-                  marginLeft: 20,
-                  marginRight: 5,
-                  color: colors.primary,
-                }}>
-                {'View Report'}
-              </Text>
-            </Pressable>
+        {/* ✅ HIDDEN MEASURER */}
+        <View
+          style={{position: 'absolute', opacity: 0, zIndex: -1}}
+          pointerEvents="none"
+          onLayout={e => {
+            const h = e.nativeEvent.layout.height;
+            if (h > 0 && h !== contentHeight) {
+              setContentHeight(h);
+            }
+          }}>
+          {renderDetailsContent()}
+        </View>
 
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 5,
-              }}>
-              <MaterialCommunityIcons
-                name="chart-box-outline"
-                size={25}
-                color={colors.dark}
-              />
-              <Subheading style={{marginLeft: 8, fontWeight: 'bold'}}>
-                Report Summary
-              </Subheading>
-            </View>
-            {/* <View style={[styles.detailsListItem]}>
-              <Text
-                style={{
-                  fontWeight: 'bold',
-                }}>{`Last Unit Cost (With Tax):`}</Text>
-              <Text
-                style={{
-                  marginLeft: 7,
-                  fontWeight: 'bold',
-                  color: colors.dark,
-                }}>
-                {`${currencySymbol} ${commaNumber(
-                  parseFloat(item.unit_cost || 0).toFixed(2),
-                )}`}
-              </Text>
-              <Text
-                style={{
-                  marginLeft: 5,
-                  color: colors.dark,
-                }}>
-                {`/ ${formatUOMAbbrev(item.uom_abbrev)}`}
-              </Text>
-            </View> */}
-            <View style={styles.detailsListItem}>
-              <View>
-                <Text style={{fontWeight: 'bold', marginBottom: 5}}>
-                  Average Unit Cost:
-                </Text>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    marginLeft: 10,
-                    alignItems: 'center',
-                  }}>
-                  <Text
-                    style={{
-                      marginLeft: 7,
-                      fontWeight: 'bold',
-                      color: colors.dark,
-                      fontSize: 16,
-                    }}>
-                    {`${currencySymbol} ${commaNumber(
-                      parseFloat(item?.avg_unit_cost_net || 0).toFixed(2),
-                    )}`}
-                  </Text>
-                  <Text
-                    style={{
-                      marginLeft: 5,
-                      color: colors.dark,
-                      fontSize: 16,
-                    }}>
-                    {`/ ${formatUOMAbbrev(item.uom_abbrev)}`}
-                  </Text>
-                </View>
+        {/* ✅ ANIMATED CONTENT */}
+        <Animated.View style={animatedStyle}>
+          {renderDetailsContent()}
+        </Animated.View>
 
-                {renderCostPerPackage()}
-              </View>
-            </View>
-            <View style={styles.detailsListItem}>
-              <Text style={{fontWeight: 'bold'}}>
-                Cost Percentage (COGS %):
-              </Text>
-              {renderCostPercentageValue()}
-            </View>
-
-            {/* <Divider style={{marginVertical: 8}} /> */}
-            {/* <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginTop: 8,
-                marginBottom: 5,
-              }}>
-              <MaterialCommunityIcons
-                name="clipboard-list-outline"
-                size={25}
-                color={colors.dark}
-              />
-              <Subheading style={{marginLeft: 5}}>Inventory</Subheading>
-            </View> */}
-            <View style={styles.detailsListItem}>
-              <View>
-                <Text style={{fontWeight: 'bold'}}>
-                  Current Stock Quantity:
-                </Text>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    marginLeft: 10,
-                    alignItems: 'center',
-                  }}>
-                  <Text
-                    style={{
-                      marginLeft: 7,
-                      fontWeight: 'bold',
-                      color: colors.dark,
-                      fontSize: 16,
-                    }}>
-                    {`${commaNumber(
-                      parseFloat(item.current_stock_qty || 0).toFixed(2),
-                    )}`}
-                  </Text>
-                  <Text
-                    style={{
-                      marginLeft: 5,
-                      color: colors.dark,
-                      fontWeight: 'bold',
-                    }}>
-                    {`${formatUOMAbbrev(item.uom_abbrev)}`}
-                  </Text>
-                </View>
-
-                {renderQtyPerPackage()}
-              </View>
-            </View>
-            {/* <View style={styles.detailsListItem}>
-            <Text style={{fontWeight: 'bold'}}>Beginning Inventory:</Text>
-            <Text
-              style={{
-                marginLeft: 7,
-                fontWeight: 'bold',
-                color: colors.dark,
-              }}>
-              {`${commaNumber(item.initial_stock_qty)}`}
-            </Text>
-            <Text
-              style={{
-                marginLeft: 5,
-                color: colors.dark,
-              }}>
-              {`${item.uom_abbrev === 'ea' ? 'pc' : item.uom_abbrev}`}
-            </Text>
-          </View> */}
-          </View>
-        )}
-
+        {/* ACTIONS */}
         {renderAddNewYieldButton()}
-        <View style={[styles.actionsContainer, {flexDirection: 'row'}]}>
-          {showActions && showDetails && (
+        <View
+          style={[
+            styles.actionsContainer,
+            {flexDirection: 'row', justifyContent: 'flex-end'},
+          ]}>
+          {showActions && (
             <Button
-              style={{flex: 1}}
+              style={{flex: 1, marginRight: 10}}
               mode={item?.is_finished_product ? 'outlined' : 'contained'}
               onPress={() => {
                 navigation.navigate(routes.manageStock(), {item_id: item.id});
@@ -587,14 +562,15 @@ const ItemStockSummary = props => {
               borderRadius: 25,
               width: 36,
               padding: 5,
-              marginLeft: showActions && showDetails ? 10 : 'auto',
             }}
-            onPress={() => setShowDetails(() => !showDetails)}>
-            <MaterialCommunityIcons
-              name={showDetails ? 'chevron-up' : 'chevron-down'}
-              size={25}
-              color={colors.dark}
-            />
+            onPress={toggleDetails}>
+            <Animated.View style={chevronStyle}>
+              <MaterialCommunityIcons
+                name="chevron-down"
+                size={25}
+                color={colors.dark}
+              />
+            </Animated.View>
           </Pressable>
         </View>
       </View>
@@ -605,17 +581,15 @@ const ItemStockSummary = props => {
 const styles = StyleSheet.create({
   container: {
     margin: 5,
-    marginBottom: 9,
     borderRadius: 5,
     padding: 15,
   },
   detailsContainer: {
-    marginTop: 10,
-    marginBottom: 10,
+    marginVertical: 10,
   },
   detailsListItem: {
     marginLeft: 0,
-    marginVertical: 3,
+    marginVertical: 5,
     marginBottom: 5,
     flexDirection: 'row',
     alignItems: 'center',
@@ -623,7 +597,6 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 15,
   },
-  actionsContainer: {},
 });
 
 export default ItemStockSummary;
