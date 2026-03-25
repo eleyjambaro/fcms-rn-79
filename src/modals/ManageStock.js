@@ -137,6 +137,7 @@ const ManageStock = props => {
         showActions={false}
         showStockDetails={showItemStockDetails}
         showItemOptionsButton={false}
+        containerStyle={{marginBottom: 10}}
       />
       <TabsProvider defaultIndex={currentTabIndex}>
         <Tabs
