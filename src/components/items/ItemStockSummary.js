@@ -261,18 +261,12 @@ const ItemStockSummary = props => {
 
   const renderDetailsContent = () => (
     <View style={[styles.detailsContainer]}>
-      <Pressable
-        style={{position: 'absolute', top: -15, right: 0}}
-        onPress={() =>
-          navigation.navigate(routes.itemReportView(), {item_id: item.id})
-        }>
-        <Text style={{fontWeight: 'bold', color: colors.primary}}>
-          View Report
-        </Text>
-      </Pressable>
-
       <View
-        style={{flexDirection: 'row', alignItems: 'center', marginBottom: 5}}>
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginBottom: 5,
+        }}>
         <MaterialCommunityIcons
           name="chart-box-outline"
           size={25}
@@ -281,6 +275,16 @@ const ItemStockSummary = props => {
         <Subheading style={{marginLeft: 8, fontWeight: 'bold'}}>
           Report Summary
         </Subheading>
+
+        <Pressable
+          style={{marginLeft: 'auto'}}
+          onPress={() =>
+            navigation.navigate(routes.itemReportView(), {item_id: item.id})
+          }>
+          <Text style={{fontWeight: 'bold', color: colors.primary}}>
+            View Report
+          </Text>
+        </Pressable>
       </View>
 
       <View style={styles.detailsListItem}>
@@ -592,7 +596,8 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   detailsContainer: {
-    marginVertical: 10,
+    marginTop: 5,
+    marginBottom: 10,
   },
   detailsListItem: {
     marginLeft: 0,
