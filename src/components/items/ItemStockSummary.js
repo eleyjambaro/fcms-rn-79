@@ -38,6 +38,7 @@ const ItemStockSummary = props => {
     onPressItemOptions,
     showStockDetails = true,
     showItemOptionsButton = true,
+    hideReportSummary = false,
   } = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
@@ -517,62 +518,68 @@ const ItemStockSummary = props => {
           </View>
         </ScrollView>
 
-        <Divider style={{marginVertical: 15}} />
+        {!hideReportSummary && (
+          <>
+            <Divider style={{marginVertical: 15}} />
 
-        {/* ✅ HIDDEN MEASURER */}
-        <View
-          style={{position: 'absolute', opacity: 0, zIndex: -1}}
-          pointerEvents="none"
-          onLayout={e => {
-            const h = e.nativeEvent.layout.height;
-            if (h > 0 && h !== contentHeight) {
-              setContentHeight(h);
-            }
-          }}>
-          {renderDetailsContent()}
-        </View>
-
-        {/* ✅ ANIMATED CONTENT */}
-        <Animated.View style={animatedStyle}>
-          {renderDetailsContent()}
-        </Animated.View>
-
-        {/* ACTIONS */}
-        {renderAddNewYieldButton()}
-        <View
-          style={[
-            styles.actionsContainer,
-            {flexDirection: 'row', justifyContent: 'flex-end'},
-          ]}>
-          {showActions && (
-            <Button
-              style={{flex: 1, marginRight: 10}}
-              mode={item?.is_finished_product ? 'outlined' : 'contained'}
-              onPress={() => {
-                navigation.navigate(routes.manageStock(), {item_id: item.id});
+            {/* ✅ HIDDEN MEASURER */}
+            <View
+              style={{position: 'absolute', opacity: 0, zIndex: -1}}
+              pointerEvents="none"
+              onLayout={e => {
+                const h = e.nativeEvent.layout.height;
+                if (h > 0 && h !== contentHeight) {
+                  setContentHeight(h);
+                }
               }}>
-              Manage Stock
-            </Button>
-          )}
-          <Pressable
-            style={{
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: colors.neutralTint4,
-              borderRadius: 25,
-              width: 36,
-              padding: 5,
-            }}
-            onPress={toggleDetails}>
-            <Animated.View style={chevronStyle}>
-              <MaterialCommunityIcons
-                name="chevron-down"
-                size={25}
-                color={colors.dark}
-              />
+              {renderDetailsContent()}
+            </View>
+
+            {/* ✅ ANIMATED CONTENT */}
+            <Animated.View style={animatedStyle}>
+              {renderDetailsContent()}
             </Animated.View>
-          </Pressable>
-        </View>
+
+            {/* ACTIONS */}
+            {renderAddNewYieldButton()}
+            <View
+              style={[
+                styles.actionsContainer,
+                {flexDirection: 'row', justifyContent: 'flex-end'},
+              ]}>
+              {showActions && (
+                <Button
+                  style={{flex: 1, marginRight: 10}}
+                  mode={item?.is_finished_product ? 'outlined' : 'contained'}
+                  onPress={() => {
+                    navigation.navigate(routes.manageStock(), {
+                      item_id: item.id,
+                    });
+                  }}>
+                  Manage Stock
+                </Button>
+              )}
+              <Pressable
+                style={{
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  backgroundColor: colors.neutralTint4,
+                  borderRadius: 25,
+                  width: 36,
+                  padding: 5,
+                }}
+                onPress={toggleDetails}>
+                <Animated.View style={chevronStyle}>
+                  <MaterialCommunityIcons
+                    name="chevron-down"
+                    size={25}
+                    color={colors.dark}
+                  />
+                </Animated.View>
+              </Pressable>
+            </View>
+          </>
+        )}
       </View>
     </>
   );

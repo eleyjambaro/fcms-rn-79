@@ -38,8 +38,8 @@ const ItemSizeOptions = _props => {
         <ItemStockSummary
           item={item}
           containerStyle={{marginBottom: 9}}
-          showStockDetails={false}
           showItemOptionsButton={false}
+          hideReportSummary={true}
         />
       )}
       <ItemSizeOptionList itemId={itemId} item={item} />
