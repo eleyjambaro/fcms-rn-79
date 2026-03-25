@@ -36,6 +36,7 @@ import MonthPicker from 'react-native-month-picker';
 import ConfirmationCheckbox from './ConfirmationCheckbox';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
 import appDefaults from '../../constants/appDefaults';
+import UnitOrTotalCostRadioButtonWrapper from './UnitOrTotalCostRadioButtonWrapper';
 
 const AddStockValidationSchema = Yup.object().shape({
   operation_id: Yup.string().required('Operation is required'),
@@ -899,120 +900,126 @@ const AddStockForm = props => {
             </View>
             {renderUseMeasurementPerPieceCheckbox(props)}
 
-            <RadioButton.Group
-              onValueChange={newValue => {
-                if (newValue === 'total_cost') {
-                  setFieldTouched('unit_cost', false);
-                } else if (newValue === 'unit_cost') {
-                  setFieldTouched('total_cost', false);
-                }
+            <UnitOrTotalCostRadioButtonWrapper containerStyle={{marginTop: 0}}>
+              <RadioButton.Group
+                onValueChange={newValue => {
+                  if (newValue === 'total_cost') {
+                    setFieldTouched('unit_cost', false);
+                  } else if (newValue === 'unit_cost') {
+                    setFieldTouched('total_cost', false);
+                  }
 
-                setFieldValue('cost_input_mode', newValue);
-              }}
-              value={values.cost_input_mode}>
-              <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                <View style={{flexDirection: 'row', flex: 1}}>
-                  <TextInput
-                    style={[styles.textInput, {flex: 1}]}
-                    label="Unit Cost (Including tax)"
-                    disabled={
-                      values.cost_input_mode === 'total_cost' ? true : false
-                    }
-                    onChangeText={value => {
-                      const unitCost = parseFloat(value || 0);
-                      const adjustmentQty = parseFloat(
-                        values.adjustment_qty || 0,
-                      );
-                      const calculatedTotalCost = unitCost * adjustmentQty;
+                  setFieldValue('cost_input_mode', newValue);
+                }}
+                value={values.cost_input_mode}>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <View style={{flexDirection: 'row', flex: 1}}>
+                    <TextInput
+                      style={[styles.textInput, {flex: 1}]}
+                      label="Unit Cost (Including tax)"
+                      disabled={
+                        values.cost_input_mode === 'total_cost' ? true : false
+                      }
+                      onChangeText={value => {
+                        const unitCost = parseFloat(value || 0);
+                        const adjustmentQty = parseFloat(
+                          values.adjustment_qty || 0,
+                        );
+                        const calculatedTotalCost = unitCost * adjustmentQty;
 
-                      setFieldValue(
-                        'adjustment_total_cost',
-                        calculatedTotalCost?.toString(),
-                      );
-                      handleChange('adjustment_unit_cost')(value);
-                    }}
-                    onBlur={handleBlur('adjustment_unit_cost')}
-                    onFocus={() => {
-                      onFocus && onFocus();
-                    }}
-                    value={values.adjustment_unit_cost}
-                    keyboardType="numeric"
-                    error={
-                      errors.adjustment_unit_cost &&
-                      touched.adjustment_unit_cost
-                        ? true
-                        : false
-                    }
-                  />
-                  <QuantityUOMText
-                    uomAbbrev={
-                      values.use_measurement_per_piece
-                        ? item?.uom_abbrev_per_piece
-                        : item?.uom_abbrev
-                    }
-                    prefixText={'Per '}
-                    disabled={
-                      values.cost_input_mode === 'total_cost' ? true : false
-                    }
-                  />
+                        setFieldValue(
+                          'adjustment_total_cost',
+                          calculatedTotalCost?.toString(),
+                        );
+                        handleChange('adjustment_unit_cost')(value);
+                      }}
+                      onBlur={handleBlur('adjustment_unit_cost')}
+                      onFocus={() => {
+                        onFocus && onFocus();
+                      }}
+                      value={values.adjustment_unit_cost}
+                      keyboardType="numeric"
+                      error={
+                        errors.adjustment_unit_cost &&
+                        touched.adjustment_unit_cost
+                          ? true
+                          : false
+                      }
+                    />
+                    <QuantityUOMText
+                      uomAbbrev={
+                        values.use_measurement_per_piece
+                          ? item?.uom_abbrev_per_piece
+                          : item?.uom_abbrev
+                      }
+                      prefixText={'Per '}
+                      disabled={
+                        values.cost_input_mode === 'total_cost' ? true : false
+                      }
+                    />
+                  </View>
+                  <View style={{paddingHorizontal: 5}}>
+                    <RadioButton value="unit_cost" color={colors.primary} />
+                  </View>
                 </View>
-                <RadioButton value="unit_cost" color={colors.primary} />
-              </View>
 
-              <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                <View style={{flexDirection: 'row', flex: 1}}>
-                  <TextInput
-                    style={[styles.textInput, {flex: 1}]}
-                    label="Total Cost (Including tax)"
-                    disabled={
-                      values.cost_input_mode === 'unit_cost' ? true : false
-                    }
-                    onChangeText={value => {
-                      const totalCost = parseFloat(value || 0);
-                      const adjustmentQty = parseFloat(
-                        values.adjustment_qty || 0,
-                      );
-                      const calculatedUnitCost =
-                        totalCost && adjustmentQty
-                          ? totalCost / adjustmentQty
-                          : 0;
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <View style={{flexDirection: 'row', flex: 1}}>
+                    <TextInput
+                      style={[styles.textInput, {flex: 1}]}
+                      label="Total Cost (Including tax)"
+                      disabled={
+                        values.cost_input_mode === 'unit_cost' ? true : false
+                      }
+                      onChangeText={value => {
+                        const totalCost = parseFloat(value || 0);
+                        const adjustmentQty = parseFloat(
+                          values.adjustment_qty || 0,
+                        );
+                        const calculatedUnitCost =
+                          totalCost && adjustmentQty
+                            ? totalCost / adjustmentQty
+                            : 0;
 
-                      setFieldValue(
-                        'adjustment_unit_cost',
-                        calculatedUnitCost?.toString(),
-                      );
-                      handleChange('adjustment_total_cost')(value);
-                    }}
-                    onBlur={handleBlur('adjustment_total_cost')}
-                    onFocus={() => {
-                      onFocus && onFocus();
-                    }}
-                    value={values.adjustment_total_cost}
-                    keyboardType="numeric"
-                    error={
-                      errors.adjustment_total_cost &&
-                      touched.adjustment_total_cost
-                        ? true
-                        : false
-                    }
-                  />
-                  <QuantityUOMText
-                    quantity={values.adjustment_qty}
-                    uomAbbrev={
-                      values.use_measurement_per_piece
-                        ? item?.uom_abbrev_per_piece
-                        : item?.uom_abbrev
-                    }
-                    prefixText={'Total '}
-                    concatText={' Cost'}
-                    disabled={
-                      values.cost_input_mode === 'unit_cost' ? true : false
-                    }
-                  />
+                        setFieldValue(
+                          'adjustment_unit_cost',
+                          calculatedUnitCost?.toString(),
+                        );
+                        handleChange('adjustment_total_cost')(value);
+                      }}
+                      onBlur={handleBlur('adjustment_total_cost')}
+                      onFocus={() => {
+                        onFocus && onFocus();
+                      }}
+                      value={values.adjustment_total_cost}
+                      keyboardType="numeric"
+                      error={
+                        errors.adjustment_total_cost &&
+                        touched.adjustment_total_cost
+                          ? true
+                          : false
+                      }
+                    />
+                    <QuantityUOMText
+                      quantity={values.adjustment_qty}
+                      uomAbbrev={
+                        values.use_measurement_per_piece
+                          ? item?.uom_abbrev_per_piece
+                          : item?.uom_abbrev
+                      }
+                      prefixText={'Total '}
+                      concatText={' Cost'}
+                      disabled={
+                        values.cost_input_mode === 'unit_cost' ? true : false
+                      }
+                    />
+                  </View>
+                  <View style={{paddingHorizontal: 5}}>
+                    <RadioButton value="total_cost" color={colors.primary} />
+                  </View>
                 </View>
-                <RadioButton value="total_cost" color={colors.primary} />
-              </View>
-            </RadioButton.Group>
+              </RadioButton.Group>
+            </UnitOrTotalCostRadioButtonWrapper>
 
             <MoreSelectionButton
               placeholder="Select Tax"
