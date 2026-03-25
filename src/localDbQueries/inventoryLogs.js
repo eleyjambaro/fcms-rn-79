@@ -1153,9 +1153,9 @@ export const addInventoryLog = async ({
     let unitCostTax = unitCost - unitCostNet;
 
     if (inventoryOperation.type === 'remove_stock') {
-      unitCost = parseFloat(item.avg_unit_cost);
+      unitCost = parseFloat(item.avg_unit_cost_net);
       unitCostNet = parseFloat(item.avg_unit_cost_net);
-      unitCostTax = parseFloat(item.avg_unit_cost_tax);
+      unitCostTax = parseFloat(0);
     }
 
     const taxId = tax.id ? parseInt(tax.id) : 'null';

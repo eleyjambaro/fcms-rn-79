@@ -243,9 +243,9 @@ export const createItemEndingInventoryEntry = async ({
      * Insert inventory log (Stock Usage)
      */
 
-    const avgUnitCost = parseFloat(item.avg_unit_cost || 0);
+    const avgUnitCost = parseFloat(item.avg_unit_cost_net || 0);
     const avgUnitCostNet = parseFloat(item.avg_unit_cost_net || 0);
-    const avgUnitCostTax = parseFloat(item.avg_unit_cost_tax || 0);
+    const avgUnitCostTax = parseFloat(0);
 
     let qty = 0;
 
