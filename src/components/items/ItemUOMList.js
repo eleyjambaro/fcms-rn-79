@@ -45,7 +45,10 @@ const ItemUOMList = () => {
     groupedUnitsWithLabel.push(label);
     groupedUnitsWithLabel = [
       ...groupedUnitsWithLabel,
-      ...convert().list(label.title),
+      // list of units with description except dz (Dozen)
+      ...convert()
+        .list(label.title)
+        ?.filter(unit => unit?.abbr !== 'dz'),
     ];
   }
 
@@ -94,7 +97,13 @@ const ItemUOMList = () => {
     <FlatList
       style={{backgroundColor: colors.surface}}
       data={groupedUnitsWithLabel}
-      keyExtractor={item => item.abbr}
+      keyExtractor={item => {
+        if (item?.isLabel) {
+          return item.title;
+        }
+
+        return item.abbr;
+      }}
       renderItem={renderItem}
       ListEmptyComponent={
         <View

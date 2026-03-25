@@ -45,7 +45,10 @@ const SellingMenuItemUnitAndQuantityForm = props => {
   const [unit, setUnit] = useState(initialValues.in_menu_uom_abbrev);
 
   /** units: [ 'ml', 'l', 'tsp', 'Tbs', 'fl-oz', 'cup', 'pnt', 'qt', 'gal' ] **/
-  const units = convert().from(unit).possibilities();
+  const units = convert()
+    .from(unit)
+    .possibilities()
+    ?.filter(unit => unit !== 'dz');
 
   const unitOptions = units.map(unit => {
     const unitDesc = convert().describe(unit);
