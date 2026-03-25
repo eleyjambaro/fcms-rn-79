@@ -227,7 +227,7 @@ const AddStockForm = props => {
 
     if (!editMode && item?.uom_abbrev === 'ea' && item?.uom_abbrev_per_piece) {
       return (
-        <View style={{marginVertical: 10}}>
+        <View style={{marginTop: 10}}>
           <ConfirmationCheckbox
             status={values.use_measurement_per_piece}
             heading={'Add stock using a different measurement?'}
@@ -900,7 +900,7 @@ const AddStockForm = props => {
             </View>
             {renderUseMeasurementPerPieceCheckbox(props)}
 
-            <UnitOrTotalCostRadioButtonWrapper containerStyle={{marginTop: 0}}>
+            <UnitOrTotalCostRadioButtonWrapper>
               <RadioButton.Group
                 onValueChange={newValue => {
                   if (newValue === 'total_cost') {
