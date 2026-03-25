@@ -1,6 +1,7 @@
 import React from 'react';
 import {View} from 'react-native';
 import {Text, Checkbox, useTheme} from 'react-native-paper';
+import InputHeading from './InputHeading';
 
 const ConfirmationCheckbox = props => {
   const {colors} = useTheme();
@@ -27,22 +28,7 @@ const ConfirmationCheckbox = props => {
         },
         containerStyle,
       ]}>
-      {heading && (
-        <View
-          style={{
-            marginBottom: 10,
-            marginLeft: 10,
-          }}>
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: 'bold',
-              color: colors.neutralTint1,
-            }}>
-            {heading}
-          </Text>
-        </View>
-      )}
+      {heading && <InputHeading>{heading}</InputHeading>}
       <View
         style={[
           {
