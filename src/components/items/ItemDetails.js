@@ -481,7 +481,9 @@ const ItemDetails = props => {
                   fontWeight: 'bold',
                   color: colors.dark,
                 }}>
-                {`${currencySymbol} ${commaNumber(avgUnitCostNet.toFixed(2))}`}
+                {`${currencySymbol} ${commaNumber(
+                  parseFloat(avgUnitCostNet || 0).toFixed(2),
+                )}`}
               </Text>
               <Text
                 style={{
