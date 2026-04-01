@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React from 'react';
 
 import useAppLifecycle from './src/hooks/useAppLifecycle';
 import useAppInitialization from './src/hooks/useAppInitialization';
@@ -10,33 +10,34 @@ import UpdatePromptModal from './src/components/modals/UpdatePromptModal';
 import FilesAndMediaManagementPermissionNeeded from './src/screens/FilesAndMediaManagementPermissionNeeded';
 import FilesAndMediaReadAndWritePermissionNeeded from './src/screens/FilesAndMediaReadAndWritePermissionNeeded';
 import Splash from './src/screens/Splash';
-import AuthStack from './src/stacks/AuthStack';
 import RootStack from './src/stacks/RootStack';
-import ReinstallDetectedStack from './src/stacks/ReinstallDetectedStack';
+import CloudAuthStackV2 from './src/stacks/CloudAuthStackV2';
 
 import withAccountSetupContextProvider from './src/hoc/withAccountSetupContextProvider';
-import useAuthContext from './src/hooks/useAuthContext';
+import useCloudAuthContext from './src/hooks/useCloudAuthContext';
 
 const App = () => {
-  const [authState] = useAuthContext();
+  const [cloudAuthState] = useCloudAuthContext();
   const {
     isCheckingPermission,
     needStorageReadAndWritePermissionScreenVisible,
     needStorageManagementPermissionScreenVisible,
   } = usePermissions({enabled: false});
 
-  const [reinstallDetectedStackVisible, setReinstallDetectedStackVisible] =
-    useState(false);
-
   const {ExpiredAuthDialog} = useExpiredAuthDialog();
 
-  const {isInitializing} = useAppInitialization({
-    onAppPreviouslyInstalledDetected: () => {
-      setReinstallDetectedStackVisible(() => true);
-    },
-  });
+  const {isInitializing} = useAppInitialization();
 
-  useAppLifecycle(); // handles app state change + refetch
+  useAppLifecycle();
+
+  const {
+    showUpdateModal,
+    hideUpdateModal,
+    isForceUpdate,
+    currentVersion,
+    latestVersion,
+    storeUrl,
+  } = useVersionCheck();
 
   const renderContent = () => {
     if (needStorageManagementPermissionScreenVisible) {
@@ -47,29 +48,26 @@ const App = () => {
       return <FilesAndMediaReadAndWritePermissionNeeded />;
     }
 
-    if (isCheckingPermission || isInitializing) {
+    // Wait for permissions, app init, AND cloud auth restore to finish
+    if (isCheckingPermission || isInitializing || cloudAuthState.isLoading) {
       return <Splash />;
     }
 
-    if (reinstallDetectedStackVisible) {
-      return <ReinstallDetectedStack />;
-    }
+    const isCloudAuthenticated = !!(
+      cloudAuthState.authToken && cloudAuthState.authUser
+    );
+    const hasDevice = !!(
+      cloudAuthState.deviceId && cloudAuthState.deviceToken
+    );
+    const hasBranch = !!cloudAuthState.designatedBranch;
 
-    if (!authState.authToken || !authState.authUser) {
-      return <AuthStack />;
+    // Not fully set up → cloud auth / onboarding flow
+    if (!isCloudAuthenticated || !hasDevice || !hasBranch) {
+      return <CloudAuthStackV2 />;
     }
 
     return <RootStack />;
   };
-
-  const {
-    showUpdateModal,
-    hideUpdateModal,
-    isForceUpdate,
-    currentVersion,
-    latestVersion,
-    storeUrl,
-  } = useVersionCheck();
 
   return (
     <>

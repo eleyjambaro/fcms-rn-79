@@ -1,4 +1,5 @@
 import {Platform, NativeModules} from 'react-native';
+import RNDeviceInfo from 'react-native-device-info';
 
 const isAndroid = Platform.OS === 'android';
 const isIOS = Platform.OS === 'ios';
@@ -22,6 +23,28 @@ const deviceInfo = {
       console.warn('[deviceInfo] getDeviceId: unsupported platform');
       return null;
     }
+  },
+
+  async getPhysicalDeviceId() {
+    try {
+      return await RNDeviceInfo.getUniqueId();
+    } catch (error) {
+      console.error('[deviceInfo] getPhysicalDeviceId failed:', error);
+      return null;
+    }
+  },
+
+  getDeviceName() {
+    return RNDeviceInfo.getDeviceNameSync() || RNDeviceInfo.getModel();
+  },
+
+  getDeviceFingerprint() {
+    const brand = RNDeviceInfo.getBrand();
+    const model = RNDeviceInfo.getModel();
+    const systemName = RNDeviceInfo.getSystemName();
+    const systemVersion = RNDeviceInfo.getSystemVersion();
+    const deviceType = RNDeviceInfo.getDeviceType();
+    return `${brand}|${model}|${systemName}|${systemVersion}|${deviceType}`;
   },
 };
 

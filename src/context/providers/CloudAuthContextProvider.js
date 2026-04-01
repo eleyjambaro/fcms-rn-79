@@ -1,193 +1,212 @@
 import React, {useState, useEffect, useReducer, useMemo} from 'react';
 import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
-import {sign, decode} from 'react-native-pure-jwt';
 
 import {CloudAuthContext} from '../types';
-import keys from '../../keys';
-import deviceInfo from '../../lib/deviceInfo';
+import {rnStorageKeys} from '../../constants/rnSecureStorageKeys';
 
-const CloudAuthContextProvider = props => {
-  const {children} = props;
+const {
+  cloudV2AuthToken,
+  cloudV2AuthUser,
+  cloudV2DeviceId,
+  cloudV2DeviceToken,
+  cloudV2DesignatedBranch,
+} = rnStorageKeys;
+
+const saveItem = async (key, value) => {
+  if (value === null || value === undefined) {
+    const has = await SecureStorage.hasItem(key);
+    if (has) await SecureStorage.removeItem(key);
+    return;
+  }
+  const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+  await SecureStorage.setItem(key, serialized, ACCESSIBLE.WHEN_UNLOCKED);
+};
+
+const loadItem = async (key, parse = false) => {
+  const has = await SecureStorage.hasItem(key);
+  if (!has) return null;
+  const raw = await SecureStorage.getItem(key);
+  if (!raw) return null;
+  if (parse) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return raw;
+};
+
+const reducer = (prevState, action) => {
+  switch (action.type) {
+    case 'RESTORE':
+      return {
+        ...prevState,
+        isLoading: false,
+        authToken: action.authToken,
+        authUser: action.authUser,
+        deviceId: action.deviceId,
+        deviceToken: action.deviceToken,
+        designatedBranch: action.designatedBranch,
+      };
+    case 'SIGN_IN':
+      return {
+        ...prevState,
+        isLoading: false,
+        isSignout: false,
+        authToken: action.authToken,
+        authUser: action.authUser,
+      };
+    case 'SIGN_UP':
+      return {
+        ...prevState,
+        isLoading: false,
+        isSignout: false,
+        authToken: action.authToken,
+        authUser: action.authUser,
+      };
+    case 'SIGN_OUT':
+      return {
+        ...prevState,
+        isLoading: false,
+        isSignout: true,
+        authToken: null,
+        authUser: null,
+        deviceId: null,
+        deviceToken: null,
+        designatedBranch: null,
+      };
+    case 'SET_DEVICE_CREDENTIALS':
+      return {
+        ...prevState,
+        deviceId: action.deviceId,
+        deviceToken: action.deviceToken,
+      };
+    case 'SET_DESIGNATED_BRANCH':
+      return {
+        ...prevState,
+        designatedBranch: action.designatedBranch,
+      };
+  }
+};
+
+const initialState = {
+  isLoading: true,
+  isSignout: false,
+  authToken: null,
+  authUser: null,
+  deviceId: null,
+  deviceToken: null,
+  designatedBranch: null,
+};
+
+const CloudAuthContextProvider = ({children}) => {
   const [expiredAuthTokenDialogVisible, setExpiredAuthTokenDialogVisible] =
     useState(false);
 
-  const [state, dispatch] = useReducer(
-    (prevState, action) => {
-      switch (action.type) {
-        case 'RESTORE_TOKEN':
-          return {
-            ...prevState,
-            authToken: action.authToken,
-            authUser: action.authUser,
-            isLoading: false,
-          };
-        case 'SIGN_IN':
-          return {
-            ...prevState,
-            isLoading: false,
-            isSignout: false,
-            authToken: action.authToken,
-            authUser: action.authUser,
-          };
-        case 'SIGN_UP':
-          return {
-            ...prevState,
-            isLoading: false,
-            isSignout: false,
-            authToken: action.authToken,
-            authUser: action.authUser,
-            showPostSignupScreen: true,
-          };
-        case 'SIGN_OUT':
-          return {
-            ...prevState,
-            isLoading: false,
-            isSignout: true,
-            authToken: null,
-            authUser: null,
-            showPostSignupScreen: false,
-          };
-        case 'HIDE_POST_SIGNUP_SCREEN':
-          return {
-            ...prevState,
-            showPostSignupScreen: false,
-          };
-      }
-    },
-    {
-      isLoading: true,
-      isSignout: false,
-      showPostSignupScreen: false,
-      authToken: null,
-      authUser: null,
-    },
-  );
+  const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    /** Fetch the token from storage then navigate to our appropriate place **/
-    const checkAuth = async () => {
-      let authToken = null;
-      let authUser = null;
-
+    const restore = async () => {
       try {
-        /** Use SecureStore or AsyncStorage to get and set user token */
-        // authToken = await SecureStore.getItemAsync('cloudAuthToken');
-        authToken = null;
+        const authToken = await loadItem(cloudV2AuthToken);
+        const authUser = await loadItem(cloudV2AuthUser, true);
+        const deviceId = await loadItem(cloudV2DeviceId);
+        const deviceToken = await loadItem(cloudV2DeviceToken);
+        const designatedBranch = await loadItem(cloudV2DesignatedBranch, true);
 
-        const hasAuthToken = await SecureStorage.hasItem('cloudAuthToken');
-
-        if (hasAuthToken) {
-          authToken = await SecureStorage.getItem('cloudAuthToken');
-          const deviceId = await deviceInfo.getDeviceId();
-          let secretKey = deviceId;
-
-          // decode token
-          const {payload} = await decode(
-            authToken, // the token
-            secretKey, // the secret
-            {
-              skipValidation: false, // to skip signature and exp verification
-            },
-          );
-
-          authUser = payload;
-        }
+        dispatch({
+          type: 'RESTORE',
+          authToken,
+          authUser,
+          deviceId,
+          deviceToken,
+          designatedBranch,
+        });
       } catch (error) {
-        /** Restoring token failed **/
-        console.debug(error);
+        console.debug('[CloudAuthContextProvider] restore error:', error);
+        dispatch({
+          type: 'RESTORE',
+          authToken: null,
+          authUser: null,
+          deviceId: null,
+          deviceToken: null,
+          designatedBranch: null,
+        });
       }
-
-      /** After restoring token, we may need to validate it in production apps **/
-
-      /**
-       * This will switch to the App screen or Auth screen and this loading
-       * screen will be unmounted and thrown away.
-       */
-      dispatch({type: 'RESTORE_TOKEN', authToken, authUser});
     };
 
-    const clearAuth = async () => {
-      const authToken = null;
-      const authUser = null;
-
-      dispatch({type: 'RESTORE_TOKEN', authToken, authUser});
-    };
-
-    checkAuth();
+    restore();
   }, []);
 
   const authActions = useMemo(
     () => ({
       signIn: async data => {
-        /**
-         * In a production app, we need to send some data (usually username, password) to server and get a token
-         * We will also need to handle errors if sign in failed
-         * After getting token, we need to persist the token using `SecureStore`
-         * In the example, we'll use a dummy token
-         */
-        dispatch({
-          type: 'SIGN_IN',
-          authToken: data?.token,
-          authUser: data?.user,
-        });
+        const token = data?.data?.token ?? null;
+        const user = data?.data
+          ? {account: data.data.account, company: data.data.company}
+          : null;
+        await saveItem(cloudV2AuthToken, token);
+        await saveItem(cloudV2AuthUser, user);
+        dispatch({type: 'SIGN_IN', authToken: token, authUser: user});
       },
+
+      signUp: async data => {
+        const token = data?.data?.token ?? null;
+        const user = data?.data
+          ? {account: data.data.account, company: data.data.company}
+          : null;
+        await saveItem(cloudV2AuthToken, token);
+        await saveItem(cloudV2AuthUser, user);
+        dispatch({type: 'SIGN_UP', authToken: token, authUser: user});
+      },
+
+      // Called after OTP verify — same shape as signIn
+      setAuthFromVerify: async data => {
+        const token = data?.data?.token ?? null;
+        const user = data?.data
+          ? {account: data.data.account, company: data.data.company}
+          : null;
+        await saveItem(cloudV2AuthToken, token);
+        await saveItem(cloudV2AuthUser, user);
+        dispatch({type: 'SIGN_IN', authToken: token, authUser: user});
+      },
+
       signOut: async () => {
         try {
-          const hasAuthToken = await SecureStorage.hasItem('cloudAuthToken');
-
-          if (hasAuthToken) {
-            await SecureStorage.removeItem('cloudAuthToken');
-          }
+          await saveItem(cloudV2AuthToken, null);
+          await saveItem(cloudV2AuthUser, null);
+          await saveItem(cloudV2DeviceId, null);
+          await saveItem(cloudV2DeviceToken, null);
+          await saveItem(cloudV2DesignatedBranch, null);
         } catch (error) {
-          console.debug(error);
+          console.debug('[CloudAuthContextProvider] signOut error:', error);
         }
-
         dispatch({type: 'SIGN_OUT'});
       },
-      signUp: data => {
-        /**
-         * In a production app, we need to send user data to server and get a token
-         * We will also need to handle errors if sign up failed
-         * After getting token, we need to persist the token using `SecureStore`
-         * In the example, we'll use a dummy token
-         */
+
+      setDeviceCredentials: async ({deviceId, deviceToken}) => {
+        await saveItem(cloudV2DeviceId, deviceId);
+        await saveItem(cloudV2DeviceToken, deviceToken);
         dispatch({
-          type: 'SIGN_UP',
-          authToken: data?.token,
-          authUser: data?.user,
+          type: 'SET_DEVICE_CREDENTIALS',
+          deviceId,
+          deviceToken,
         });
       },
-      resignIn: data => {
-        dispatch({
-          type: 'SIGN_IN',
-          authToken: data?.token,
-          authUser: data?.user,
-        });
-      },
-      restoreAuth: data => {
-        let authToken = null;
-        let authUser = null;
 
-        if (data?.authToken && data?.authUser) {
-          authToken = data.authToken;
-          authUser = data.authUser;
-        }
+      setDesignatedBranch: async branch => {
+        await saveItem(cloudV2DesignatedBranch, branch);
+        dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: branch});
+      },
 
-        dispatch({type: 'RESTORE_TOKEN', authToken, authUser});
-      },
-      hidePostSignupScreen: () => {
-        dispatch({type: 'HIDE_POST_SIGNUP_SCREEN'});
-      },
       setExpiredAuthTokenDialogVisible,
     }),
     [],
   );
 
   const otherState = {expiredAuthTokenDialogVisible};
-
-  const otherActions = useMemo(() => ({
-    setExpiredAuthTokenDialogVisible,
-  }));
+  const otherActions = useMemo(() => ({setExpiredAuthTokenDialogVisible}), []);
 
   return (
     <CloudAuthContext.Provider

@@ -109,6 +109,13 @@ export const routes = {
   deleteSellingMenu: () => 'DeleteSellingMenu',
   sellingMenuView: () => 'SellingMenuView',
   selectSellingMenuItems: () => 'SelectSellingMenuItems',
+  // FCMS Cloud API v2
+  cloudV2SignIn: () => 'CloudV2SignIn',
+  cloudV2SignUpStep1: () => 'CloudV2SignUpStep1',
+  cloudV2SignUpStep2: () => 'CloudV2SignUpStep2',
+  cloudV2OTPVerification: () => 'CloudV2OTPVerification',
+  cloudV2DeviceRegistration: () => 'CloudV2DeviceRegistration',
+  cloudV2BranchSetup: () => 'CloudV2BranchSetup',
 };
 
 export default routes;
