@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {View, StyleSheet, TextInput as RNTextInput} from 'react-native';
+import {View, StyleSheet, TextInput as RNTextInput, Pressable, AppState} from 'react-native';
 import {Button, Text, useTheme, HelperText, ActivityIndicator} from 'react-native-paper';
 import {useMutation} from '@tanstack/react-query';
 
@@ -20,6 +20,7 @@ const CloudV2OTPVerification = ({route}) => {
   const [serverError, setServerError] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownRef = useRef(null);
+  const cooldownEndRef = useRef(null);
   const inputRef = useRef(null);
 
   const requestMutation = useMutation(requestOtp);
@@ -44,22 +45,41 @@ const CloudV2OTPVerification = ({route}) => {
   };
 
   const startCooldown = seconds => {
-    setResendCooldown(seconds > 60 ? 60 : seconds);
+    const clamped = seconds > 60 ? 60 : seconds;
+    cooldownEndRef.current = Date.now() + clamped * 1000;
+    setResendCooldown(clamped);
     clearInterval(cooldownRef.current);
     cooldownRef.current = setInterval(() => {
-      setResendCooldown(prev => {
-        if (prev <= 1) {
-          clearInterval(cooldownRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
+      const remaining = Math.ceil((cooldownEndRef.current - Date.now()) / 1000);
+      if (remaining <= 0) {
+        clearInterval(cooldownRef.current);
+        setResendCooldown(0);
+      } else {
+        setResendCooldown(remaining);
+      }
     }, 1000);
   };
 
   useEffect(() => {
     sendOtp();
     return () => clearInterval(cooldownRef.current);
+  }, []);
+
+  // Recalculate remaining cooldown when app returns from background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active' && cooldownEndRef.current) {
+        const remaining = Math.ceil((cooldownEndRef.current - Date.now()) / 1000);
+        if (remaining <= 0) {
+          clearInterval(cooldownRef.current);
+          setResendCooldown(0);
+          cooldownEndRef.current = null;
+        } else {
+          setResendCooldown(remaining);
+        }
+      }
+    });
+    return () => subscription.remove();
   }, []);
 
   const handleVerify = async () => {
@@ -121,39 +141,41 @@ const CloudV2OTPVerification = ({route}) => {
         keyboardType="number-pad"
         maxLength={OTP_LENGTH}
         style={styles.hiddenInput}
+        showSoftInputOnFocus
         autoFocus
       />
 
-      {/* Digit boxes */}
-      <View style={styles.otpRow}>
-        {digits.map((digit, index) => {
-          const isFocused = index === otp.length;
-          return (
-            <View
-              key={index}
-              style={[
-                styles.digitBox,
-                {
-                  borderColor: isFocused
-                    ? colors.primary
-                    : digit.trim()
-                    ? colors.primary
-                    : colors.outline ?? '#ccc',
-                  backgroundColor: colors.surface,
-                },
-              ]}
-              // Tapping anywhere focuses the hidden input
-              onStartShouldSetResponder={() => {
-                inputRef.current?.focus();
-                return true;
-              }}>
-              <Text style={[styles.digitText, {color: colors.onSurface ?? colors.text}]}>
-                {digit.trim()}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
+      {/* Digit boxes — tap anywhere to (re)open the keyboard */}
+      <Pressable
+        onPress={() => {
+          inputRef.current?.blur();
+          requestAnimationFrame(() => inputRef.current?.focus());
+        }}>
+        <View style={styles.otpRow}>
+          {digits.map((digit, index) => {
+            const isFocused = index === otp.length;
+            return (
+              <View
+                key={index}
+                style={[
+                  styles.digitBox,
+                  {
+                    borderColor: isFocused
+                      ? colors.primary
+                      : digit.trim()
+                      ? colors.primary
+                      : colors.outline ?? '#ccc',
+                    backgroundColor: colors.surface,
+                  },
+                ]}>
+                <Text style={[styles.digitText, {color: colors.onSurface ?? colors.text}]}>
+                  {digit.trim()}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </Pressable>
 
       {serverError ? (
         <HelperText type="error" style={styles.error}>
