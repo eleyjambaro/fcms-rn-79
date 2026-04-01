@@ -5,7 +5,7 @@ import {Formik} from 'formik';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import StepIndicator from 'react-native-step-indicator';
 
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import AccountForm from '../components/forms/AccountForm';
 import {createAccount} from '../localDbQueries/accounts';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
@@ -14,7 +14,7 @@ import CompanyForm from '../components/forms/CompanyForm';
 
 const AccountSetup = () => {
   const {colors} = useTheme();
-  const [_authState, {signIn, signUp}] = useAuthContext();
+  const [_authState, {signIn, signUp}] = useCurrentUser();
   const queryClient = useQueryClient();
   const createAccountMutation = useMutation(createAccount, {
     onSuccess: () => {

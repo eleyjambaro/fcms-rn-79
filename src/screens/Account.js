@@ -42,7 +42,7 @@ import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import * as DocumentPicker from '@react-native-documents/picker';
 import RNFetchBlob from 'rn-fetch-blob';
 
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import routes from '../constants/routes';
 import {manualDataRecovery} from '../constants/dataRecovery';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
@@ -67,7 +67,7 @@ const Account = props => {
   const {navigation} = props;
   const [active, setActive] = React.useState('');
   const {colors} = useTheme();
-  const [{authUser}, {signOut}] = useAuthContext();
+  const [{authUser}, {signOut}] = useCurrentUser();
   const {status: getLocalUserAccountStatus, data: getLocalUserAccountData} =
     useQuery(['localUserAccount', {id: authUser?.id}], getLocalUserAccount, {
       enabled: authUser?.id ? true : false,

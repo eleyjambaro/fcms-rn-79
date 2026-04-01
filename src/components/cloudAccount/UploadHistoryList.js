@@ -44,7 +44,7 @@ import * as DocumentPicker from '@react-native-documents/picker';
 import RNFetchBlob from 'rn-fetch-blob';
 import RNRestart from 'react-native-restart';
 
-import useAuthContext from '../../hooks/useAuthContext';
+import useCurrentUser from '../../hooks/useCurrentUser';
 import routes from '../../constants/routes';
 import {
   cloudDataRecovery,

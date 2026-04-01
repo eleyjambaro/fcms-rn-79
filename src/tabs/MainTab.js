@@ -17,7 +17,7 @@ import StockUsageEntryList from '../screens/StockUsageEntryList';
 import HomeHeader from '../components/headers/HomeHeader';
 import Settings from '../screens/Settings';
 import CompanyIcon from '../components/icons/CompanyIcon';
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import UnauthorizedAccount from '../screens/UnauthorizedAccount';
 
 const Tab = createBottomTabNavigator();
@@ -35,7 +35,7 @@ const MemoizedUnauthorizedAccount = React.memo(UnauthorizedAccount);
 const MainTab = React.memo(function MainTab(props) {
   const {navigation} = props;
   const {colors} = useTheme();
-  const [{authUser}] = useAuthContext();
+  const [{authUser}] = useCurrentUser();
   const userRoleConfig = authUser?.role_config;
   const tabBarBadgeStyle = {fontSize: 10, top: -8};
 

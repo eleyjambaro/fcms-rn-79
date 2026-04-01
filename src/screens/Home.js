@@ -34,7 +34,7 @@ import routes from '../constants/routes';
 import {env} from '../constants/appConfig';
 import {getBatchPurchaseEntriesCount} from '../localDbQueries/batchPurchase';
 import {getBatchStockUsageEntriesCount} from '../localDbQueries/batchStockUsage';
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import {getAuthTokenStatus} from '../localDbQueries/accounts';
 import {getLicenseStatus} from '../localDbQueries/license';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
@@ -53,7 +53,7 @@ const Home = props => {
     {signOut},
     {expiredAuthTokenDialogVisible},
     {setExpiredAuthTokenDialogVisible},
-  ] = useAuthContext();
+  ] = useCurrentUser();
   const userRoleConfig = authUser?.role_config;
   const {isLandscapeMode, width} = useWindowProperties();
   const {

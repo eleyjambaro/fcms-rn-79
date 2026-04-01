@@ -4,7 +4,7 @@ import React, {useState} from 'react';
 import {Formik} from 'formik';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import AccountForm from '../components/forms/AccountForm';
 import {createAccount} from '../localDbQueries/accounts';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
@@ -12,7 +12,7 @@ import AppIcon from '../components/icons/AppIcon';
 
 const CreateAccount = () => {
   const {colors} = useTheme();
-  const [_authState, {signIn, signUp}] = useAuthContext();
+  const [_authState, {signIn, signUp}] = useCurrentUser();
   const queryClient = useQueryClient();
   const createAccountMutation = useMutation(createAccount, {
     onSuccess: () => {

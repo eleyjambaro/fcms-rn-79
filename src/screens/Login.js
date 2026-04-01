@@ -15,7 +15,7 @@ import React, {useState} from 'react';
 import {Formik} from 'formik';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import LoginForm from '../components/forms/LoginForm';
 import {
   emergencyChangePassword,
@@ -32,7 +32,7 @@ import {adUnitIds} from '../constants/adUnitIds';
 
 const Login = () => {
   const {colors} = useTheme();
-  const [_authState, {signIn}] = useAuthContext();
+  const [_authState, {signIn}] = useCurrentUser();
   const queryClient = useQueryClient();
   const signInAccountMutation = useMutation(signInAccount, {
     onSuccess: () => {

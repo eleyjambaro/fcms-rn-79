@@ -23,11 +23,11 @@ import {BluetoothStateManager} from 'react-native-bluetooth-state-manager';
 import {DefaultPrinterContext} from '../types';
 import {getDefaultPrinter} from '../../localDbQueries/printers';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
-import useAuthContext from '../../hooks/useAuthContext';
+import useCurrentUser from '../../hooks/useCurrentUser';
 
 const DefaultPrinterContextProvider = props => {
   const {children} = props;
-  const [authState] = useAuthContext();
+  const [authState] = useCurrentUser();
   const getDefaultPrinterResult = useQuery(
     ['defaultPrinter'],
     getDefaultPrinter,

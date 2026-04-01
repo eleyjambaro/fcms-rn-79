@@ -45,13 +45,13 @@ import {
   updateLocalUserAccount,
 } from '../../localDbQueries/accounts';
 import ErrorMessageModal from '../modals/ErrorMessageModal';
-import useAuthContext from '../../hooks/useAuthContext';
+import useCurrentUser from '../../hooks/useCurrentUser';
 
 const LocalUserAccountList = props => {
   const {backAction, viewMode, filter} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
-  const [authState] = useAuthContext();
+  const [authState] = useCurrentUser();
   const authUser = authState?.authUser;
   const [focusedItem, setFocusedItem] = useState(null);
   const {

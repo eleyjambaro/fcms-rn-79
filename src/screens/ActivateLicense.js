@@ -12,7 +12,7 @@ import {Formik} from 'formik';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import moment from 'moment';
 
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import LicenseForm from '../components/forms/LicenseForm';
 import {
   activateLicense,
@@ -30,7 +30,7 @@ import {adUnitIds} from '../constants/adUnitIds';
 const ActivateLicense = props => {
   const {navigation} = props;
   const {colors} = useTheme();
-  const [authState, {signIn}] = useAuthContext();
+  const [authState, {signIn}] = useCurrentUser();
   const {
     status: getLicenseStatusReqStatus,
     data: getLicenseStatusReqData,

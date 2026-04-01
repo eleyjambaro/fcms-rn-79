@@ -13,7 +13,7 @@ import {Formik} from 'formik';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useNavigation, useRoute} from '@react-navigation/native';
 
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import CompanyForm from '../components/forms/CompanyForm';
 import {
   createCompany,

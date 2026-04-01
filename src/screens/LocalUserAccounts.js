@@ -20,7 +20,7 @@ import {createVendor} from '../localDbQueries/vendors';
 import {ScrollView} from 'react-native-gesture-handler';
 import {createLocalUserAccount} from '../localDbQueries/accounts';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 
 function LocalUserAccounts(props) {
   const {navigation, viewMode} = props;
@@ -29,7 +29,7 @@ function LocalUserAccounts(props) {
     setCreateLocalUserAccountModalVisible,
   ] = useState(false);
   const {colors} = useTheme();
-  const [authState] = useAuthContext();
+  const [authState] = useCurrentUser();
   const authUser = authState?.authUser;
   const queryClient = useQueryClient();
   const createLocalUserAccountMutation = useMutation(createLocalUserAccount, {

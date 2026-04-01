@@ -1,7 +1,7 @@
 import {StyleSheet, Text, View} from 'react-native';
 import React from 'react';
 import {Drawer, useTheme} from 'react-native-paper';
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import {useNavigation} from '@react-navigation/native';
 import routes from '../constants/routes';
 import BannerAdComponent from '../components/ads/BannerAdComponent';
@@ -10,7 +10,7 @@ import {adUnitIds} from '../constants/adUnitIds';
 const Settings = () => {
   const [active, setActive] = React.useState('');
   const {colors} = useTheme();
-  const [_authState, {signOut}] = useAuthContext();
+  const [_authState, {signOut}] = useCurrentUser();
   const navigation = useNavigation();
 
   return (

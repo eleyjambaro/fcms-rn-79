@@ -4,7 +4,7 @@ import React, {useState} from 'react';
 import {Formik} from 'formik';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 
-import useAuthContext from '../hooks/useAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import CompanyForm from '../components/forms/CompanyForm';
 import {createCompany} from '../localDbQueries/companies';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';

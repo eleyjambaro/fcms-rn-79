@@ -29,7 +29,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import ManageExternalStorage from 'react-native-manage-external-storage';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
-import useAuthContext from '../../hooks/useAuthContext';
+import useCurrentUser from '../../hooks/useCurrentUser';
 import routes from '../../constants/routes';
 import {cloudDataRecovery} from '../../constants/dataRecovery';
 import ErrorMessageModal from '../../components/modals/ErrorMessageModal';
