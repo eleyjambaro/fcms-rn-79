@@ -16,7 +16,8 @@
     "check-camera-16kb": "unzip -p android/app/build/outputs/bundle/release/app-release.aab base/lib/arm64-v8a/libimage_processing_util_jni.so > /tmp/camera_check.so && objdump -p /tmp/camera_check.so | grep LOAD",
     "verify-aab-16kb": "for lib in libmmkv.so libNitroModules.so libimage_processing_util_jni.so; do echo \"--- Checking $lib ---\"; unzip -p android/app/build/outputs/bundle/release/app-release.aab base/lib/arm64-v8a/$lib > /tmp/check.so 2>/dev/null && (objdump -p /tmp/check.so | grep LOAD | grep -q 'align 2\\*\\*14' && echo \"✅ $lib is 16KB ALIGNED\" || echo \"❌ $lib is STILL 4KB\") || echo \"⚠️ $lib not found in bundle\"; done",
     "verify-all-16kb": "rm -rf /tmp/aab_check && mkdir -p /tmp/aab_check && unzip -o android/app/build/outputs/bundle/release/app-release.aab 'base/lib/arm64-v8a/*.so' -d /tmp/aab_check/ && for f in /tmp/aab_check/base/lib/arm64-v8a/*.so; do name=$(basename \"$f\"); result=$(objdump -p \"$f\" 2>/dev/null | grep -i 'LOAD' | head -1); if echo \"$result\" | grep -qE '2\\*\\*14|0x4000'; then echo \"✅ $name\"; else echo \"❌ $name → $result\"; fi; done",
-    "android:clean": "rm -rf android/app/.cxx android/app/build android/build"
+    "android:clean": "rm -rf android/app/.cxx android/app/build android/build",
+    "sync-ip": "IP=$(ipconfig getifaddr en0) && sed -i '' \"s|CLOUD_API_V2_BASE_URL=.*|CLOUD_API_V2_BASE_URL=http://$IP:8080|\" .env && echo \"Updated CLOUD_API_V2_BASE_URL to http://$IP:8080\""
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.1.6",
