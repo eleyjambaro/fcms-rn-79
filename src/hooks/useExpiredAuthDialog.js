@@ -1,24 +1,13 @@
-import {useEffect} from 'react';
-import {useQueryClient} from '@tanstack/react-query';
 import {Portal, Dialog, Button, Text} from 'react-native-paper';
 import useCurrentUser from './useCurrentUser';
 
 export default function useExpiredAuthDialog() {
-  const queryClient = useQueryClient();
   const [
-    authState,
+    _authState,
     {signOut},
     {expiredAuthTokenDialogVisible},
     {setExpiredAuthTokenDialogVisible},
   ] = useCurrentUser();
-
-  const authTokenData = queryClient.getQueryData(['authTokenStatus']);
-
-  useEffect(() => {
-    if (authTokenData?.result?.isAuthTokenExpired && authState.authToken) {
-      setExpiredAuthTokenDialogVisible(true);
-    }
-  }, [authTokenData, authState.authToken]);
 
   const dismissExpiredAuthDialog = () => {
     signOut();
