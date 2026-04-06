@@ -4,14 +4,14 @@ import {Text, Button, useTheme, ActivityIndicator} from 'react-native-paper';
 import {useMutation} from '@tanstack/react-query';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
-import {registerDevice} from '../serverDbQueries/v2/devices';
+import {registerDevice, lookupBranch} from '../serverDbQueries/v2/devices';
 import deviceInfoLib from '../lib/deviceInfo';
 import appDefaults from '../constants/appDefaults';
 import CloudAppIcon from '../components/icons/CloudAppIcon';
 
 const CloudV2DeviceRegistration = () => {
   const {colors} = useTheme();
-  const [, {setDeviceCredentials}] = useCloudAuthContext();
+  const [, {setDeviceCredentials, setDesignatedBranch}] = useCloudAuthContext();
   const [error, setError] = useState('');
 
   const mutation = useMutation(registerDevice);
@@ -30,11 +30,21 @@ const CloudV2DeviceRegistration = () => {
       });
 
       if (data?.status === 'success') {
-        await setDeviceCredentials({
-          deviceId: data.data.device_id,
-          deviceToken: data.data.device_token,
-        });
-        // Context update triggers CloudAuthStackV2 to advance to branch setup
+        const deviceId = data.data.device_id;
+        const deviceToken = data.data.device_token;
+        await setDeviceCredentials({deviceId, deviceToken});
+
+        // If this device already has a branch assigned on the server (returning
+        // user who signed out), save it now so we skip the branch setup screen.
+        try {
+          const branchData = await lookupBranch(deviceId);
+          if (branchData?.data?.branch) {
+            await setDesignatedBranch(branchData.data.branch);
+          }
+        } catch {
+          // Not fatal — branch setup screen will handle assignment for new devices.
+        }
+        // Context update triggers CloudAuthStackV2 to advance
       } else {
         setError(data?.message || 'Device registration failed.');
       }

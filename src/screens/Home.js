@@ -35,7 +35,6 @@ import {env} from '../constants/appConfig';
 import {getBatchPurchaseEntriesCount} from '../localDbQueries/batchPurchase';
 import {getBatchStockUsageEntriesCount} from '../localDbQueries/batchStockUsage';
 import useCurrentUser from '../hooks/useCurrentUser';
-import {getAuthTokenStatus} from '../localDbQueries/accounts';
 import {getLicenseStatus} from '../localDbQueries/license';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
@@ -52,7 +51,7 @@ const Home = props => {
     {authUser},
     {signOut},
     {expiredAuthTokenDialogVisible},
-    {setExpiredAuthTokenDialogVisible},
+    {},
   ] = useCurrentUser();
   const userRoleConfig = authUser?.role_config;
   const {isLandscapeMode, width} = useWindowProperties();
@@ -71,35 +70,11 @@ const Home = props => {
     getBatchStockUsageEntriesCount,
   );
   const {
-    isRefetching: isRefetchingAuthTokenStatus,
-    status: authTokenStatus,
-    data: authTokenData,
-    refetch: refetchAuthTokenStatus,
-  } = useQuery(['authTokenStatus'], getAuthTokenStatus);
-  const {
     status: getLicenseStatusReqStatus,
     data: getLicenseStatusReqData,
     error,
   } = useQuery(['licenseKeyStatus', {}], getLicenseStatus);
 
-  useEffect(() => {
-    if (authTokenData) {
-      const {isAuthTokenExpired, authToken} = authTokenData.result;
-
-      if (isFocused) {
-        refetchAuthTokenStatus();
-      }
-
-      if (
-        authTokenStatus !== 'loading' &&
-        !isRefetchingAuthTokenStatus &&
-        authToken && // do not run if authToken was already deleted
-        isAuthTokenExpired
-      ) {
-        setExpiredAuthTokenDialogVisible(() => true);
-      }
-    }
-  }, [isFocused, authTokenStatus, authTokenData]);
 
   const wrapperMargin = 0;
   const groupPadding = 10;
@@ -601,14 +576,6 @@ const Home = props => {
 
     return jsxMainButtonsInsideRowContainers;
   };
-
-  if (authTokenStatus === 'loading') {
-    return null;
-  }
-
-  if (authTokenStatus === 'error') {
-    return null;
-  }
 
   const {open} = state;
 
