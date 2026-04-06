@@ -17,9 +17,8 @@ import {Formik} from 'formik';
 import * as Yup from 'yup';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
-import {getDeviceMe} from '../serverDbQueries/v2/devices';
+import {lookupBranch, assignBranch} from '../serverDbQueries/v2/devices';
 import {getBranches, createBranch} from '../serverDbQueries/v2/branches';
-import {assignBranch} from '../serverDbQueries/v2/devices';
 import appDefaults from '../constants/appDefaults';
 import CloudAppIcon from '../components/icons/CloudAppIcon';
 
@@ -40,16 +39,21 @@ const CloudV2BranchSetup = () => {
   const deviceId = cloudAuthState.deviceId;
 
   // Step 1: Check if device already has an assigned branch
-  const deviceMeQuery = useQuery(['cloudV2DeviceMe'], getDeviceMe, {
-    onSuccess: async data => {
-      if (data?.data?.branch) {
-        await setDesignatedBranch(data.data.branch);
-      }
+  const deviceMeQuery = useQuery(
+    ['cloudV2DeviceMe', deviceId],
+    ({queryKey}) => lookupBranch(queryKey[1]),
+    {
+      enabled: !!deviceId,
+      onSuccess: async data => {
+        if (data?.data?.branch) {
+          await setDesignatedBranch(data.data.branch);
+        }
+      },
+      onError: () => {
+        // Not fatal — branch list will still load
+      },
     },
-    onError: () => {
-      // Not fatal — branch list will still load
-    },
-  });
+  );
 
   // Step 2: Load available branches
   const branchesQuery = useQuery(['cloudV2Branches'], getBranches, {
