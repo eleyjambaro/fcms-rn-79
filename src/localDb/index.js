@@ -1530,7 +1530,7 @@ export const alterTables = async currentAppVersion => {
           db,
           table,
           'updated_at',
-          `ALTER TABLE ${table} ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`,
+          `ALTER TABLE ${table} ADD COLUMN updated_at DATETIME DEFAULT NULL;`,
         );
         await executeSqlIfColumnNotExist(
           db,
