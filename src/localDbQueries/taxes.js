@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createQueryFilter,
@@ -13,23 +13,26 @@ export const defaultTaxes = [
 ];
 
 export const createTax = async ({values, onInsertLimitReached}) => {
-  const query = `INSERT INTO taxes (
+  try {
+    const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
+    const query = `INSERT INTO taxes (
     name,
     rate_percentage,
     is_compound_tax,
-    is_app_default
+    is_app_default,
+    device_id,
+    branch_id
   )
-  
+
   VALUES(
     '${values.name.replace(/\'/g, "''")}',
     ${values.rate_percentage},
     ${parseInt(values.is_compound_tax || 0)},
-    ${parseInt(values.is_app_default || 0)}
-
+    ${parseInt(values.is_app_default || 0)},
+    ${deviceId ? `'${deviceId}'` : 'NULL'},
+    ${branchId ? `'${branchId}'` : 'NULL'}
   );`;
-
-  try {
-    const db = await getDBConnection();
     const appConfig = await getAppConfig();
     const insertLimit = appConfig?.insertLimit;
 

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
   createQueryFilter,
   isMutationDisabled,
@@ -322,10 +322,10 @@ export const getBatchPurchaseEntriesGrandTotal = async ({queryKey}) => {
 };
 
 export const createBatchPurchaseEntry = async ({values}) => {
-  const createBatchPurchaseGroupQuery = `INSERT INTO batch_purchase_groups DEFAULT VALUES;`;
-
   try {
     const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
+    const createBatchPurchaseGroupQuery = `INSERT INTO batch_purchase_groups (device_id, branch_id) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'});`;
 
     // check if there's an existing unconfirmed Batch Purchase Group
     // before creating new one
@@ -359,15 +359,19 @@ export const createBatchPurchaseEntry = async ({values}) => {
       item_id,
       tax_id,
       add_stock_qty,
-      add_stock_unit_cost
+      add_stock_unit_cost,
+      device_id,
+      branch_id
     )
-    
+
     VALUES(
       ${parseInt(currentBatchPurchaseGroupId)},
       ${parseInt(values.item_id)},
       ${parseInt(values.tax_id) || 'null'},
       ${parseFloat(values.add_stock_qty)},
-      ${parseFloat(values.add_stock_unit_cost)}
+      ${parseFloat(values.add_stock_unit_cost)},
+      ${deviceId ? `'${deviceId}'` : 'NULL'},
+      ${branchId ? `'${branchId}'` : 'NULL'}
     );`;
 
     const updateBatchPurchaseEntryQuery = `UPDATE batch_purchase_entries
@@ -537,13 +541,18 @@ export const getCurrentBatchPurchaseGroupId = async () => {
         return latestUnconfirmedBatchPurchaseGroup.id;
       } else {
         // create new Batch Purchase Group
+        const {deviceId: bpgDeviceId, branchId: bpgBranchId} = await getCloudSyncParams();
         const createBatchPurchaseGroupQuery = `
           INSERT INTO batch_purchase_groups (
-            confirmed
+            confirmed,
+            device_id,
+            branch_id
           )
 
           VALUES (
-            0
+            0,
+            ${bpgDeviceId ? `'${bpgDeviceId}'` : 'NULL'},
+            ${bpgBranchId ? `'${bpgBranchId}'` : 'NULL'}
           );
         `;
         const createBatchPurchaseGroupResult = await db.executeSql(
@@ -663,6 +672,7 @@ export const confirmBatchPurchaseEntries = async ({
       getAllCurrentBatchPurchaseEntriesQuery,
     );
 
+    const {deviceId, branchId} = await getCloudSyncParams();
     // insert each batch purchase entries to Inventory logs
     let insertInventoryLogsQuery = `
       INSERT INTO inventory_logs (
@@ -679,9 +689,11 @@ export const confirmBatchPurchaseEntries = async ({
         adjustment_tax_name,
         adjustment_qty,
         adjustment_date,
-        batch_purchase_group_id
+        batch_purchase_group_id,
+        device_id,
+        branch_id
       )
-      
+
       VALUES
     `;
 
@@ -725,7 +737,9 @@ export const confirmBatchPurchaseEntries = async ({
           ${taxName},
           ${qty},
           ${dateConfirmed},
-          ${parseInt(currentBatchPurchaseGroupId)}
+          ${parseInt(currentBatchPurchaseGroupId)},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         )`;
 
         if (result.rows.length - 1 !== index) {

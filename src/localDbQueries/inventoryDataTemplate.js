@@ -2,7 +2,7 @@ import convert from 'convert-units';
 import * as RNFS from 'react-native-fs';
 import XLSX from 'xlsx';
 
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
   createQueryFilter,
   isInsertLimitReached,
@@ -199,6 +199,7 @@ export const insertTemplateDataToDb = async ({
 }) => {
   try {
     const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
     const appConfig = await getAppConfig();
     const {insertLimit, insertCategoryLimit, insertItemLimitPerCategory} =
       appConfig;
@@ -614,7 +615,9 @@ export const insertTemplateDataToDb = async ({
     if (notExistingCategoriesName.length > 0) {
       let insertNotExistingCategoriesNameToDbQuery = `
         INSERT INTO categories (
-          name
+          name,
+          device_id,
+          branch_id
         )
 
         VALUES
@@ -625,7 +628,9 @@ export const insertTemplateDataToDb = async ({
         insertedCategoriesName.push(notExistingCategoryName);
 
         insertNotExistingCategoriesNameToDbQuery += `(
-        '${notExistingCategoryName.replace(/\'/g, "''")}'
+        '${notExistingCategoryName.replace(/\'/g, "''")}',
+        ${deviceId ? `'${deviceId}'` : 'NULL'},
+        ${branchId ? `'${branchId}'` : 'NULL'}
       )`;
 
         if (notExistingCategoriesName.length - 1 !== index) {
@@ -725,7 +730,9 @@ export const insertTemplateDataToDb = async ({
       let insertNotExistingTaxesToDbQuery = `
         INSERT INTO taxes (
           name,
-          rate_percentage
+          rate_percentage,
+          device_id,
+          branch_id
         )
 
         VALUES
@@ -737,7 +744,9 @@ export const insertTemplateDataToDb = async ({
 
         insertNotExistingTaxesToDbQuery += `(
           '${notExistingTax?.tax_name.replace(/\'/g, "''")}',
-          ${parseFloat(notExistingTax?.tax_rate_percentage) || 0}
+          ${parseFloat(notExistingTax?.tax_rate_percentage) || 0},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         )`;
 
         if (notExistingTaxes.length - 1 !== index) {
@@ -841,9 +850,11 @@ export const insertTemplateDataToDb = async ({
 
       let insertNotExistingVendorsNameToDbQuery = `
         INSERT INTO vendors (
-          vendor_display_name
+          vendor_display_name,
+          device_id,
+          branch_id
         )
-        
+
         VALUES
       `;
 
@@ -852,7 +863,9 @@ export const insertTemplateDataToDb = async ({
         insertedVendorsName.push(notExistingVendorName);
 
         insertNotExistingVendorsNameToDbQuery += `(
-          '${notExistingVendorName.replace(/\'/g, "''")}'
+          '${notExistingVendorName.replace(/\'/g, "''")}',
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         )`;
 
         if (notExistingVendorsName.length - 1 !== index) {
@@ -1038,7 +1051,9 @@ export const insertTemplateDataToDb = async ({
           uom_abbrev,
           unit_cost,
           uom_abbrev_per_piece,
-          qty_per_piece
+          qty_per_piece,
+          device_id,
+          branch_id
         )
 
         VALUES
@@ -1133,7 +1148,9 @@ export const insertTemplateDataToDb = async ({
           '${uomAbbrev.toLowerCase()}',
           ${unitCost},
           '${uomAbbrevPerPiece.toLowerCase()}',
-          ${qtyPerPiece}
+          ${qtyPerPiece},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         )`;
 
         if (notExistingItems.length - 1 !== index) {
@@ -1195,9 +1212,11 @@ export const insertTemplateDataToDb = async ({
           adjustment_qty,
           adjustment_date,
           beginning_inventory_date,
-          remarks
+          remarks,
+          device_id,
+          branch_id
         )
-        
+
         VALUES
       `;
 
@@ -1312,7 +1331,9 @@ export const insertTemplateDataToDb = async ({
           ${initialStockQty},
           ${adjustmentDateValue},
           ${beginningInventoryDateValue},
-          ${remarks}
+          ${remarks},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         )`;
 
         if (notExistingItems.length - 1 !== index) {

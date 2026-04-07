@@ -1,5 +1,5 @@
 import getAppConfig from '../constants/appConfig';
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {isInsertLimitReached} from '../utils/localDbQueryHelpers';
 
 export const getRevenueGroups = async ({queryKey, pageParam = 1}) => {
@@ -200,12 +200,17 @@ export const createRevenueGroup = async ({
     /**
      * Insert Revenue group
      */
+    const {deviceId, branchId} = await getCloudSyncParams();
     const createRevenueGroupQuery = `INSERT INTO revenue_groups (
-      name
+      name,
+      device_id,
+      branch_id
     )
-    
+
     VALUES(
-      '${values.name.replace(/\'/g, "''")}'
+      '${values.name.replace(/\'/g, "''")}',
+      ${deviceId ? `'${deviceId}'` : 'NULL'},
+      ${branchId ? `'${branchId}'` : 'NULL'}
     );`;
 
     const createRevenueGroupResult = await db.executeSql(
@@ -222,17 +227,20 @@ export const createRevenueGroup = async ({
     let insertRevenueCategoriesQuery = `
       INSERT INTO revenue_categories (
         revenue_group_id,
-        category_id
+        category_id,
+        device_id,
+        branch_id
       )
-      
+
       VALUES
     `;
 
     values.category_ids.forEach((categoryId, index) => {
       insertRevenueCategoriesQuery += `(
           ${revenueGroupId},
-          ${categoryId}
-          
+          ${categoryId},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         )`;
 
       if (values.category_ids.length - 1 !== index) {
@@ -323,11 +331,14 @@ export const updateRevenueGroup = async ({
 
     await db.executeSql(deleteExistingRevenueCategoriesQuery);
 
+    const {deviceId, branchId} = await getCloudSyncParams();
     // insert each new categories to revenue_categories table
     let insertRevenueCategoriesQuery = `
       INSERT INTO revenue_categories (
         revenue_group_id,
-        category_id
+        category_id,
+        device_id,
+        branch_id
       )
 
       VALUES
@@ -336,8 +347,9 @@ export const updateRevenueGroup = async ({
     updatedValues.category_ids.forEach((categoryId, index) => {
       insertRevenueCategoriesQuery += `(
         ${id},
-        ${categoryId}
-       
+        ${categoryId},
+        ${deviceId ? `'${deviceId}'` : 'NULL'},
+        ${branchId ? `'${branchId}'` : 'NULL'}
       )`;
 
       if (updatedValues.category_ids.length - 1 !== index) {
@@ -385,16 +397,21 @@ export const createRevenue = async ({values}) => {
       AND revenue_group_id = ${values.revenue_group_id}
     `;
 
+    const {deviceId: revenueDeviceId, branchId: revenueBranchId} = await getCloudSyncParams();
     const createRevenueQuery = `INSERT INTO revenues (
     revenue_group_id,
     revenue_group_date,
-    amount
+    amount,
+    device_id,
+    branch_id
   )
-  
+
   VALUES(
     ${values.revenue_group_id},
     '${values.revenue_group_date}',
-    ${values.amount}
+    ${values.amount},
+    ${revenueDeviceId ? `'${revenueDeviceId}'` : 'NULL'},
+    ${revenueBranchId ? `'${revenueBranchId}'` : 'NULL'}
   );`;
 
     // check if there's an existing revenue within the current month

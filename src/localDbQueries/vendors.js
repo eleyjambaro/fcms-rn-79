@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createQueryFilter,
@@ -12,7 +12,10 @@ export const defaultTaxes = [
 ];
 
 export const createVendor = async ({values, onInsertLimitReached}) => {
-  const query = `INSERT INTO vendors (
+  try {
+    const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
+    const query = `INSERT INTO vendors (
     first_name,
     last_name,
     company_name,
@@ -21,9 +24,11 @@ export const createVendor = async ({values, onInsertLimitReached}) => {
     email,
     phone_number,
     mobile_number,
-    remarks
+    remarks,
+    device_id,
+    branch_id
   )
-  
+
   VALUES(
     '${values.first_name.replace(/\'/g, "''")}',
     '${values.last_name.replace(/\'/g, "''")}',
@@ -33,11 +38,10 @@ export const createVendor = async ({values, onInsertLimitReached}) => {
     '${values.email}',
     '${values.phone_number}',
     '${values.mobile_number}',
-    '${values.remarks ? values.remarks?.replace(/\'/g, "''") : ''}'
+    '${values.remarks ? values.remarks?.replace(/\'/g, "''") : ''}',
+    ${deviceId ? `'${deviceId}'` : 'NULL'},
+    ${branchId ? `'${branchId}'` : 'NULL'}
   );`;
-
-  try {
-    const db = await getDBConnection();
     const appConfig = await getAppConfig();
     const insertLimit = appConfig?.insertLimit;
 

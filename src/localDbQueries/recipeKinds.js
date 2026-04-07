@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 
 export const getRecipeKinds = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter}] = queryKey;
@@ -64,16 +64,20 @@ export const getRecipeKinds = async ({queryKey, pageParam = 1}) => {
 };
 
 export const createRecipeKind = async ({values}) => {
-  const query = `INSERT INTO recipe_kinds (
-    name
-  )
-  
-  VALUES(
-    '${values.name}'
-  );`;
-
   try {
     const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
+    const query = `INSERT INTO recipe_kinds (
+    name,
+    device_id,
+    branch_id
+  )
+
+  VALUES(
+    '${values.name}',
+    ${deviceId ? `'${deviceId}'` : 'NULL'},
+    ${branchId ? `'${branchId}'` : 'NULL'}
+  );`;
     return db.executeSql(query);
   } catch (error) {
     console.debug(error);

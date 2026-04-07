@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import convert from 'convert-units';
 
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
   createQueryFilter,
   isMutationDisabled,
@@ -83,6 +83,7 @@ export const confirmSaleEntries = async ({
 
     const accountUID = 'null';
     const customerId = 'null';
+    const {deviceId, branchId} = await getCloudSyncParams();
 
     /**
      * Create invoice
@@ -91,13 +92,17 @@ export const confirmSaleEntries = async ({
       INSERT INTO invoices (
         sold_by_account_uid,
         customer_id,
-        invoice_date
+        invoice_date,
+        device_id,
+        branch_id
       )
-      
+
       VALUES (
         ${accountUID},
         ${customerId},
-        ${salesInvoiceDate}
+        ${salesInvoiceDate},
+        ${deviceId ? `'${deviceId}'` : 'NULL'},
+        ${branchId ? `'${branchId}'` : 'NULL'}
       )
     `;
 
@@ -133,9 +138,11 @@ export const confirmSaleEntries = async ({
         sale_qty,
         sale_date,
         invoice_id,
-        sold_by_account_uid
+        sold_by_account_uid,
+        device_id,
+        branch_id
       )
-      
+
       VALUES
     `;
 
@@ -152,9 +159,11 @@ export const confirmSaleEntries = async ({
         adjustment_tax_name,
         adjustment_qty,
         adjustment_date,
-        invoice_id
+        invoice_id,
+        device_id,
+        branch_id
       )
-      
+
       VALUES
     `;
 
@@ -210,7 +219,9 @@ export const confirmSaleEntries = async ({
         ${qty},
         ${salesInvoiceDate},
         ${parseInt(createdInvoiceId)},
-        ${accountUID}
+        ${accountUID},
+        ${deviceId ? `'${deviceId}'` : 'NULL'},
+        ${branchId ? `'${branchId}'` : 'NULL'}
       )`;
 
       if (saleItems.length - 1 !== index) {
@@ -262,7 +273,9 @@ export const confirmSaleEntries = async ({
         ${taxName},
         ${usedStockQty},
         ${salesInvoiceDate},
-        ${parseInt(createdInvoiceId)}
+        ${parseInt(createdInvoiceId)},
+        ${deviceId ? `'${deviceId}'` : 'NULL'},
+        ${branchId ? `'${branchId}'` : 'NULL'}
       )`;
 
       if (saleItems.length - 1 !== index) {
@@ -301,9 +314,11 @@ export const confirmSaleEntries = async ({
           invoice_id,
           payment_method,
           payment_amount,
-          change_amount
+          change_amount,
+          device_id,
+          branch_id
         )
-        
+
         VALUES
       `;
 
@@ -321,7 +336,9 @@ export const confirmSaleEntries = async ({
           ${parseInt(createdInvoiceId)},
           '${payment?.payment_method}',
           ${parseFloat(payment?.payment_amount || 0)},
-          ${parseFloat(payment?.change_amount || 0)}
+          ${parseFloat(payment?.change_amount || 0)},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         )`;
 
         if (Object.keys(paymentFormValues.payments).length - 1 !== index) {
@@ -339,14 +356,18 @@ export const confirmSaleEntries = async ({
         invoice_id,
         payment_method,
         payment_amount,
-        change_amount
+        change_amount,
+        device_id,
+        branch_id
       )
-      
+
       VALUES (
         ${parseInt(createdInvoiceId)},
         '${paymentFormValues?.payment_method}',
         ${parseFloat(paymentFormValues?.payment_amount || 0)},
-         ${parseFloat(paymentFormValues?.change_amount || 0)}
+         ${parseFloat(paymentFormValues?.change_amount || 0)},
+         ${deviceId ? `'${deviceId}'` : 'NULL'},
+         ${branchId ? `'${branchId}'` : 'NULL'}
       )
     `;
 
@@ -469,6 +490,7 @@ export const confirmFulfillingSalesOrders = async ({
 
     const accountUID = 'null';
     const customerId = 'null';
+    const {deviceId: salesDeviceId, branchId: salesBranchId} = await getCloudSyncParams();
 
     /**
      * Create invoice
@@ -478,14 +500,18 @@ export const confirmFulfillingSalesOrders = async ({
         sold_by_account_uid,
         customer_id,
         invoice_date,
-        sales_order_group_id
+        sales_order_group_id,
+        device_id,
+        branch_id
       )
-      
+
       VALUES (
         ${accountUID},
         ${customerId},
         ${salesInvoiceDate},
-        ${salesOrderGroupId ? parseInt(salesOrderGroupId) : 'null'}
+        ${salesOrderGroupId ? parseInt(salesOrderGroupId) : 'null'},
+        ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
+        ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
       )
     `;
 
@@ -513,9 +539,11 @@ export const confirmFulfillingSalesOrders = async ({
         sale_qty,
         sale_date,
         invoice_id,
-        sold_by_account_uid
+        sold_by_account_uid,
+        device_id,
+        branch_id
       )
-      
+
       VALUES
     `;
 
@@ -532,9 +560,11 @@ export const confirmFulfillingSalesOrders = async ({
         adjustment_tax_name,
         adjustment_qty,
         adjustment_date,
-        invoice_id
+        invoice_id,
+        device_id,
+        branch_id
       )
-      
+
       VALUES
     `;
 
@@ -586,7 +616,9 @@ export const confirmFulfillingSalesOrders = async ({
         ${qty},
         ${salesInvoiceDate},
         ${parseInt(createdInvoiceId)},
-        ${accountUID}
+        ${accountUID},
+        ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
+        ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
       )`;
 
       if (saleItems.length - 1 !== index) {
@@ -638,7 +670,9 @@ export const confirmFulfillingSalesOrders = async ({
         ${taxName},
         ${usedStockQty},
         ${salesInvoiceDate},
-        ${parseInt(createdInvoiceId)}
+        ${parseInt(createdInvoiceId)},
+        ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
+        ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
       )`;
 
       if (saleItems.length - 1 !== index) {
@@ -679,9 +713,11 @@ export const confirmFulfillingSalesOrders = async ({
           invoice_id,
           payment_method,
           payment_amount,
-          change_amount
+          change_amount,
+          device_id,
+          branch_id
         )
-        
+
         VALUES
       `;
 
@@ -699,7 +735,9 @@ export const confirmFulfillingSalesOrders = async ({
           ${parseInt(createdInvoiceId)},
           '${payment?.payment_method}',
           ${parseFloat(payment?.payment_amount || 0)},
-          ${parseFloat(payment?.change_amount || 0)}
+          ${parseFloat(payment?.change_amount || 0)},
+          ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
+          ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
         )`;
 
         if (Object.keys(paymentFormValues.payments).length - 1 !== index) {
@@ -717,14 +755,18 @@ export const confirmFulfillingSalesOrders = async ({
           invoice_id,
           payment_method,
           payment_amount,
-          change_amount
+          change_amount,
+          device_id,
+          branch_id
         )
-        
+
         VALUES (
           ${parseInt(createdInvoiceId)},
           '${paymentFormValues?.payment_method}',
           ${parseFloat(paymentFormValues?.payment_amount || 0)},
-          ${parseFloat(paymentFormValues?.change_amount || 0)}
+          ${parseFloat(paymentFormValues?.change_amount || 0)},
+          ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
+          ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
         )
       `;
 
@@ -788,6 +830,8 @@ export const addSaleEntriesToSalesOrders = async ({
 
   try {
     const db = await getDBConnection();
+    const {deviceId: salesOrderDeviceId, branchId: salesOrderBranchId} =
+      await getCloudSyncParams();
 
     if (await isMutationDisabled()) {
       onLimitReached &&
@@ -855,13 +899,17 @@ export const addSaleEntriesToSalesOrders = async ({
       INSERT INTO sales_order_groups (
         sold_by_account_uid,
         customer_id,
-        order_date
+        order_date,
+        device_id,
+        branch_id
       )
-      
+
       VALUES (
         ${accountUID},
         ${customerId},
-        ${salesOrderDate}
+        ${salesOrderDate},
+        ${salesOrderDeviceId ? `'${salesOrderDeviceId}'` : 'NULL'},
+        ${salesOrderBranchId ? `'${salesOrderBranchId}'` : 'NULL'}
       )
     `;
 
@@ -893,9 +941,11 @@ export const addSaleEntriesToSalesOrders = async ({
         sales_order_group_id,
         sold_by_account_uid,
         meta_order_size_option_id,
-        meta_use_measurement_per_piece
+        meta_use_measurement_per_piece,
+        device_id,
+        branch_id
       )
-      
+
       VALUES
     `;
 
@@ -943,7 +993,9 @@ export const addSaleEntriesToSalesOrders = async ({
         ${parseInt(createdSalesOrderGroupId)},
         ${accountUID},
         ${orderSizeOptionId},
-        ${useMeasurementPerPiece}
+        ${useMeasurementPerPiece},
+        ${salesOrderDeviceId ? `'${salesOrderDeviceId}'` : 'NULL'},
+        ${salesOrderBranchId ? `'${salesOrderBranchId}'` : 'NULL'}
       )`;
 
       if (saleItems.length - 1 !== index) {

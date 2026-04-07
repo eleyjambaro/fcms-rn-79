@@ -1,6 +1,6 @@
 import uuid from 'react-native-uuid';
 import convert from 'convert-units';
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
   createQueryFilter,
   isInsertLimitReached,
@@ -337,6 +337,7 @@ export const registerItem = async ({
     /**
      * Insert item
      */
+    const {deviceId, branchId} = await getCloudSyncParams();
     const insertItemQuery = `INSERT INTO items (
       category_id,
       is_finished_product,
@@ -354,9 +355,11 @@ export const registerItem = async ({
       qty_per_piece,
       barcode,
       low_stock_level,
-      packaging_type
+      packaging_type,
+      device_id,
+      branch_id
     )
-    
+
     VALUES(
       ${parseInt(item.category_id) || 'null'},
       ${isFinishedProduct ? 1 : 0},
@@ -374,7 +377,9 @@ export const registerItem = async ({
       ${parseFloat(item.qty_per_piece || 0)},
       '${item.barcode || ''}',
       ${parseFloat(item.low_stock_level)},
-      '${item.packaging_type ? item.packaging_type.replace(/\'/g, "''") : ''}'
+      '${item.packaging_type ? item.packaging_type.replace(/\'/g, "''") : ''}',
+      ${deviceId ? `'${deviceId}'` : 'NULL'},
+      ${branchId ? `'${branchId}'` : 'NULL'}
     );`;
 
     let insertItemResult = null;
@@ -449,9 +454,11 @@ export const registerItem = async ({
         adjustment_date,
         beginning_inventory_date,
         official_receipt_number,
-        remarks
+        remarks,
+        device_id,
+        branch_id
       )
-    
+
       VALUES(
         ${operationId},
         ${parseInt(itemId)},
@@ -469,7 +476,9 @@ export const registerItem = async ({
         ${adjustmentDateFixedValue},
         ${beginningInventoryDateFixedValue},
         ${initStockOfficialReceiptNumber},
-        '${item.remarks ? item.remarks.replace(/\'/g, "''") : ''}'
+        '${item.remarks ? item.remarks.replace(/\'/g, "''") : ''}',
+        ${deviceId ? `'${deviceId}'` : 'NULL'},
+        ${branchId ? `'${branchId}'` : 'NULL'}
       );`;
 
     await db.executeSql(addInventoryLogQuery);
@@ -492,9 +501,11 @@ export const registerItem = async ({
             adjustment_tax_rate_percentage,
             adjustment_tax_name,
             adjustment_qty,
-            adjustment_date
+            adjustment_date,
+            device_id,
+            branch_id
           )
-          
+
           VALUES
         `;
 
@@ -534,7 +545,9 @@ export const registerItem = async ({
             ${taxRatePercentage},
             ${taxName},
             ${qty},
-            ${adjustmentDateFixedValue}
+            ${adjustmentDateFixedValue},
+            ${deviceId ? `'${deviceId}'` : 'NULL'},
+            ${branchId ? `'${branchId}'` : 'NULL'}
           )`;
 
         if (item.required_ingredients.length - 1 !== index) {
@@ -561,13 +574,17 @@ export const registerItem = async ({
         INSERT INTO modifiers (
           item_id,
           name,
-          type_ref
+          type_ref,
+          device_id,
+          branch_id
         )
 
         VALUES (
           ${parseInt(itemId)},
           'Selling Size Options',
-          '${appDefaultsTypeRefs.sellingSizeOptions}'
+          '${appDefaultsTypeRefs.sellingSizeOptions}',
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         );
       `;
 
@@ -590,9 +607,11 @@ export const registerItem = async ({
           in_option_qty,
           in_option_qty_uom_abbrev,
           in_option_qty_based_on_item_uom,
-          use_measurement_per_piece
+          use_measurement_per_piece,
+          device_id,
+          branch_id
         )
-        
+
         VALUES
       `;
 
@@ -632,7 +651,9 @@ export const registerItem = async ({
           ${parseFloat(modifierOption.in_option_qty)},
           '${modifierOption.in_option_qty_uom_abbrev}',
           ${parseFloat(inOptionQtyBasedOnItemUom)},
-          ${modifierOption.use_measurement_per_piece === true ? 1 : 0}
+          ${modifierOption.use_measurement_per_piece === true ? 1 : 0},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         )`;
 
         if (item.selling_size_options.length - 1 !== index) {

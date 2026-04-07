@@ -1,7 +1,7 @@
 import convert from 'convert-units';
 
 import {appDefaultsTypeRefs} from '../constants/appDefaults';
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 
 export const isItemHasModifierOptions = async ({queryKey}) => {
@@ -137,19 +137,25 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
     const sellingSizeModifier =
       getItemSellingSizeModifierResult[0].rows.item(0);
 
+    const {deviceId, branchId} = await getCloudSyncParams();
+
     if (!sellingSizeModifier) {
       // create selling size modifier
       const createSellingSizeModifierQuery = `
         INSERT INTO modifiers (
           item_id,
           name,
-          type_ref
+          type_ref,
+          device_id,
+          branch_id
         )
 
         VALUES (
           ${parseInt(itemId)},
           'Selling Size Options',
-          '${appDefaultsTypeRefs.sellingSizeOptions}'
+          '${appDefaultsTypeRefs.sellingSizeOptions}',
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         );
       `;
 
@@ -195,9 +201,11 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
         in_option_qty,
         in_option_qty_uom_abbrev,
         in_option_qty_based_on_item_uom,
-        use_measurement_per_piece
+        use_measurement_per_piece,
+        device_id,
+        branch_id
       )
-      
+
       VALUES (
         ${parseInt(modifierId)},
         '${values.option_name.replace(/\'/g, "''")}',
@@ -205,7 +213,9 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
         ${parseFloat(values.in_option_qty)},
         '${values.in_option_qty_uom_abbrev}',
         ${parseFloat(inOptionQtyBasedOnItemUom)},
-        ${values.use_measurement_per_piece === true ? 1 : 0}
+        ${values.use_measurement_per_piece === true ? 1 : 0},
+        ${deviceId ? `'${deviceId}'` : 'NULL'},
+        ${branchId ? `'${branchId}'` : 'NULL'}
       )
     `;
     const createSizeOptionResult = await db.executeSql(createSizeOptionQuery);

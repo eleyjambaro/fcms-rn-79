@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
   createQueryFilter,
   isInsertLimitReached,
@@ -110,12 +110,17 @@ export const createCategory = async ({
     /**
      * Insert Category
      */
+    const {deviceId, branchId} = await getCloudSyncParams();
     const createCategoryQuery = `INSERT INTO categories (
-      name
+      name,
+      device_id,
+      branch_id
     )
-    
+
     VALUES(
-      '${category.name.replace(/\'/g, "''")}'
+      '${category.name.replace(/\'/g, "''")}',
+      ${deviceId ? `'${deviceId}'` : 'NULL'},
+      ${branchId ? `'${branchId}'` : 'NULL'}
     );`;
 
     return db.executeSql(createCategoryQuery);

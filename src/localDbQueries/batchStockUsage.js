@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 
 export const getItemsAndBatchStockUsageEntries = async ({
@@ -281,10 +281,10 @@ export const getBatchStockUsageEntriesGrandTotal = async ({queryKey}) => {
 };
 
 export const createBatchStockUsageEntry = async ({values}) => {
-  const createBatchStockUsageGroupQuery = `INSERT INTO batch_stock_usage_groups DEFAULT VALUES;`;
-
   try {
     const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
+    const createBatchStockUsageGroupQuery = `INSERT INTO batch_stock_usage_groups (device_id, branch_id) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'});`;
 
     // check if there's an existing unconfirmed Batch Stock Usage Group
     // before creating new one
@@ -316,14 +316,18 @@ export const createBatchStockUsageEntry = async ({values}) => {
       batch_stock_usage_group_id,
       item_id,
       remove_stock_qty,
-      remove_stock_unit_cost
+      remove_stock_unit_cost,
+      device_id,
+      branch_id
     )
-    
+
     VALUES(
       ${parseInt(currentBatchStockUsageGroupId)},
       ${parseInt(values.item_id)},
       ${parseFloat(values.remove_stock_qty)},
-      ${parseFloat(values.remove_stock_unit_cost)}
+      ${parseFloat(values.remove_stock_unit_cost)},
+      ${deviceId ? `'${deviceId}'` : 'NULL'},
+      ${branchId ? `'${branchId}'` : 'NULL'}
     );`;
 
     const updateBatchStockUsageEntryQuery = `UPDATE batch_stock_usage_entries
@@ -410,6 +414,7 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
       getAllCurrentBatchStockUsageEntriesQuery,
     );
 
+    const {deviceId, branchId} = await getCloudSyncParams();
     // insert each batch stock usage entries to Inventory logs
     let insertInventoryLogsQuery = `
       INSERT INTO inventory_logs (
@@ -422,9 +427,11 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
         adjustment_tax_name,
         adjustment_qty,
         adjustment_date,
-        batch_stock_usage_group_id
+        batch_stock_usage_group_id,
+        device_id,
+        branch_id
       )
-      
+
       VALUES
     `;
 
@@ -460,7 +467,9 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
           ${taxName},
           ${qty},
           ${dateConfirmed},
-          ${parseInt(currentBatchStockUsageGroupId)}
+          ${parseInt(currentBatchStockUsageGroupId)},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         )`;
 
         if (result.rows.length - 1 !== index) {

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 
 export const createItemEndingInventoryEntry = async ({
@@ -269,6 +269,7 @@ export const createItemEndingInventoryEntry = async ({
       operationId = 6;
     }
 
+    const {deviceId, branchId} = await getCloudSyncParams();
     const addInventoryLogQuery = `INSERT INTO inventory_logs (
       operation_id,
       item_id,
@@ -276,7 +277,9 @@ export const createItemEndingInventoryEntry = async ({
       adjustment_unit_cost_net,
       adjustment_unit_cost_tax,
       adjustment_qty,
-      adjustment_date
+      adjustment_date,
+      device_id,
+      branch_id
     )
 
     VALUES(
@@ -286,7 +289,9 @@ export const createItemEndingInventoryEntry = async ({
       ${avgUnitCostNet},
       ${avgUnitCostTax},
       ${qty},
-      ${adjustmentDate}
+      ${adjustmentDate},
+      ${deviceId ? `'${deviceId}'` : 'NULL'},
+      ${branchId ? `'${branchId}'` : 'NULL'}
     );`;
 
     return db.executeSql(addInventoryLogQuery);

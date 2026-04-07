@@ -3,6 +3,7 @@ import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 
 import {CloudAuthContext} from '../types';
 import {rnStorageKeys} from '../../constants/rnSecureStorageKeys';
+import {invalidateCloudSyncParamsCache} from '../../localDb';
 
 const {
   cloudV2AuthToken,
@@ -182,6 +183,7 @@ const CloudAuthContextProvider = ({children}) => {
         } catch (error) {
           console.debug('[CloudAuthContextProvider] signOut error:', error);
         }
+        invalidateCloudSyncParamsCache();
         dispatch({type: 'SIGN_OUT'});
       },
 

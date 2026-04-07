@@ -1,5 +1,5 @@
 import getAppConfig from '../constants/appConfig';
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {isInsertLimitReached} from '../utils/localDbQueryHelpers';
 
 export const getExpenseGroups = async ({queryKey, pageParam = 1}) => {
@@ -135,16 +135,20 @@ export const getExpenseGroup = async ({queryKey}) => {
 };
 
 export const createExpenseGroup = async ({values, onInsertLimitReached}) => {
-  const query = `INSERT INTO expense_groups (
-    name
-  )
-  
-  VALUES(
-    '${values.name.replace(/\'/g, "''")}'
-  );`;
-
   try {
     const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
+    const query = `INSERT INTO expense_groups (
+    name,
+    device_id,
+    branch_id
+  )
+
+  VALUES(
+    '${values.name.replace(/\'/g, "''")}',
+    ${deviceId ? `'${deviceId}'` : 'NULL'},
+    ${branchId ? `'${branchId}'` : 'NULL'}
+  );`;
     const appConfig = await getAppConfig();
     const insertLimit = appConfig.insertLimit;
 
@@ -633,19 +637,24 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
       throw Error('Expense must have at least one revenue group id');
     }
 
+    const {deviceId, branchId} = await getCloudSyncParams();
     const createExpenseQuery = `
       INSERT INTO expenses (
         expense_group_id,
         expense_group_date,
         name,
-        amount
+        amount,
+        device_id,
+        branch_id
       )
-      
+
       VALUES(
         ${values.expense_group_id},
         '${values.expense_group_date}',
         '${values.name}',
-        ${values.amount}
+        ${values.amount},
+        ${deviceId ? `'${deviceId}'` : 'NULL'},
+        ${branchId ? `'${branchId}'` : 'NULL'}
       );
     `;
 
@@ -661,17 +670,20 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
     let insertRevenueDeductionsQuery = `
       INSERT INTO revenue_deductions (
         revenue_group_id,
-        expense_id
+        expense_id,
+        device_id,
+        branch_id
       )
-      
+
       VALUES
     `;
 
     values.revenue_group_ids.forEach((revenueGroupId, index) => {
       insertRevenueDeductionsQuery += `(
           ${revenueGroupId},
-          ${expenseId}
-          
+          ${expenseId},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         )`;
 
       if (values.revenue_group_ids.length - 1 !== index) {
@@ -731,11 +743,14 @@ export const updateExpense = async ({id, updatedValues}) => {
 
     await db.executeSql(deleteExistingRevenueDeductionsQuery);
 
+    const {deviceId, branchId} = await getCloudSyncParams();
     // insert each new revenue groups to revenue_deductions table
     let insertRevenueDeductionsQuery = `
       INSERT INTO revenue_deductions (
         revenue_group_id,
-        expense_id
+        expense_id,
+        device_id,
+        branch_id
       )
 
       VALUES
@@ -744,7 +759,9 @@ export const updateExpense = async ({id, updatedValues}) => {
     updatedValues.revenue_group_ids.forEach((revenueGroupId, index) => {
       insertRevenueDeductionsQuery += `(
         ${revenueGroupId},
-        ${id}
+        ${id},
+        ${deviceId ? `'${deviceId}'` : 'NULL'},
+        ${branchId ? `'${branchId}'` : 'NULL'}
       )`;
 
       if (updatedValues.revenue_group_ids.length - 1 !== index) {

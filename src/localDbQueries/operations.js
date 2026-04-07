@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {appStorageKeySeperator} from './appVersions';
 import appDefaults from '../constants/appDefaults';
@@ -90,24 +90,28 @@ export const inventoryDefaultOperations = [
 ];
 
 export const createInventoryOperation = async ({operation}) => {
-  const query = `INSERT INTO operations (
+  try {
+    const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
+    const query = `INSERT INTO operations (
     id,
     type,
     name,
     is_app_default,
-    list_item_order
+    list_item_order,
+    device_id,
+    branch_id
   )
-  
+
   VALUES(
     ${operation.id},
     '${operation.type}',
     '${operation.name}',
     ${operation.is_app_default},
-    ${operation.order}
+    ${operation.order},
+    ${deviceId ? `'${deviceId}'` : 'NULL'},
+    ${branchId ? `'${branchId}'` : 'NULL'}
   );`;
-
-  try {
-    const db = await getDBConnection();
     return db.executeSql(query);
   } catch (error) {
     console.debug(error);

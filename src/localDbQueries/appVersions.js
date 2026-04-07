@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {appVersion} from '../constants/appConfig';
 
@@ -51,13 +51,18 @@ export const handleNewAppVersion = async ({onNewVersionDetected}) => {
       /**
        * Save installed app version as latest version
        */
+      const {deviceId, branchId} = await getCloudSyncParams();
       const saveVersionQuery = `
         INSERT INTO app_versions (
-          version
+          version,
+          device_id,
+          branch_id
         )
-      
+
         VALUES(
-          '${installedAppVersion}'
+          '${installedAppVersion}',
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'}
         );
       `;
 

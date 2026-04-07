@@ -1,4 +1,4 @@
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
   createQueryFilter,
   isMutationDisabled,
@@ -1174,6 +1174,7 @@ export const addInventoryLog = async ({
       ? `datetime('${log.adjustment_date}')`
       : `datetime('now')`;
 
+    const {deviceId, branchId} = await getCloudSyncParams();
     const addInventoryLogQuery = `INSERT INTO inventory_logs (
       operation_id,
       item_id,
@@ -1188,9 +1189,11 @@ export const addInventoryLog = async ({
       adjustment_qty,
       adjustment_date,
       official_receipt_number,
-      remarks
+      remarks,
+      device_id,
+      branch_id
     )
-    
+
     VALUES(
       ${parseInt(log.operation_id)},
       ${parseInt(item.id)},
@@ -1205,7 +1208,9 @@ export const addInventoryLog = async ({
       ${qty},
       ${adjustmentDate},
       ${officialReceiptNumber},
-      '${log.remarks ? log.remarks.replace(/\'/g, "''") : ''}'
+      '${log.remarks ? log.remarks.replace(/\'/g, "''") : ''}',
+      ${deviceId ? `'${deviceId}'` : 'NULL'},
+      ${branchId ? `'${branchId}'` : 'NULL'}
     );`;
 
     await db.executeSql(addInventoryLogQuery);

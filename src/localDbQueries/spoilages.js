@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import convert from 'convert-units';
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 
 // TODO: Make it deleteSelectedMonthSpoilages
@@ -60,6 +60,7 @@ export const addSpoilage = async ({values}) => {
       ? `datetime('${values.in_spoilage_date}')`
       : `datetime('now')`;
 
+    const {deviceId, branchId} = await getCloudSyncParams();
     const createSpoilageQuery = `INSERT INTO spoilages (
       item_id,
       in_spoilage_qty,
@@ -67,9 +68,11 @@ export const addSpoilage = async ({values}) => {
       in_spoilage_qty_based_on_item_uom,
       use_measurement_per_piece,
       in_spoilage_date,
-      remarks
+      remarks,
+      device_id,
+      branch_id
     )
-    
+
     VALUES(
       ${parseInt(values.item_id)},
       ${parseFloat(values.in_spoilage_qty)},
@@ -77,7 +80,9 @@ export const addSpoilage = async ({values}) => {
       ${parseFloat(inSpoilageQtyBasedOnItemUom)},
       ${values.use_measurement_per_piece === true ? 1 : 0},
       ${spoilageDate},
-      '${values.remarks ? values.remarks.replace(/\'/g, "''") : ''}'
+      '${values.remarks ? values.remarks.replace(/\'/g, "''") : ''}',
+      ${deviceId ? `'${deviceId}'` : 'NULL'},
+      ${branchId ? `'${branchId}'` : 'NULL'}
     );`;
 
     // add new spoilage

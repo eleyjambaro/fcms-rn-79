@@ -25,6 +25,28 @@ const loadCloudV2Item = async (key, parse = false) => {
   }
 };
 
+let _cloudSyncParamsCache = null;
+
+/**
+ * Returns the current Cloud v2 device ID and branch ID from SecureStorage.
+ * Results are cached for the lifetime of the JS bundle (invalidated on sign-out
+ * via invalidateCloudSyncParamsCache).
+ */
+export const getCloudSyncParams = async () => {
+  if (_cloudSyncParamsCache !== null) return _cloudSyncParamsCache;
+  const deviceId = await loadCloudV2Item(cloudV2DeviceIdKey);
+  const branch = await loadCloudV2Item(cloudV2DesignatedBranchKey, true);
+  _cloudSyncParamsCache = {
+    deviceId: deviceId ?? null,
+    branchId: branch?.id != null ? String(branch.id) : null,
+  };
+  return _cloudSyncParamsCache;
+};
+
+export const invalidateCloudSyncParamsCache = () => {
+  _cloudSyncParamsCache = null;
+};
+
 enablePromise(true);
 
 const dbName = appDefaults.dbName;

@@ -1,19 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import convert from 'convert-units';
-import {getDBConnection} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {getItem} from './items';
 
 export const createOrGetUnsavedSellingMenu = async () => {
   try {
     const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
 
     // check if there's an existing unsaved selling menu
     let currentSellingMenuId = await AsyncStorage.getItem(
       'currentSellingMenuId',
     );
 
-    const createSellingMenuQuery = `INSERT INTO selling_menus DEFAULT VALUES;`;
+    const createSellingMenuQuery = `INSERT INTO selling_menus (device_id, branch_id) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'});`;
 
     if (!currentSellingMenuId) {
       // create new selling menu
@@ -91,20 +92,24 @@ export const isSellingMenuHasSellingMenuItems = async ({queryKey}) => {
 };
 
 export const saveSellingMenu = async ({values, onSuccess}) => {
-  const createSellingMenuQuery = `INSERT INTO selling_menus (
+  try {
+    const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
+    const createSellingMenuQuery = `INSERT INTO selling_menus (
     is_draft,
     name,
-    date_saved
+    date_saved,
+    device_id,
+    branch_id
   )
-  
+
   VALUES(
     0,
     '${values.name.replace(/\'/g, "''")}',
-    datetime('now')
+    datetime('now'),
+    ${deviceId ? `'${deviceId}'` : 'NULL'},
+    ${branchId ? `'${branchId}'` : 'NULL'}
   );`;
-
-  try {
-    const db = await getDBConnection();
 
     // check if there's an existing unsaved selling menu
     let currentSellingMenuId = null;
@@ -494,19 +499,24 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
       throw Error('Failed to fetch item');
     }
 
+    const {deviceId, branchId} = await getCloudSyncParams();
     const getSellingMenuItemQuery = `SELECT * FROM selling_menu_items WHERE item_id = ${item.id} AND selling_menu_id = ${sellingMenu.id};`;
     const createSellingMenuItemQuery = `INSERT INTO selling_menu_items (
       selling_menu_id,
       item_id,
       modifier_option_id,
-      in_menu_qty
+      in_menu_qty,
+      device_id,
+      branch_id
     )
-    
+
     VALUES(
       ${parseInt(sellingMenu.id)},
       ${parseInt(values.item_id)},
       ${parseInt(values.size_option_id)},
-      ${parseFloat(values.in_menu_qty)}
+      ${parseFloat(values.in_menu_qty)},
+      ${deviceId ? `'${deviceId}'` : 'NULL'},
+      ${branchId ? `'${branchId}'` : 'NULL'}
     );`;
 
     const updateSellingMenuItemQuery = `UPDATE selling_menu_items

@@ -1,4 +1,4 @@
-import {getDBConnection, getLocalAccountDBConnection} from '../localDb';
+import {getDBConnection, getLocalAccountDBConnection, getCloudSyncParams} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createQueryFilter,
@@ -8,20 +8,24 @@ import getAppConfig from '../constants/appConfig';
 import {getSettings} from './settings';
 
 export const createPrinter = async ({values, onInsertLimitReached}) => {
-  const createPrinterQuery = `INSERT INTO saved_printers (
+  try {
+    const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
+    const createPrinterQuery = `INSERT INTO saved_printers (
     display_name,
     device_name,
-    inner_mac_address
+    inner_mac_address,
+    device_id,
+    branch_id
   )
-  
+
   VALUES(
     '${values.display_name.replace(/\'/g, "''")}',
     '${values.device_name.replace(/\'/g, "''")}',
-    '${values.inner_mac_address.replace(/\'/g, "''")}'
+    '${values.inner_mac_address.replace(/\'/g, "''")}',
+    ${deviceId ? `'${deviceId}'` : 'NULL'},
+    ${branchId ? `'${branchId}'` : 'NULL'}
   );`;
-
-  try {
-    const db = await getDBConnection();
     const appConfig = await getAppConfig();
     const insertLimit = appConfig?.insertLimit;
 
