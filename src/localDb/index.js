@@ -3,8 +3,27 @@ import {
   openDatabase,
   SQLiteDatabase,
 } from 'react-native-sqlite-storage';
+import SecureStorage from 'react-native-fast-secure-storage';
 
 import {appDefaults} from '../constants/appDefaults';
+import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
+
+const {cloudV2DeviceId: cloudV2DeviceIdKey, cloudV2DesignatedBranch: cloudV2DesignatedBranchKey} = rnStorageKeys;
+
+const loadCloudV2Item = async (key, parse = false) => {
+  try {
+    const has = await SecureStorage.hasItem(key);
+    if (!has) return null;
+    const raw = await SecureStorage.getItem(key);
+    if (!raw) return null;
+    if (parse) {
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    return raw;
+  } catch {
+    return null;
+  }
+};
 
 enablePromise(true);
 
@@ -115,7 +134,9 @@ const createAppVersionsTableQuery = `
   CREATE TABLE IF NOT EXISTS app_versions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     version VARCHAR,
-    date DATETIME DEFAULT CURRENT_TIMESTAMP
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -126,7 +147,9 @@ const createCategoriesTableQuery = `
     category_photo_path VARCHAR,
     icon VARCHAR,
     color VARCHAR,
-    is_active INTEGER DEFAULT 1
+    is_active INTEGER DEFAULT 1,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -137,7 +160,9 @@ const createTaxesTableQuery = `
     rate_percentage REAL,
     app_version VARCHAR,
     is_compound_tax INTEGER DEFAULT 0,
-    is_app_default INTEGER DEFAULT 0
+    is_app_default INTEGER DEFAULT 0,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -158,7 +183,9 @@ const createVendorsTableQuery = `
     vendor_photo_path VARCHAR,
     icon VARCHAR,
     color VARCHAR,
-    date DATETIME DEFAULT CURRENT_TIMESTAMP
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -178,6 +205,8 @@ const createVendorContactPersonsTableQuery = `
     contact_photo_path VARCHAR,
     icon VARCHAR,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_vendor
     FOREIGN KEY (vendor_id)
@@ -224,7 +253,9 @@ const createItemsTableQuery = `
     unit_selling_price REAL,
     packaging_type VARCHAR,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
+
     CONSTRAINT fk_category
     FOREIGN KEY (category_id)
     REFERENCES categories(id),
@@ -256,6 +287,8 @@ const createModifiersTableQuery = `
     type_ref VARCHAR,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
     date_updated DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_item
     FOREIGN KEY (item_id)
@@ -275,6 +308,8 @@ const createModifierOptionsTableQuery = `
     use_measurement_per_piece INTEGER,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
     date_updated DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_modifier
     FOREIGN KEY (modifier_id)
@@ -287,7 +322,9 @@ const createBatchPurchaseGroupsTableQuery = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     confirmed INTEGER DEFAULT 0,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    date_confirmed DATETIME
+    date_confirmed DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -301,6 +338,8 @@ const createBatchPurchaseEntriesTableQuery = `
     add_stock_qty REAL NOT NULL,
     add_stock_unit_cost REAL NOT NULL,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_batch_purchase_group
     FOREIGN KEY (batch_purchase_group_id)
@@ -325,7 +364,9 @@ const createBatchStockUsageGroupsTableQuery = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     confirmed INTEGER DEFAULT 0,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    date_confirmed DATETIME
+    date_confirmed DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -337,6 +378,8 @@ const createBatchStockUsageEntriesTableQuery = `
     remove_stock_qty REAL NOT NULL,
     remove_stock_unit_cost REAL NOT NULL,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_batch_stock_usage_group
     FOREIGN KEY (batch_stock_usage_group_id)
@@ -359,7 +402,9 @@ const createOperationsTableQuery = `
     name VARCHAR NOT NULL,
     app_version VARCHAR,
     list_item_order INTEGER,
-    is_app_default INTEGER DEFAULT 0
+    is_app_default INTEGER DEFAULT 0,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -399,6 +444,8 @@ const createInventoryLogsTableQuery = `
     remarks VARCHAR(120),
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_update DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_operation
     FOREIGN KEY (operation_id)
@@ -432,7 +479,9 @@ const createInvoicesTableQuery = `
     remarks VARCHAR(120),
     invoice_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_update DATETIME DEFAULT CURRENT_TIMESTAMP
+    last_update DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -460,6 +509,8 @@ const createSaleLogsTableQuery = `
     remarks VARCHAR(120),
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_update DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_item
     FOREIGN KEY (item_id)
@@ -484,7 +535,9 @@ const createSalesOrderGroupsTableQuery = `
     remarks VARCHAR(120),
     order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_update DATETIME DEFAULT CURRENT_TIMESTAMP
+    last_update DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -514,6 +567,8 @@ const createSalesOrdersTableQuery = `
     meta_use_measurement_per_piece INTEGER,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_update DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_item
     FOREIGN KEY (item_id)
@@ -539,6 +594,8 @@ const createPaymentsTableQuery = `
     change_amount REAL DEFAULT 0,
     payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     input_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_invoice
     FOREIGN KEY (invoice_id)
@@ -554,6 +611,8 @@ const createRefundsTableQuery = `
     refund_amount REAL,
     transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     input_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_sale_log
     FOREIGN KEY (sale_log_id)
@@ -573,7 +632,9 @@ const createSavedPrintersTableQuery = `
     paper_width_uom_abbrev VARCHAR DEFAULT 'mm',
     auto_connect INTEGER DEFAULT 1,
     auto_print_receipt INTEGER DEFAULT 1,
-    date DATETIME DEFAULT CURRENT_TIMESTAMP
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -581,7 +642,9 @@ const createRecipeKindsTableQuery = `
   CREATE TABLE IF NOT EXISTS recipe_kinds (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR,
-    date_created DATETIME DEFAULT CURRENT_TIMESTAMP
+    date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -599,6 +662,8 @@ const createRecipesTableQuery = `
     qty_per_piece REAL,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
     date_saved DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_recipe_kind
     FOREIGN KEY (recipe_kind_id)
@@ -619,6 +684,8 @@ const createIngredientsTableQuery = `
     in_recipe_qty_based_on_item_uom REAL,
     use_measurement_per_piece INTEGER DEFAULT 0,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_recipe
     FOREIGN KEY (recipe_id)
@@ -641,6 +708,8 @@ const createSpoilagesTableQuery = `
     in_spoilage_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     remarks VARCHAR(120),
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_item
     FOREIGN KEY (item_id)
@@ -653,7 +722,9 @@ const createRevenueGroupsTableQuery = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR NOT NULL,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    date_updated DATETIME
+    date_updated DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -665,6 +736,8 @@ const createRevenuesTableQuery = `
     amount REAL DEFAULT 0,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
     date_updated DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_revenue_group
     FOREIGN KEY (revenue_group_id)
@@ -677,7 +750,9 @@ const createExpenseGroupsTableQuery = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR NOT NULL,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    date_updated DATETIME
+    date_updated DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -690,6 +765,8 @@ const createExpensesTableQuery = `
     amount REAL DEFAULT 0,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
     date_updated DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_expense_group
     FOREIGN KEY (expense_group_id)
@@ -704,6 +781,8 @@ const createRevenueDeductionsTableQuery = `
     expense_id INTEGER,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
     date_updated DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_revenue_group
     FOREIGN KEY (revenue_group_id)
@@ -722,6 +801,8 @@ const createRevenueCategoriesTableQuery = `
     category_id INTEGER,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
     date_updated DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_revenue_grosup
     FOREIGN KEY (revenue_group_id)
@@ -739,7 +820,9 @@ const createSellingMenusTableQuery = `
     is_draft INTEGER DEFAULT 1,
     name VARCHAR,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    date_saved DATETIME
+    date_saved DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL
   );
 `;
 
@@ -769,6 +852,8 @@ const createSellingMenuItemsTableQuery = `
     in_menu_qty REAL,
 
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
 
     CONSTRAINT fk_selling_menu
     FOREIGN KEY (selling_menu_id)
@@ -1286,6 +1371,82 @@ export const alterTables = async currentAppVersion => {
       console.debug(error);
     } finally {
       // await logTableInfo(db, 'items');
+    }
+
+    /**
+     * New columns for Cloud v2 device and branch association
+     */
+    try {
+      const cloudSyncTables = [
+        'app_versions',
+        'categories',
+        'taxes',
+        'vendors',
+        'vendor_contact_persons',
+        'items',
+        'modifiers',
+        'modifier_options',
+        'batch_purchase_groups',
+        'batch_purchase_entries',
+        'batch_stock_usage_groups',
+        'batch_stock_usage_entries',
+        'operations',
+        'inventory_logs',
+        'invoices',
+        'sale_logs',
+        'sales_order_groups',
+        'sales_orders',
+        'payments',
+        'refunds',
+        'saved_printers',
+        'recipe_kinds',
+        'recipes',
+        'ingredients',
+        'spoilages',
+        'revenue_groups',
+        'revenues',
+        'expense_groups',
+        'expenses',
+        'revenue_deductions',
+        'revenue_categories',
+        'selling_menus',
+        'selling_menu_items',
+      ];
+
+      for (const table of cloudSyncTables) {
+        await executeSqlIfColumnNotExist(
+          db,
+          table,
+          'device_id',
+          `ALTER TABLE ${table} ADD COLUMN device_id VARCHAR DEFAULT NULL;`,
+        );
+        await executeSqlIfColumnNotExist(
+          db,
+          table,
+          'branch_id',
+          `ALTER TABLE ${table} ADD COLUMN branch_id VARCHAR DEFAULT NULL;`,
+        );
+      }
+
+      // Backfill existing rows with saved Cloud v2 device and branch IDs
+      const savedDeviceId = await loadCloudV2Item(cloudV2DeviceIdKey);
+      const savedBranch = await loadCloudV2Item(cloudV2DesignatedBranchKey, true);
+      const backfillDeviceId = savedDeviceId ?? null;
+      const backfillBranchId = savedBranch?.id != null ? String(savedBranch.id) : null;
+
+      if (backfillDeviceId || backfillBranchId) {
+        for (const table of cloudSyncTables) {
+          await db.executeSql(
+            `UPDATE ${table} SET device_id = ?, branch_id = ? WHERE device_id IS NULL;`,
+            [backfillDeviceId, backfillBranchId],
+          );
+        }
+      }
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding device_id/branch_id columns:',
+        error,
+      );
     }
   } catch (error) {
     console.debug(error);
