@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
   createQueryFilter,
@@ -325,7 +326,7 @@ export const createBatchPurchaseEntry = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const createBatchPurchaseGroupQuery = `INSERT INTO batch_purchase_groups (device_id, branch_id) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'});`;
+    const createBatchPurchaseGroupQuery = `INSERT INTO batch_purchase_groups (device_id, branch_id, sync_id, updated_at) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'}, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
 
     // check if there's an existing unconfirmed Batch Purchase Group
     // before creating new one
@@ -361,7 +362,9 @@ export const createBatchPurchaseEntry = async ({values}) => {
       add_stock_qty,
       add_stock_unit_cost,
       device_id,
-      branch_id
+      branch_id,
+      sync_id,
+      updated_at
     )
 
     VALUES(
@@ -371,13 +374,16 @@ export const createBatchPurchaseEntry = async ({values}) => {
       ${parseFloat(values.add_stock_qty)},
       ${parseFloat(values.add_stock_unit_cost)},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
-      ${branchId ? `'${branchId}'` : 'NULL'}
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     const updateBatchPurchaseEntryQuery = `UPDATE batch_purchase_entries
       SET add_stock_qty = ${parseFloat(values.add_stock_qty)},
       add_stock_unit_cost = ${parseFloat(values.add_stock_unit_cost)},
-      tax_id = ${parseInt(values.tax_id) || 'null'}
+      tax_id = ${parseInt(values.tax_id) || 'null'},
+      updated_at = CURRENT_TIMESTAMP
       WHERE item_id = ${parseInt(values.item_id)}
       AND batch_purchase_group_id = ${currentBatchPurchaseGroupId}
     `;
@@ -546,13 +552,17 @@ export const getCurrentBatchPurchaseGroupId = async () => {
           INSERT INTO batch_purchase_groups (
             confirmed,
             device_id,
-            branch_id
+            branch_id,
+            sync_id,
+            updated_at
           )
 
           VALUES (
             0,
             ${bpgDeviceId ? `'${bpgDeviceId}'` : 'NULL'},
-            ${bpgBranchId ? `'${bpgBranchId}'` : 'NULL'}
+            ${bpgBranchId ? `'${bpgBranchId}'` : 'NULL'},
+            '${uuid.v4()}',
+            CURRENT_TIMESTAMP
           );
         `;
         const createBatchPurchaseGroupResult = await db.executeSql(

@@ -1,3 +1,4 @@
+import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
   createQueryFilter,
@@ -114,13 +115,17 @@ export const createCategory = async ({
     const createCategoryQuery = `INSERT INTO categories (
       name,
       device_id,
-      branch_id
+      branch_id,
+      sync_id,
+      updated_at
     )
 
     VALUES(
       '${category.name.replace(/\'/g, "''")}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
-      ${branchId ? `'${branchId}'` : 'NULL'}
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     return db.executeSql(createCategoryQuery);
@@ -192,7 +197,8 @@ export const updateCategory = async ({
      * Update Category
      */
     const updateCategoryQuery = `UPDATE categories
-      SET name = '${updatedValues.name.replace(/\'/g, "''")}'
+      SET name = '${updatedValues.name.replace(/\'/g, "''")}',
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
 

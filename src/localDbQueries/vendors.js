@@ -1,3 +1,4 @@
+import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -26,7 +27,9 @@ export const createVendor = async ({values, onInsertLimitReached}) => {
     mobile_number,
     remarks,
     device_id,
-    branch_id
+    branch_id,
+    sync_id,
+    updated_at
   )
 
   VALUES(
@@ -40,7 +43,9 @@ export const createVendor = async ({values, onInsertLimitReached}) => {
     '${values.mobile_number}',
     '${values.remarks ? values.remarks?.replace(/\'/g, "''") : ''}',
     ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'}
+    ${branchId ? `'${branchId}'` : 'NULL'},
+    '${uuid.v4()}',
+    CURRENT_TIMESTAMP
   );`;
     const appConfig = await getAppConfig();
     const insertLimit = appConfig?.insertLimit;
@@ -148,7 +153,8 @@ export const updateVendor = async ({id, updatedValues}) => {
   mobile_number = '${updatedValues.mobile_number}',
   remarks = '${
     updatedValues.remarks ? updatedValues.remarks.replace(/\'/g, "''") : ''
-  }'
+  }',
+  updated_at = CURRENT_TIMESTAMP
   WHERE id = ${id}`;
 
   try {

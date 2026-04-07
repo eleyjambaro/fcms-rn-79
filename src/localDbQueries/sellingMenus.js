@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import convert from 'convert-units';
+import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {getItem} from './items';
@@ -14,7 +15,7 @@ export const createOrGetUnsavedSellingMenu = async () => {
       'currentSellingMenuId',
     );
 
-    const createSellingMenuQuery = `INSERT INTO selling_menus (device_id, branch_id) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'});`;
+    const createSellingMenuQuery = `INSERT INTO selling_menus (device_id, branch_id, sync_id, updated_at) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'}, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
 
     if (!currentSellingMenuId) {
       // create new selling menu
@@ -100,7 +101,9 @@ export const saveSellingMenu = async ({values, onSuccess}) => {
     name,
     date_saved,
     device_id,
-    branch_id
+    branch_id,
+    sync_id,
+    updated_at
   )
 
   VALUES(
@@ -108,7 +111,9 @@ export const saveSellingMenu = async ({values, onSuccess}) => {
     '${values.name.replace(/\'/g, "''")}',
     datetime('now'),
     ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'}
+    ${branchId ? `'${branchId}'` : 'NULL'},
+    '${uuid.v4()}',
+    CURRENT_TIMESTAMP
   );`;
 
     // check if there's an existing unsaved selling menu
@@ -507,7 +512,9 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
       modifier_option_id,
       in_menu_qty,
       device_id,
-      branch_id
+      branch_id,
+      sync_id,
+      updated_at
     )
 
     VALUES(
@@ -516,7 +523,9 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
       ${parseInt(values.size_option_id)},
       ${parseFloat(values.in_menu_qty)},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
-      ${branchId ? `'${branchId}'` : 'NULL'}
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     const updateSellingMenuItemQuery = `UPDATE selling_menu_items

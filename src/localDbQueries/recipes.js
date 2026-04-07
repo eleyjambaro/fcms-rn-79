@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import convert from 'convert-units';
+import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {getItem} from './items';
@@ -12,7 +13,7 @@ export const createOrGetUnsavedRecipe = async () => {
     // check if there's an existing unsaved recipe
     let currentRecipeId = await AsyncStorage.getItem('currentRecipeId');
 
-    const createRecipeQuery = `INSERT INTO recipes (device_id, branch_id) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'});`;
+    const createRecipeQuery = `INSERT INTO recipes (device_id, branch_id, sync_id, updated_at) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'}, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
 
     if (!currentRecipeId) {
       // create new recipe
@@ -107,7 +108,9 @@ export const saveRecipe = async ({
     yield,
     date_saved,
     device_id,
-    branch_id
+    branch_id,
+    sync_id,
+    updated_at
   )
 
   VALUES(
@@ -118,7 +121,9 @@ export const saveRecipe = async ({
     ${parseFloat(values.yield || 1)},
     datetime('now'),
     ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'}
+    ${branchId ? `'${branchId}'` : 'NULL'},
+    '${uuid.v4()}',
+    CURRENT_TIMESTAMP
   );`;
 
     // check if there's an existing unsaved recipe
@@ -211,7 +216,9 @@ export const saveSubRecipe = async ({values}) => {
     yield,
     date_saved,
     device_id,
-    branch_id
+    branch_id,
+    sync_id,
+    updated_at
   )
 
   VALUES(
@@ -221,7 +228,9 @@ export const saveSubRecipe = async ({values}) => {
     ${parseFloat(values.yield || 1)},
     datetime('now'),
     ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'}
+    ${branchId ? `'${branchId}'` : 'NULL'},
+    '${uuid.v4()}',
+    CURRENT_TIMESTAMP
   );`;
 
     // check if there's an existing unsaved sub recipe
@@ -682,7 +691,9 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
       in_recipe_qty_based_on_item_uom,
       use_measurement_per_piece,
       device_id,
-      branch_id
+      branch_id,
+      sync_id,
+      updated_at
     )
 
     VALUES(
@@ -693,7 +704,9 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
       ${parseFloat(inRecipeQtyBasedOnItemUom)},
       ${values.use_measurement_per_piece === true ? 1 : 0},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
-      ${branchId ? `'${branchId}'` : 'NULL'}
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     const updateIngredientQuery = `UPDATE ingredients
@@ -740,7 +753,7 @@ export const createIngredient = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const createRecipeQuery = `INSERT INTO recipes (device_id, branch_id) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'});`;
+    const createRecipeQuery = `INSERT INTO recipes (device_id, branch_id, sync_id, updated_at) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'}, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
 
     const getItemResult = await db.executeSql(getItemQuery);
 
@@ -782,7 +795,9 @@ export const createIngredient = async ({values}) => {
       in_recipe_uom_abbrev,
       in_recipe_qty_based_on_item_uom,
       device_id,
-      branch_id
+      branch_id,
+      sync_id,
+      updated_at
     )
 
     VALUES(
@@ -792,13 +807,16 @@ export const createIngredient = async ({values}) => {
       '${values.in_recipe_uom_abbrev}',
       ${parseFloat(inRecipeQtyBasedOnItemUom)},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
-      ${branchId ? `'${branchId}'` : 'NULL'}
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     const updateIngredientQuery = `UPDATE ingredients
       SET in_recipe_qty = ${parseFloat(values.in_recipe_qty)},
       in_recipe_uom_abbrev = '${values.in_recipe_uom_abbrev}',
-      in_recipe_qty_based_on_item_uom = ${parseFloat(inRecipeQtyBasedOnItemUom)}
+      in_recipe_qty_based_on_item_uom = ${parseFloat(inRecipeQtyBasedOnItemUom)},
+      updated_at = CURRENT_TIMESTAMP
       WHERE item_id = ${item.id}
       AND recipe_id = ${currentRecipeId}
     `;

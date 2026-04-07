@@ -1,3 +1,4 @@
+import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
   createQueryFilter,
@@ -1191,7 +1192,9 @@ export const addInventoryLog = async ({
       official_receipt_number,
       remarks,
       device_id,
-      branch_id
+      branch_id,
+      sync_id,
+      updated_at
     )
 
     VALUES(
@@ -1210,7 +1213,9 @@ export const addInventoryLog = async ({
       ${officialReceiptNumber},
       '${log.remarks ? log.remarks.replace(/\'/g, "''") : ''}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
-      ${branchId ? `'${branchId}'` : 'NULL'}
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     await db.executeSql(addInventoryLogQuery);

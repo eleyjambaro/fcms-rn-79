@@ -1,3 +1,4 @@
+import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {appStorageKeySeperator} from './appVersions';
@@ -100,7 +101,9 @@ export const createInventoryOperation = async ({operation}) => {
     is_app_default,
     list_item_order,
     device_id,
-    branch_id
+    branch_id,
+    sync_id,
+    updated_at
   )
 
   VALUES(
@@ -110,7 +113,9 @@ export const createInventoryOperation = async ({operation}) => {
     ${operation.is_app_default},
     ${operation.order},
     ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'}
+    ${branchId ? `'${branchId}'` : 'NULL'},
+    '${uuid.v4()}',
+    CURRENT_TIMESTAMP
   );`;
     return db.executeSql(query);
   } catch (error) {

@@ -1,3 +1,4 @@
+import uuid from 'react-native-uuid';
 import getAppConfig from '../constants/appConfig';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {isInsertLimitReached} from '../utils/localDbQueryHelpers';
@@ -141,13 +142,17 @@ export const createExpenseGroup = async ({values, onInsertLimitReached}) => {
     const query = `INSERT INTO expense_groups (
     name,
     device_id,
-    branch_id
+    branch_id,
+    sync_id,
+    updated_at
   )
 
   VALUES(
     '${values.name.replace(/\'/g, "''")}',
     ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'}
+    ${branchId ? `'${branchId}'` : 'NULL'},
+    '${uuid.v4()}',
+    CURRENT_TIMESTAMP
   );`;
     const appConfig = await getAppConfig();
     const insertLimit = appConfig.insertLimit;
@@ -645,7 +650,9 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
         name,
         amount,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES(
@@ -654,7 +661,9 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
         '${values.name}',
         ${values.amount},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
-        ${branchId ? `'${branchId}'` : 'NULL'}
+        ${branchId ? `'${branchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       );
     `;
 
@@ -672,7 +681,9 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
         revenue_group_id,
         expense_id,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -683,7 +694,9 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
           ${revenueGroupId},
           ${expenseId},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
       if (values.revenue_group_ids.length - 1 !== index) {
@@ -725,7 +738,8 @@ export const updateExpense = async ({id, updatedValues}) => {
 
   const updateExpenseQuery = `UPDATE expenses
     SET name = '${updatedValues.name}',
-    amount = ${updatedValues.amount}
+    amount = ${updatedValues.amount},
+    updated_at = CURRENT_TIMESTAMP
     WHERE id = ${id}
   `;
 
@@ -750,7 +764,9 @@ export const updateExpense = async ({id, updatedValues}) => {
         revenue_group_id,
         expense_id,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -761,7 +777,9 @@ export const updateExpense = async ({id, updatedValues}) => {
         ${revenueGroupId},
         ${id},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
-        ${branchId ? `'${branchId}'` : 'NULL'}
+        ${branchId ? `'${branchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       )`;
 
       if (updatedValues.revenue_group_ids.length - 1 !== index) {

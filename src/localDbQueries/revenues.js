@@ -1,3 +1,4 @@
+import uuid from 'react-native-uuid';
 import getAppConfig from '../constants/appConfig';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {isInsertLimitReached} from '../utils/localDbQueryHelpers';
@@ -204,13 +205,17 @@ export const createRevenueGroup = async ({
     const createRevenueGroupQuery = `INSERT INTO revenue_groups (
       name,
       device_id,
-      branch_id
+      branch_id,
+      sync_id,
+      updated_at
     )
 
     VALUES(
       '${values.name.replace(/\'/g, "''")}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
-      ${branchId ? `'${branchId}'` : 'NULL'}
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     const createRevenueGroupResult = await db.executeSql(
@@ -229,7 +234,9 @@ export const createRevenueGroup = async ({
         revenue_group_id,
         category_id,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -240,7 +247,9 @@ export const createRevenueGroup = async ({
           ${revenueGroupId},
           ${categoryId},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
       if (values.category_ids.length - 1 !== index) {
@@ -313,7 +322,8 @@ export const updateRevenueGroup = async ({
      */
 
     const updateRevenueGroupQuery = `UPDATE revenue_groups
-      SET name = '${updatedValues.name.replace(/\'/g, "''")}'
+      SET name = '${updatedValues.name.replace(/\'/g, "''")}',
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
 
@@ -338,7 +348,9 @@ export const updateRevenueGroup = async ({
         revenue_group_id,
         category_id,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -349,7 +361,9 @@ export const updateRevenueGroup = async ({
         ${id},
         ${categoryId},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
-        ${branchId ? `'${branchId}'` : 'NULL'}
+        ${branchId ? `'${branchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       )`;
 
       if (updatedValues.category_ids.length - 1 !== index) {
@@ -403,7 +417,9 @@ export const createRevenue = async ({values}) => {
     revenue_group_date,
     amount,
     device_id,
-    branch_id
+    branch_id,
+    sync_id,
+    updated_at
   )
 
   VALUES(
@@ -411,7 +427,9 @@ export const createRevenue = async ({values}) => {
     '${values.revenue_group_date}',
     ${values.amount},
     ${revenueDeviceId ? `'${revenueDeviceId}'` : 'NULL'},
-    ${revenueBranchId ? `'${revenueBranchId}'` : 'NULL'}
+    ${revenueBranchId ? `'${revenueBranchId}'` : 'NULL'},
+    '${uuid.v4()}',
+    CURRENT_TIMESTAMP
   );`;
 
     // check if there's an existing revenue within the current month
@@ -431,7 +449,8 @@ export const createRevenue = async ({values}) => {
     // update current month revenue
     const updateCurrentMonthRevenueQuery = `
       UPDATE revenues
-      SET amount = ${values.amount}
+      SET amount = ${values.amount},
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${currentMonthRevenue.id}
     `;
 

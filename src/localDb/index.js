@@ -848,6 +848,15 @@ const createSellingMenusTableQuery = `
   );
 `;
 
+const createSyncMetadataTableQuery = `
+  CREATE TABLE IF NOT EXISTS sync_metadata (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type VARCHAR(100) UNIQUE,
+    last_pushed_at DATETIME DEFAULT NULL,
+    last_pulled_at DATETIME DEFAULT NULL
+  );
+`;
+
 const createSellingMenuItemsTableQuery = `
   CREATE TABLE IF NOT EXISTS selling_menu_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -936,6 +945,7 @@ export const createTables = async () => {
     await db.executeSql(createModifierOptionsTableQuery);
     await db.executeSql(createSellingMenusTableQuery);
     await db.executeSql(createSellingMenuItemsTableQuery);
+    await db.executeSql(createSyncMetadataTableQuery);
   } catch (error) {
     console.debug(error);
     throw error;
@@ -1469,6 +1479,74 @@ export const alterTables = async currentAppVersion => {
         '[alterTables] Error adding device_id/branch_id columns:',
         error,
       );
+    }
+
+    /**
+     * New columns for JSON delta sync
+     */
+    try {
+      const deltaSyncTables = [
+        'categories',
+        'taxes',
+        'items',
+        'modifiers',
+        'modifier_options',
+        'vendors',
+        'vendor_contact_persons',
+        'recipe_kinds',
+        'recipes',
+        'ingredients',
+        'selling_menus',
+        'selling_menu_items',
+        'operations',
+        'inventory_logs',
+        'batch_purchase_groups',
+        'batch_purchase_entries',
+        'batch_stock_usage_groups',
+        'batch_stock_usage_entries',
+        'invoices',
+        'sale_logs',
+        'sales_order_groups',
+        'sales_orders',
+        'payments',
+        'refunds',
+        'spoilages',
+        'revenue_groups',
+        'revenues',
+        'expense_groups',
+        'expenses',
+        'revenue_deductions',
+        'revenue_categories',
+      ];
+
+      for (const table of deltaSyncTables) {
+        await executeSqlIfColumnNotExist(
+          db,
+          table,
+          'sync_id',
+          `ALTER TABLE ${table} ADD COLUMN sync_id VARCHAR(36) DEFAULT NULL;`,
+        );
+        await executeSqlIfColumnNotExist(
+          db,
+          table,
+          'updated_at',
+          `ALTER TABLE ${table} ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`,
+        );
+        await executeSqlIfColumnNotExist(
+          db,
+          table,
+          'synced_at',
+          `ALTER TABLE ${table} ADD COLUMN synced_at DATETIME DEFAULT NULL;`,
+        );
+        await executeSqlIfColumnNotExist(
+          db,
+          table,
+          'is_deleted',
+          `ALTER TABLE ${table} ADD COLUMN is_deleted INTEGER DEFAULT 0;`,
+        );
+      }
+    } catch (error) {
+      console.debug('[alterTables] Error adding delta sync columns:', error);
     }
   } catch (error) {
     console.debug(error);

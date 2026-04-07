@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import convert from 'convert-units';
+import uuid from 'react-native-uuid';
 
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
@@ -94,7 +95,9 @@ export const confirmSaleEntries = async ({
         customer_id,
         invoice_date,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES (
@@ -102,7 +105,9 @@ export const confirmSaleEntries = async ({
         ${customerId},
         ${salesInvoiceDate},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
-        ${branchId ? `'${branchId}'` : 'NULL'}
+        ${branchId ? `'${branchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       )
     `;
 
@@ -140,7 +145,9 @@ export const confirmSaleEntries = async ({
         invoice_id,
         sold_by_account_uid,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -161,7 +168,9 @@ export const confirmSaleEntries = async ({
         adjustment_date,
         invoice_id,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -221,7 +230,9 @@ export const confirmSaleEntries = async ({
         ${parseInt(createdInvoiceId)},
         ${accountUID},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
-        ${branchId ? `'${branchId}'` : 'NULL'}
+        ${branchId ? `'${branchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       )`;
 
       if (saleItems.length - 1 !== index) {
@@ -275,7 +286,9 @@ export const confirmSaleEntries = async ({
         ${salesInvoiceDate},
         ${parseInt(createdInvoiceId)},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
-        ${branchId ? `'${branchId}'` : 'NULL'}
+        ${branchId ? `'${branchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       )`;
 
       if (saleItems.length - 1 !== index) {
@@ -316,7 +329,9 @@ export const confirmSaleEntries = async ({
           payment_amount,
           change_amount,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES
@@ -338,7 +353,9 @@ export const confirmSaleEntries = async ({
           ${parseFloat(payment?.payment_amount || 0)},
           ${parseFloat(payment?.change_amount || 0)},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
         if (Object.keys(paymentFormValues.payments).length - 1 !== index) {
@@ -358,7 +375,9 @@ export const confirmSaleEntries = async ({
         payment_amount,
         change_amount,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES (
@@ -367,7 +386,9 @@ export const confirmSaleEntries = async ({
         ${parseFloat(paymentFormValues?.payment_amount || 0)},
          ${parseFloat(paymentFormValues?.change_amount || 0)},
          ${deviceId ? `'${deviceId}'` : 'NULL'},
-         ${branchId ? `'${branchId}'` : 'NULL'}
+         ${branchId ? `'${branchId}'` : 'NULL'},
+         '${uuid.v4()}',
+         CURRENT_TIMESTAMP
       )
     `;
 
@@ -502,7 +523,9 @@ export const confirmFulfillingSalesOrders = async ({
         invoice_date,
         sales_order_group_id,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES (
@@ -511,7 +534,9 @@ export const confirmFulfillingSalesOrders = async ({
         ${salesInvoiceDate},
         ${salesOrderGroupId ? parseInt(salesOrderGroupId) : 'null'},
         ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
-        ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
+        ${salesBranchId ? `'${salesBranchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       )
     `;
 
@@ -541,7 +566,9 @@ export const confirmFulfillingSalesOrders = async ({
         invoice_id,
         sold_by_account_uid,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -562,7 +589,9 @@ export const confirmFulfillingSalesOrders = async ({
         adjustment_date,
         invoice_id,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -715,7 +744,9 @@ export const confirmFulfillingSalesOrders = async ({
           payment_amount,
           change_amount,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES
@@ -901,7 +932,9 @@ export const addSaleEntriesToSalesOrders = async ({
         customer_id,
         order_date,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES (
@@ -909,7 +942,9 @@ export const addSaleEntriesToSalesOrders = async ({
         ${customerId},
         ${salesOrderDate},
         ${salesOrderDeviceId ? `'${salesOrderDeviceId}'` : 'NULL'},
-        ${salesOrderBranchId ? `'${salesOrderBranchId}'` : 'NULL'}
+        ${salesOrderBranchId ? `'${salesOrderBranchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       )
     `;
 
@@ -943,7 +978,9 @@ export const addSaleEntriesToSalesOrders = async ({
         meta_order_size_option_id,
         meta_use_measurement_per_piece,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -995,7 +1032,9 @@ export const addSaleEntriesToSalesOrders = async ({
         ${orderSizeOptionId},
         ${useMeasurementPerPiece},
         ${salesOrderDeviceId ? `'${salesOrderDeviceId}'` : 'NULL'},
-        ${salesOrderBranchId ? `'${salesOrderBranchId}'` : 'NULL'}
+        ${salesOrderBranchId ? `'${salesOrderBranchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       )`;
 
       if (saleItems.length - 1 !== index) {

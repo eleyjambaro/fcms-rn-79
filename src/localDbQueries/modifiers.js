@@ -1,4 +1,5 @@
 import convert from 'convert-units';
+import uuid from 'react-native-uuid';
 
 import {appDefaultsTypeRefs} from '../constants/appDefaults';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
@@ -147,7 +148,9 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
           name,
           type_ref,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES (
@@ -155,7 +158,9 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
           'Selling Size Options',
           '${appDefaultsTypeRefs.sellingSizeOptions}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         );
       `;
 
@@ -203,7 +208,9 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
         in_option_qty_based_on_item_uom,
         use_measurement_per_piece,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES (
@@ -215,7 +222,9 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
         ${parseFloat(inOptionQtyBasedOnItemUom)},
         ${values.use_measurement_per_piece === true ? 1 : 0},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
-        ${branchId ? `'${branchId}'` : 'NULL'}
+        ${branchId ? `'${branchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       )
     `;
     const createSizeOptionResult = await db.executeSql(createSizeOptionQuery);

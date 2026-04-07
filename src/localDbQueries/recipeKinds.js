@@ -1,3 +1,4 @@
+import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 
 export const getRecipeKinds = async ({queryKey, pageParam = 1}) => {
@@ -70,13 +71,17 @@ export const createRecipeKind = async ({values}) => {
     const query = `INSERT INTO recipe_kinds (
     name,
     device_id,
-    branch_id
+    branch_id,
+    sync_id,
+    updated_at
   )
 
   VALUES(
     '${values.name}',
     ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'}
+    ${branchId ? `'${branchId}'` : 'NULL'},
+    '${uuid.v4()}',
+    CURRENT_TIMESTAMP
   );`;
     return db.executeSql(query);
   } catch (error) {
@@ -104,7 +109,8 @@ export const getRecipeKind = async ({queryKey}) => {
 
 export const updateRecipeKind = async ({id, updatedValues}) => {
   const query = `UPDATE recipe_kinds
-  SET name = '${updatedValues.name}'
+  SET name = '${updatedValues.name}',
+  updated_at = CURRENT_TIMESTAMP
   WHERE id = ${id}`;
 
   try {

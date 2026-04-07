@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 
@@ -284,7 +285,7 @@ export const createBatchStockUsageEntry = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const createBatchStockUsageGroupQuery = `INSERT INTO batch_stock_usage_groups (device_id, branch_id) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'});`;
+    const createBatchStockUsageGroupQuery = `INSERT INTO batch_stock_usage_groups (device_id, branch_id, sync_id, updated_at) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'}, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
 
     // check if there's an existing unconfirmed Batch Stock Usage Group
     // before creating new one
@@ -318,7 +319,9 @@ export const createBatchStockUsageEntry = async ({values}) => {
       remove_stock_qty,
       remove_stock_unit_cost,
       device_id,
-      branch_id
+      branch_id,
+      sync_id,
+      updated_at
     )
 
     VALUES(
@@ -327,12 +330,15 @@ export const createBatchStockUsageEntry = async ({values}) => {
       ${parseFloat(values.remove_stock_qty)},
       ${parseFloat(values.remove_stock_unit_cost)},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
-      ${branchId ? `'${branchId}'` : 'NULL'}
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     const updateBatchStockUsageEntryQuery = `UPDATE batch_stock_usage_entries
       SET remove_stock_qty = ${parseFloat(values.remove_stock_qty)},
-      remove_stock_unit_cost = ${parseFloat(values.remove_stock_unit_cost)}
+      remove_stock_unit_cost = ${parseFloat(values.remove_stock_unit_cost)},
+      updated_at = CURRENT_TIMESTAMP
       WHERE item_id = ${values.item_id}
       AND batch_stock_usage_group_id = ${currentBatchStockUsageGroupId}
     `;

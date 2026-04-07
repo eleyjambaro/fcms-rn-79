@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import convert from 'convert-units';
+import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 
@@ -70,7 +71,9 @@ export const addSpoilage = async ({values}) => {
       in_spoilage_date,
       remarks,
       device_id,
-      branch_id
+      branch_id,
+      sync_id,
+      updated_at
     )
 
     VALUES(
@@ -82,7 +85,9 @@ export const addSpoilage = async ({values}) => {
       ${spoilageDate},
       '${values.remarks ? values.remarks.replace(/\'/g, "''") : ''}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
-      ${branchId ? `'${branchId}'` : 'NULL'}
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     // add new spoilage

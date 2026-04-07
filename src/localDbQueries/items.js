@@ -357,7 +357,9 @@ export const registerItem = async ({
       low_stock_level,
       packaging_type,
       device_id,
-      branch_id
+      branch_id,
+      sync_id,
+      updated_at
     )
 
     VALUES(
@@ -379,7 +381,9 @@ export const registerItem = async ({
       ${parseFloat(item.low_stock_level)},
       '${item.packaging_type ? item.packaging_type.replace(/\'/g, "''") : ''}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
-      ${branchId ? `'${branchId}'` : 'NULL'}
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     let insertItemResult = null;
@@ -456,7 +460,9 @@ export const registerItem = async ({
         official_receipt_number,
         remarks,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES(
@@ -478,7 +484,9 @@ export const registerItem = async ({
         ${initStockOfficialReceiptNumber},
         '${item.remarks ? item.remarks.replace(/\'/g, "''") : ''}',
         ${deviceId ? `'${deviceId}'` : 'NULL'},
-        ${branchId ? `'${branchId}'` : 'NULL'}
+        ${branchId ? `'${branchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       );`;
 
     await db.executeSql(addInventoryLogQuery);
@@ -503,7 +511,9 @@ export const registerItem = async ({
             adjustment_qty,
             adjustment_date,
             device_id,
-            branch_id
+            branch_id,
+            sync_id,
+            updated_at
           )
 
           VALUES
@@ -547,7 +557,9 @@ export const registerItem = async ({
             ${qty},
             ${adjustmentDateFixedValue},
             ${deviceId ? `'${deviceId}'` : 'NULL'},
-            ${branchId ? `'${branchId}'` : 'NULL'}
+            ${branchId ? `'${branchId}'` : 'NULL'},
+            '${uuid.v4()}',
+            CURRENT_TIMESTAMP
           )`;
 
         if (item.required_ingredients.length - 1 !== index) {
