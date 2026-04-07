@@ -194,108 +194,118 @@ const applyPulledRecord = async (db, tableName, record) => {
 // Main sync entry point
 // ---------------------------------------------------------------------------
 
+let syncInProgress = false;
+
 /**
  * Run a full push-pull sync cycle.
  *
  * @returns {Promise<{pushed: Object, pulled: Object, errors: string[]}>}
  */
 export const runSync = async () => {
+  if (syncInProgress) {
+    return {pushed: {}, pulled: {}, errors: ['Sync already in progress — skipped.']};
+  }
+  syncInProgress = true;
   const result = {pushed: {}, pulled: {}, errors: []};
 
-  const {deviceId, branchId} = await getCloudSyncParams();
-
-  if (!deviceId || !branchId) {
-    result.errors.push('No cloud device/branch configured — skipping sync.');
-    return result;
-  }
-
-  let db;
   try {
-    db = await getDBConnection();
-  } catch (err) {
-    result.errors.push(`DB connection failed: ${err.message}`);
-    return result;
-  }
+    const {deviceId, branchId} = await getCloudSyncParams();
 
-  const pushedAt = new Date().toISOString();
-
-  // ---- Phase 1: Collect delta ----
-  const delta = {};
-  for (const {key, table} of ALL_PUSH_ENTITIES) {
-    try {
-      const rows = await collectUnsynced(db, table);
-      if (rows.length > 0) {
-        delta[key] = rows;
-      }
-    } catch (err) {
-      result.errors.push(`Collect failed for ${table}: ${err.message}`);
+    if (!deviceId || !branchId) {
+      result.errors.push('No cloud device/branch configured — skipping sync.');
+      return result;
     }
-  }
 
-  // ---- Phase 2: Push ----
-  if (Object.keys(delta).length > 0) {
+    let db;
     try {
-      const pushResponse = await pushDelta({
-        device_id: deviceId,
-        branch_id: branchId,
-        pushed_at: pushedAt,
-        delta,
-      });
+      db = await getDBConnection();
+    } catch (err) {
+      result.errors.push(`DB connection failed: ${err.message}`);
+      return result;
+    }
 
-      const {accepted = {}, synced_at} = pushResponse?.data ?? {};
-      result.pushed = accepted;
+    const pushedAt = new Date().toISOString();
 
-      // Mark pushed records as synced
-      for (const {key, table} of ALL_PUSH_ENTITIES) {
-        if (delta[key]?.length) {
-          const syncIds = delta[key].map(r => r.sync_id).filter(Boolean);
-          try {
-            await markAsSynced(db, table, syncIds);
-            await updateSyncMetadata(db, key, {lastPushedAt: synced_at ?? pushedAt});
-          } catch (err) {
-            result.errors.push(`Mark synced failed for ${table}: ${err.message}`);
+    // ---- Phase 1: Collect delta ----
+    const delta = {};
+    for (const {key, table} of ALL_PUSH_ENTITIES) {
+      try {
+        const rows = await collectUnsynced(db, table);
+        if (rows.length > 0) {
+          delta[key] = rows;
+        }
+      } catch (err) {
+        result.errors.push(`Collect failed for ${table}: ${err.message}`);
+      }
+    }
+
+    // ---- Phase 2: Push ----
+    if (Object.keys(delta).length > 0) {
+      try {
+        const pushResponse = await pushDelta({
+          device_id: deviceId,
+          branch_id: branchId,
+          pushed_at: pushedAt,
+          delta,
+        });
+
+        const {accepted = {}, synced_at} = pushResponse?.data ?? {};
+        result.pushed = accepted;
+
+        // Mark pushed records as synced
+        for (const {key, table} of ALL_PUSH_ENTITIES) {
+          if (delta[key]?.length) {
+            const syncIds = delta[key].map(r => r.sync_id).filter(Boolean);
+            try {
+              await markAsSynced(db, table, syncIds);
+              await updateSyncMetadata(db, key, {lastPushedAt: synced_at ?? pushedAt});
+            } catch (err) {
+              result.errors.push(`Mark synced failed for ${table}: ${err.message}`);
+            }
           }
         }
+      } catch (err) {
+        result.errors.push(`Push failed: ${err.message}`);
       }
-    } catch (err) {
-      result.errors.push(`Push failed: ${err.message}`);
     }
-  }
 
-  // ---- Phase 3: Pull (Group A only) ----
-  for (const {key, table} of GROUP_A_ENTITIES) {
-    try {
-      const since = await getLastPulledAt(db, key);
+    // ---- Phase 3: Pull (Group A only) ----
+    for (const {key, table} of GROUP_A_ENTITIES) {
+      try {
+        const since = await getLastPulledAt(db, key);
 
-      // If never pulled, use epoch to get all server records for this branch
-      const sinceParam = since ?? '1970-01-01T00:00:00Z';
+        // If never pulled, use epoch to get all server records for this branch
+        const sinceParam = since ?? '1970-01-01T00:00:00Z';
 
-      const pullResponse = await pullDelta({
-        since: sinceParam,
-        branch_id: branchId,
-        device_id: deviceId,
-      });
+        const pullResponse = await pullDelta({
+          since: sinceParam,
+          branch_id: branchId,
+          device_id: deviceId,
+        });
 
-      const {pulled_at, delta: pulledDelta = {}} = pullResponse?.data ?? {};
-      const records = pulledDelta[key] ?? [];
+        const {pulled_at, delta: pulledDelta = {}} = pullResponse?.data ?? {};
+        const records = pulledDelta[key] ?? [];
 
-      if (records.length > 0) {
-        for (const record of records) {
-          try {
-            await applyPulledRecord(db, table, record);
-          } catch (err) {
-            result.errors.push(`Apply pull record failed for ${table}: ${err.message}`);
+        if (records.length > 0) {
+          for (const record of records) {
+            try {
+              await applyPulledRecord(db, table, record);
+            } catch (err) {
+              result.errors.push(`Apply pull record failed for ${table}: ${err.message}`);
+            }
           }
+          result.pulled[key] = records.length;
         }
-        result.pulled[key] = records.length;
-      }
 
-      if (pulled_at) {
-        await updateSyncMetadata(db, key, {lastPulledAt: pulled_at});
+        if (pulled_at) {
+          await updateSyncMetadata(db, key, {lastPulledAt: pulled_at});
+        }
+      } catch (err) {
+        result.errors.push(`Pull failed for ${key}: ${err.message}`);
       }
-    } catch (err) {
-      result.errors.push(`Pull failed for ${key}: ${err.message}`);
     }
+  } finally {
+    syncInProgress = false;
   }
 
   return result;

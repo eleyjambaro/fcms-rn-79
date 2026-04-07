@@ -21,6 +21,7 @@ import routes from '../constants/routes';
 import TestModeLimitModal from '../components/modals/TestModeLimitModal';
 import useDefaultPrinterContext from '../hooks/useDefaultPrinterContext';
 import {printSalesInvoice} from '../utils/printHelpers';
+import {runSync} from '../services/syncService';
 
 const PaymentMethod = props => {
   const {route} = props;
@@ -160,6 +161,7 @@ const PaymentMethod = props => {
             params: {salesConfirmationSuccess: Date.now().toString()},
             merge: true,
           });
+          runSync().catch(console.warn);
         },
       });
     } catch (error) {
@@ -191,6 +193,7 @@ const PaymentMethod = props => {
             params: {addSalesOrdersSuccess: Date.now().toString()},
             merge: true,
           });
+          runSync().catch(console.warn);
         },
       });
     } catch (error) {
@@ -236,6 +239,7 @@ const PaymentMethod = props => {
             params,
             merge: true,
           });
+          runSync().catch(console.warn);
         },
       });
     } catch (error) {
