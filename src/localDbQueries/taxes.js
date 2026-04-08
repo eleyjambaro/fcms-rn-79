@@ -24,9 +24,7 @@ export const createTax = async ({values, onInsertLimitReached}) => {
     is_compound_tax,
     is_app_default,
     device_id,
-    branch_id,
-    sync_id,
-    updated_at
+    branch_id
   )
 
   VALUES(
@@ -35,9 +33,7 @@ export const createTax = async ({values, onInsertLimitReached}) => {
     ${parseInt(values.is_compound_tax || 0)},
     ${parseInt(values.is_app_default || 0)},
     ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'},
-    '${uuid.v4()}',
-    CURRENT_TIMESTAMP
+    ${branchId ? `'${branchId}'` : 'NULL'}
   );`;
     const appConfig = await getAppConfig();
     const insertLimit = appConfig?.insertLimit;
@@ -134,8 +130,7 @@ export const updateTax = async ({id, updatedValues}) => {
   const query = `UPDATE taxes
   SET name = '${updatedValues.name.replace(/\'/g, "''")}',
   rate_percentage = '${parseFloat(updatedValues.rate_percentage || 0)}',
-  is_app_default = '${parseInt(updatedValues.is_app_default || 0)}',
-  updated_at = CURRENT_TIMESTAMP
+  is_app_default = '${parseInt(updatedValues.is_app_default || 0)}'
   WHERE id = ${id}`;
 
   try {
