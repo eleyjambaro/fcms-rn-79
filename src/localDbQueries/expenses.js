@@ -411,15 +411,24 @@ export const getExpenseRevenueGroupIds = async ({queryKey}) => {
 export const createMonthlyExpense = async ({values}) => {
   try {
     const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
 
     const createMonthlyExpenseQuery = `INSERT INTO monthly_expenses (
       expense_group_id,
-      name
+      name,
+      device_id,
+      branch_id,
+      sync_id,
+      updated_at
     )
   
     VALUES(
       ${parseInt(values.expense_group_id)},
-      '${values.name}'
+      '${values.name.replace(/\'/g, "''")}',
+      ${deviceId ? `'${deviceId}'` : 'NULL'},
+      ${branchId ? `'${branchId}'` : 'NULL'},
+      '${uuid.v4()}',
+      CURRENT_TIMESTAMP
     );`;
 
     if (!values?.revenue_group_ids?.length > 0) {
@@ -435,7 +444,11 @@ export const createMonthlyExpense = async ({values}) => {
     let insertRevenueDeductionsQuery = `
       INSERT INTO revenue_deductions (
         revenue_group_id,
-        monthly_expense_id
+        monthly_expense_id,
+        device_id,
+        branch_id,
+        sync_id,
+        updated_at
       )
       
       VALUES
@@ -444,8 +457,11 @@ export const createMonthlyExpense = async ({values}) => {
     values.revenue_group_ids.forEach((revenueGroupId, index) => {
       insertRevenueDeductionsQuery += `(
           ${revenueGroupId},
-          ${monthlyExpenseId}
-          
+          ${monthlyExpenseId},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
       if (values.revenue_group_ids.length - 1 !== index) {
@@ -457,6 +473,7 @@ export const createMonthlyExpense = async ({values}) => {
     });
 
     await db.executeSql(insertRevenueDeductionsQuery);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create monthly expense.');
@@ -466,6 +483,7 @@ export const createMonthlyExpense = async ({values}) => {
 export const updateMonthlyExpense = async ({id, updatedValues}) => {
   try {
     const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
 
     const updateMonthlyExpenseQuery = `UPDATE monthly_expenses
       SET name = '${updatedValues.name}',
@@ -491,7 +509,11 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
     let insertRevenueDeductionsQuery = `
       INSERT INTO revenue_deductions (
         revenue_group_id,
-        monthly_expense_id
+        monthly_expense_id,
+        device_id,
+        branch_id,
+        sync_id,
+        updated_at
       )
       
       VALUES
@@ -500,7 +522,11 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
     updatedValues.revenue_group_ids.forEach((revenueGroupId, index) => {
       insertRevenueDeductionsQuery += `(
           ${revenueGroupId},
-          ${id}
+          ${id},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
       if (updatedValues.revenue_group_ids.length - 1 !== index) {
