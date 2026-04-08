@@ -2,7 +2,24 @@ import {useEffect, useRef} from 'react';
 import {AppState} from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import {useQueryClient} from '@tanstack/react-query';
-import {runSync, startLongPoll, stopLongPoll} from '../services/syncService';
+import {runSync} from '../services/syncService';
+
+let syncIntervalId = null;
+
+const startIntervalSync = () => {
+  if (syncIntervalId) return;
+  runSync().catch(console.warn); // immediate sync on foreground
+  syncIntervalId = setInterval(() => {
+    runSync().catch(console.warn);
+  }, 15_000);
+};
+
+const stopIntervalSync = () => {
+  if (syncIntervalId) {
+    clearInterval(syncIntervalId);
+    syncIntervalId = null;
+  }
+};
 
 export default function useAppLifecycle() {
   const appState = useRef(AppState.currentState);
@@ -22,11 +39,11 @@ export default function useAppLifecycle() {
       }
 
       if (isForeground) {
-        startLongPoll().catch(console.warn);
+        startIntervalSync();
       }
 
       if (nextAppState === 'background' || nextAppState === 'inactive') {
-        stopLongPoll();
+        stopIntervalSync();
       }
 
       appState.current = nextAppState;
@@ -43,13 +60,13 @@ export default function useAppLifecycle() {
       wasConnected.current = isNowConnected;
     });
 
-    // Start polling if already in foreground on mount
+    // Start interval if already in foreground on mount
     if (AppState.currentState === 'active') {
-      startLongPoll().catch(console.warn);
+      startIntervalSync();
     }
 
     return () => {
-      stopLongPoll();
+      stopIntervalSync();
       appStateSubscription.remove();
       netInfoUnsubscribe();
     };

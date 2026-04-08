@@ -54,32 +54,6 @@ export const pullDelta = async ({since, branch_id, device_id}) => {
 };
 
 /**
- * Long-poll the server for branch changes from other devices since `since`.
- * Holds the connection open for up to `timeout` seconds and resolves with
- * { has_changes: true } as soon as a change is detected, or
- * { has_changes: false } when the server-side timeout elapses with no change.
- *
- * @param {Object} params
- * @param {string} params.branch_id  - Cloud branch UUID
- * @param {string} params.device_id  - Cloud device UUID (sent as header to suppress echo)
- * @param {string} params.since      - ISO8601 watermark (earliest last_pulled_at)
- * @param {number} [params.timeout]  - Server-side hold duration in seconds (default 25)
- * @returns {Promise<Object>}        - { has_changes: boolean }
- */
-export const pollForChanges = async ({branch_id, device_id, since, timeout = 25}) => {
-  const headers = {
-    ...(await getAuthHeaders()),
-    'X-Device-Id': device_id,
-  };
-  const {data} = await cloudApiV2.get('/api/v2/sync/notify', {
-    params: {branch_id, since, timeout},
-    headers,
-    timeout: (timeout + 5) * 1000, // axios timeout must exceed server-side hold
-  });
-  return data;
-};
-
-/**
  * Get server-side record counts per entity for a branch (debug/health-check).
  *
  * @param {string} branch_id

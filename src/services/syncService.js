@@ -9,13 +9,13 @@
  *   1. Collect local records where synced_at IS NULL OR updated_at > synced_at
  *   2. Push the delta to the server
  *   3. Mark pushed records as synced (set synced_at = updated_at)
- *   4. Pull Group A changes from other devices since last_pulled_at
+ *   4. Pull all Group A changes in a single batch call (MIN last_pulled_at as since)
  *   5. Apply pulled records to local SQLite (upsert by sync_id)
- *   6. Update sync_metadata watermarks
+ *   6. Update sync_metadata watermarks per entity
  */
 
 import {getDBConnection, getCloudSyncParams} from '../localDb/index';
-import {pushDelta, pullDelta, pollForChanges} from '../serverDbQueries/v2/sync';
+import {pushDelta, pullDelta} from '../serverDbQueries/v2/sync';
 
 // ---------------------------------------------------------------------------
 // Entity configuration
@@ -103,19 +103,6 @@ const markAsSynced = async (db, tableName, syncIds) => {
      WHERE sync_id IN (${placeholders})`,
     syncIds,
   );
-};
-
-/**
- * Read the last_pulled_at watermark for an entity from sync_metadata.
- * Returns null if no record exists yet.
- */
-const getLastPulledAt = async (db, entityType) => {
-  const [result] = await db.executeSql(
-    `SELECT last_pulled_at FROM sync_metadata WHERE entity_type = ?`,
-    [entityType],
-  );
-  if (result.rows.length === 0) return null;
-  return result.rows.item(0).last_pulled_at;
 };
 
 /**
@@ -215,91 +202,6 @@ export const scheduleSyncSoon = (delayMs = 2000) => {
 };
 
 // ---------------------------------------------------------------------------
-// Long-poll loop (Device B — foreground only)
-// ---------------------------------------------------------------------------
-
-/**
- * Get the earliest last_pulled_at watermark across all Group A entities.
- * Using MIN ensures we don't miss changes for any entity that lags behind.
- * Returns null if sync_metadata is empty (triggers epoch-based full pull).
- */
-const getEarliestPulledAt = async db => {
-  try {
-    const [result] = await db.executeSql(
-      `SELECT MIN(last_pulled_at) AS since FROM sync_metadata`,
-    );
-    return result.rows.item(0)?.since ?? null;
-  } catch {
-    return null;
-  }
-};
-
-let longPollActive = false;
-
-/**
- * Start the long-poll loop. Holds a connection to GET /api/v2/sync/notify for
- * up to 25 seconds. Immediately calls runSync() when the server signals changes,
- * then reconnects. Backs off 5 seconds on network/auth errors.
- *
- * Call startLongPoll() when the app enters foreground.
- * Call stopLongPoll() when it goes to background.
- */
-export const startLongPoll = async () => {
-  if (longPollActive) {
-    return;
-  }
-  longPollActive = true;
-
-  while (longPollActive) {
-    try {
-      const {deviceId, branchId} = await getCloudSyncParams();
-
-      if (!deviceId || !branchId) {
-        // Not registered yet — wait before retrying
-        await new Promise(r => setTimeout(r, 10_000));
-        continue;
-      }
-
-      let db;
-      try {
-        db = await getDBConnection();
-      } catch {
-        await new Promise(r => setTimeout(r, 5_000));
-        continue;
-      }
-
-      const since = (await getEarliestPulledAt(db)) ?? '1970-01-01T00:00:00Z';
-
-      const response = await pollForChanges({
-        branch_id: branchId,
-        device_id: deviceId,
-        since,
-        timeout: 25,
-      });
-
-      if (response?.data?.has_changes) {
-        await runSync();
-      }
-      // On timeout (has_changes: false), reconnect immediately
-    } catch (err) {
-      if (!longPollActive) {
-        break;
-      }
-      // Network error, auth expiry, etc. — back off before retrying
-      await new Promise(r => setTimeout(r, 5_000));
-    }
-  }
-};
-
-/**
- * Stop the long-poll loop. The in-flight request will still complete naturally;
- * the loop simply won't reconnect after it resolves.
- */
-export const stopLongPoll = () => {
-  longPollActive = false;
-};
-
-// ---------------------------------------------------------------------------
 // Main sync entry point
 // ---------------------------------------------------------------------------
 
@@ -376,40 +278,39 @@ export const runSync = async () => {
       }
     }
 
-    // ---- Phase 3: Pull (Group A only) ----
-    for (const {key, table} of GROUP_A_ENTITIES) {
-      try {
-        const since = await getLastPulledAt(db, key);
+    // ---- Phase 3: Pull (Group A — single batch call) ----
+    try {
+      const [metaResult] = await db.executeSql(
+        `SELECT MIN(last_pulled_at) AS since FROM sync_metadata`,
+      );
+      const since = metaResult.rows.item(0)?.since ?? '1970-01-01T00:00:00Z';
 
-        // If never pulled, use epoch to get all server records for this branch
-        const sinceParam = since ?? '1970-01-01T00:00:00Z';
+      const pullResponse = await pullDelta({
+        since,
+        branch_id: branchId,
+        device_id: deviceId,
+      });
 
-        const pullResponse = await pullDelta({
-          since: sinceParam,
-          branch_id: branchId,
-          device_id: deviceId,
-        });
+      const {pulled_at, delta: pulledDelta = {}} = pullResponse?.data ?? {};
 
-        const {pulled_at, delta: pulledDelta = {}} = pullResponse?.data ?? {};
+      for (const {key, table} of GROUP_A_ENTITIES) {
         const records = pulledDelta[key] ?? [];
-
-        if (records.length > 0) {
-          for (const record of records) {
-            try {
-              await applyPulledRecord(db, table, record);
-            } catch (err) {
-              result.errors.push(`Apply pull record failed for ${table}: ${err.message}`);
-            }
+        for (const record of records) {
+          try {
+            await applyPulledRecord(db, table, record);
+          } catch (err) {
+            result.errors.push(`Apply pull record failed for ${table}: ${err.message}`);
           }
+        }
+        if (records.length > 0) {
           result.pulled[key] = records.length;
         }
-
         if (pulled_at) {
           await updateSyncMetadata(db, key, {lastPulledAt: pulled_at});
         }
-      } catch (err) {
-        result.errors.push(`Pull failed for ${key}: ${err.message}`);
       }
+    } catch (err) {
+      result.errors.push(`Pull failed: ${err.message}`);
     }
   } finally {
     syncInProgress = false;
