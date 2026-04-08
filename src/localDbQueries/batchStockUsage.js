@@ -525,7 +525,7 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
     );
 
     // delete each batch stock usage entries
-    const deleteBatchStockUsageEntriesQuery = `DELETE FROM batch_stock_usage_entries
+    const deleteBatchStockUsageEntriesQuery = `UPDATE batch_stock_usage_entries SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
       WHERE batch_stock_usage_group_id = ${currentBatchStockUsageGroupId}
     ;`;
     const deleteBatchStockUsageEntriesResult = await db.executeSql(

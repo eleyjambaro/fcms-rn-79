@@ -580,8 +580,8 @@ export const updateRecipe = async ({id, updatedValues}) => {
 };
 
 export const deleteRecipe = async ({id}) => {
-  const deleteRecipeQuery = `DELETE FROM recipes WHERE id = ${id}`;
-  const deleteRecipeIngredientsQuery = `DELETE FROM ingredients WHERE recipe_id = ${id}`;
+  const deleteRecipeQuery = `UPDATE recipes SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+  const deleteRecipeIngredientsQuery = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipe_id = ${id}`;
 
   try {
     const db = await getDBConnection();
@@ -598,7 +598,7 @@ export const deleteRecipe = async ({id}) => {
 };
 
 export const deleteRecipeIngredients = async ({id}) => {
-  const deleteRecipeIngredientsQuery = `DELETE FROM ingredients WHERE recipe_id = ${id}`;
+  const deleteRecipeIngredientsQuery = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipe_id = ${id}`;
 
   try {
     const db = await getDBConnection();
@@ -1055,7 +1055,7 @@ export const getRecipeIngredient = async ({queryKey}) => {
 };
 
 export const deleteRecipeIngredient = async ({id}) => {
-  const query = `DELETE FROM ingredients WHERE id = ${parseInt(id)}`;
+  const query = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${parseInt(id)}`;
 
   try {
     const db = await getDBConnection();

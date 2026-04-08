@@ -172,7 +172,7 @@ export const updateVendor = async ({id, updatedValues}) => {
 };
 
 export const deleteVendor = async ({id}) => {
-  const query = `DELETE FROM vendors WHERE id = ${id}`;
+  const query = `UPDATE vendors SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
 
   try {
     const db = await getDBConnection();

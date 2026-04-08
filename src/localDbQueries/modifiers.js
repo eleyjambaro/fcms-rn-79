@@ -239,7 +239,7 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
 export const deleteItemSellingSizeOption = async ({id}) => {
   try {
     const db = await getDBConnection();
-    const deleteSizeOptionQuery = `DELETE FROM modifier_options WHERE id = ${parseInt(
+    const deleteSizeOptionQuery = `UPDATE modifier_options SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${parseInt(
       id,
     )}`;
     await db.executeSql(deleteSizeOptionQuery);

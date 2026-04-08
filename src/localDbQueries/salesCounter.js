@@ -421,7 +421,7 @@ export const confirmSaleEntries = async ({
     // delete created invoice
     if (createdInvoiceId) {
       const deleteInvoiceQuery = `
-        DELETE FROM invoices
+        UPDATE invoices SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
         WHERE id = ${parseInt(createdInvoiceId)};
       `;
 
@@ -1093,7 +1093,7 @@ export const addSaleEntriesToSalesOrders = async ({
     // delete created sales order group
     if (createdSalesOrderGroupId) {
       const deleteSalesOrderGroupQuery = `
-        DELETE FROM sales_order_groups
+        UPDATE sales_order_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
         WHERE id = ${parseInt(createdSalesOrderGroupId)};
       `;
 

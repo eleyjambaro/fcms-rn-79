@@ -240,7 +240,7 @@ export const deleteCategory = async ({id, onError}) => {
       throw Error('Category associated with an item cannot be deleted.');
     }
 
-    const deleteCategoryQuery = `DELETE FROM categories WHERE id = ${id}`;
+    const deleteCategoryQuery = `UPDATE categories SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
 
     const result = await db.executeSql(deleteCategoryQuery);
     scheduleSyncSoon();

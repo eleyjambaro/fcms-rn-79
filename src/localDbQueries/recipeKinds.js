@@ -128,7 +128,7 @@ export const updateRecipeKind = async ({id, updatedValues}) => {
 };
 
 export const deleteRecipeKind = async ({id}) => {
-  const query = `DELETE FROM recipe_kinds WHERE id = ${id}`;
+  const query = `UPDATE recipe_kinds SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
 
   try {
     const db = await getDBConnection();

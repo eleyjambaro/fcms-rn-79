@@ -425,7 +425,7 @@ export const createBatchPurchaseEntry = async ({values}) => {
       // delete existing Batch Purchase Entry if the user wants to set the add_stock_qty to 0
       if (!parseFloat(values.add_stock_qty)) {
         const deleteBatchPurchaseEntryQuery = `
-          DELETE FROM batch_purchase_entries
+          UPDATE batch_purchase_entries SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
           WHERE id = ${parseInt(batchPurchaseEntry.id)}
         `;
 
@@ -801,7 +801,7 @@ export const confirmBatchPurchaseEntries = async ({
     );
 
     // delete each batch purchase entries
-    const deleteBatchPurchaseEntriesQuery = `DELETE FROM batch_purchase_entries
+    const deleteBatchPurchaseEntriesQuery = `UPDATE batch_purchase_entries SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
       WHERE batch_purchase_group_id = ${parseInt(currentBatchPurchaseGroupId)}
     ;`;
     const deleteBatchPurchaseEntriesResult = await db.executeSql(
@@ -1131,7 +1131,7 @@ export const deleteUnconfirmedBatchPurchaseGroupsAndEntries = async () => {
 
     if (!unconfirmedBatchPurchaseGroupIds.length > 0) return;
 
-    const deleteUnconfirmedBatchPurchaseEntries = `DELETE FROM batch_purchase_entries WHERE batch_purchase_group_id IN (${unconfirmedBatchPurchaseGroupIds
+    const deleteUnconfirmedBatchPurchaseEntries = `UPDATE batch_purchase_entries SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE batch_purchase_group_id IN (${unconfirmedBatchPurchaseGroupIds
       ?.map(value => `${value}`)
       ?.join(
         ', ',
@@ -1139,7 +1139,7 @@ export const deleteUnconfirmedBatchPurchaseGroupsAndEntries = async () => {
 
     await db.executeSql(deleteUnconfirmedBatchPurchaseEntries);
 
-    const deleteUnconfirmedBatchPurchaseGroups = `DELETE FROM batch_purchase_groups WHERE id IN (${unconfirmedBatchPurchaseGroupIds
+    const deleteUnconfirmedBatchPurchaseGroups = `UPDATE batch_purchase_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id IN (${unconfirmedBatchPurchaseGroupIds
       ?.map(value => `${value}`)
       ?.join(', ')}) AND id != ${currentBatchPurchaseGroupId}`;
 

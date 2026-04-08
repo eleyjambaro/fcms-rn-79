@@ -338,7 +338,7 @@ export const updateRevenueGroup = async ({
     }
 
     const deleteExistingRevenueCategoriesQuery = `
-      DELETE FROM revenue_categories WHERE revenue_group_id = ${id};
+      UPDATE revenue_categories SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE revenue_group_id = ${id};
     `;
 
     await db.executeSql(deleteExistingRevenueCategoriesQuery);
@@ -385,8 +385,8 @@ export const updateRevenueGroup = async ({
 };
 
 export const deleteRevenueGroup = async ({id}) => {
-  const deleteRevenueGroupQuery = `DELETE FROM revenue_groups WHERE id = ${id}`;
-  const deleteRevenuesQuery = `DELETE FROM revenues WHERE revenue_group_id = ${id}`;
+  const deleteRevenueGroupQuery = `UPDATE revenue_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+  const deleteRevenuesQuery = `UPDATE revenues SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE revenue_group_id = ${id}`;
 
   try {
     const db = await getDBConnection();
@@ -503,7 +503,7 @@ export const updateRevenue = async ({id, updatedValues}) => {
 };
 
 export const deleteRevenue = async ({id}) => {
-  const query = `DELETE FROM revenues WHERE id = ${id}`;
+  const query = `UPDATE revenues SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
 
   try {
     const db = await getDBConnection();

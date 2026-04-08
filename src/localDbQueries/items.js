@@ -1449,12 +1449,12 @@ export const updateItem = async ({
 export const deleteItem = async ({id}) => {
   try {
     const db = await getDBConnection();
-    const deleteItemQuery = `DELETE FROM items WHERE id = ${parseInt(id)}`;
+    const deleteItemQuery = `UPDATE items SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${parseInt(id)}`;
     const deleteItemResult = await db.executeSql(deleteItemQuery);
 
     if (deleteItemResult[0].rowsAffected > 0) {
       const deleteAllItemInventoryLogsQuery = `
-        DELETE FROM inventory_logs WHERE item_id = ${parseInt(id)}
+        UPDATE inventory_logs SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE item_id = ${parseInt(id)}
       `;
 
       await db.executeSql(deleteAllItemInventoryLogsQuery);

@@ -199,8 +199,8 @@ export const updateExpenseGroup = async ({id, updatedValues}) => {
 };
 
 export const deleteExpenseGroup = async ({id}) => {
-  const deleteExpenseGroupQuery = `DELETE FROM expense_groups WHERE id = ${id}`;
-  const deleteMonthlyExpenseEntriesQuery = `DELETE FROM expenses WHERE expense_group_id = ${id}`;
+  const deleteExpenseGroupQuery = `UPDATE expense_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+  const deleteMonthlyExpenseEntriesQuery = `UPDATE expenses SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE expense_group_id = ${id}`;
 
   try {
     const db = await getDBConnection();
@@ -500,7 +500,7 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
     );
 
     const deleteExistingRevenueDeductionsQuery = `
-      DELETE FROM revenue_deductions WHERE monthly_expense_id = ${id};
+      UPDATE revenue_deductions SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE monthly_expense_id = ${id};
     `;
 
     await db.executeSql(deleteExistingRevenueDeductionsQuery);
@@ -547,7 +547,7 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
 
 export const deleteMonthlyExpense = async ({id}) => {
   const deleteMonthlyExpenseQuery = `DELETE FROM monthly_expenses WHERE id = ${id}`;
-  const deleteExpensesQuery = `DELETE FROM expenses WHERE monthly_expense_id = ${id}`;
+  const deleteExpensesQuery = `UPDATE expenses SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE monthly_expense_id = ${id}`;
 
   try {
     const db = await getDBConnection();
@@ -787,7 +787,7 @@ export const updateExpense = async ({id, updatedValues}) => {
     }
 
     const deleteExistingRevenueDeductionsQuery = `
-      DELETE FROM revenue_deductions WHERE expense_id = ${id};
+      UPDATE revenue_deductions SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE expense_id = ${id};
     `;
 
     await db.executeSql(deleteExistingRevenueDeductionsQuery);
@@ -834,7 +834,7 @@ export const updateExpense = async ({id, updatedValues}) => {
 };
 
 export const deleteExpense = async ({id}) => {
-  const query = `DELETE FROM expenses WHERE id = ${id}`;
+  const query = `UPDATE expenses SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
 
   try {
     const db = await getDBConnection();

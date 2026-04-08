@@ -7,7 +7,7 @@ import {scheduleSyncSoon} from '../services/syncService';
 
 // TODO: Make it deleteSelectedMonthSpoilages
 export const deleteRecipeIngredients = async ({id}) => {
-  const deleteRecipeIngredientsQuery = `DELETE FROM ingredients WHERE recipe_id = ${id}`;
+  const deleteRecipeIngredientsQuery = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipe_id = ${id}`;
 
   try {
     const db = await getDBConnection();
@@ -618,7 +618,7 @@ export const updateSpoilage = async ({id, updatedValues}) => {
 };
 
 export const deleteSpoilage = async ({id}) => {
-  const query = `DELETE FROM spoilages WHERE id = ${parseInt(id)}`;
+  const query = `UPDATE spoilages SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${parseInt(id)}`;
 
   try {
     const db = await getDBConnection();
