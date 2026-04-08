@@ -8,6 +8,7 @@ import {
 } from '../utils/localDbQueryHelpers';
 import getAppConfig from '../constants/appConfig';
 import {appDefaultsTypeRefs} from '../constants/appDefaults';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const getItems = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter}] = queryKey;
@@ -1423,6 +1424,7 @@ export const updateItem = async ({
         }
       }
 
+      scheduleSyncSoon();
       onSuccess && onSuccess({itemId: id});
     }
   } catch (error) {
@@ -1444,6 +1446,7 @@ export const deleteItem = async ({id}) => {
 
       await db.executeSql(deleteAllItemInventoryLogsQuery);
     }
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete item.');

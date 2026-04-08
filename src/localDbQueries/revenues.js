@@ -2,6 +2,7 @@ import uuid from 'react-native-uuid';
 import getAppConfig from '../constants/appConfig';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {isInsertLimitReached} from '../utils/localDbQueryHelpers';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const getRevenueGroups = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter, dateFilter, limit = 1000000000}] = queryKey;
@@ -261,6 +262,7 @@ export const createRevenueGroup = async ({
     });
 
     await db.executeSql(insertRevenueCategoriesQuery);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create revenue group.');
@@ -375,6 +377,7 @@ export const updateRevenueGroup = async ({
     });
 
     await db.executeSql(insertRevenueCategoriesQuery);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update revenue group.');
@@ -395,6 +398,7 @@ export const deleteRevenueGroup = async ({id}) => {
     if (deleteRevenueGroupResult[0].rowsAffected > 0) {
       await db.executeSql(deleteRevenuesQuery);
     }
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete revenue groups.');
@@ -443,6 +447,7 @@ export const createRevenue = async ({values}) => {
     // create new revenue
     if (!currentMonthRevenue) {
       await db.executeSql(createRevenueQuery);
+      scheduleSyncSoon();
       return;
     }
 
@@ -455,6 +460,7 @@ export const createRevenue = async ({values}) => {
     `;
 
     await db.executeSql(updateCurrentMonthRevenueQuery);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create revenue.');
@@ -485,7 +491,9 @@ export const updateRevenue = async ({id, updatedValues}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(query);
+    const result = await db.executeSql(query);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update revenue.');
@@ -497,7 +505,9 @@ export const deleteRevenue = async ({id}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(query);
+    const result = await db.executeSql(query);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete revenues.');

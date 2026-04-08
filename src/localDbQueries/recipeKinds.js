@@ -1,5 +1,6 @@
 import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const getRecipeKinds = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter}] = queryKey;
@@ -83,7 +84,9 @@ export const createRecipeKind = async ({values}) => {
     '${uuid.v4()}',
     CURRENT_TIMESTAMP
   );`;
-    return db.executeSql(query);
+    const result = await db.executeSql(query);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create recipe kind.');
@@ -115,7 +118,9 @@ export const updateRecipeKind = async ({id, updatedValues}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(query);
+    const result = await db.executeSql(query);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update recipe kind.');
@@ -127,7 +132,9 @@ export const deleteRecipeKind = async ({id}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(query);
+    const result = await db.executeSql(query);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete recipe kind.');

@@ -2,7 +2,7 @@ import {useEffect, useRef} from 'react';
 import {AppState} from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import {useQueryClient} from '@tanstack/react-query';
-import {runSync} from '../services/syncService';
+import {runSync, startLongPoll, stopLongPoll} from '../services/syncService';
 
 export default function useAppLifecycle() {
   const appState = useRef(AppState.currentState);
@@ -22,7 +22,11 @@ export default function useAppLifecycle() {
       }
 
       if (isForeground) {
-        runSync().catch(console.warn);
+        startLongPoll().catch(console.warn);
+      }
+
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        stopLongPoll();
       }
 
       appState.current = nextAppState;
@@ -39,7 +43,13 @@ export default function useAppLifecycle() {
       wasConnected.current = isNowConnected;
     });
 
+    // Start polling if already in foreground on mount
+    if (AppState.currentState === 'active') {
+      startLongPoll().catch(console.warn);
+    }
+
     return () => {
+      stopLongPoll();
       appStateSubscription.remove();
       netInfoUnsubscribe();
     };

@@ -3,6 +3,7 @@ import uuid from 'react-native-uuid';
 
 import {appDefaultsTypeRefs} from '../constants/appDefaults';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
+import {scheduleSyncSoon} from '../services/syncService';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 
 export const isItemHasModifierOptions = async ({queryKey}) => {
@@ -227,7 +228,8 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
         CURRENT_TIMESTAMP
       )
     `;
-    const createSizeOptionResult = await db.executeSql(createSizeOptionQuery);
+    await db.executeSql(createSizeOptionQuery);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create size option.');
@@ -240,7 +242,8 @@ export const deleteItemSellingSizeOption = async ({id}) => {
     const deleteSizeOptionQuery = `DELETE FROM modifier_options WHERE id = ${parseInt(
       id,
     )}`;
-    const deleteSizeOptionResult = await db.executeSql(deleteSizeOptionQuery);
+    await db.executeSql(deleteSizeOptionQuery);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete item.');

@@ -5,6 +5,7 @@ import {
   createQueryFilter,
   isMutationDisabled,
 } from '../utils/localDbQueryHelpers';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const getItemsAndBatchPurchaseEntries = async ({
   queryKey,
@@ -438,6 +439,7 @@ export const createBatchPurchaseEntry = async ({values}) => {
       await db.executeSql(updateItemsDefaultTaxQuery);
     }
 
+    scheduleSyncSoon();
     return batchPurchaseEntry;
   } catch (error) {
     console.debug(error);
@@ -819,6 +821,7 @@ export const confirmBatchPurchaseEntries = async ({
     // remove current Batch Purchase Group ID from storage
     await AsyncStorage.removeItem('currentBatchPurchaseGroupId');
 
+    scheduleSyncSoon();
     onSuccess && onSuccess();
 
     return {

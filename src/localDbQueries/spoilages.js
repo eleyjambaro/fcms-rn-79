@@ -3,6 +3,7 @@ import convert from 'convert-units';
 import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
+import {scheduleSyncSoon} from '../services/syncService';
 
 // TODO: Make it deleteSelectedMonthSpoilages
 export const deleteRecipeIngredients = async ({id}) => {
@@ -92,6 +93,7 @@ export const addSpoilage = async ({values}) => {
 
     // add new spoilage
     const createSpoilageResult = await db.executeSql(createSpoilageQuery);
+    scheduleSyncSoon();
     const spoilage = createSpoilageResult[0].rows.item(0);
 
     return spoilage;
@@ -605,7 +607,9 @@ export const updateSpoilage = async ({id, updatedValues}) => {
       WHERE id = ${parseInt(id)}
     `;
 
-    return await db.executeSql(updateSpoilageQuery);
+    const result = await db.executeSql(updateSpoilageQuery);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update spoilage.');
@@ -618,6 +622,7 @@ export const deleteSpoilage = async ({id}) => {
   try {
     const db = await getDBConnection();
     await db.executeSql(query);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete spoilage.');

@@ -14,9 +14,8 @@
  *   6. Update sync_metadata watermarks
  */
 
-import {getDBConnection} from '../localDb/index';
-import {getCloudSyncParams} from '../localDb/index';
-import {pushDelta, pullDelta} from '../serverDbQueries/v2/sync';
+import {getDBConnection, getCloudSyncParams} from '../localDb/index';
+import {pushDelta, pullDelta, pollForChanges} from '../serverDbQueries/v2/sync';
 
 // ---------------------------------------------------------------------------
 // Entity configuration
@@ -24,10 +23,12 @@ import {pushDelta, pullDelta} from '../serverDbQueries/v2/sync';
 
 /**
  * Group A — bidirectional (push + pull).
- * pull_table: local table name for upsert on pull.
- * pull_fields: columns accepted from the server record.
+ * All entities are here because every device in a branch both writes to and
+ * needs to receive changes from other devices. Unique device-generated sync_ids
+ * mean cross-device inserts never conflict.
  */
 const GROUP_A_ENTITIES = [
+  // Catalog / master data
   {key: 'categories',             table: 'categories'},
   {key: 'taxes',                  table: 'taxes'},
   {key: 'vendors',                table: 'vendors'},
@@ -41,12 +42,7 @@ const GROUP_A_ENTITIES = [
   {key: 'modifier_options',       table: 'modifier_options'},
   {key: 'selling_menus',          table: 'selling_menus'},
   {key: 'selling_menu_items',     table: 'selling_menu_items'},
-];
-
-/**
- * Group B — push-only (no pull overwrite).
- */
-const GROUP_B_ENTITIES = [
+  // Transaction / operational data
   {key: 'batch_purchase_groups',     table: 'batch_purchase_groups'},
   {key: 'batch_purchase_entries',    table: 'batch_purchase_entries'},
   {key: 'batch_stock_usage_groups',  table: 'batch_stock_usage_groups'},
@@ -66,6 +62,11 @@ const GROUP_B_ENTITIES = [
   {key: 'payments',                  table: 'payments'},
   {key: 'inventory_logs',            table: 'inventory_logs'},
 ];
+
+/**
+ * Group B — reserved for future use.
+ */
+const GROUP_B_ENTITIES = [];
 
 const ALL_PUSH_ENTITIES = [...GROUP_A_ENTITIES, ...GROUP_B_ENTITIES];
 
@@ -195,6 +196,112 @@ const applyPulledRecord = async (db, tableName, record) => {
 // ---------------------------------------------------------------------------
 
 let syncInProgress = false;
+
+// ---------------------------------------------------------------------------
+// Debounced push
+// ---------------------------------------------------------------------------
+
+/**
+ * Schedule a sync 2 seconds after the last call. Rapid successive mutations
+ * collapse into a single sync attempt. Safe to call fire-and-forget from any
+ * localDbQuery mutation function.
+ */
+let debounceTimer = null;
+export const scheduleSyncSoon = (delayMs = 2000) => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    runSync().catch(console.warn);
+  }, delayMs);
+};
+
+// ---------------------------------------------------------------------------
+// Long-poll loop (Device B — foreground only)
+// ---------------------------------------------------------------------------
+
+/**
+ * Get the earliest last_pulled_at watermark across all Group A entities.
+ * Using MIN ensures we don't miss changes for any entity that lags behind.
+ * Returns null if sync_metadata is empty (triggers epoch-based full pull).
+ */
+const getEarliestPulledAt = async db => {
+  try {
+    const [result] = await db.executeSql(
+      `SELECT MIN(last_pulled_at) AS since FROM sync_metadata`,
+    );
+    return result.rows.item(0)?.since ?? null;
+  } catch {
+    return null;
+  }
+};
+
+let longPollActive = false;
+
+/**
+ * Start the long-poll loop. Holds a connection to GET /api/v2/sync/notify for
+ * up to 25 seconds. Immediately calls runSync() when the server signals changes,
+ * then reconnects. Backs off 5 seconds on network/auth errors.
+ *
+ * Call startLongPoll() when the app enters foreground.
+ * Call stopLongPoll() when it goes to background.
+ */
+export const startLongPoll = async () => {
+  if (longPollActive) {
+    return;
+  }
+  longPollActive = true;
+
+  while (longPollActive) {
+    try {
+      const {deviceId, branchId} = await getCloudSyncParams();
+
+      if (!deviceId || !branchId) {
+        // Not registered yet — wait before retrying
+        await new Promise(r => setTimeout(r, 10_000));
+        continue;
+      }
+
+      let db;
+      try {
+        db = await getDBConnection();
+      } catch {
+        await new Promise(r => setTimeout(r, 5_000));
+        continue;
+      }
+
+      const since = (await getEarliestPulledAt(db)) ?? '1970-01-01T00:00:00Z';
+
+      const response = await pollForChanges({
+        branch_id: branchId,
+        device_id: deviceId,
+        since,
+        timeout: 25,
+      });
+
+      if (response?.data?.has_changes) {
+        await runSync();
+      }
+      // On timeout (has_changes: false), reconnect immediately
+    } catch (err) {
+      if (!longPollActive) {
+        break;
+      }
+      // Network error, auth expiry, etc. — back off before retrying
+      await new Promise(r => setTimeout(r, 5_000));
+    }
+  }
+};
+
+/**
+ * Stop the long-poll loop. The in-flight request will still complete naturally;
+ * the loop simply won't reconnect after it resolves.
+ */
+export const stopLongPoll = () => {
+  longPollActive = false;
+};
+
+// ---------------------------------------------------------------------------
+// Main sync entry point
+// ---------------------------------------------------------------------------
 
 /**
  * Run a full push-pull sync cycle.

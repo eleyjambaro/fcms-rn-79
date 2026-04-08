@@ -2,6 +2,7 @@ import uuid from 'react-native-uuid';
 import getAppConfig from '../constants/appConfig';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {isInsertLimitReached} from '../utils/localDbQueryHelpers';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const getExpenseGroups = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter, dateFilter}] = queryKey;
@@ -171,7 +172,8 @@ export const createExpenseGroup = async ({values, onInsertLimitReached}) => {
       return;
     }
 
-    const result = await db.executeSql(query);
+    await db.executeSql(query);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create expense group.');
@@ -186,7 +188,9 @@ export const updateExpenseGroup = async ({id, updatedValues}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(query);
+    const result = await db.executeSql(query);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update expense group.');
@@ -207,6 +211,7 @@ export const deleteExpenseGroup = async ({id}) => {
     if (deleteExpenseGroupResult[0].rowsAffected > 0) {
       await db.executeSql(deleteMonthlyExpenseEntriesQuery);
     }
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete expense group.');
@@ -505,6 +510,7 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
     });
 
     await db.executeSql(insertRevenueDeductionsQuery);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update expense.');
@@ -708,6 +714,7 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
     });
 
     await db.executeSql(insertRevenueDeductionsQuery);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create expense.');
@@ -791,6 +798,7 @@ export const updateExpense = async ({id, updatedValues}) => {
     });
 
     await db.executeSql(insertRevenueDeductionsQuery);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update expense.');
@@ -802,7 +810,9 @@ export const deleteExpense = async ({id}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(query);
+    const result = await db.executeSql(query);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete expense.');

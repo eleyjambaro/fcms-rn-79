@@ -1,5 +1,6 @@
 import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
+import {scheduleSyncSoon} from '../services/syncService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createQueryFilter,
@@ -64,7 +65,9 @@ export const createVendor = async ({values, onInsertLimitReached}) => {
       return;
     }
 
-    return db.executeSql(query);
+    const result = await db.executeSql(query);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create vendor.');
@@ -159,7 +162,9 @@ export const updateVendor = async ({id, updatedValues}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(query);
+    const result = await db.executeSql(query);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update vendor.');
@@ -171,7 +176,9 @@ export const deleteVendor = async ({id}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(query);
+    const result = await db.executeSql(query);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete vendor.');

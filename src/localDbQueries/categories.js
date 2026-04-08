@@ -1,5 +1,6 @@
 import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
+import {scheduleSyncSoon} from '../services/syncService';
 import {
   createQueryFilter,
   isInsertLimitReached,
@@ -128,7 +129,9 @@ export const createCategory = async ({
       CURRENT_TIMESTAMP
     );`;
 
-    return db.executeSql(createCategoryQuery);
+    const result = await db.executeSql(createCategoryQuery);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create category.');
@@ -202,7 +205,9 @@ export const updateCategory = async ({
       WHERE id = ${id}
     `;
 
-    return await db.executeSql(updateCategoryQuery);
+    const result = await db.executeSql(updateCategoryQuery);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update category.');
@@ -237,7 +242,9 @@ export const deleteCategory = async ({id, onError}) => {
 
     const deleteCategoryQuery = `DELETE FROM categories WHERE id = ${id}`;
 
-    return await db.executeSql(deleteCategoryQuery);
+    const result = await db.executeSql(deleteCategoryQuery);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete category.');

@@ -7,6 +7,7 @@ import {
   createQueryFilter,
   isMutationDisabled,
 } from '../utils/localDbQueryHelpers';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const confirmSaleEntries = async ({
   saleDate,
@@ -408,6 +409,7 @@ export const confirmSaleEntries = async ({
     //   updateItemsLastUnitCostQuery,
     // );
 
+    scheduleSyncSoon();
     onSuccess && onSuccess({salesInvoice});
 
     return {
@@ -821,6 +823,7 @@ export const confirmFulfillingSalesOrders = async ({
       updateFulfilledOrderQtyQuery,
     );
 
+    scheduleSyncSoon();
     onSuccess && onSuccess();
 
     return {
@@ -1071,6 +1074,7 @@ export const addSaleEntriesToSalesOrders = async ({
     //   updateItemsLastUnitCostQuery,
     // );
 
+    scheduleSyncSoon();
     onSuccess && onSuccess();
 
     return {

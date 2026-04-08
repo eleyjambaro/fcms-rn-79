@@ -4,6 +4,7 @@ import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {getItem} from './items';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const createOrGetUnsavedSellingMenu = async () => {
   try {
@@ -169,6 +170,7 @@ export const saveSellingMenu = async ({values, onSuccess}) => {
       }
     }
 
+    scheduleSyncSoon();
     onSuccess && onSuccess({sellingMenuId: parseInt(currentSellingMenuId)});
 
     // remove unsaved selling menu ID from storage
@@ -396,7 +398,9 @@ export const updateSellingMenu = async ({id, updatedValues}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(updateSellingMenuQuery);
+    const result = await db.executeSql(updateSellingMenuQuery);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update selling menu.');
@@ -414,6 +418,7 @@ export const deleteSellingMenu = async ({id}) => {
     if (deleteRecipeResult[0].rowsAffected > 0) {
       await db.executeSql(deleteRecipeIngredientsQuery);
     }
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete selling menu.');
@@ -556,6 +561,7 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
       currentSellingMenuItem = updateSellingMenuItemResult[0].rows.item(0);
     }
 
+    scheduleSyncSoon();
     return currentSellingMenuItem;
   } catch (error) {
     console.debug(error);
@@ -739,6 +745,7 @@ export const deleteSellingMenuItem = async ({id}) => {
   try {
     const db = await getDBConnection();
     await db.executeSql(query);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete selling menu item.');

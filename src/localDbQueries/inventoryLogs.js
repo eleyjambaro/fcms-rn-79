@@ -5,6 +5,7 @@ import {
   isMutationDisabled,
 } from '../utils/localDbQueryHelpers';
 import {getItem} from './items';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const getInventoryLogs = async ({queryKey, pageParam = 1}) => {
   const [
@@ -402,7 +403,9 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
       WHERE id = ${id}
     `;
 
-    return db.executeSql(updateInventoryLogQuery);
+    const result = await db.executeSql(updateInventoryLogQuery);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update inventory log.');
@@ -453,11 +456,11 @@ export const voidInventoryLog = async ({id}) => {
           inventoryLog.yield_ref_id
         }' AND id != ${parseInt(inventoryLog.id)}
       `;
-      const voidAllDeductedYieldIngredientsInInventoryLogsResult =
-        await db.executeSql(
-          voidAllDeductedYieldIngredientsInInventoryLogsQuery,
-        );
+      await db.executeSql(
+        voidAllDeductedYieldIngredientsInInventoryLogsQuery,
+      );
     }
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to void inventory log.');
@@ -473,7 +476,9 @@ export const updateInventoryLogRemarks = async ({id, updatedValues}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(updateInventoryLogRemarksQuery);
+    const result = await db.executeSql(updateInventoryLogRemarksQuery);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update inventory log remarks.');
@@ -1219,7 +1224,7 @@ export const addInventoryLog = async ({
     );`;
 
     await db.executeSql(addInventoryLogQuery);
-
+    scheduleSyncSoon();
     onSuccess && onSuccess();
   } catch (error) {
     console.debug(error);

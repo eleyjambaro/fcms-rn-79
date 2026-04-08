@@ -4,6 +4,7 @@ import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {getItem} from './items';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const createOrGetUnsavedRecipe = async () => {
   try {
@@ -192,6 +193,7 @@ export const saveRecipe = async ({
       await db.executeSql(updateFinishedProductRecipeIdQuery);
     }
 
+    scheduleSyncSoon();
     onSuccess && onSuccess({recipeId: parseInt(currentRecipeId)});
 
     // remove unsaved recipe ID from storage
@@ -278,6 +280,7 @@ export const saveSubRecipe = async ({values}) => {
 
     // remove unsaved recipe ID from storage
     await AsyncStorage.removeItem('currentSubRecipeId');
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create sub recipe.');
@@ -559,7 +562,9 @@ export const updateRecipe = async ({id, updatedValues}) => {
 
   try {
     const db = await getDBConnection();
-    return await db.executeSql(updateRecipeQuery);
+    const result = await db.executeSql(updateRecipeQuery);
+    scheduleSyncSoon();
+    return result;
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update recipe.');
@@ -577,6 +582,7 @@ export const deleteRecipe = async ({id}) => {
     if (deleteRecipeResult[0].rowsAffected > 0) {
       await db.executeSql(deleteRecipeIngredientsQuery);
     }
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete recipe.');
@@ -737,6 +743,7 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
       currentIngredient = updateIngredientResult[0].rows.item(0);
     }
 
+    scheduleSyncSoon();
     return currentIngredient;
   } catch (error) {
     console.debug(error);
@@ -1038,6 +1045,7 @@ export const deleteRecipeIngredient = async ({id}) => {
   try {
     const db = await getDBConnection();
     await db.executeSql(query);
+    scheduleSyncSoon();
   } catch (error) {
     console.debug(error);
     throw Error('Failed to delete ingredient.');

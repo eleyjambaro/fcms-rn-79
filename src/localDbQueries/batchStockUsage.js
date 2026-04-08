@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const getItemsAndBatchStockUsageEntries = async ({
   queryKey,
@@ -364,6 +365,7 @@ export const createBatchStockUsageEntry = async ({values}) => {
       batchStockUsageEntry = updateBatchStockUsageEntryResult[0].rows.item(0);
     }
 
+    scheduleSyncSoon();
     return batchStockUsageEntry;
   } catch (error) {
     console.debug(error);
@@ -545,6 +547,7 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
     // remove current Batch Stock Usage Group ID from storage
     await AsyncStorage.removeItem('currentBatchStockUsageGroupId');
 
+    scheduleSyncSoon();
     return {
       batchStockUsageGroupId: currentBatchStockUsageGroupId,
       batchStockUsageEntries,
