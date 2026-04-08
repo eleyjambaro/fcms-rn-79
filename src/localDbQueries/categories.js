@@ -122,7 +122,7 @@ export const createCategory = async ({
     )
 
     VALUES(
-      '${category.name.replace(/\'/g, "''")}',
+      '${category.name?.replace(/\'/g, "''")}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
       '${uuid.v4()}',
@@ -200,7 +200,7 @@ export const updateCategory = async ({
      * Update Category
      */
     const updateCategoryQuery = `UPDATE categories
-      SET name = '${updatedValues.name.replace(/\'/g, "''")}',
+      SET name = '${updatedValues.name?.replace(/\'/g, "''")}',
       updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;

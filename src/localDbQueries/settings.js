@@ -39,7 +39,7 @@ export const createSetting = async ({values}) => {
   )
   
   VALUES(
-    '${values.name}',
+    '${values.name?.replace(/\'/g, "''")}',
     '${values.value}',
     '${values.setting_group}',
     '${values.setting_sub_group}'

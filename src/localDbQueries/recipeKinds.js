@@ -78,7 +78,7 @@ export const createRecipeKind = async ({values}) => {
   )
 
   VALUES(
-    '${values.name}',
+    '${values.name?.replace(/\'/g, "''")}',
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
     '${uuid.v4()}',
@@ -112,7 +112,7 @@ export const getRecipeKind = async ({queryKey}) => {
 
 export const updateRecipeKind = async ({id, updatedValues}) => {
   const query = `recipe_kinds
-  SET name = '${updatedValues.name}',
+  SET name = '${updatedValues.name?.replace(/\'/g, "''")}',
   updated_at = CURRENT_TIMESTAMP
   WHERE id = ${id}`;
 

@@ -177,7 +177,7 @@ export const createRole = async ({values}) => {
 
   VALUES (
     ${idValue}
-    '${values.name}',
+    '${values.name?.replace(/\'/g, "''")}',
     '${values.role_config_json}',
     ${parseInt(values.is_app_default || 0)}
   );`;

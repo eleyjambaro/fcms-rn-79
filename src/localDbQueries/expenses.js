@@ -149,7 +149,7 @@ export const createExpenseGroup = async ({values, onInsertLimitReached}) => {
   )
 
   VALUES(
-    '${values.name.replace(/\'/g, "''")}',
+    '${values.name?.replace(/\'/g, "''")}',
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
     '${uuid.v4()}',
@@ -182,7 +182,7 @@ export const createExpenseGroup = async ({values, onInsertLimitReached}) => {
 
 export const updateExpenseGroup = async ({id, updatedValues}) => {
   const query = `UPDATE expense_groups
-    SET name = '${updatedValues.name.replace(/\'/g, "''")}',
+    SET name = '${updatedValues.name?.replace(/\'/g, "''")}',
     updated_at = CURRENT_TIMESTAMP
     WHERE id = ${id}
   `;
@@ -424,7 +424,7 @@ export const createMonthlyExpense = async ({values}) => {
   
     VALUES(
       ${parseInt(values.expense_group_id)},
-      '${values.name.replace(/\'/g, "''")}',
+      '${values.name?.replace(/\'/g, "''")}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
       '${uuid.v4()}',
@@ -486,7 +486,7 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
     const {deviceId, branchId} = await getCloudSyncParams();
 
     const updateMonthlyExpenseQuery = `UPDATE monthly_expenses
-      SET name = '${updatedValues.name}',
+      SET name = '${updatedValues.name?.replace(/\'/g, "''")}',
       updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
@@ -692,7 +692,7 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
       VALUES(
         ${values.expense_group_id},
         '${values.expense_group_date}',
-        '${values.name}',
+        '${values.name?.replace(/\'/g, "''")}',
         ${values.amount},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
@@ -772,7 +772,7 @@ export const updateExpense = async ({id, updatedValues}) => {
   }
 
   const updateExpenseQuery = `UPDATE expenses
-    SET name = '${updatedValues.name}',
+    SET name = '${updatedValues.name?.replace(/\'/g, "''")}',
     amount = ${updatedValues.amount},
     updated_at = CURRENT_TIMESTAMP
     WHERE id = ${id}

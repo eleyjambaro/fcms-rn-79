@@ -54,12 +54,12 @@ export const createCompany = async ({values, onSuccess, onError}) => {
       
       VALUES(
         '${uuid.v4()}',
-        '${values.company_name.replace(/\'/g, "''")}',
-        '${trimTextLength(values.company_name, 20 - 3).replace(/\'/g, "''")}',
-        '${values.company_address.replace(/\'/g, "''")}',
+        '${values.company_name?.replace(/\'/g, "''")}',
+        '${trimTextLength(values.company_name, 20 - 3)?.replace(/\'/g, "''")}',
+        '${values.company_address?.replace(/\'/g, "''")}',
         '${values.company_mobile_number}',
         '${values.company_email}',
-        '${values.branch.replace(/\'/g, "''")}'
+        '${values.branch?.replace(/\'/g, "''")}'
       );
     `;
 
