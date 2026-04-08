@@ -709,7 +709,9 @@ export const confirmBatchPurchaseEntries = async ({
         adjustment_date,
         batch_purchase_group_id,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -757,7 +759,9 @@ export const confirmBatchPurchaseEntries = async ({
           ${dateConfirmed},
           ${parseInt(currentBatchPurchaseGroupId)},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
         if (result.rows.length - 1 !== index) {

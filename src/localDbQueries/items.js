@@ -589,7 +589,9 @@ export const registerItem = async ({
           name,
           type_ref,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES (
@@ -597,7 +599,9 @@ export const registerItem = async ({
           'Selling Size Options',
           '${appDefaultsTypeRefs.sellingSizeOptions}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         );
       `;
 
@@ -622,7 +626,9 @@ export const registerItem = async ({
           in_option_qty_based_on_item_uom,
           use_measurement_per_piece,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES
@@ -666,7 +672,9 @@ export const registerItem = async ({
           ${parseFloat(inOptionQtyBasedOnItemUom)},
           ${modifierOption.use_measurement_per_piece === true ? 1 : 0},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
         if (item.selling_size_options.length - 1 !== index) {

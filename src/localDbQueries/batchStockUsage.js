@@ -441,7 +441,9 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
         adjustment_date,
         batch_stock_usage_group_id,
         device_id,
-        branch_id
+        branch_id,
+        sync_id,
+        updated_at
       )
 
       VALUES
@@ -481,7 +483,9 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
           ${dateConfirmed},
           ${parseInt(currentBatchStockUsageGroupId)},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
         if (result.rows.length - 1 !== index) {

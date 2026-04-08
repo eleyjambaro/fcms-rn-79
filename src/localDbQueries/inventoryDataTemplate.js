@@ -1,6 +1,7 @@
 import convert from 'convert-units';
 import * as RNFS from 'react-native-fs';
 import XLSX from 'xlsx';
+import uuid from 'react-native-uuid';
 
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
@@ -617,7 +618,9 @@ export const insertTemplateDataToDb = async ({
         INSERT INTO categories (
           name,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES
@@ -630,7 +633,9 @@ export const insertTemplateDataToDb = async ({
         insertNotExistingCategoriesNameToDbQuery += `(
         '${notExistingCategoryName.replace(/\'/g, "''")}',
         ${deviceId ? `'${deviceId}'` : 'NULL'},
-        ${branchId ? `'${branchId}'` : 'NULL'}
+        ${branchId ? `'${branchId}'` : 'NULL'},
+        '${uuid.v4()}',
+        CURRENT_TIMESTAMP
       )`;
 
         if (notExistingCategoriesName.length - 1 !== index) {
@@ -732,7 +737,9 @@ export const insertTemplateDataToDb = async ({
           name,
           rate_percentage,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES
@@ -746,7 +753,9 @@ export const insertTemplateDataToDb = async ({
           '${notExistingTax?.tax_name.replace(/\'/g, "''")}',
           ${parseFloat(notExistingTax?.tax_rate_percentage) || 0},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
         if (notExistingTaxes.length - 1 !== index) {
@@ -852,7 +861,9 @@ export const insertTemplateDataToDb = async ({
         INSERT INTO vendors (
           vendor_display_name,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES
@@ -865,7 +876,9 @@ export const insertTemplateDataToDb = async ({
         insertNotExistingVendorsNameToDbQuery += `(
           '${notExistingVendorName.replace(/\'/g, "''")}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
         if (notExistingVendorsName.length - 1 !== index) {
@@ -1053,7 +1066,9 @@ export const insertTemplateDataToDb = async ({
           uom_abbrev_per_piece,
           qty_per_piece,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES
@@ -1150,7 +1165,9 @@ export const insertTemplateDataToDb = async ({
           '${uomAbbrevPerPiece.toLowerCase()}',
           ${qtyPerPiece},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
         if (notExistingItems.length - 1 !== index) {
@@ -1214,7 +1231,9 @@ export const insertTemplateDataToDb = async ({
           beginning_inventory_date,
           remarks,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES
@@ -1333,7 +1352,9 @@ export const insertTemplateDataToDb = async ({
           ${beginningInventoryDateValue},
           ${remarks},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
-          ${branchId ? `'${branchId}'` : 'NULL'}
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )`;
 
         if (notExistingItems.length - 1 !== index) {

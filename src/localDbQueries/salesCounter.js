@@ -792,7 +792,9 @@ export const confirmFulfillingSalesOrders = async ({
           payment_amount,
           change_amount,
           device_id,
-          branch_id
+          branch_id,
+          sync_id,
+          updated_at
         )
 
         VALUES (
@@ -801,7 +803,9 @@ export const confirmFulfillingSalesOrders = async ({
           ${parseFloat(paymentFormValues?.payment_amount || 0)},
           ${parseFloat(paymentFormValues?.change_amount || 0)},
           ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
-          ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
+          ${salesBranchId ? `'${salesBranchId}'` : 'NULL'},
+          '${uuid.v4()}',
+          CURRENT_TIMESTAMP
         )
       `;
 
