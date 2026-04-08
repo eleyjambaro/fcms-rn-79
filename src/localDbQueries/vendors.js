@@ -184,29 +184,3 @@ export const deleteVendor = async ({id}) => {
     throw Error('Failed to delete vendor.');
   }
 };
-
-export const createDefaultTaxes = async () => {
-  let hasDefaultTaxes = false;
-  try {
-    hasDefaultTaxes = await AsyncStorage.getItem('hasDefaultTaxes');
-
-    if (hasDefaultTaxes === 'true') {
-      console.log('Default Taxes has been already initialized.');
-      return;
-    }
-
-    const results = await Promise.all(
-      defaultTaxes.map(async values => {
-        return await createTax({values});
-      }),
-    );
-
-    await AsyncStorage.setItem('hasDefaultTaxes', 'true');
-    console.log('Default Taxes has been initialized successfully.');
-
-    return results;
-  } catch (error) {
-    console.debug(error);
-    throw error;
-  }
-};
