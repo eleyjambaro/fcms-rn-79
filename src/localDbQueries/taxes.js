@@ -1,6 +1,4 @@
-import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
-import {scheduleSyncSoon} from '../services/syncService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createQueryFilter,
@@ -50,7 +48,6 @@ export const createTax = async ({values, onInsertLimitReached}) => {
     }
 
     const result = await db.executeSql(query);
-    scheduleSyncSoon();
     return result;
   } catch (error) {
     console.debug(error);
@@ -136,7 +133,6 @@ export const updateTax = async ({id, updatedValues}) => {
   try {
     const db = await getDBConnection();
     const result = await db.executeSql(query);
-    scheduleSyncSoon();
     return result;
   } catch (error) {
     console.debug(error);
@@ -150,7 +146,6 @@ export const deleteTax = async ({id}) => {
   try {
     const db = await getDBConnection();
     const result = await db.executeSql(query);
-    scheduleSyncSoon();
     return result;
   } catch (error) {
     console.debug(error);
