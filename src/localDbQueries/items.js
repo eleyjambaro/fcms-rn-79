@@ -1141,7 +1141,8 @@ export const updateItem = async ({
         updatedValues.packaging_type
           ? updatedValues.packaging_type.replace(/\'/g, "''")
           : ''
-      }'
+      }',
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
 
@@ -1184,7 +1185,8 @@ export const updateItem = async ({
           updatedValues.remarks
             ? updatedValues.remarks.replace(/\'/g, "''")
             : ''
-        }'
+        }',
+        updated_at = CURRENT_TIMESTAMP
         WHERE item_id = ${id} AND operation_id = 1
       `;
 
@@ -1333,7 +1335,8 @@ export const updateItem = async ({
         const updateIngredientsInRecipeQtyBasedOnItemUOMQuery = `
           WITH tmp(ingredient_id, in_recipe_qty_based_on_item_uom) AS (${tmpValues})
 
-          UPDATE ingredients SET in_recipe_qty_based_on_item_uom = (SELECT in_recipe_qty_based_on_item_uom FROM tmp WHERE ingredients.id = tmp.ingredient_id)
+          UPDATE ingredients SET in_recipe_qty_based_on_item_uom = (SELECT in_recipe_qty_based_on_item_uom FROM tmp WHERE ingredients.id = tmp.ingredient_id),
+          updated_at = CURRENT_TIMESTAMP
 
           WHERE id IN (SELECT ingredient_id FROM tmp)
         `;
@@ -1411,7 +1414,8 @@ export const updateItem = async ({
         const updateIngredientsInSpoilageQtyBasedOnItemUOMQuery = `
           WITH tmp(spoilages_id, in_spoilage_qty_based_on_item_uom) AS (${tmpValues})
 
-          UPDATE spoilages SET in_spoilage_qty_based_on_item_uom = (SELECT in_spoilage_qty_based_on_item_uom FROM tmp WHERE spoilages.id = tmp.spoilages_id)
+          UPDATE spoilages SET in_spoilage_qty_based_on_item_uom = (SELECT in_spoilage_qty_based_on_item_uom FROM tmp WHERE spoilages.id = tmp.spoilages_id),
+          updated_at = CURRENT_TIMESTAMP
 
           WHERE id IN (SELECT spoilages_id FROM tmp)
         `;
