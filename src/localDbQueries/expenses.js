@@ -182,7 +182,8 @@ export const createExpenseGroup = async ({values, onInsertLimitReached}) => {
 
 export const updateExpenseGroup = async ({id, updatedValues}) => {
   const query = `UPDATE expense_groups
-    SET name = '${updatedValues.name.replace(/\'/g, "''")}'
+    SET name = '${updatedValues.name.replace(/\'/g, "''")}',
+    updated_at = CURRENT_TIMESTAMP
     WHERE id = ${id}
   `;
 
@@ -467,7 +468,8 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
     const db = await getDBConnection();
 
     const updateMonthlyExpenseQuery = `UPDATE monthly_expenses
-      SET name = '${updatedValues.name}'
+      SET name = '${updatedValues.name}',
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
 

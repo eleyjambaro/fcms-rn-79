@@ -399,7 +399,8 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
       official_receipt_number = ${officialReceiptNumber},
       remarks = '${
         updatedValues.remarks ? updatedValues.remarks.replace(/\'/g, "''") : ''
-      }'
+      }',
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
 
@@ -434,7 +435,8 @@ export const voidInventoryLog = async ({id}) => {
      */
     const voidInventoryLogQuery = `
       UPDATE inventory_logs
-      SET voided = 1
+      SET voided = 1,
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${inventoryLog.id}
     `;
 
@@ -451,14 +453,13 @@ export const voidInventoryLog = async ({id}) => {
     if (inventoryLog.operation_id === 11 && inventoryLog.yield_ref_id) {
       const voidAllDeductedYieldIngredientsInInventoryLogsQuery = `
         UPDATE inventory_logs
-        SET voided = 1
+        SET voided = 1,
+        updated_at = CURRENT_TIMESTAMP
         WHERE yield_ref_id = '${
           inventoryLog.yield_ref_id
         }' AND id != ${parseInt(inventoryLog.id)}
       `;
-      await db.executeSql(
-        voidAllDeductedYieldIngredientsInInventoryLogsQuery,
-      );
+      await db.executeSql(voidAllDeductedYieldIngredientsInInventoryLogsQuery);
     }
     scheduleSyncSoon();
   } catch (error) {
@@ -471,7 +472,8 @@ export const updateInventoryLogRemarks = async ({id, updatedValues}) => {
   const updateInventoryLogRemarksQuery = `UPDATE inventory_logs
   SET remarks = '${
     updatedValues.remarks ? updatedValues.remarks.replace(/\'/g, "''") : ''
-  }'
+  }',
+  updated_at = CURRENT_TIMESTAMP
   WHERE id = ${id}`;
 
   try {
@@ -1092,7 +1094,8 @@ export const addInventoryLog = async ({
      * Update item
      */
     const updateItemQuery = `UPDATE items
-      SET unit_cost = ${latestUnitCost}
+      SET unit_cost = ${latestUnitCost},
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${parseInt(log.item_id)}
     `;
 

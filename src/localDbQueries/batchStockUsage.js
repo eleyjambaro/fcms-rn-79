@@ -286,7 +286,11 @@ export const createBatchStockUsageEntry = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const createBatchStockUsageGroupQuery = `INSERT INTO batch_stock_usage_groups (device_id, branch_id, sync_id, updated_at) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'}, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
+    const createBatchStockUsageGroupQuery = `INSERT INTO batch_stock_usage_groups (device_id, branch_id, sync_id, updated_at) VALUES (${
+      deviceId ? `'${deviceId}'` : 'NULL'
+    }, ${
+      branchId ? `'${branchId}'` : 'NULL'
+    }, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
 
     // check if there's an existing unconfirmed Batch Stock Usage Group
     // before creating new one
@@ -506,7 +510,8 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
     const updateItemsCurrentStockQuery = `
       WITH tmp(item_id, updated_current_stock) AS (${tmpValues})
 
-      UPDATE items SET current_stock_qty = (SELECT updated_current_stock FROM tmp WHERE items.id = tmp.item_id)
+      UPDATE items SET current_stock_qty = (SELECT updated_current_stock FROM tmp WHERE items.id = tmp.item_id),
+      updated_at = CURRENT_TIMESTAMP
 
       WHERE id IN (SELECT item_id FROM tmp)
     `;
@@ -530,7 +535,8 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
     // update current Batch Stock Group
     const updateBatchStockUsageGroupQuery = `UPDATE batch_stock_usage_groups
       SET confirmed = 1,
-      date_confirmed = ${dateConfirmed}
+      date_confirmed = ${dateConfirmed},
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${currentBatchStockUsageGroupId}
     `;
 

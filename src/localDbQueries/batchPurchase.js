@@ -327,7 +327,11 @@ export const createBatchPurchaseEntry = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const createBatchPurchaseGroupQuery = `INSERT INTO batch_purchase_groups (device_id, branch_id, sync_id, updated_at) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'}, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
+    const createBatchPurchaseGroupQuery = `INSERT INTO batch_purchase_groups (device_id, branch_id, sync_id, updated_at) VALUES (${
+      deviceId ? `'${deviceId}'` : 'NULL'
+    }, ${
+      branchId ? `'${branchId}'` : 'NULL'
+    }, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
 
     // check if there's an existing unconfirmed Batch Purchase Group
     // before creating new one
@@ -391,7 +395,8 @@ export const createBatchPurchaseEntry = async ({values}) => {
 
     const updateItemsDefaultTaxQuery = `
       UPDATE items
-      SET tax_id = ${parseInt(values.tax_id) || 'null'}
+      SET tax_id = ${parseInt(values.tax_id) || 'null'},
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${parseInt(values.item_id)}
     `;
 
@@ -549,7 +554,8 @@ export const getCurrentBatchPurchaseGroupId = async () => {
         return latestUnconfirmedBatchPurchaseGroup.id;
       } else {
         // create new Batch Purchase Group
-        const {deviceId: bpgDeviceId, branchId: bpgBranchId} = await getCloudSyncParams();
+        const {deviceId: bpgDeviceId, branchId: bpgBranchId} =
+          await getCloudSyncParams();
         const createBatchPurchaseGroupQuery = `
           INSERT INTO batch_purchase_groups (
             confirmed,
@@ -780,7 +786,8 @@ export const confirmBatchPurchaseEntries = async ({
     const updateItemsLastUnitCostQuery = `
       WITH tmp(item_id, last_unit_cost) AS (${tmpValues})
 
-      UPDATE items SET unit_cost = (SELECT last_unit_cost FROM tmp WHERE items.id = tmp.item_id)
+      UPDATE items SET unit_cost = (SELECT last_unit_cost FROM tmp WHERE items.id = tmp.item_id),
+      updated_at = CURRENT_TIMESTAMP
 
       WHERE id IN (SELECT item_id FROM tmp)
     `;
@@ -804,7 +811,8 @@ export const confirmBatchPurchaseEntries = async ({
     // update current Batch Purchase Group
     const updateBatchPurchaseGroupQuery = `UPDATE batch_purchase_groups
       SET confirmed = 1,
-      date_confirmed = ${dateConfirmed}
+      date_confirmed = ${dateConfirmed},
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${parseInt(currentBatchPurchaseGroupId)}
     `;
 

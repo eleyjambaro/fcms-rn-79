@@ -188,7 +188,8 @@ export const updateCompany = async ({updatedValues, onSuccess}) => {
       company_mobile_number = '${updatedValues.company_mobile_number}',
       company_email = '${updatedValues.company_email}',
       company_logo_path = '${companyLogoPath}',
-      branch = '${updatedValues.branch.replace(/\'/g, "''")}'
+      branch = '${updatedValues.branch.replace(/\'/g, "''")}',
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${company.id}
     `;
 
@@ -200,7 +201,8 @@ export const updateCompany = async ({updatedValues, onSuccess}) => {
       // update root user account when company email changes
       if (company.company_email !== updatedValues.company_email?.trim()) {
         const updateRootAccountQuery = `UPDATE accounts
-          SET email = '${updatedValues.company_email?.trim()}'
+          SET email = '${updatedValues.company_email?.trim()}',
+          updated_at = CURRENT_TIMESTAMP
           WHERE is_root_account = 1
         `;
 

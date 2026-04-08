@@ -1251,7 +1251,8 @@ export const updateItem = async ({
         const updateInventoryLogAdjustmentQtyQuery = `
           WITH tmp(inventory_log_id, adjustment_qty) AS (${tmpValues})
 
-          UPDATE inventory_logs SET adjustment_qty = (SELECT adjustment_qty FROM tmp WHERE inventory_logs.id = tmp.inventory_log_id)
+          UPDATE inventory_logs SET adjustment_qty = (SELECT adjustment_qty FROM tmp WHERE inventory_logs.id = tmp.inventory_log_id),
+          updated_at = CURRENT_TIMESTAMP
 
           WHERE id IN (SELECT inventory_log_id FROM tmp)
         `;
