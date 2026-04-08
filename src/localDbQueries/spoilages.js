@@ -603,7 +603,8 @@ export const updateSpoilage = async ({id, updatedValues}) => {
       in_spoilage_date = ${spoilageDate},
       remarks = '${
         updatedValues.remarks ? updatedValues.remarks.replace(/\'/g, "''") : ''
-      }'
+      }',
+      updated_at = CURRENT_TIMESTAMP
       WHERE id = ${parseInt(id)}
     `;
 

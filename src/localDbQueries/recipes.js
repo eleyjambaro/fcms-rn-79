@@ -14,7 +14,11 @@ export const createOrGetUnsavedRecipe = async () => {
     // check if there's an existing unsaved recipe
     let currentRecipeId = await AsyncStorage.getItem('currentRecipeId');
 
-    const createRecipeQuery = `INSERT INTO recipes (device_id, branch_id, sync_id, updated_at) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'}, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
+    const createRecipeQuery = `INSERT INTO recipes (device_id, branch_id, sync_id, updated_at) VALUES (${
+      deviceId ? `'${deviceId}'` : 'NULL'
+    }, ${
+      branchId ? `'${branchId}'` : 'NULL'
+    }, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
 
     if (!currentRecipeId) {
       // create new recipe
@@ -156,7 +160,8 @@ export const saveRecipe = async ({
         group_name = '${values.group_name.replace(/\'/g, "''")}',
         name = '${values.name.replace(/\'/g, "''")}',
         yield = ${parseFloat(values.yield || 1)},
-        date_saved = datetime('now')
+        date_saved = datetime('now'),
+        updated_at = CURRENT_TIMESTAMP
         WHERE id = ${parseInt(currentRecipeId)}
       `;
 
@@ -186,7 +191,8 @@ export const saveRecipe = async ({
     if (linkToFinishedProduct && finishedProductId) {
       const updateFinishedProductRecipeIdQuery = `
         UPDATE items
-        SET recipe_id = ${parseInt(currentRecipeId)}
+        SET recipe_id = ${parseInt(currentRecipeId)},
+        updated_at = CURRENT_TIMESTAMP
         WHERE is_finished_product = 1 AND id = ${parseInt(finishedProductId)}
       `;
 
@@ -245,7 +251,8 @@ export const saveSubRecipe = async ({values}) => {
         group_name = '${values.group_name.replace(/\'/g, "''")}',
         name = '${values.name.replace(/\'/g, "''")}',
         yield = ${parseFloat(values.yield || 1)},
-        date_saved = datetime('now')
+        date_saved = datetime('now'),
+        updated_at = CURRENT_TIMESTAMP
         WHERE id = ${parseInt(currentSubRecipeId)}
       `;
 
@@ -556,7 +563,8 @@ export const updateRecipe = async ({id, updatedValues}) => {
     UPDATE recipes
     SET group_name = ${groupName},
     name = '${updatedValues.name.replace(/\'/g, "''")}',
-    yield = ${parseFloat(updatedValues.yield || 1)}
+    yield = ${parseFloat(updatedValues.yield || 1)},
+    updated_at = CURRENT_TIMESTAMP
     WHERE id = ${parseInt(id)}
   `;
 
@@ -723,7 +731,8 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
       )},
       use_measurement_per_piece = ${
         values.use_measurement_per_piece === true ? 1 : 0
-      }
+      },
+      updated_at = CURRENT_TIMESTAMP
       WHERE item_id = ${item.id}
       AND recipe_id = ${recipe.id}
     `;
@@ -760,7 +769,11 @@ export const createIngredient = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const createRecipeQuery = `INSERT INTO recipes (device_id, branch_id, sync_id, updated_at) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'}, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
+    const createRecipeQuery = `INSERT INTO recipes (device_id, branch_id, sync_id, updated_at) VALUES (${
+      deviceId ? `'${deviceId}'` : 'NULL'
+    }, ${
+      branchId ? `'${branchId}'` : 'NULL'
+    }, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
 
     const getItemResult = await db.executeSql(getItemQuery);
 
@@ -822,7 +835,9 @@ export const createIngredient = async ({values}) => {
     const updateIngredientQuery = `UPDATE ingredients
       SET in_recipe_qty = ${parseFloat(values.in_recipe_qty)},
       in_recipe_uom_abbrev = '${values.in_recipe_uom_abbrev}',
-      in_recipe_qty_based_on_item_uom = ${parseFloat(inRecipeQtyBasedOnItemUom)},
+      in_recipe_qty_based_on_item_uom = ${parseFloat(
+        inRecipeQtyBasedOnItemUom,
+      )},
       updated_at = CURRENT_TIMESTAMP
       WHERE item_id = ${item.id}
       AND recipe_id = ${currentRecipeId}

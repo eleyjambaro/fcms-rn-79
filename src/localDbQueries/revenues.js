@@ -415,7 +415,8 @@ export const createRevenue = async ({values}) => {
       AND revenue_group_id = ${values.revenue_group_id}
     `;
 
-    const {deviceId: revenueDeviceId, branchId: revenueBranchId} = await getCloudSyncParams();
+    const {deviceId: revenueDeviceId, branchId: revenueBranchId} =
+      await getCloudSyncParams();
     const createRevenueQuery = `INSERT INTO revenues (
     revenue_group_id,
     revenue_group_date,
@@ -486,7 +487,8 @@ export const getRevenue = async ({queryKey}) => {
 
 export const updateRevenue = async ({id, updatedValues}) => {
   const query = `UPDATE revenues
-  SET amount = ${updatedValues.amount}
+  SET amount = ${updatedValues.amount},
+  updated_at = CURRENT_TIMESTAMP
   WHERE id = ${id}`;
 
   try {

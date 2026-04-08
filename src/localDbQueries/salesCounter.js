@@ -400,7 +400,8 @@ export const confirmSaleEntries = async ({
     // const updateItemsLastUnitCostQuery = `
     //   WITH tmp(item_id, last_unit_cost) AS (${tmpValues})
 
-    //   UPDATE items SET unit_cost = (SELECT last_unit_cost FROM tmp WHERE items.id = tmp.item_id)
+    //   UPDATE items SET unit_cost = (SELECT last_unit_cost FROM tmp WHERE items.id = tmp.item_id),
+    //   updated_at = CURRENT_TIMESTAMP
 
     //   WHERE id IN (SELECT item_id FROM tmp)
     // `;
@@ -513,7 +514,8 @@ export const confirmFulfillingSalesOrders = async ({
 
     const accountUID = 'null';
     const customerId = 'null';
-    const {deviceId: salesDeviceId, branchId: salesBranchId} = await getCloudSyncParams();
+    const {deviceId: salesDeviceId, branchId: salesBranchId} =
+      await getCloudSyncParams();
 
     /**
      * Create invoice
@@ -814,7 +816,8 @@ export const confirmFulfillingSalesOrders = async ({
     const updateFulfilledOrderQtyQuery = `
       WITH tmp(order_id, fulfilled_order_qty) AS (${tmpValues})
 
-      UPDATE sales_orders SET fulfilled_order_qty = (SELECT fulfilled_order_qty FROM tmp WHERE sales_orders.id = tmp.order_id)
+      UPDATE sales_orders SET fulfilled_order_qty = (SELECT fulfilled_order_qty FROM tmp WHERE sales_orders.id = tmp.order_id),
+      updated_at = CURRENT_TIMESTAMP
 
       WHERE id IN (SELECT order_id FROM tmp)
     `;
@@ -1065,7 +1068,8 @@ export const addSaleEntriesToSalesOrders = async ({
     // const updateItemsLastUnitCostQuery = `
     //   WITH tmp(item_ifulfilled_order_qty) AS (${tmpValues})
 
-    //   UPDATE items SET unit_cost = (SELECT last_unit_cost FROM tmp WHERE items.id = tmp.item_id)
+    //   UPDATE items SET unit_cost = (SELECT last_unit_cost FROM tmp WHERE items.id = tmp.item_id),
+    //   updated_at = CURRENT_TIMESTAMP
 
     //   WHERE id IN (SELECT item_id FROM tmp)
     // `;

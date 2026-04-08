@@ -16,7 +16,11 @@ export const createOrGetUnsavedSellingMenu = async () => {
       'currentSellingMenuId',
     );
 
-    const createSellingMenuQuery = `INSERT INTO selling_menus (device_id, branch_id, sync_id, updated_at) VALUES (${deviceId ? `'${deviceId}'` : 'NULL'}, ${branchId ? `'${branchId}'` : 'NULL'}, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
+    const createSellingMenuQuery = `INSERT INTO selling_menus (device_id, branch_id, sync_id, updated_at) VALUES (${
+      deviceId ? `'${deviceId}'` : 'NULL'
+    }, ${
+      branchId ? `'${branchId}'` : 'NULL'
+    }, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
 
     if (!currentSellingMenuId) {
       // create new selling menu
@@ -144,7 +148,8 @@ export const saveSellingMenu = async ({values, onSuccess}) => {
         UPDATE selling_menus
         SET is_draft = 0,
         name = '${values.name.replace(/\'/g, "''")}',
-        date_saved = datetime('now')
+        date_saved = datetime('now'),
+        updated_at = CURRENT_TIMESTAMP
         WHERE id = ${parseInt(currentSellingMenuId)}
       `;
 
@@ -392,7 +397,8 @@ export const getSellingMenu = async ({queryKey}) => {
 export const updateSellingMenu = async ({id, updatedValues}) => {
   const updateSellingMenuQuery = `
     UPDATE selling_menus
-    SET name = '${updatedValues.name.replace(/\'/g, "''")}'
+    SET name = '${updatedValues.name.replace(/\'/g, "''")}',
+    updated_at = CURRENT_TIMESTAMP
     WHERE id = ${parseInt(id)}
   `;
 
@@ -535,7 +541,8 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
 
     const updateSellingMenuItemQuery = `UPDATE selling_menu_items
       SET in_menu_qty = ${parseFloat(values.in_menu_qty)},
-      modifier_option_id = ${parseInt(values.size_option_id)}
+      modifier_option_id = ${parseInt(values.size_option_id)},
+      updated_at = CURRENT_TIMESTAMP
       WHERE item_id = ${item.id}
       AND selling_menu_id = ${parseInt(sellingMenu.id)}
     `;

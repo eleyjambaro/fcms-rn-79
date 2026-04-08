@@ -111,7 +111,7 @@ export const getRecipeKind = async ({queryKey}) => {
 };
 
 export const updateRecipeKind = async ({id, updatedValues}) => {
-  const query = `UPDATE recipe_kinds
+  const query = `recipe_kinds
   SET name = '${updatedValues.name}',
   updated_at = CURRENT_TIMESTAMP
   WHERE id = ${id}`;

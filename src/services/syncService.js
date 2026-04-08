@@ -29,38 +29,38 @@ import {pushDelta, pullDelta} from '../serverDbQueries/v2/sync';
  */
 const GROUP_A_ENTITIES = [
   // Catalog / master data
-  {key: 'categories',             table: 'categories'},
-  {key: 'taxes',                  table: 'taxes'},
-  {key: 'vendors',                table: 'vendors'},
+  {key: 'categories', table: 'categories'},
+  {key: 'taxes', table: 'taxes'},
+  {key: 'vendors', table: 'vendors'},
   {key: 'vendor_contact_persons', table: 'vendor_contact_persons'},
-  {key: 'operations',             table: 'operations'},
-  {key: 'recipe_kinds',           table: 'recipe_kinds'},
-  {key: 'recipes',                table: 'recipes'},
-  {key: 'ingredients',            table: 'ingredients'},
-  {key: 'items',                  table: 'items'},
-  {key: 'modifiers',              table: 'modifiers'},
-  {key: 'modifier_options',       table: 'modifier_options'},
-  {key: 'selling_menus',          table: 'selling_menus'},
-  {key: 'selling_menu_items',     table: 'selling_menu_items'},
+  {key: 'operations', table: 'operations'},
+  {key: 'recipe_kinds', table: 'recipe_kinds'},
+  {key: 'recipes', table: 'recipes'},
+  {key: 'ingredients', table: 'ingredients'},
+  {key: 'items', table: 'items'},
+  {key: 'modifiers', table: 'modifiers'},
+  {key: 'modifier_options', table: 'modifier_options'},
+  {key: 'selling_menus', table: 'selling_menus'},
+  {key: 'selling_menu_items', table: 'selling_menu_items'},
   // Transaction / operational data
-  {key: 'batch_purchase_groups',     table: 'batch_purchase_groups'},
-  {key: 'batch_purchase_entries',    table: 'batch_purchase_entries'},
-  {key: 'batch_stock_usage_groups',  table: 'batch_stock_usage_groups'},
+  {key: 'batch_purchase_groups', table: 'batch_purchase_groups'},
+  {key: 'batch_purchase_entries', table: 'batch_purchase_entries'},
+  {key: 'batch_stock_usage_groups', table: 'batch_stock_usage_groups'},
   {key: 'batch_stock_usage_entries', table: 'batch_stock_usage_entries'},
-  {key: 'revenue_groups',            table: 'revenue_groups'},
-  {key: 'revenues',                  table: 'revenues'},
-  {key: 'expense_groups',            table: 'expense_groups'},
-  {key: 'expenses',                  table: 'expenses'},
-  {key: 'revenue_deductions',        table: 'revenue_deductions'},
-  {key: 'revenue_categories',        table: 'revenue_categories'},
-  {key: 'spoilages',                 table: 'spoilages'},
-  {key: 'sales_order_groups',        table: 'sales_order_groups'},
-  {key: 'invoices',                  table: 'invoices'},
-  {key: 'sale_logs',                 table: 'sale_logs'},
-  {key: 'sales_orders',              table: 'sales_orders'},
-  {key: 'refunds',                   table: 'refunds'},
-  {key: 'payments',                  table: 'payments'},
-  {key: 'inventory_logs',            table: 'inventory_logs'},
+  {key: 'revenue_groups', table: 'revenue_groups'},
+  {key: 'revenues', table: 'revenues'},
+  {key: 'expense_groups', table: 'expense_groups'},
+  {key: 'expenses', table: 'expenses'},
+  {key: 'revenue_deductions', table: 'revenue_deductions'},
+  {key: 'revenue_categories', table: 'revenue_categories'},
+  {key: 'spoilages', table: 'spoilages'},
+  {key: 'sales_order_groups', table: 'sales_order_groups'},
+  {key: 'invoices', table: 'invoices'},
+  {key: 'sale_logs', table: 'sale_logs'},
+  {key: 'sales_orders', table: 'sales_orders'},
+  {key: 'refunds', table: 'refunds'},
+  {key: 'payments', table: 'payments'},
+  {key: 'inventory_logs', table: 'inventory_logs'},
 ];
 
 /**
@@ -108,7 +108,11 @@ const markAsSynced = async (db, tableName, syncIds) => {
 /**
  * Upsert sync_metadata watermarks.
  */
-const updateSyncMetadata = async (db, entityType, {lastPushedAt, lastPulledAt}) => {
+const updateSyncMetadata = async (
+  db,
+  entityType,
+  {lastPushedAt, lastPulledAt},
+) => {
   const existing = await db.executeSql(
     `SELECT id FROM sync_metadata WHERE entity_type = ?`,
     [entityType],
@@ -158,7 +162,9 @@ const applyPulledRecord = async (db, tableName, record) => {
   if (existing.rows.length === 0) {
     // Insert new record from server
     const columns = ['sync_id', 'synced_at', ...Object.keys(fields)].join(', ');
-    const placeholders = Array(Object.keys(fields).length + 2).fill('?').join(', ');
+    const placeholders = Array(Object.keys(fields).length + 2)
+      .fill('?')
+      .join(', ');
     await db.executeSql(
       `INSERT OR IGNORE INTO ${tableName} (${columns}) VALUES (${placeholders})`,
       [sync_id, fields.updated_at ?? null, ...Object.values(fields)],
@@ -166,11 +172,17 @@ const applyPulledRecord = async (db, tableName, record) => {
   } else {
     const localRow = existing.rows.item(0);
     // Only overwrite if server record is newer
-    if (fields.updated_at && localRow.updated_at && fields.updated_at <= localRow.updated_at) {
+    if (
+      fields.updated_at &&
+      localRow.updated_at &&
+      fields.updated_at <= localRow.updated_at
+    ) {
       return;
     }
 
-    const setClauses = [...Object.keys(fields), 'synced_at'].map(k => `${k} = ?`).join(', ');
+    const setClauses = [...Object.keys(fields), 'synced_at']
+      .map(k => `${k} = ?`)
+      .join(', ');
     await db.executeSql(
       `UPDATE ${tableName} SET ${setClauses} WHERE sync_id = ?`,
       [...Object.values(fields), fields.updated_at ?? null, sync_id],
@@ -212,7 +224,11 @@ export const scheduleSyncSoon = (delayMs = 2000) => {
  */
 export const runSync = async () => {
   if (syncInProgress) {
-    return {pushed: {}, pulled: {}, errors: ['Sync already in progress — skipped.']};
+    return {
+      pushed: {},
+      pulled: {},
+      errors: ['Sync already in progress — skipped.'],
+    };
   }
   syncInProgress = true;
   const result = {pushed: {}, pulled: {}, errors: []};
@@ -267,9 +283,13 @@ export const runSync = async () => {
             const syncIds = delta[key].map(r => r.sync_id).filter(Boolean);
             try {
               await markAsSynced(db, table, syncIds);
-              await updateSyncMetadata(db, key, {lastPushedAt: synced_at ?? pushedAt});
+              await updateSyncMetadata(db, key, {
+                lastPushedAt: synced_at ?? pushedAt,
+              });
             } catch (err) {
-              result.errors.push(`Mark synced failed for ${table}: ${err.message}`);
+              result.errors.push(
+                `Mark synced failed for ${table}: ${err.message}`,
+              );
             }
           }
         }
@@ -299,7 +319,9 @@ export const runSync = async () => {
           try {
             await applyPulledRecord(db, table, record);
           } catch (err) {
-            result.errors.push(`Apply pull record failed for ${table}: ${err.message}`);
+            result.errors.push(
+              `Apply pull record failed for ${table}: ${err.message}`,
+            );
           }
         }
         if (records.length > 0) {
