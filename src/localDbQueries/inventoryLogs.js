@@ -1,5 +1,6 @@
 import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
+import {OPERATION_CODES} from './operations';
 import {
   createQueryFilter,
   isMutationDisabled,
@@ -63,6 +64,7 @@ export const getInventoryLogs = async ({queryKey, pageParam = 1}) => {
       operation_id,
       operations.type AS operation_type,
       operations.name AS operation_name,
+      operations.code AS operation_code,
       
       items.category_id AS item_category_id,
       items.name AS item_name,
@@ -141,6 +143,7 @@ export const getInventoryLog = async ({queryKey}) => {
     inventory_logs.yield_ref_id,
     operations.type AS operation_type,
     operations.name AS operation_name,
+    operations.code AS operation_code,
     
     items.category_id AS item_category_id,
     categories.name AS item_category_name,
@@ -202,6 +205,7 @@ export const getYieldStockInventoryLogByYieldRefId = async ({queryKey}) => {
     inventory_logs.yield_ref_id,
     operations.type AS operation_type,
     operations.name AS operation_name,
+    operations.code AS operation_code,
     
     items.category_id AS item_category_id,
     categories.name AS item_category_name,
@@ -258,11 +262,14 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
     const db = await getDBConnection();
 
     /**
-     * Get inventory log
+     * Get inventory log (with operation code for code-based comparisons)
      */
-    const getInventoryLogQuery = `SELECT * FROM inventory_logs WHERE id = ${parseInt(
-      id,
-    )}`;
+    const getInventoryLogQuery = `
+      SELECT inventory_logs.*, operations.code AS operation_code
+      FROM inventory_logs
+      LEFT JOIN operations ON operations.id = inventory_logs.operation_id
+      WHERE inventory_logs.id = ${parseInt(id)}
+    `;
 
     const getInventoryLogResult = await db.executeSql(getInventoryLogQuery);
     const log = getInventoryLogResult[0].rows.item(0);
@@ -298,12 +305,12 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
 
     // validate tax id
     if (updatedValues.tax_id) {
-      // id 0 means user intentionally set the tax to null
-      if (parseInt(updatedValues.tax_id) === 0) {
+      // '0' means user intentionally set the tax to null
+      if (updatedValues.tax_id === '0') {
         tax = defaultTaxEmptyValue;
       } else {
         const getTaxQuery = `
-          SELECT * FROM taxes WHERE id = ${parseInt(updatedValues.tax_id)}
+          SELECT * FROM taxes WHERE id = ${updatedValues.tax_id}
         `;
 
         const getTaxResult = await db.executeSql(getTaxQuery);
@@ -325,12 +332,12 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
 
     // validate vendor id
     if (updatedValues.vendor_id) {
-      // id 0 means user intentionally set the value to null
-      if (parseInt(updatedValues.vendor_id) === 0) {
+      // '0' means user intentionally set the value to null
+      if (updatedValues.vendor_id === '0') {
         vendor = defaultVendorEmptyValue;
       } else {
         const getVendorQuery = `
-          SELECT * FROM vendors WHERE id = ${parseInt(updatedValues.vendor_id)}
+          SELECT * FROM vendors WHERE id = ${updatedValues.vendor_id}
         `;
 
         const getVendorResult = await db.executeSql(getVendorQuery);
@@ -368,7 +375,7 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
       : `datetime('now')`;
     let beginningInventoryDate = 'null';
 
-    if (log.operation_id === 1) {
+    if (log.operation_code === OPERATION_CODES.PRE_APP_STOCK) {
       beginningInventoryDate = updatedValues.beginning_inventory_date;
 
       const beginningInventoryDateFixedValue = beginningInventoryDate
@@ -447,10 +454,10 @@ export const voidInventoryLog = async ({id}) => {
     }
 
     /**
-     * If inventory log is New Yield Stock (operation_id 11)
+     * If inventory log is New Yield Stock
      * Void all inventory log with the same yield_ref_id.
      */
-    if (inventoryLog.operation_id === 11 && inventoryLog.yield_ref_id) {
+    if (inventoryLog.operation_code === OPERATION_CODES.NEW_YIELD_STOCK && inventoryLog.yield_ref_id) {
       const voidAllDeductedYieldIngredientsInInventoryLogsQuery = `
         UPDATE inventory_logs
         SET voided = 1,
@@ -1328,12 +1335,12 @@ export const getItemInitialStockLog = async ({queryKey}) => {
     const db = await getDBConnection();
 
     /**
-     * Get item initial stock inventory log (operation_id = 1)
+     * Get item initial stock inventory log (operation code = 'pre_app_stock')
      * Returns null if no initial stock log exists (e.g., item created via IDT with purchase date)
      */
     const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = ${parseInt(
       itemId,
-    )} AND operation_id = 1`;
+    )} AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')`;
 
     const getItemInitStockLogResult = await db.executeSql(
       getItemInitStockLogQuery,

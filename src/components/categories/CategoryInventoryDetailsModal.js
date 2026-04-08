@@ -24,7 +24,7 @@ import {Tabs, TabScreen} from 'react-native-paper-tabs';
 import routes from '../../constants/routes';
 import ListEmpty from '../../components/stateIndicators/ListEmpty';
 import SectionHeading from '../headings/SectionHeading';
-import {inventoryDefaultOperations} from '../../localDbQueries/operations';
+import {inventoryDefaultOperations, OPERATION_CODES} from '../../localDbQueries/operations';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import appDefaults from '../../constants/appDefaults';
 
@@ -102,7 +102,7 @@ const CategoryInventoryDetailsModal = props => {
     inventoryDefaultOperations.forEach(operation => {
       if (operation.type === 'add_stock') {
         const operationName =
-          operation.id === 1
+          operation.code === OPERATION_CODES.PRE_APP_STOCK
             ? `Pre-${appDefaults.appDisplayName} Stock`
             : operation.name;
         added.push(
@@ -119,7 +119,7 @@ const CategoryInventoryDetailsModal = props => {
         );
       }
 
-      if (operation.type === 'remove_stock' && operation.id !== 5) {
+      if (operation.type === 'remove_stock' && operation.code !== OPERATION_CODES.INITIAL_STOCK) {
         removed.push(
           <DataTable.Row key={operation.id}>
             <DataTable.Cell>{`${operation.name}`}</DataTable.Cell>

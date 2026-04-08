@@ -3,10 +3,27 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {appStorageKeySeperator} from './appVersions';
 import appDefaults from '../constants/appDefaults';
 
+/**
+ * Stable string codes for default inventory operations.
+ * Use these constants instead of comparing against numeric operation IDs.
+ */
+export const OPERATION_CODES = {
+  PRE_APP_STOCK: 'pre_app_stock',
+  NEW_PURCHASE: 'new_purchase',
+  INVENTORY_RECOUNT_IN: 'inventory_recount_in',
+  STOCK_TRANSFER_IN: 'stock_transfer_in',
+  INITIAL_STOCK: 'initial_stock',
+  STOCK_USAGE: 'stock_usage',
+  INVENTORY_RECOUNT_OUT: 'inventory_recount_out',
+  STOCK_TRANSFER_OUT: 'stock_transfer_out',
+  NEW_YIELD_STOCK: 'new_yield_stock',
+};
+
 export const inventoryDefaultOperations = [
   // add stock
   {
     id: 1,
+    code: OPERATION_CODES.PRE_APP_STOCK,
     type: 'add_stock',
     name: `Pre-${appDefaults.appDisplayName} Stock`,
     is_app_default: 1,
@@ -14,6 +31,7 @@ export const inventoryDefaultOperations = [
   },
   {
     id: 2,
+    code: OPERATION_CODES.NEW_PURCHASE,
     type: 'add_stock',
     name: 'New Purchase',
     is_app_default: 1,
@@ -21,6 +39,7 @@ export const inventoryDefaultOperations = [
   },
   {
     id: 3,
+    code: OPERATION_CODES.INVENTORY_RECOUNT_IN,
     type: 'add_stock',
     name: 'Inventory Re-count',
     is_app_default: 1,
@@ -28,6 +47,7 @@ export const inventoryDefaultOperations = [
   },
   {
     id: 4,
+    code: OPERATION_CODES.STOCK_TRANSFER_IN,
     type: 'add_stock',
     name: 'Stock Transfer In',
     is_app_default: 1,
@@ -37,6 +57,7 @@ export const inventoryDefaultOperations = [
   // remove stock
   {
     id: 5,
+    code: OPERATION_CODES.INITIAL_STOCK,
     type: 'remove_stock',
     name: 'Initial Stock',
     is_app_default: 1,
@@ -44,6 +65,7 @@ export const inventoryDefaultOperations = [
   },
   {
     id: 6,
+    code: OPERATION_CODES.STOCK_USAGE,
     type: 'remove_stock',
     name: 'Stock Usage',
     is_app_default: 1,
@@ -51,6 +73,7 @@ export const inventoryDefaultOperations = [
   },
   {
     id: 7,
+    code: OPERATION_CODES.INVENTORY_RECOUNT_OUT,
     type: 'remove_stock',
     name: 'Inventory Re-count',
     is_app_default: 1,
@@ -71,6 +94,7 @@ export const inventoryDefaultOperations = [
   // {id: 9, type: 'remove_stock', name: 'Missing', is_app_default: 1, order: 4},
   {
     id: 10,
+    code: OPERATION_CODES.STOCK_TRANSFER_OUT,
     type: 'remove_stock',
     name: 'Stock Transfer Out',
     is_app_default: 1,
@@ -82,6 +106,7 @@ export const inventoryDefaultOperations = [
   // add stock
   {
     id: 11,
+    code: OPERATION_CODES.NEW_YIELD_STOCK,
     type: 'add_stock',
     name: 'New Yield Stock',
     is_app_default: 1,
@@ -95,6 +120,7 @@ export const createInventoryOperation = async ({operation}) => {
     const {deviceId, branchId} = await getCloudSyncParams();
     const query = `INSERT INTO operations (
     id,
+    code,
     type,
     name,
     is_app_default,
@@ -105,6 +131,7 @@ export const createInventoryOperation = async ({operation}) => {
 
   VALUES(
     ${operation.id},
+    ${operation.code ? `'${operation.code}'` : 'NULL'},
     '${operation.type}',
     '${operation.name}',
     ${operation.is_app_default},

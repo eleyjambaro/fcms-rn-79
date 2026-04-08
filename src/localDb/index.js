@@ -420,6 +420,7 @@ const createBatchStockUsageEntriesTableQuery = `
 const createOperationsTableQuery = `
   CREATE TABLE IF NOT EXISTS operations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code VARCHAR(100) DEFAULT NULL,
     type VARCHAR NOT NULL,
     name VARCHAR NOT NULL,
     app_version VARCHAR,
@@ -1479,6 +1480,43 @@ export const alterTables = async currentAppVersion => {
         '[alterTables] Error adding device_id/branch_id columns:',
         error,
       );
+    }
+
+    /**
+     * New column: operations.code — stable string identifier for default operations.
+     * Replaces hardcoded integer ID comparisons throughout the codebase.
+     */
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'operations',
+        'code',
+        `ALTER TABLE operations ADD COLUMN code VARCHAR(100) DEFAULT NULL;`,
+      );
+
+      // Backfill codes for all known default operations by their fixed integer IDs
+      const defaultOperationCodes = [
+        {id: 1, code: 'pre_app_stock'},
+        {id: 2, code: 'new_purchase'},
+        {id: 3, code: 'inventory_recount_in'},
+        {id: 4, code: 'stock_transfer_in'},
+        {id: 5, code: 'initial_stock'},
+        {id: 6, code: 'stock_usage'},
+        {id: 7, code: 'inventory_recount_out'},
+        {id: 10, code: 'stock_transfer_out'},
+        {id: 11, code: 'new_yield_stock'},
+      ];
+
+      for (const op of defaultOperationCodes) {
+        await db.executeSql(
+          `UPDATE operations SET code = ? WHERE id = ? AND (code IS NULL OR code = '');`,
+          [op.code, op.id],
+        );
+      }
+
+      console.info('[alterTables] operations.code column added and backfilled.');
+    } catch (error) {
+      console.debug('[alterTables] Error adding operations.code column:', error);
     }
 
     /**

@@ -20,6 +20,7 @@ import moment from 'moment';
 import convert from 'convert-units';
 
 import routes from '../../constants/routes';
+import {OPERATION_CODES} from '../../localDbQueries/operations';
 import ListEmpty from '../stateIndicators/ListEmpty';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
@@ -131,13 +132,13 @@ const ItemLogDetails = props => {
     let date = moment(log.adjustment_date?.split(' ')[0]).format(
       'MMM DD, YYYY',
     );
-    if (log.operation_id === 1) {
+    if (log.operation_code === OPERATION_CODES.PRE_APP_STOCK) {
       date = moment(log.beginning_inventory_date?.split(' ')[0]).format(
         'MMM YYYY',
       );
     }
 
-    if (log.operation_id === 1) {
+    if (log.operation_code === OPERATION_CODES.PRE_APP_STOCK) {
       return (
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
           <MaterialCommunityIcons
@@ -315,7 +316,7 @@ const ItemLogDetails = props => {
           }}>
           <View style={{flex: 1}}>
             <Headline numberOfLines={3} style={{marginRight: 10}}>
-              {log.operation_id === 1
+              {log.operation_code === OPERATION_CODES.PRE_APP_STOCK
                 ? `Pre-${appDefaults.appDisplayName} Stock`
                 : log.operation_name}
             </Headline>
@@ -504,7 +505,7 @@ const ItemLogDetails = props => {
 
           <View style={[styles.detailsListItem]}>
             <Text style={{fontWeight: 'bold'}}>
-              {log.operation_id === 1 ? 'Beginning Inventory Date:' : 'Date:'}
+              {log.operation_code === OPERATION_CODES.PRE_APP_STOCK ? 'Beginning Inventory Date:' : 'Date:'}
             </Text>
             {renderDate()}
           </View>

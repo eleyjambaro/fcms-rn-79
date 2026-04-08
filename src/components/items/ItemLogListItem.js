@@ -18,6 +18,7 @@ import moment from 'moment';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
 import appDefaults from '../../constants/appDefaults';
+import {OPERATION_CODES} from '../../localDbQueries/operations';
 
 const ItemLogListItem = props => {
   const {item, onPressItem, onPressItemOptions} = props;
@@ -89,13 +90,13 @@ const ItemLogListItem = props => {
     let date = moment(item.adjustment_date?.split(' ')[0]).format(
       'MMM DD, YYYY',
     );
-    if (item.operation_id === 1) {
+    if (item.operation_code === OPERATION_CODES.PRE_APP_STOCK) {
       date = moment(item.beginning_inventory_date?.split(' ')[0]).format(
         'MMMM YYYY',
       );
     }
 
-    if (item.operation_id === 1) {
+    if (item.operation_code === OPERATION_CODES.PRE_APP_STOCK) {
       return (
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
           <MaterialCommunityIcons
@@ -222,7 +223,7 @@ const ItemLogListItem = props => {
                 // flex: 1,
               }}
               numberOfLines={1}>
-              {item.operation_id === 1
+              {item.operation_code === OPERATION_CODES.PRE_APP_STOCK
                 ? `Pre-${appDefaults.appDisplayName} Stock`
                 : item.operation_name}
             </Text>

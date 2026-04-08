@@ -38,6 +38,7 @@ const ManageStock = props => {
   const adjustmentQty = route.params?.adjustment_qty;
   const monthYearDate = route.params?.month_year_date;
   const operationID = route.params?.operation_id;
+  const operationCode = route.params?.operation_code;
   const fromEndingInventory = route.params?.from_ending_inventory;
   const {colors} = useTheme();
   const queryClient = useQueryClient();
@@ -162,6 +163,7 @@ const ManageStock = props => {
                     adjustment_qty: adjustmentQty,
                     adjustment_date: monthYearDate,
                     operation_id: operationID,
+                    operation_code: operationCode,
                     cost_input_mode: 'unit_cost',
                   }}
                   onFocus={() => {

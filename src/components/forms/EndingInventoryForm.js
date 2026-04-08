@@ -21,7 +21,7 @@ import routes from '../../constants/routes';
 import CheckboxSelection from './CheckboxSelection';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
-import {getInventoryOperations} from '../../localDbQueries/operations';
+import {getInventoryOperations, OPERATION_CODES} from '../../localDbQueries/operations';
 import {getTax} from '../../localDbQueries/taxes';
 import * as RootNavigation from '../../../RootNavigation';
 import ItemInventorySummary from '../items/ItemInventorySummary';
@@ -290,6 +290,7 @@ const EndingInventoryForm = props => {
                         adjustment_qty: numberOfStocksToAdd,
                         month_year_date: monthYearDateFilter,
                         operation_id: 2,
+                        operation_code: OPERATION_CODES.NEW_PURCHASE,
                         from_ending_inventory: true,
                       });
                     }}>

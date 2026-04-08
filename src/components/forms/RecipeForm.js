@@ -137,7 +137,7 @@ const RecipeForm = props => {
 
     return (
       <Subheading style={{color: colors.primary, marginRight: 5}}>
-        {'Per ' + units.filter(unit => unit.id === parseInt(uomId))[0].name}
+        {'Per ' + units.filter(unit => unit.id === uomId)[0].name}
       </Subheading>
     );
   };

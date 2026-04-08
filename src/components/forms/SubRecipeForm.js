@@ -111,7 +111,7 @@ const SubRecipeForm = props => {
     return (
       <Subheading style={{color: colors.primary, marginRight: 5}}>
         {
-          categories.filter(category => category.id === parseInt(categoryId))[0]
+          categories.filter(category => category.id === categoryId)[0]
             .name
         }
       </Subheading>
@@ -124,7 +124,7 @@ const SubRecipeForm = props => {
     return (
       <Subheading {...props}>
         {props?.trimTextLength(
-          'Per ' + units.filter(unit => unit.id === parseInt(uomId))[0].name,
+          'Per ' + units.filter(unit => unit.id === uomId)[0].name,
         )}
       </Subheading>
     );

@@ -781,7 +781,7 @@ const ItemForm = props => {
     const initStockAppliedTax = getInitStockAppliedTaxData?.result;
     const isDeleted =
       itemInitStockLog.ref_tax_id &&
-      parseInt(initStockAppliedTaxId) !== 0 &&
+      initStockAppliedTaxId !== '0' &&
       !initStockAppliedTax;
 
     if (!isDeleted) return null;
@@ -820,7 +820,7 @@ const ItemForm = props => {
     const initStockVendor = getInitStockVendorData?.result;
     const isDeleted =
       itemInitStockLog.ref_vendor_id &&
-      parseInt(initStockVendorId) !== 0 &&
+      initStockVendorId !== '0' &&
       !initStockVendor;
 
     if (!isDeleted) return null;

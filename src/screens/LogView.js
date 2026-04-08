@@ -19,6 +19,7 @@ import {
 } from '@gorhom/bottom-sheet';
 
 import routes from '../constants/routes';
+import {OPERATION_CODES} from '../localDbQueries/operations';
 import ItemLogDetails from '../components/items/ItemLogDetails';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
@@ -75,9 +76,9 @@ const LogView = props => {
         // disable 'Update Log' option:
         // on any remove_stock operation
         log.operation_type === 'remove_stock' ||
-        // on New Yield Stock (id: 11)
+        // on New Yield Stock
         (log.operation_type === 'add_stock' &&
-          parseInt(log.operation_id) === 11)
+          log.operation_code === OPERATION_CODES.NEW_YIELD_STOCK)
       ) {
         setIsUpdateLogOptionDisabled(() => true);
       }
@@ -85,7 +86,7 @@ const LogView = props => {
       if (
         // disable 'Void Log' option:
         // on Pre-App Stock
-        parseInt(log.operation_id) === 1
+        log.operation_code === OPERATION_CODES.PRE_APP_STOCK
       ) {
         setIsVoidLogOptionDisabled(() => true);
       }

@@ -27,7 +27,7 @@ import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadin
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import TaxCalculation from '../../components/taxes/TaxCalculation';
 import QuantityUOMText from './QuantityUOMText';
-import {getInventoryOperations} from '../../localDbQueries/operations';
+import {getInventoryOperations, OPERATION_CODES} from '../../localDbQueries/operations';
 import {getTax} from '../../localDbQueries/taxes';
 import {getItem} from '../../localDbQueries/items';
 import {getVendor} from '../../localDbQueries/vendors';
@@ -85,7 +85,7 @@ const AddStockForm = props => {
     ? new Date(initialValues.adjustment_date?.split(' ')?.[0])
     : new Date();
 
-  if (parseInt(initialValues.operation_id) === 1) {
+  if (initialValues.operation_code === OPERATION_CODES.PRE_APP_STOCK) {
     defaultDate = initialValues.beginning_inventory_date
       ? new Date(initialValues.beginning_inventory_date?.split(' ')?.[0])
       : new Date();
@@ -109,7 +109,7 @@ const AddStockForm = props => {
   let dateLabel = 'Added Date';
   let dateValue = moment(datetimeString.split(' ')[0]).format('MMM DD, YYYY');
 
-  if (parseInt(initialValues.operation_id) === 1) {
+  if (initialValues.operation_code === OPERATION_CODES.PRE_APP_STOCK) {
     dateLabel = 'Beginning Inventory';
     dateValue = moment(datetimeString.split(' ')[0]).format('MMM YYYY');
   }
@@ -351,7 +351,7 @@ const AddStockForm = props => {
   ) => {
     if (!editMode || !deletedInventoryLogAppliedTax) return null;
 
-    if (parseInt(taxId) === 0) return null;
+    if (!taxId) return null;
 
     if (isTaxRefetching) return null;
 
@@ -391,7 +391,7 @@ const AddStockForm = props => {
   ) => {
     if (!editMode || !deletedInventoryLogVendor) return null;
 
-    if (parseInt(vendorId) === 0) return null;
+    if (!vendorId) return null;
 
     if (isVendorRefetching) return null;
 
@@ -463,7 +463,7 @@ const AddStockForm = props => {
     }
 
     // if edit mode and inventory log is an initial stock operation
-    if (editMode && inventoryLog?.operation_id === 1) {
+    if (editMode && inventoryLog?.operation_code === OPERATION_CODES.PRE_APP_STOCK) {
       return (
         <>
           <Text
@@ -480,17 +480,17 @@ const AddStockForm = props => {
             options={getInventoryOperationsData.result
               ?.filter(operation => {
                 if (item?.is_finished_product) {
-                  // hide operation id 2 (New Purchase if the item is a finished product)
-                  return operation.list_item_order !== 0 && operation.id !== 2;
+                  // hide New Purchase if the item is a finished product
+                  return operation.list_item_order !== 0 && operation.code !== OPERATION_CODES.NEW_PURCHASE;
                 }
 
-                // Do not hide operation id 1 (Pre-App Stock) if it's a Pre-App Stock Log itself even if its list_item_order is 0 (hidden)
+                // Do not hide Pre-App Stock if it's a Pre-App Stock Log itself even if its list_item_order is 0 (hidden)
                 if (
                   editMode &&
                   inventoryLog &&
-                  inventoryLog.operation_id === 1
+                  inventoryLog.operation_code === OPERATION_CODES.PRE_APP_STOCK
                 ) {
-                  if (operation.id === 1) return true;
+                  if (operation.code === OPERATION_CODES.PRE_APP_STOCK) return true;
                 }
 
                 // display all inventory operation except with the list_item_order 0 (hidden)
@@ -500,7 +500,7 @@ const AddStockForm = props => {
                 return {
                   id: operation.id,
                   name:
-                    operation.id === 1
+                    operation.code === OPERATION_CODES.PRE_APP_STOCK
                       ? `Pre-${appDefaults.appDisplayName} Stock`
                       : operation.name,
                   disabled: true,
@@ -529,8 +529,8 @@ const AddStockForm = props => {
           value={values.operation_id}
           options={getInventoryOperationsData.result?.filter(operation => {
             if (item?.is_finished_product) {
-              // hide operation id 2 (New Purchase if the item is a finished product)
-              return operation.list_item_order !== 0 && operation.id !== 2;
+              // hide New Purchase if the item is a finished product
+              return operation.list_item_order !== 0 && operation.code !== OPERATION_CODES.NEW_PURCHASE;
             }
 
             return operation.list_item_order !== 0;
@@ -805,7 +805,7 @@ const AddStockForm = props => {
                 value={dateValue}
                 containerStyle={{marginTop: -1}}
                 onPress={() => {
-                  if (parseInt(initialValues.operation_id) === 1) {
+                  if (initialValues.operation_code === OPERATION_CODES.PRE_APP_STOCK) {
                     setShowMonthPicker(() => true);
                   } else {
                     showDatepicker();

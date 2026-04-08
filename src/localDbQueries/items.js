@@ -709,7 +709,7 @@ export const getItem = async ({queryKey}) => {
     items.name AS name,
     items.category_id AS category_id,
     categories.name AS category_name,
-    (SELECT beginning_inventory_date FROM inventory_logs WHERE voided != 1 AND item_id = ${id} AND operation_id = 1) AS beginning_inventory_date,
+    (SELECT beginning_inventory_date FROM inventory_logs WHERE voided != 1 AND item_id = ${id} AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')) AS beginning_inventory_date,
 
     (
       SELECT COUNT(*)
@@ -860,7 +860,7 @@ export const updateItem = async ({
      */
     const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = ${parseInt(
       id,
-    )} AND operation_id = 1`;
+    )} AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')`;
 
     const getItemInitStockLogResult = await db.executeSql(
       getItemInitStockLogQuery,
@@ -902,12 +902,12 @@ export const updateItem = async ({
      * Validate updated value of item default tax id
      */
     if (updatedValues.tax_id) {
-      // id 0 means user intentionally set the tax to null
-      if (parseInt(updatedValues.tax_id) === 0) {
+      // '0' means user intentionally set the tax to null
+      if (updatedValues.tax_id === '0') {
         tax = defaultTaxEmptyValue;
       } else {
         const getUpdatedDefaultTaxQuery = `
-          SELECT * FROM taxes WHERE id = ${parseInt(updatedValues.tax_id)}
+          SELECT * FROM taxes WHERE id = ${updatedValues.tax_id}
         `;
 
         const getUpdatedDefaultTaxResult = await db.executeSql(
@@ -951,15 +951,13 @@ export const updateItem = async ({
      * Validate updated value of init stock applied tax id
      */
     if (updatedValues.initial_stock_applied_tax_id) {
-      // id 0 means user intentionally set the tax to null
-      if (parseInt(updatedValues.initial_stock_applied_tax_id) === 0) {
+      // '0' means user intentionally set the tax to null
+      if (updatedValues.initial_stock_applied_tax_id === '0') {
         initStockTax = defaultInitStockTaxEmptyValue;
       } else {
         const getUpdatedInitStockAppliedTaxQuery = `
-        SELECT * FROM taxes WHERE id = ${parseInt(
-          updatedValues.initial_stock_applied_tax_id,
-        )}
-        
+        SELECT * FROM taxes WHERE id = ${updatedValues.initial_stock_applied_tax_id}
+
       `;
 
         const getUpdatedInitStockAppliedTaxResult = await db.executeSql(
@@ -1016,12 +1014,12 @@ export const updateItem = async ({
      * Validate updated value of item default vendor id
      */
     if (updatedValues.vendor_id) {
-      // id 0 means user intentionally set the value to null
-      if (parseInt(updatedValues.vendor_id) === 0) {
+      // '0' means user intentionally set the value to null
+      if (updatedValues.vendor_id === '0') {
         vendor = defaultVendorEmptyValue;
       } else {
         const getUpdatedDefaultVendorQuery = `
-        SELECT * FROM vendors WHERE id = ${parseInt(updatedValues.vendor_id)}   
+        SELECT * FROM vendors WHERE id = ${updatedValues.vendor_id}
       `;
 
         const getUpdatedDefaultVendorResult = await db.executeSql(
@@ -1063,15 +1061,13 @@ export const updateItem = async ({
      * Validate updated value of init stock vendor id
      */
     if (updatedValues.initial_stock_vendor_id) {
-      // id 0 means user intentionally set the value to null
-      if (parseInt(updatedValues.initial_stock_vendor_id) === 0) {
+      // '0' means user intentionally set the value to null
+      if (updatedValues.initial_stock_vendor_id === '0') {
         initStockVendor = defaultInitStockVendorEmptyValue;
       } else {
         const getUpdatedInitStockVendorQuery = `
-        SELECT * FROM vendors WHERE id = ${parseInt(
-          updatedValues.initial_stock_vendor_id,
-        )}
-        
+        SELECT * FROM vendors WHERE id = ${updatedValues.initial_stock_vendor_id}
+
       `;
 
         const getUpdatedInitStockVendorResult = await db.executeSql(
@@ -1195,7 +1191,7 @@ export const updateItem = async ({
             : ''
         }',
         updated_at = CURRENT_TIMESTAMP
-        WHERE item_id = ${id} AND operation_id = 1
+        WHERE item_id = ${id} AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')
       `;
 
       /**

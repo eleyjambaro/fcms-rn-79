@@ -36,6 +36,7 @@ import {
 import {
   getInventoryOperations,
   getInventoryOperation,
+  OPERATION_CODES,
 } from '../localDbQueries/operations';
 import MonthPickerModal from '../components/modals/MonthPickerModal';
 import FilterHelperText from '../components/foodCostAnalysis/FilterHelperText';
@@ -570,7 +571,7 @@ const Logs = () => {
     const addStockOperations = addStockOperationsDataResult?.map(operation => {
       return {
         label:
-          operation.id === 1
+          operation.code === OPERATION_CODES.PRE_APP_STOCK
             ? `Pre-${appDefaults.appDisplayName} Stock`
             : operation.name,
         value: operation.id,

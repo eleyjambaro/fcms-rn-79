@@ -33,6 +33,7 @@ import {
 import {
   getInventoryOperations,
   getInventoryOperation,
+  OPERATION_CODES,
 } from '../localDbQueries/operations';
 import ItemStocksHeading from '../components/items/ItemStocksHeading';
 import {getItem} from '../localDbQueries/items';
@@ -274,7 +275,7 @@ const ItemAddedStocks = props => {
     const addStockOperations = addStockOperationsDataResult?.map(operation => {
       return {
         label:
-          operation.id === 1
+          operation.code === OPERATION_CODES.PRE_APP_STOCK
             ? `Pre-${appDefaults.appDisplayName} Stock`
             : operation.name,
         value: operation.id,
