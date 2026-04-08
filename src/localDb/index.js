@@ -1487,7 +1487,6 @@ export const alterTables = async currentAppVersion => {
     try {
       const deltaSyncTables = [
         'categories',
-        'taxes',
         'items',
         'modifiers',
         'modifier_options',
@@ -1498,7 +1497,6 @@ export const alterTables = async currentAppVersion => {
         'ingredients',
         'selling_menus',
         'selling_menu_items',
-        'operations',
         'inventory_logs',
         'batch_purchase_groups',
         'batch_purchase_entries',

@@ -82,6 +82,34 @@ You've successfully run and modified your React Native App. :partying_face:
 - If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
 - If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
 
+# Database & Sync
+
+## Dual Database
+
+- **Company DB** — holds all business data (items, recipes, purchases, expenses, revenues, etc.). Queried via `src/localDbQueries/`.
+- **Account DB** — separate SQLite DB for local accounts, roles, and companies. Never synced to the cloud.
+
+## Delta Sync (Cloud Sync)
+
+All Company DB tables participate in delta sync and receive the following columns via `alterTables()` in `src/localDb/index.js`:
+
+| Column       | Purpose                                               |
+| ------------ | ----------------------------------------------------- |
+| `sync_id`    | UUID assigned on insert; used as the cloud record key |
+| `updated_at` | Timestamp set on every insert / update / soft-delete  |
+| `synced_at`  | Stamped by the sync service after a successful push   |
+| `is_deleted` | Soft-delete flag — `1` means deleted                  |
+
+**Soft-delete rule**: deletions on sync tables use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` — never `DELETE FROM`.
+
+### Excluded from sync
+
+| Category             | Tables                                       |
+| -------------------- | -------------------------------------------- |
+| Local Account DB     | `roles`, `accounts`, `companies`, `settings` |
+| App-managed / seeded | `app_versions`, `operations`, `taxes`        |
+| Device-local         | `saved_printers`, `sync_metadata`            |
+
 # Troubleshooting
 
 If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.

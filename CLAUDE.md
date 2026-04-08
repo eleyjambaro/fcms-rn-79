@@ -50,6 +50,53 @@ The app supports two auth modes that gate which navigation stack is rendered in 
 - Both initialized via `useInitDBTables` hook. Direct SQL queries use a promise-based wrapper in `/src/localDb/`.
 - Query builders in `/src/utils/localDbHelpers.js` support `%IN`, `%LIKE` filter operators and `createQueryFilter()`.
 
+### Delta Sync (Cloud Sync)
+
+All Company DB tables participate in delta sync **except**: `app_versions`, `operations`, `taxes`, `saved_printers`, and `sync_metadata`. Account DB tables (`roles`, `accounts`, `companies`, `settings`) are never synced.
+
+Delta sync tables receive four extra columns added via `alterTables()` in `/src/localDb/index.js`:
+
+- `sync_id` — UUID assigned on insert, used as the cloud record key
+- `updated_at` — set to `CURRENT_TIMESTAMP` on every insert/update/soft-delete
+- `synced_at` — stamped by the sync service after a successful push
+- `is_deleted` — soft-delete flag (`1` = deleted); **never use `DELETE FROM` on these tables**
+
+**Soft-delete rule**: all deletions on delta sync tables must use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` instead of `DELETE FROM`. Hard deletes are only allowed on excluded tables (`app_versions`, `operations`, `taxes`, `saved_printers`, `monthly_expenses`, and Account DB tables).
+
+Delta sync tables (defined in `deltaSyncTables` array in `/src/localDb/index.js`):
+
+| Table                       | File                                |
+| --------------------------- | ----------------------------------- |
+| `categories`                | `localDbQueries/categories.js`      |
+| `items`                     | `localDbQueries/items.js`           |
+| `modifiers`                 | `localDbQueries/modifiers.js`       |
+| `modifier_options`          | `localDbQueries/modifiers.js`       |
+| `vendors`                   | `localDbQueries/vendors.js`         |
+| `vendor_contact_persons`    | `localDbQueries/vendors.js`         |
+| `recipe_kinds`              | `localDbQueries/recipeKinds.js`     |
+| `recipes`                   | `localDbQueries/recipes.js`         |
+| `ingredients`               | `localDbQueries/recipes.js`         |
+| `selling_menus`             | `localDbQueries/sellingMenus.js`    |
+| `selling_menu_items`        | `localDbQueries/sellingMenus.js`    |
+| `inventory_logs`            | `localDbQueries/items.js`           |
+| `batch_purchase_groups`     | `localDbQueries/batchPurchase.js`   |
+| `batch_purchase_entries`    | `localDbQueries/batchPurchase.js`   |
+| `batch_stock_usage_groups`  | `localDbQueries/batchStockUsage.js` |
+| `batch_stock_usage_entries` | `localDbQueries/batchStockUsage.js` |
+| `invoices`                  | `localDbQueries/salesCounter.js`    |
+| `sale_logs`                 | `localDbQueries/salesCounter.js`    |
+| `sales_order_groups`        | `localDbQueries/salesCounter.js`    |
+| `sales_orders`              | `localDbQueries/salesCounter.js`    |
+| `payments`                  | `localDbQueries/salesCounter.js`    |
+| `refunds`                   | `localDbQueries/salesCounter.js`    |
+| `spoilages`                 | `localDbQueries/spoilages.js`       |
+| `revenue_groups`            | `localDbQueries/revenues.js`        |
+| `revenues`                  | `localDbQueries/revenues.js`        |
+| `expense_groups`            | `localDbQueries/expenses.js`        |
+| `expenses`                  | `localDbQueries/expenses.js`        |
+| `revenue_deductions`        | `localDbQueries/expenses.js`        |
+| `revenue_categories`        | `localDbQueries/revenues.js`        |
+
 ### Navigation Structure
 
 Five navigation stacks in `/src/stacks/`:
