@@ -6,6 +6,7 @@ import {
 } from '../utils/localDbQueryHelpers';
 import {appStorageKeySeperator} from './appVersions';
 import getAppConfig from '../constants/appConfig';
+import uuid from 'react-native-uuid';
 
 export const defaultTaxes = [
   // vat
@@ -16,7 +17,9 @@ export const createTax = async ({values, onInsertLimitReached}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newId = uuid.v4();
     const query = `INSERT INTO taxes (
+    id,
     name,
     rate_percentage,
     is_compound_tax,
@@ -26,6 +29,7 @@ export const createTax = async ({values, onInsertLimitReached}) => {
   )
 
   VALUES(
+    '${newId}',
     '${values.name.replace(/\'/g, "''")}',
     ${values.rate_percentage},
     ${parseInt(values.is_compound_tax || 0)},
