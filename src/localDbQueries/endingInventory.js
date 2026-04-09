@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
-import {getDBConnection, getCloudSyncParams} from '../localDb';
+import {getDBConnection, getCloudSyncParams, OPERATION_DEFAULT_UUIDS} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 
 export const createItemEndingInventoryEntry = async ({
@@ -260,18 +260,17 @@ export const createItemEndingInventoryEntry = async ({
       ? `datetime('${monthYearDateFilter}')`
       : `datetime('now')`;
 
-    // operation_id 6 is equal to Stock Usage Entry
-    // operation_id 3 is equal to add_stock Inventory Re-count
-    let operationId = 6;
+    // Use operation codes: stock_usage for remove, inventory_recount_in for add
+    let operationUUID = OPERATION_DEFAULT_UUIDS.stock_usage;
 
     if (numberOfStocksToAdd > 0) {
-      operationId = 3;
-    } else if (numberOfStocksToRemove > 0) {
-      operationId = 6;
+      operationUUID = OPERATION_DEFAULT_UUIDS.inventory_recount_in;
     }
 
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newInventoryLogId = uuid.v4();
     const addInventoryLogQuery = `INSERT INTO inventory_logs (
+      id,
       operation_id,
       item_id,
       adjustment_unit_cost,
@@ -286,8 +285,9 @@ export const createItemEndingInventoryEntry = async ({
     )
 
     VALUES(
-      ${parseInt(operationId)},
-      ${parseInt(item.id)},
+      '${newInventoryLogId}',
+      '${operationUUID}',
+      '${item.id}',
       ${avgUnitCost},
       ${avgUnitCostNet},
       ${avgUnitCostTax},
@@ -295,7 +295,7 @@ export const createItemEndingInventoryEntry = async ({
       ${adjustmentDate},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
-      '${uuid.v4()}',
+      '${newInventoryLogId}',
       CURRENT_TIMESTAMP
     );`;
 

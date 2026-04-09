@@ -203,7 +203,9 @@ export const createRevenueGroup = async ({
      * Insert Revenue group
      */
     const {deviceId, branchId} = await getCloudSyncParams();
+    const revenueGroupId = uuid.v4();
     const createRevenueGroupQuery = `INSERT INTO revenue_groups (
+      id,
       name,
       device_id,
       branch_id,
@@ -212,10 +214,11 @@ export const createRevenueGroup = async ({
     )
 
     VALUES(
+      '${revenueGroupId}',
       '${values.name.replace(/\'/g, "''")}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
-      '${uuid.v4()}',
+      '${revenueGroupId}',
       CURRENT_TIMESTAMP
     );`;
 
@@ -226,8 +229,6 @@ export const createRevenueGroup = async ({
     if (createRevenueGroupResult[0].rowsAffected === 0) {
       throw Error('Failed to create new revenue group');
     }
-
-    const revenueGroupId = createRevenueGroupResult[0].insertId;
 
     // insert each category ids to revenue_categories table
     let insertRevenueCategoriesQuery = `
@@ -245,8 +246,8 @@ export const createRevenueGroup = async ({
 
     values.category_ids.forEach((categoryId, index) => {
       insertRevenueCategoriesQuery += `(
-          ${revenueGroupId},
-          ${categoryId},
+          '${revenueGroupId}',
+          '${categoryId}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
           '${uuid.v4()}',

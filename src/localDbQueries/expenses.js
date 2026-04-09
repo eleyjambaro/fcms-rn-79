@@ -677,8 +677,10 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
     }
 
     const {deviceId, branchId} = await getCloudSyncParams();
+    const expenseId = uuid.v4();
     const createExpenseQuery = `
       INSERT INTO expenses (
+        id,
         expense_group_id,
         expense_group_date,
         name,
@@ -690,13 +692,14 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
       )
 
       VALUES(
-        ${values.expense_group_id},
+        '${expenseId}',
+        '${values.expense_group_id}',
         '${values.expense_group_date}',
         '${values.name?.replace(/\'/g, "''")}',
         ${values.amount},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${expenseId}',
         CURRENT_TIMESTAMP
       );
     `;
@@ -706,8 +709,6 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
     if (createExpenseResult[0].rowsAffected === 0) {
       throw Error('Failed to create new expense');
     }
-
-    const expenseId = createExpenseResult[0].insertId;
 
     // insert each revenue group ids to revenue_deductions table
     let insertRevenueDeductionsQuery = `
@@ -725,8 +726,8 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
 
     values.revenue_group_ids.forEach((revenueGroupId, index) => {
       insertRevenueDeductionsQuery += `(
-          ${revenueGroupId},
-          ${expenseId},
+          '${revenueGroupId}',
+          '${expenseId}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
           '${uuid.v4()}',

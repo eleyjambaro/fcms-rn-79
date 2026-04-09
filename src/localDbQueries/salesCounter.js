@@ -535,8 +535,10 @@ export const confirmFulfillingSalesOrders = async ({
     /**
      * Create invoice
      */
+    const newInvoiceId = uuid.v4();
     const createInvoiceQuery = `
       INSERT INTO invoices (
+        id,
         sold_by_account_uid,
         customer_id,
         invoice_date,
@@ -548,19 +550,20 @@ export const confirmFulfillingSalesOrders = async ({
       )
 
       VALUES (
+        '${newInvoiceId}',
         ${accountUID},
         ${customerId},
         ${salesInvoiceDate},
-        ${salesOrderGroupId ? parseInt(salesOrderGroupId) : 'null'},
+        ${salesOrderGroupId ? `'${salesOrderGroupId}'` : 'null'},
         ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
         ${salesBranchId ? `'${salesBranchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${newInvoiceId}',
         CURRENT_TIMESTAMP
       )
     `;
 
-    const createInvoiceResult = await db.executeSql(createInvoiceQuery);
-    createdInvoiceId = createInvoiceResult[0]?.insertId;
+    await db.executeSql(createInvoiceQuery);
+    createdInvoiceId = newInvoiceId;
 
     if (!createdInvoiceId) {
       throw Error('Missing invoice id.');
@@ -644,7 +647,7 @@ export const confirmFulfillingSalesOrders = async ({
       const unitCostNet = unitCost / (taxRatePercentage / 100 + 1);
       const unitCostTax = unitCost - unitCostNet;
 
-      const taxId = item.tax_id ? `${parseInt(item.tax_id)}` : 'null';
+      const taxId = item.tax_id ? `'${item.tax_id}'` : 'null';
       const taxName = item.tax_name ? `'${item.tax_name}'` : 'null';
 
       /**
@@ -652,7 +655,7 @@ export const confirmFulfillingSalesOrders = async ({
        */
 
       insertSaleLogsQuery += `(
-        ${parseInt(item.id)},
+        '${item.id}',
         ${taxId},
         ${customerId},
         ${unitSellingPrice},
@@ -956,8 +959,10 @@ export const addSaleEntriesToSalesOrders = async ({
     /**
      * Create sales order group
      */
+    const newSalesOrderGroupId = uuid.v4();
     const createSalesOrderGroupQuery = `
       INSERT INTO sales_order_groups (
+        id,
         sold_by_account_uid,
         customer_id,
         order_date,
@@ -968,20 +973,19 @@ export const addSaleEntriesToSalesOrders = async ({
       )
 
       VALUES (
+        '${newSalesOrderGroupId}',
         ${accountUID},
         ${customerId},
         ${salesOrderDate},
         ${salesOrderDeviceId ? `'${salesOrderDeviceId}'` : 'NULL'},
         ${salesOrderBranchId ? `'${salesOrderBranchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${newSalesOrderGroupId}',
         CURRENT_TIMESTAMP
       )
     `;
 
-    const createSalesOrderGroupResult = await db.executeSql(
-      createSalesOrderGroupQuery,
-    );
-    createdSalesOrderGroupId = createSalesOrderGroupResult[0]?.insertId;
+    await db.executeSql(createSalesOrderGroupQuery);
+    createdSalesOrderGroupId = newSalesOrderGroupId;
 
     if (!createdSalesOrderGroupId) {
       throw Error('Missing sales order group id.');
@@ -990,6 +994,7 @@ export const addSaleEntriesToSalesOrders = async ({
     // insert each sale entries to Sales orders
     let insertSalesOrdersQuery = `
       INSERT INTO sales_orders (
+        id,
         item_id,
         ref_tax_id,
         ref_customer_id,
@@ -1020,7 +1025,7 @@ export const addSaleEntriesToSalesOrders = async ({
 
     saleItems.forEach((item, index) => {
       const orderSizeOptionId = item.option_id
-        ? parseInt(item.option_id)
+        ? `'${item.option_id}'`
         : 'null';
       const useMeasurementPerPiece = item.use_measurement_per_piece ? 1 : 0;
       const saleSizeName = item.option_name ? `'${item.option_name}'` : 'null';
@@ -1040,11 +1045,13 @@ export const addSaleEntriesToSalesOrders = async ({
         unitSellingPrice / (taxRatePercentage / 100 + 1);
       const unitSellingPriceTax = unitSellingPrice - unitSellingPriceNet;
 
-      const taxId = item.tax_id ? `${parseInt(item.tax_id)}` : 'null';
+      const taxId = item.tax_id ? `'${item.tax_id}'` : 'null';
       const taxName = item.tax_name ? `'${item.tax_name}'` : 'null';
 
+      const newSalesOrderId = uuid.v4();
       insertSalesOrdersQuery += `(
-        ${parseInt(item.id)},
+        '${newSalesOrderId}',
+        '${item.id}',
         ${taxId},
         ${customerId},
         ${unitSellingPrice},
@@ -1057,13 +1064,13 @@ export const addSaleEntriesToSalesOrders = async ({
         ${taxName},
         ${qty},
         ${salesOrderDate},
-        ${parseInt(createdSalesOrderGroupId)},
+        '${createdSalesOrderGroupId}',
         ${accountUID},
         ${orderSizeOptionId},
         ${useMeasurementPerPiece},
         ${salesOrderDeviceId ? `'${salesOrderDeviceId}'` : 'NULL'},
         ${salesOrderBranchId ? `'${salesOrderBranchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${newSalesOrderId}',
         CURRENT_TIMESTAMP
       )`;
 
@@ -1114,7 +1121,7 @@ export const addSaleEntriesToSalesOrders = async ({
     if (createdSalesOrderGroupId) {
       const deleteSalesOrderGroupQuery = `
         UPDATE sales_order_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${parseInt(createdSalesOrderGroupId)};
+        WHERE id = '${createdSalesOrderGroupId}';
       `;
 
       const deleteSalesOrderGroupResult = await db.executeSql(

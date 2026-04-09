@@ -268,7 +268,7 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
       SELECT inventory_logs.*, operations.code AS operation_code
       FROM inventory_logs
       LEFT JOIN operations ON operations.id = inventory_logs.operation_id
-      WHERE inventory_logs.id = ${parseInt(id)}
+      WHERE inventory_logs.id = '${id}'
     `;
 
     const getInventoryLogResult = await db.executeSql(getInventoryLogQuery);
@@ -358,10 +358,10 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
     const unitCostNet = unitCost / (taxRatePercentage / 100 + 1);
     const unitCostTax = unitCost - unitCostNet;
 
-    const taxId = tax.id ? parseInt(tax.id) : 'null';
+    const taxId = tax.id ? `'${tax.id}'` : 'null';
     const taxName = tax.name ? `'${tax.name.replace(/\'/g, "''")}'` : 'null';
 
-    const vendorId = vendor.id ? parseInt(vendor.id) : 'null';
+    const vendorId = vendor.id ? `'${vendor.id}'` : 'null';
     const vendorDisplayName = vendor.vendor_display_name
       ? `'${vendor.vendor_display_name.replace(/\'/g, "''")}'`
       : 'null';
@@ -390,8 +390,8 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
     }
 
     const updateInventoryLogQuery = `UPDATE inventory_logs
-      SET operation_id = ${parseInt(updatedValues.operation_id)},
-      item_id = ${parseInt(item.id)},
+      SET operation_id = '${updatedValues.operation_id}',
+      item_id = '${item.id}',
       ref_tax_id = ${taxId},
       ref_vendor_id = ${vendorId},
       vendor_display_name = ${vendorDisplayName},
@@ -464,7 +464,7 @@ export const voidInventoryLog = async ({id}) => {
         updated_at = CURRENT_TIMESTAMP
         WHERE yield_ref_id = '${
           inventoryLog.yield_ref_id
-        }' AND id != ${parseInt(inventoryLog.id)}
+        }' AND id != '${inventoryLog.id}'
       `;
       await db.executeSql(voidAllDeductedYieldIngredientsInInventoryLogsQuery);
     }
@@ -1103,7 +1103,7 @@ export const addInventoryLog = async ({
     const updateItemQuery = `UPDATE items
       SET unit_cost = ${latestUnitCost},
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${parseInt(log.item_id)}
+      WHERE id = '${log.item_id}'
     `;
 
     if (inventoryOperation.type === 'add_stock') {
@@ -1123,7 +1123,7 @@ export const addInventoryLog = async ({
     // validate tax id
     if (log.tax_id) {
       const getTaxQuery = `
-      SELECT * FROM taxes WHERE id = ${parseInt(log.tax_id)}
+      SELECT * FROM taxes WHERE id = '${log.tax_id}'
     `;
 
       const getTaxResult = await db.executeSql(getTaxQuery);
@@ -1144,7 +1144,7 @@ export const addInventoryLog = async ({
     // validate vendor id
     if (log.vendor_id) {
       const getVendorQuery = `
-      SELECT * FROM vendors WHERE id = ${parseInt(log.vendor_id)}
+      SELECT * FROM vendors WHERE id = '${log.vendor_id}'
     `;
 
       const getVendorResult = await db.executeSql(getVendorQuery);
@@ -1174,10 +1174,10 @@ export const addInventoryLog = async ({
       unitCostTax = parseFloat(0);
     }
 
-    const taxId = tax.id ? parseInt(tax.id) : 'null';
+    const taxId = tax.id ? `'${tax.id}'` : 'null';
     const taxName = tax.name ? `'${tax.name.replace(/\'/g, "''")}'` : 'null';
 
-    const vendorId = vendor.id ? parseInt(vendor.id) : 'null';
+    const vendorId = vendor.id ? `'${vendor.id}'` : 'null';
     const vendorDisplayName = vendor.vendor_display_name
       ? `'${vendor.vendor_display_name.replace(/\'/g, "''")}'`
       : 'null';

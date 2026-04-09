@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
-import {getDBConnection, getCloudSyncParams} from '../localDb';
+import {getDBConnection, getCloudSyncParams, OPERATION_DEFAULT_UUIDS} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {scheduleSyncSoon} from '../services/syncService';
 
@@ -330,8 +330,8 @@ export const createBatchStockUsageEntry = async ({values}) => {
     )
 
     VALUES(
-      ${parseInt(currentBatchStockUsageGroupId)},
-      ${parseInt(values.item_id)},
+      '${currentBatchStockUsageGroupId}',
+      '${values.item_id}',
       ${parseFloat(values.remove_stock_qty)},
       ${parseFloat(values.remove_stock_unit_cost)},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
@@ -344,8 +344,8 @@ export const createBatchStockUsageEntry = async ({values}) => {
       SET remove_stock_qty = ${parseFloat(values.remove_stock_qty)},
       remove_stock_unit_cost = ${parseFloat(values.remove_stock_unit_cost)},
       updated_at = CURRENT_TIMESTAMP
-      WHERE item_id = ${values.item_id}
-      AND batch_stock_usage_group_id = ${currentBatchStockUsageGroupId}
+      WHERE item_id = '${values.item_id}'
+      AND batch_stock_usage_group_id = '${currentBatchStockUsageGroupId}'
     `;
 
     // check if there's an existing Batch Stock Usage Entry within the current Batch Stock Usage Group
@@ -430,6 +430,7 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
     // insert each batch stock usage entries to Inventory logs
     let insertInventoryLogsQuery = `
       INSERT INTO inventory_logs (
+        id,
         operation_id,
         item_id,
         adjustment_unit_cost,
@@ -470,10 +471,12 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
           ? `'${batchStockUsageEntry.item_tax_name}'`
           : 'null';
 
-        // operation_id 6 is equal to Stock Usage Entry
+        // operation_id corresponds to 'stock_usage' operation
+        const newInventoryLogId = uuid.v4();
         insertInventoryLogsQuery += `(
-          6,
-          ${batchStockUsageEntry.item_id},
+          '${newInventoryLogId}',
+          '${OPERATION_DEFAULT_UUIDS.stock_usage}',
+          '${batchStockUsageEntry.item_id}',
           ${unitCost},
           ${unitCostNet},
           ${unitCostTax},
@@ -481,10 +484,10 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
           ${taxName},
           ${qty},
           ${dateConfirmed},
-          ${parseInt(currentBatchStockUsageGroupId)},
+          '${currentBatchStockUsageGroupId}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newInventoryLogId}',
           CURRENT_TIMESTAMP
         )`;
 

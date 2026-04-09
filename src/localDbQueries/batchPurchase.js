@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
-import {getDBConnection, getCloudSyncParams} from '../localDb';
+import {getDBConnection, getCloudSyncParams, OPERATION_DEFAULT_UUIDS} from '../localDb';
 import {
   createQueryFilter,
   isMutationDisabled,
@@ -373,9 +373,9 @@ export const createBatchPurchaseEntry = async ({values}) => {
     )
 
     VALUES(
-      ${parseInt(currentBatchPurchaseGroupId)},
-      ${parseInt(values.item_id)},
-      ${parseInt(values.tax_id) || 'null'},
+      '${currentBatchPurchaseGroupId}',
+      '${values.item_id}',
+      ${values.tax_id ? `'${values.tax_id}'` : 'null'},
       ${parseFloat(values.add_stock_qty)},
       ${parseFloat(values.add_stock_unit_cost)},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
@@ -387,17 +387,17 @@ export const createBatchPurchaseEntry = async ({values}) => {
     const updateBatchPurchaseEntryQuery = `UPDATE batch_purchase_entries
       SET add_stock_qty = ${parseFloat(values.add_stock_qty)},
       add_stock_unit_cost = ${parseFloat(values.add_stock_unit_cost)},
-      tax_id = ${parseInt(values.tax_id) || 'null'},
+      tax_id = ${values.tax_id ? `'${values.tax_id}'` : 'null'},
       updated_at = CURRENT_TIMESTAMP
-      WHERE item_id = ${parseInt(values.item_id)}
-      AND batch_purchase_group_id = ${currentBatchPurchaseGroupId}
+      WHERE item_id = '${values.item_id}'
+      AND batch_purchase_group_id = '${currentBatchPurchaseGroupId}'
     `;
 
     const updateItemsDefaultTaxQuery = `
       UPDATE items
-      SET tax_id = ${parseInt(values.tax_id) || 'null'},
+      SET tax_id = ${values.tax_id ? `'${values.tax_id}'` : 'null'},
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${parseInt(values.item_id)}
+      WHERE id = '${values.item_id}'
     `;
 
     // check if there's an existing Batch Purchase Entry within the current Batch Purchase Group
@@ -426,7 +426,7 @@ export const createBatchPurchaseEntry = async ({values}) => {
       if (!parseFloat(values.add_stock_qty)) {
         const deleteBatchPurchaseEntryQuery = `
           UPDATE batch_purchase_entries SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${parseInt(batchPurchaseEntry.id)}
+          WHERE id = '${batchPurchaseEntry.id}'
         `;
 
         await db.executeSql(deleteBatchPurchaseEntryQuery);
@@ -556,8 +556,10 @@ export const getCurrentBatchPurchaseGroupId = async () => {
         // create new Batch Purchase Group
         const {deviceId: bpgDeviceId, branchId: bpgBranchId} =
           await getCloudSyncParams();
+        const newBpgId = uuid.v4();
         const createBatchPurchaseGroupQuery = `
           INSERT INTO batch_purchase_groups (
+            id,
             confirmed,
             device_id,
             branch_id,
@@ -566,10 +568,11 @@ export const getCurrentBatchPurchaseGroupId = async () => {
           )
 
           VALUES (
+            '${newBpgId}',
             0,
             ${bpgDeviceId ? `'${bpgDeviceId}'` : 'NULL'},
             ${bpgBranchId ? `'${bpgBranchId}'` : 'NULL'},
-            '${uuid.v4()}',
+            '${newBpgId}',
             CURRENT_TIMESTAMP
           );
         `;
@@ -581,10 +584,10 @@ export const getCurrentBatchPurchaseGroupId = async () => {
           // Set created batch purchase group's id as current batch purchase group id
           await AsyncStorage.setItem(
             'currentBatchPurchaseGroupId',
-            createBatchPurchaseGroupResult[0].insertId?.toString(),
+            newBpgId,
           );
 
-          return createBatchPurchaseGroupResult[0].insertId;
+          return newBpgId;
         } else {
           throw Error('Failed to create new batch purchase group');
         }
@@ -633,8 +636,8 @@ export const confirmBatchPurchaseEntries = async ({
      */
     if (values.vendor_id) {
       const getVendorQuery = `
-      SELECT * FROM vendors WHERE id = ${parseInt(values.vendor_id)}
-      
+      SELECT * FROM vendors WHERE id = '${values.vendor_id}'
+
     `;
 
       const getVendorResult = await db.executeSql(getVendorQuery);
@@ -657,7 +660,7 @@ export const confirmBatchPurchaseEntries = async ({
       throw new Error('Failed to confirm batch purchases. Vendor not found.');
     }
 
-    const vendorId = vendor.id ? parseInt(vendor.id) : 'null';
+    const vendorId = vendor.id ? `'${vendor.id}'` : 'null';
     const vendorDisplayName = vendor.vendor_display_name
       ? `'${vendor.vendor_display_name}'`
       : 'null';
@@ -694,6 +697,7 @@ export const confirmBatchPurchaseEntries = async ({
     // insert each batch purchase entries to Inventory logs
     let insertInventoryLogsQuery = `
       INSERT INTO inventory_logs (
+        id,
         operation_id,
         item_id,
         ref_tax_id,
@@ -736,16 +740,18 @@ export const confirmBatchPurchaseEntries = async ({
         const unitCostTax = unitCost - unitCostNet;
 
         const taxId = batchPurchaseEntry.item_tax_id
-          ? `${parseInt(batchPurchaseEntry.item_tax_id)}`
+          ? `'${batchPurchaseEntry.item_tax_id}'`
           : 'null';
         const taxName = batchPurchaseEntry.item_tax_name
           ? `'${batchPurchaseEntry.item_tax_name}'`
           : 'null';
 
-        // operation_id 2 is equal to New Purchase Entry
+        // operation_id corresponds to 'new_purchase' operation
+        const newInventoryLogId = uuid.v4();
         insertInventoryLogsQuery += `(
-          2,
-          ${batchPurchaseEntry.item_id},
+          '${newInventoryLogId}',
+          '${OPERATION_DEFAULT_UUIDS.new_purchase}',
+          '${batchPurchaseEntry.item_id}',
           ${taxId},
           ${vendorId},
           ${vendorDisplayName},
@@ -757,10 +763,10 @@ export const confirmBatchPurchaseEntries = async ({
           ${taxName},
           ${qty},
           ${dateConfirmed},
-          ${parseInt(currentBatchPurchaseGroupId)},
+          '${currentBatchPurchaseGroupId}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newInventoryLogId}',
           CURRENT_TIMESTAMP
         )`;
 
@@ -802,7 +808,7 @@ export const confirmBatchPurchaseEntries = async ({
 
     // delete each batch purchase entries
     const deleteBatchPurchaseEntriesQuery = `UPDATE batch_purchase_entries SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
-      WHERE batch_purchase_group_id = ${parseInt(currentBatchPurchaseGroupId)}
+      WHERE batch_purchase_group_id = '${currentBatchPurchaseGroupId}'
     ;`;
     const deleteBatchPurchaseEntriesResult = await db.executeSql(
       deleteBatchPurchaseEntriesQuery,
@@ -817,7 +823,7 @@ export const confirmBatchPurchaseEntries = async ({
       SET confirmed = 1,
       date_confirmed = ${dateConfirmed},
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${parseInt(currentBatchPurchaseGroupId)}
+      WHERE id = '${currentBatchPurchaseGroupId}'
     `;
 
     const updateBatchPurchaseGroupResult = await db.executeSql(

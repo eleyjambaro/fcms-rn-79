@@ -382,7 +382,7 @@ export const updateSellingMenu = async ({id, updatedValues}) => {
     UPDATE selling_menus
     SET name = '${updatedValues.name.replace(/\'/g, "''")}',
     updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${parseInt(id)}
+    WHERE id = '${id}'
   `;
 
   try {
@@ -512,9 +512,9 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
     )
 
     VALUES(
-      ${parseInt(sellingMenu.id)},
-      ${parseInt(values.item_id)},
-      ${parseInt(values.size_option_id)},
+      '${sellingMenu.id}',
+      '${values.item_id}',
+      ${values.size_option_id ? `'${values.size_option_id}'` : 'null'},
       ${parseFloat(values.in_menu_qty)},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
@@ -524,10 +524,10 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
 
     const updateSellingMenuItemQuery = `UPDATE selling_menu_items
       SET in_menu_qty = ${parseFloat(values.in_menu_qty)},
-      modifier_option_id = ${parseInt(values.size_option_id)},
+      modifier_option_id = ${values.size_option_id ? `'${values.size_option_id}'` : 'null'},
       updated_at = CURRENT_TIMESTAMP
-      WHERE item_id = ${item.id}
-      AND selling_menu_id = ${parseInt(sellingMenu.id)}
+      WHERE item_id = '${item.id}'
+      AND selling_menu_id = '${sellingMenu.id}'
     `;
 
     // check if there's an existing selling menu item within the current selling menu
@@ -730,7 +730,7 @@ export const getSellingMenuItem = async ({queryKey}) => {
 };
 
 export const deleteSellingMenuItem = async ({id}) => {
-  const query = `UPDATE selling_menu_items SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${parseInt(id)}`;
+  const query = `UPDATE selling_menu_items SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

@@ -183,8 +183,8 @@ export const registerItem = async ({
      */
     if (item.tax_id) {
       const getDefaultTaxQuery = `
-        SELECT * FROM taxes WHERE id = ${parseInt(item.tax_id)}
-        
+        SELECT * FROM taxes WHERE id = '${item.tax_id}'
+
       `;
 
       const getDefaultTaxResult = await db.executeSql(getDefaultTaxQuery);
@@ -213,10 +213,8 @@ export const registerItem = async ({
      */
     if (item.initial_stock_applied_tax_id) {
       const getInitStockAppliedTaxQuery = `
-        SELECT * FROM taxes WHERE id = ${parseInt(
-          item.initial_stock_applied_tax_id,
-        )}
-        
+        SELECT * FROM taxes WHERE id = '${item.initial_stock_applied_tax_id}'
+
       `;
 
       const getInitStockAppliedTaxResult = await db.executeSql(
@@ -251,7 +249,7 @@ export const registerItem = async ({
      */
     if (item.vendor_id) {
       const getDefaultVendorQuery = `
-        SELECT * FROM vendors WHERE id = ${parseInt(item.vendor_id)} 
+        SELECT * FROM vendors WHERE id = '${item.vendor_id}'
       `;
 
       const getDefaultVendorResult = await db.executeSql(getDefaultVendorQuery);
@@ -315,13 +313,13 @@ export const registerItem = async ({
     let unitCostNet = unitCost / (taxRatePercentage / 100 + 1);
     let unitCostTax = unitCost - unitCostNet;
 
-    let initStockTaxId = initStockTax.id ? parseInt(initStockTax.id) : 'null';
+    let initStockTaxId = initStockTax.id ? `'${initStockTax.id}'` : 'null';
     let initStockTaxName = initStockTax.name
       ? `'${initStockTax.name?.replace(/\'/g, "''")}'`
       : 'null';
 
     let initStockVendorId = initStockVendor.id
-      ? parseInt(initStockVendor.id)
+      ? `'${initStockVendor.id}'`
       : 'null';
     let initStockVendorDisplayName = initStockVendor.vendor_display_name
       ? `'${initStockVendor.vendor_display_name.replace(/\'/g, "''")}'`
@@ -593,8 +591,10 @@ export const registerItem = async ({
       let modifierId;
 
       // create new modifier
+      const newModifierId = uuid.v4();
       const createModifierQuery = `
         INSERT INTO modifiers (
+          id,
           item_id,
           name,
           type_ref,
@@ -605,12 +605,13 @@ export const registerItem = async ({
         )
 
         VALUES (
-          ${parseInt(itemId)},
+          '${newModifierId}',
+          '${itemId}',
           'Selling Size Options',
           '${appDefaultsTypeRefs.sellingSizeOptions}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newModifierId}',
           CURRENT_TIMESTAMP
         );
       `;
@@ -618,7 +619,7 @@ export const registerItem = async ({
       const createModifierResult = await db.executeSql(createModifierQuery);
 
       if (createModifierResult[0].rowsAffected > 0) {
-        modifierId = createModifierResult[0].insertId;
+        modifierId = newModifierId;
       } else {
         throw Error(
           'Failed to create app default selling size options modifier',
@@ -674,7 +675,7 @@ export const registerItem = async ({
         }
 
         insertModifierOptionsQuery += `(
-          ${parseInt(modifierId)},
+          '${modifierId}',
           '${modifierOption.option_name.replace(/\'/g, "''")}',
           ${parseFloat(modifierOption.option_selling_price || 0)},
           ${parseFloat(modifierOption.in_option_qty)},
@@ -842,7 +843,7 @@ export const updateItem = async ({
     }
 
     // if item category has changed
-    if (parseInt(item.category_id) !== parseInt(updatedValues.category_id)) {
+    if (item.category_id !== updatedValues.category_id) {
       // check item insert limit per category
       if (
         appConfig.insertItemLimitPerCategory > 0 &&
@@ -893,7 +894,7 @@ export const updateItem = async ({
      */
     if (item.tax_id) {
       const getItemDefaultTaxQuery = `
-        SELECT * FROM taxes WHERE id = ${parseInt(item.tax_id)}
+        SELECT * FROM taxes WHERE id = '${item.tax_id}'
       `;
 
       const getItemDefaultTaxResult = await db.executeSql(
@@ -1004,7 +1005,7 @@ export const updateItem = async ({
      */
     if (item.preferred_vendor_id) {
       const getItemDefaultVendorQuery = `
-        SELECT * FROM vendors WHERE id = ${parseInt(item.preferred_vendor_id)}
+        SELECT * FROM vendors WHERE id = '${item.preferred_vendor_id}'
       `;
 
       const getItemDefaultVendorResult = await db.executeSql(
@@ -1115,15 +1116,15 @@ export const updateItem = async ({
 
     const unitCostNet = unitCost / (taxRatePercentage / 100 + 1);
     const unitCostTax = unitCost - unitCostNet;
-    const defaultTaxId = tax.id ? parseInt(tax.id) : 'null';
-    const defaultVendorId = vendor.id ? parseInt(vendor.id) : 'null';
-    const initStockTaxId = initStockTax.id ? parseInt(initStockTax.id) : 'null';
+    const defaultTaxId = tax.id ? `'${tax.id}'` : 'null';
+    const defaultVendorId = vendor.id ? `'${vendor.id}'` : 'null';
+    const initStockTaxId = initStockTax.id ? `'${initStockTax.id}'` : 'null';
     const initStockTaxName = initStockTax.name
       ? `'${initStockTax.name.replace(/\'/g, "''")}'`
       : 'null';
 
     const initStockVendorId = initStockVendor.id
-      ? parseInt(initStockVendor.id)
+      ? `'${initStockVendor.id}'`
       : 'null';
     const initStockVendorDisplayName = initStockVendor.vendor_display_name
       ? `'${initStockVendor.vendor_display_name.replace(/\'/g, "''")}'`
@@ -1141,7 +1142,7 @@ export const updateItem = async ({
      */
     const updateItemQuery = `
       UPDATE items
-      SET category_id = ${parseInt(updatedValues.category_id) || 'null'},
+      SET category_id = ${updatedValues.category_id ? `'${updatedValues.category_id}'` : 'null'},
       tax_id = ${defaultTaxId},
       preferred_vendor_id = ${defaultVendorId},
       name = '${updatedValues.name.replace(/\'/g, "''")}',
@@ -1234,7 +1235,7 @@ export const updateItem = async ({
 
         // get all inventory logs of this item
         const getAllInventoryLogsOfThisItemQuery = `
-          SELECT * FROM inventory_logs WHERE item_id = ${parseInt(item.id)}
+          SELECT * FROM inventory_logs WHERE item_id = '${item.id}'
         `;
         const getAllInventoryLogsOfThisItemResult = await db.executeSql(
           getAllInventoryLogsOfThisItemQuery,
@@ -1292,7 +1293,7 @@ export const updateItem = async ({
 
         // get all added ingredients associated with this item
         const getAllAddedIngredientsOfThisItemQuery = `
-          SELECT * FROM ingredients WHERE item_id = ${parseInt(item.id)}
+          SELECT * FROM ingredients WHERE item_id = '${item.id}'
         `;
         const getAllAddedIngredientsOfThisItemResult = await db.executeSql(
           getAllAddedIngredientsOfThisItemQuery,
@@ -1371,7 +1372,7 @@ export const updateItem = async ({
 
         // get all added spoilages associated with this item
         const getAllAddedSpoilagesOfThisItemQuery = `
-          SELECT * FROM spoilages WHERE item_id = ${parseInt(item.id)}
+          SELECT * FROM spoilages WHERE item_id = '${item.id}'
         `;
         const getAllAddedSpoilagesOfThisItemResult = await db.executeSql(
           getAllAddedSpoilagesOfThisItemQuery,
@@ -1455,12 +1456,12 @@ export const updateItem = async ({
 export const deleteItem = async ({id}) => {
   try {
     const db = await getDBConnection();
-    const deleteItemQuery = `UPDATE items SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${parseInt(id)}`;
+    const deleteItemQuery = `UPDATE items SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
     const deleteItemResult = await db.executeSql(deleteItemQuery);
 
     if (deleteItemResult[0].rowsAffected > 0) {
       const deleteAllItemInventoryLogsQuery = `
-        UPDATE inventory_logs SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE item_id = ${parseInt(id)}
+        UPDATE inventory_logs SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE item_id = '${id}'
       `;
 
       await db.executeSql(deleteAllItemInventoryLogsQuery);

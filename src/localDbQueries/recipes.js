@@ -244,7 +244,7 @@ export const saveSubRecipe = async ({values}) => {
         yield = ${parseFloat(values.yield || 1)},
         date_saved = datetime('now'),
         updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${parseInt(currentSubRecipeId)}
+        WHERE id = '${currentSubRecipeId}'
       `;
 
       // check if recipe has ingredients
@@ -556,7 +556,7 @@ export const updateRecipe = async ({id, updatedValues}) => {
     name = '${updatedValues.name.replace(/\'/g, "''")}',
     yield = ${parseFloat(updatedValues.yield || 1)},
     updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${parseInt(id)}
+    WHERE id = '${id}'
   `;
 
   try {
@@ -702,8 +702,8 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
     )
 
     VALUES(
-      ${parseInt(recipe.id)},
-      ${parseInt(values.item_id)},
+      '${recipe.id}',
+      '${values.item_id}',
       ${parseFloat(values.in_recipe_qty)},
       '${values.in_recipe_uom_abbrev}',
       ${parseFloat(inRecipeQtyBasedOnItemUom)},
@@ -1046,7 +1046,7 @@ export const getRecipeIngredient = async ({queryKey}) => {
 };
 
 export const deleteRecipeIngredient = async ({id}) => {
-  const query = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${parseInt(id)}`;
+  const query = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -1140,9 +1140,7 @@ export const getRecipeRegisteredFinishedProduct = async ({queryKey}) => {
      */
     const getRecipeRegisteredFinishedProductQuery = `
       SELECT * FROM items
-      WHERE is_finished_product = 1 AND (recipe_id = ${parseInt(
-        recipeId,
-      )} OR finished_product_origin_id = ${parseInt(recipeId)})
+      WHERE is_finished_product = 1 AND (recipe_id = '${recipeId}' OR finished_product_origin_id = '${recipeId}')
       ORDER BY date DESC
       LIMIT 1
     `;

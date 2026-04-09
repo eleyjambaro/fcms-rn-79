@@ -117,7 +117,7 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
     }
 
     const getItemQuery = `
-      SELECT * FROM items WHERE id = ${parseInt(itemId)}
+      SELECT * FROM items WHERE id = '${itemId}'
     `;
     const getItemResult = await db.executeSql(getItemQuery);
     const item = getItemResult[0].rows.item(0);
@@ -128,7 +128,7 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
 
     // check if item has already have Selling Size Modifier
     const getItemSellingSizeModifierQuery = `
-      SELECT * FROM modifiers WHERE item_id = ${parseInt(itemId)}
+      SELECT * FROM modifiers WHERE item_id = '${itemId}'
       AND type_ref = '${appDefaultsTypeRefs.sellingSizeOptions}'
     `;
 
@@ -143,8 +143,10 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
 
     if (!sellingSizeModifier) {
       // create selling size modifier
+      const newSellingSizeModifierId = uuid.v4();
       const createSellingSizeModifierQuery = `
         INSERT INTO modifiers (
+          id,
           item_id,
           name,
           type_ref,
@@ -155,12 +157,13 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
         )
 
         VALUES (
-          ${parseInt(itemId)},
+          '${newSellingSizeModifierId}',
+          '${itemId}',
           'Selling Size Options',
           '${appDefaultsTypeRefs.sellingSizeOptions}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newSellingSizeModifierId}',
           CURRENT_TIMESTAMP
         );
       `;
@@ -170,7 +173,7 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
       );
 
       if (createSellingSizeModifierResult[0].rowsAffected > 0) {
-        modifierId = createSellingSizeModifierResult[0].insertId;
+        modifierId = newSellingSizeModifierId;
       } else {
         throw Error('Failed to create app default selling size modifier');
       }
@@ -215,7 +218,7 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
       )
 
       VALUES (
-        ${parseInt(modifierId)},
+        '${modifierId}',
         '${values.option_name.replace(/\'/g, "''")}',
         ${parseFloat(values.option_selling_price || 0)},
         ${parseFloat(values.in_option_qty)},

@@ -78,7 +78,7 @@ export const addSpoilage = async ({values}) => {
     )
 
     VALUES(
-      ${parseInt(values.item_id)},
+      '${values.item_id}',
       ${parseFloat(values.in_spoilage_qty)},
       '${values.in_spoilage_uom_abbrev}',
       ${parseFloat(inSpoilageQtyBasedOnItemUom)},
@@ -605,7 +605,7 @@ export const updateSpoilage = async ({id, updatedValues}) => {
         updatedValues.remarks ? updatedValues.remarks.replace(/\'/g, "''") : ''
       }',
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${parseInt(id)}
+      WHERE id = '${id}'
     `;
 
     const result = await db.executeSql(updateSpoilageQuery);
@@ -618,7 +618,7 @@ export const updateSpoilage = async ({id, updatedValues}) => {
 };
 
 export const deleteSpoilage = async ({id}) => {
-  const query = `UPDATE spoilages SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${parseInt(id)}`;
+  const query = `UPDATE spoilages SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

@@ -6,12 +6,15 @@ import {
 } from '../utils/localDbQueryHelpers';
 import getAppConfig from '../constants/appConfig';
 import {getSettings} from './settings';
+import uuid from 'react-native-uuid';
 
 export const createPrinter = async ({values, onInsertLimitReached}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newPrinterId = uuid.v4();
     const createPrinterQuery = `INSERT INTO saved_printers (
+    id,
     display_name,
     device_name,
     inner_mac_address,
@@ -20,6 +23,7 @@ export const createPrinter = async ({values, onInsertLimitReached}) => {
   )
 
   VALUES(
+    '${newPrinterId}',
     '${values.display_name.replace(/\'/g, "''")}',
     '${values.device_name.replace(/\'/g, "''")}',
     '${values.inner_mac_address.replace(/\'/g, "''")}',
@@ -45,9 +49,7 @@ export const createPrinter = async ({values, onInsertLimitReached}) => {
 
     const createPrinterResult = await db.executeSql(createPrinterQuery);
 
-    const createdPrintedId = createPrinterResult?.[0]?.insertId;
-
-    if (createdPrintedId) {
+    if (createPrinterResult?.[0]?.rowsAffected > 0) {
       /**
        * Set as default printer if there's no any
        */
@@ -56,7 +58,7 @@ export const createPrinter = async ({values, onInsertLimitReached}) => {
       });
 
       if (!defaultPrinter?.result) {
-        await setDefaultPrinter({id: createdPrintedId});
+        await setDefaultPrinter({id: newPrinterId});
       }
     }
   } catch (error) {
