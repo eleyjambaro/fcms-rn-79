@@ -1,7 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
-import {getDBConnection, getCloudSyncParams, OPERATION_DEFAULT_UUIDS} from '../localDb';
+import {
+  getDBConnection,
+  getCloudSyncParams,
+  OPERATION_DEFAULT_UUIDS,
+} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const createItemEndingInventoryEntry = async ({
   itemId,
@@ -299,6 +304,7 @@ export const createItemEndingInventoryEntry = async ({
       CURRENT_TIMESTAMP
     );`;
 
+    scheduleSyncSoon();
     return db.executeSql(addInventoryLogQuery);
   } catch (error) {
     console.debug(error);
