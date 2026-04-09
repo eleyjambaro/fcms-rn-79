@@ -286,11 +286,12 @@ export const createBatchStockUsageEntry = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const createBatchStockUsageGroupQuery = `INSERT INTO batch_stock_usage_groups (device_id, branch_id, sync_id, updated_at) VALUES (${
+    const newBatchStockUsageGroupId = uuid.v4();
+    const createBatchStockUsageGroupQuery = `INSERT INTO batch_stock_usage_groups (id, device_id, branch_id, sync_id, updated_at) VALUES ('${newBatchStockUsageGroupId}', ${
       deviceId ? `'${deviceId}'` : 'NULL'
     }, ${
       branchId ? `'${branchId}'` : 'NULL'
-    }, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
+    }, '${newBatchStockUsageGroupId}', CURRENT_TIMESTAMP);`;
 
     // check if there's an existing unconfirmed Batch Stock Usage Group
     // before creating new one
@@ -307,11 +308,10 @@ export const createBatchStockUsageEntry = async ({values}) => {
       if (createBatchStockUsageGroupResult[0].rowsAffected > 0) {
         await AsyncStorage.setItem(
           'currentBatchStockUsageGroupId',
-          createBatchStockUsageGroupResult[0].insertId?.toString(),
+          newBatchStockUsageGroupId,
         );
 
-        currentBatchStockUsageGroupId =
-          createBatchStockUsageGroupResult[0].insertId;
+        currentBatchStockUsageGroupId = newBatchStockUsageGroupId;
       } else {
         throw Error('Failed to create new batch stock usage group');
       }

@@ -14,48 +14,36 @@ export const createOrGetUnsavedRecipe = async () => {
     // check if there's an existing unsaved recipe
     let currentRecipeId = await AsyncStorage.getItem('currentRecipeId');
 
-    const createRecipeQuery = `INSERT INTO recipes (device_id, branch_id, sync_id, updated_at) VALUES (${
-      deviceId ? `'${deviceId}'` : 'NULL'
-    }, ${
-      branchId ? `'${branchId}'` : 'NULL'
-    }, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
-
-    if (!currentRecipeId) {
-      // create new recipe
-
-      const createRecipeResult = await db.executeSql(createRecipeQuery);
-
-      if (createRecipeResult[0].rowsAffected > 0) {
-        await AsyncStorage.setItem(
-          'currentRecipeId',
-          createRecipeResult[0].insertId?.toString(),
-        );
-
-        currentRecipeId = createRecipeResult[0].insertId;
+    const createNewUnsavedRecipe = async () => {
+      const newId = uuid.v4();
+      const q = `INSERT INTO recipes (id, device_id, branch_id, sync_id, updated_at) VALUES ('${newId}', ${
+        deviceId ? `'${deviceId}'` : 'NULL'
+      }, ${
+        branchId ? `'${branchId}'` : 'NULL'
+      }, '${newId}', CURRENT_TIMESTAMP);`;
+      const result = await db.executeSql(q);
+      if (result[0].rowsAffected > 0) {
+        await AsyncStorage.setItem('currentRecipeId', newId);
+        return newId;
       } else {
         throw Error('Failed to create new recipe');
       }
+    };
+
+    if (!currentRecipeId) {
+      currentRecipeId = await createNewUnsavedRecipe();
     }
 
-    const getRecipeQuery = `SELECT * FROM recipes WHERE id = ${parseInt(
-      currentRecipeId,
-    )}`;
+    const getRecipeQuery = `SELECT * FROM recipes WHERE id = '${currentRecipeId}'`;
     const getRecipeResult = await db.executeSql(getRecipeQuery);
     const recipe = getRecipeResult[0].rows.item(0);
 
     // has id but not found, OR found a recipe that has already created
     if (!recipe || (recipe && !recipe.is_draft)) {
       // create new recipe
-      const createRecipeResult = await db.executeSql(createRecipeQuery);
+      currentRecipeId = await createNewUnsavedRecipe();
 
-      if (createRecipeResult[0].rowsAffected > 0) {
-        await AsyncStorage.setItem(
-          'currentRecipeId',
-          createRecipeResult[0].insertId?.toString(),
-        );
-
-        currentRecipeId = createRecipeResult[0].insertId;
-      } else {
+      if (!currentRecipeId) {
         throw Error('Failed to create new recipe');
       }
     }
@@ -105,7 +93,9 @@ export const saveRecipe = async ({
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newRecipeId = uuid.v4();
     const createRecipeQuery = `INSERT INTO recipes (
+    id,
     is_draft,
     is_sub_recipe,
     group_name,
@@ -119,6 +109,7 @@ export const saveRecipe = async ({
   )
 
   VALUES(
+    '${newRecipeId}',
     0,
     0,
     ${groupName},
@@ -127,7 +118,7 @@ export const saveRecipe = async ({
     datetime('now'),
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
-    '${uuid.v4()}',
+    '${newRecipeId}',
     CURRENT_TIMESTAMP
   );`;
 
@@ -162,7 +153,7 @@ export const saveRecipe = async ({
         yield = ${parseFloat(values.yield || 1)},
         date_saved = datetime('now'),
         updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${parseInt(currentRecipeId)}
+        WHERE id = '${currentRecipeId}'
       `;
 
       const updateAndSaveUnsavedRecipeResult = await db.executeSql(
@@ -179,7 +170,7 @@ export const saveRecipe = async ({
       const createRecipeResult = await db.executeSql(createRecipeQuery);
 
       if (createRecipeResult[0].rowsAffected > 0) {
-        currentRecipeId = parseInt(createRecipeResult[0].insertId);
+        currentRecipeId = newRecipeId;
       } else {
         throw Error('Failed to update and save unsaved recipe');
       }
@@ -191,16 +182,16 @@ export const saveRecipe = async ({
     if (linkToFinishedProduct && finishedProductId) {
       const updateFinishedProductRecipeIdQuery = `
         UPDATE items
-        SET recipe_id = ${parseInt(currentRecipeId)},
+        SET recipe_id = '${currentRecipeId}',
         updated_at = CURRENT_TIMESTAMP
-        WHERE is_finished_product = 1 AND id = ${parseInt(finishedProductId)}
+        WHERE is_finished_product = 1 AND id = '${finishedProductId}'
       `;
 
       await db.executeSql(updateFinishedProductRecipeIdQuery);
     }
 
     scheduleSyncSoon();
-    onSuccess && onSuccess({recipeId: parseInt(currentRecipeId)});
+    onSuccess && onSuccess({recipeId: currentRecipeId});
 
     // remove unsaved recipe ID from storage
     await AsyncStorage.removeItem('currentRecipeId');
@@ -769,11 +760,12 @@ export const createIngredient = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const createRecipeQuery = `INSERT INTO recipes (device_id, branch_id, sync_id, updated_at) VALUES (${
+    const newUnsavedRecipeId = uuid.v4();
+    const createRecipeQuery = `INSERT INTO recipes (id, device_id, branch_id, sync_id, updated_at) VALUES ('${newUnsavedRecipeId}', ${
       deviceId ? `'${deviceId}'` : 'NULL'
     }, ${
       branchId ? `'${branchId}'` : 'NULL'
-    }, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
+    }, '${newUnsavedRecipeId}', CURRENT_TIMESTAMP);`;
 
     const getItemResult = await db.executeSql(getItemQuery);
 
@@ -792,12 +784,8 @@ export const createIngredient = async ({values}) => {
       const createRecipeResult = await db.executeSql(createRecipeQuery);
 
       if (createRecipeResult[0].rowsAffected > 0) {
-        await AsyncStorage.setItem(
-          'currentRecipeId',
-          createRecipeResult[0].insertId?.toString(),
-        );
-
-        currentRecipeId = createRecipeResult[0].insertId;
+        await AsyncStorage.setItem('currentRecipeId', newUnsavedRecipeId);
+        currentRecipeId = newUnsavedRecipeId;
       } else {
         throw Error('Failed to create new recipe');
       }
@@ -807,8 +795,10 @@ export const createIngredient = async ({values}) => {
       .from(values.in_recipe_uom_abbrev)
       .to(item.uom_abbrev);
 
-    const getIngredientQuery = `SELECT * FROM ingredients WHERE item_id = ${item.id} AND recipe_id = ${currentRecipeId};`;
+    const newIngredientId = uuid.v4();
+    const getIngredientQuery = `SELECT * FROM ingredients WHERE item_id = '${item.id}' AND recipe_id = '${currentRecipeId}';`;
     const createIngredientQuery = `INSERT INTO ingredients (
+      id,
       recipe_id,
       item_id,
       in_recipe_qty,
@@ -821,14 +811,15 @@ export const createIngredient = async ({values}) => {
     )
 
     VALUES(
-      ${parseInt(currentRecipeId)},
-      ${parseInt(values.item_id)},
+      '${newIngredientId}',
+      '${currentRecipeId}',
+      '${values.item_id}',
       ${parseFloat(values.in_recipe_qty)},
       '${values.in_recipe_uom_abbrev}',
       ${parseFloat(inRecipeQtyBasedOnItemUom)},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
-      '${uuid.v4()}',
+      '${newIngredientId}',
       CURRENT_TIMESTAMP
     );`;
 
@@ -839,8 +830,8 @@ export const createIngredient = async ({values}) => {
         inRecipeQtyBasedOnItemUom,
       )},
       updated_at = CURRENT_TIMESTAMP
-      WHERE item_id = ${item.id}
-      AND recipe_id = ${currentRecipeId}
+      WHERE item_id = '${item.id}'
+      AND recipe_id = '${currentRecipeId}'
     `;
 
     // check if there's an existing ingredient within the current recipe

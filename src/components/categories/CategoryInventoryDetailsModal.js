@@ -59,11 +59,11 @@ const CategoryInventoryDetailsModal = props => {
         100
       : 0;
     const wholeMonthPurchasesTotalCost =
-      item.whole_month_operation_id_2_total_cost || 0;
+      item.whole_month_operation_code_new_purchase_total_cost || 0;
     const wholeMonthPurchasesTotalCostNet =
-      item.whole_month_operation_id_2_total_cost_net || 0;
+      item.whole_month_operation_code_new_purchase_total_cost_net || 0;
     const wholeMonthPurchasesTotalCostTax =
-      item.whole_month_operation_id_2_total_cost_tax || 0;
+      item.whole_month_operation_code_new_purchase_total_cost_tax || 0;
 
     const wholeMonthTotalAddedStockCost =
       item.whole_month_total_added_stock_cost || 0;
@@ -111,7 +111,7 @@ const CategoryInventoryDetailsModal = props => {
             <DataTable.Cell numeric>{`${currencySymbol} ${commaNumber(
               (
                 item[
-                  `whole_month_operation_id_${operation.id}_total_cost_net`
+                  `whole_month_operation_code_${operation.code}_total_cost_net`
                 ] || 0
               ).toFixed(2),
             )}`}</DataTable.Cell>
@@ -126,7 +126,7 @@ const CategoryInventoryDetailsModal = props => {
             <DataTable.Cell numeric>{`${currencySymbol} ${commaNumber(
               (
                 item[
-                  `whole_month_operation_id_${operation.id}_total_cost_net`
+                  `whole_month_operation_code_${operation.code}_total_cost_net`
                 ] || 0
               ).toFixed(2),
             )}`}</DataTable.Cell>

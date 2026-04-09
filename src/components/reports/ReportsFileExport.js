@@ -855,11 +855,11 @@ const ReportsFileExport = props => {
         item.selected_month_revenue_group_total_amount || 0;
 
       const wholeMonthPurchasesTotalCost =
-        item.whole_month_operation_id_2_total_cost || 0;
+        item.whole_month_operation_code_new_purchase_total_cost || 0;
       const wholeMonthPurchasesTotalCostNet =
-        item.whole_month_operation_id_2_total_cost_net || 0;
+        item.whole_month_operation_code_new_purchase_total_cost_net || 0;
       const wholeMonthPurchasesTotalCostTax =
-        item.whole_month_operation_id_2_total_cost_tax || 0;
+        item.whole_month_operation_code_new_purchase_total_cost_tax || 0;
 
       const wholeMonthTotalAddedStockCost =
         item.whole_month_total_added_stock_cost || 0;

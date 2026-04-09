@@ -133,7 +133,9 @@ export const registerItem = async ({
    * 1 is equal to add_stock Initial Stock
    * 11 is equal to add_stock New Yield Stock
    */
-  const operationId = isFinishedProduct ? 11 : 1;
+  const operationId = isFinishedProduct
+    ? `(SELECT id FROM operations WHERE code = 'new_yield_stock')`
+    : `(SELECT id FROM operations WHERE code = 'pre_app_stock')`;
   const yieldRefId = isFinishedProduct ? uuid.v4() : null;
 
   try {
@@ -339,7 +341,9 @@ export const registerItem = async ({
      * Insert item
      */
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newItemId = uuid.v4();
     const insertItemQuery = `INSERT INTO items (
+      id,
       category_id,
       is_finished_product,
       finished_product_origin_id,
@@ -364,11 +368,12 @@ export const registerItem = async ({
     )
 
     VALUES(
-      ${parseInt(item.category_id) || 'null'},
+      '${newItemId}',
+      ${item.category_id ? `'${item.category_id}'` : 'null'},
       ${isFinishedProduct ? 1 : 0},
-      ${parseInt(finishedProductOriginId) || 'null'},
+      ${finishedProductOriginId ? `'${finishedProductOriginId}'` : 'null'},
       '${finishedProductOriginTable ? finishedProductOriginTable : ''}',
-      ${parseInt(recipeId) || 'null'},
+      ${recipeId ? `'${recipeId}'` : 'null'},
       '${yieldRefId || ''}',
       ${initStockTaxId},
       ${initStockVendorId},
@@ -383,7 +388,7 @@ export const registerItem = async ({
       '${item.packaging_type ? item.packaging_type.replace(/\'/g, "''") : ''}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
-      '${uuid.v4()}',
+      '${newItemId}',
       CURRENT_TIMESTAMP
     );`;
 
@@ -412,10 +417,9 @@ export const registerItem = async ({
     if (
       isInsertItemExecuted &&
       insertItemResult &&
-      insertItemResult[0]?.rowsAffected > 0 &&
-      insertItemResult?.[0]?.insertId
+      insertItemResult[0]?.rowsAffected > 0
     ) {
-      itemId = insertItemResult[0].insertId;
+      itemId = newItemId;
     }
 
     if (isFinishedProduct && recipeRegisteredFinishedProduct) {
@@ -442,7 +446,9 @@ export const registerItem = async ({
       ? `'${item.official_receipt_number}'`
       : 'null';
 
+    const newInitStockLogId = uuid.v4();
     const addInventoryLogQuery = `INSERT INTO inventory_logs (
+        id,
         operation_id,
         item_id,
         recipe_id,
@@ -467,9 +473,10 @@ export const registerItem = async ({
       )
 
       VALUES(
+        '${newInitStockLogId}',
         ${operationId},
-        ${parseInt(itemId)},
-        ${parseInt(recipeId) || 'null'},
+        '${itemId}',
+        ${recipeId ? `'${recipeId}'` : 'null'},
         '${yieldRefId || ''}',
         ${initStockTaxId},
         ${initStockVendorId},
@@ -486,7 +493,7 @@ export const registerItem = async ({
         '${item.remarks ? item.remarks.replace(/\'/g, "''") : ''}',
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${newInitStockLogId}',
         CURRENT_TIMESTAMP
       );`;
 
@@ -500,6 +507,7 @@ export const registerItem = async ({
       // insert each ingredient item as stock usage entries to inventory logs
       let insertInventoryLogsQuery = `
           INSERT INTO inventory_logs (
+            id,
             operation_id,
             item_id,
             recipe_id,
@@ -545,10 +553,12 @@ export const registerItem = async ({
         );
 
         // operation_id 6 is equal to Stock Usage Entry
+        const newIngredientLogId = uuid.v4();
         insertInventoryLogsQuery += `(
-            6,
-            ${ingredient.item_id},
-            ${parseInt(recipeId) || 'null'},
+            '${newIngredientLogId}',
+            (SELECT id FROM operations WHERE code = 'stock_usage'),
+            '${ingredient.item_id}',
+            ${recipeId ? `'${recipeId}'` : 'null'},
             '${yieldRefId || ''}',
             ${unitCost},
             ${unitCostNet},
@@ -559,7 +569,7 @@ export const registerItem = async ({
             ${adjustmentDateFixedValue},
             ${deviceId ? `'${deviceId}'` : 'NULL'},
             ${branchId ? `'${branchId}'` : 'NULL'},
-            '${uuid.v4()}',
+            '${newIngredientLogId}',
             CURRENT_TIMESTAMP
           )`;
 

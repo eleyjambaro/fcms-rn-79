@@ -327,11 +327,12 @@ export const createBatchPurchaseEntry = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const createBatchPurchaseGroupQuery = `INSERT INTO batch_purchase_groups (device_id, branch_id, sync_id, updated_at) VALUES (${
+    const newBatchPurchaseGroupId = uuid.v4();
+    const createBatchPurchaseGroupQuery = `INSERT INTO batch_purchase_groups (id, device_id, branch_id, sync_id, updated_at) VALUES ('${newBatchPurchaseGroupId}', ${
       deviceId ? `'${deviceId}'` : 'NULL'
     }, ${
       branchId ? `'${branchId}'` : 'NULL'
-    }, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
+    }, '${newBatchPurchaseGroupId}', CURRENT_TIMESTAMP);`;
 
     // check if there's an existing unconfirmed Batch Purchase Group
     // before creating new one
@@ -349,11 +350,10 @@ export const createBatchPurchaseEntry = async ({values}) => {
         // Set created batch purchase group's id as current batch purchase group id
         await AsyncStorage.setItem(
           'currentBatchPurchaseGroupId',
-          createBatchPurchaseGroupResult[0].insertId?.toString(),
+          newBatchPurchaseGroupId,
         );
 
-        currentBatchPurchaseGroupId =
-          createBatchPurchaseGroupResult[0].insertId;
+        currentBatchPurchaseGroupId = newBatchPurchaseGroupId;
       } else {
         throw Error('Failed to create new batch purchase group');
       }

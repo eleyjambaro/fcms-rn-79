@@ -90,8 +90,10 @@ export const confirmSaleEntries = async ({
     /**
      * Create invoice
      */
+    const newInvoiceId = uuid.v4();
     const createInvoiceQuery = `
       INSERT INTO invoices (
+        id,
         sold_by_account_uid,
         customer_id,
         invoice_date,
@@ -102,25 +104,26 @@ export const confirmSaleEntries = async ({
       )
 
       VALUES (
+        '${newInvoiceId}',
         ${accountUID},
         ${customerId},
         ${salesInvoiceDate},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${newInvoiceId}',
         CURRENT_TIMESTAMP
       )
     `;
 
     const createInvoiceResult = await db.executeSql(createInvoiceQuery);
-    createdInvoiceId = createInvoiceResult[0]?.insertId;
+    createdInvoiceId = createInvoiceResult[0]?.rowsAffected > 0 ? newInvoiceId : null;
 
     if (!createdInvoiceId) {
       throw Error('Missing invoice id.');
     }
 
     const getCreatedSalesInvoiceQuery = `
-      SELECT * FROM invoices WHERE id = ${createdInvoiceId}
+      SELECT * FROM invoices WHERE id = '${createdInvoiceId}'
     `;
     const getCreatedSalesInvoiceResult = await db.executeSql(
       getCreatedSalesInvoiceQuery,
@@ -130,6 +133,7 @@ export const confirmSaleEntries = async ({
     // insert each sale entries to Sale logs
     let insertSaleLogsQuery = `
       INSERT INTO sale_logs (
+        id,
         item_id,
         ref_tax_id,
         ref_customer_id,
@@ -157,6 +161,7 @@ export const confirmSaleEntries = async ({
     // insert each sale entries to Inventory logs
     let insertInventoryLogsQuery = `
       INSERT INTO inventory_logs (
+        id,
         operation_id,
         item_id,
         ref_tax_id,
@@ -207,15 +212,17 @@ export const confirmSaleEntries = async ({
       const unitCostNet = unitCost / (taxRatePercentage / 100 + 1);
       const unitCostTax = unitCost - unitCostNet;
 
-      const taxId = item.tax_id ? `${parseInt(item.tax_id)}` : 'null';
+      const taxId = item.tax_id ? `'${item.tax_id}'` : 'null';
       const taxName = item.tax_name ? `'${item.tax_name}'` : 'null';
 
       /**
        * Sale logs
        */
 
+      const newSaleLogId = uuid.v4();
       insertSaleLogsQuery += `(
-        ${parseInt(item.id)},
+        '${newSaleLogId}',
+        '${item.id}',
         ${taxId},
         ${customerId},
         ${unitSellingPrice},
@@ -228,11 +235,11 @@ export const confirmSaleEntries = async ({
         ${taxName},
         ${qty},
         ${salesInvoiceDate},
-        ${parseInt(createdInvoiceId)},
+        '${createdInvoiceId}',
         ${accountUID},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${newSaleLogId}',
         CURRENT_TIMESTAMP
       )`;
 
@@ -273,10 +280,12 @@ export const confirmSaleEntries = async ({
        * Inventory logs
        */
 
-      // operation_id 6 is equal to Stock Usage Entry
+      // operation code 'stock_usage' is Stock Usage Entry
+      const newInvLogId = uuid.v4();
       insertInventoryLogsQuery += `(
-        6,
-        ${parseInt(item.id)},
+        '${newInvLogId}',
+        (SELECT id FROM operations WHERE code = 'stock_usage'),
+        '${item.id}',
         ${taxId},
         ${unitCost},
         ${unitCostNet},
@@ -285,7 +294,7 @@ export const confirmSaleEntries = async ({
         ${taxName},
         ${usedStockQty},
         ${salesInvoiceDate},
-        ${parseInt(createdInvoiceId)},
+        '${createdInvoiceId}',
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
         '${uuid.v4()}',
@@ -325,6 +334,7 @@ export const confirmSaleEntries = async ({
       // insert each payments to payments table
       let insertPaymentsQuery = `
         INSERT INTO payments (
+          id,
           invoice_id,
           payment_method,
           payment_amount,
@@ -348,14 +358,16 @@ export const confirmSaleEntries = async ({
             Object.keys(paymentFormValues.payments)[index]
           ];
 
+        const newPaymentId = uuid.v4();
         insertPaymentsQuery += `(
-          ${parseInt(createdInvoiceId)},
+          '${newPaymentId}',
+          '${createdInvoiceId}',
           '${payment?.payment_method}',
           ${parseFloat(payment?.payment_amount || 0)},
           ${parseFloat(payment?.change_amount || 0)},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newPaymentId}',
           CURRENT_TIMESTAMP
         )`;
 
@@ -369,8 +381,10 @@ export const confirmSaleEntries = async ({
 
       await db.executeSql(insertPaymentsQuery);
     } else {
+      const newPaymentId2 = uuid.v4();
       const createPaymentDetailsQuery = `
       INSERT INTO payments (
+        id,
         invoice_id,
         payment_method,
         payment_amount,
@@ -382,13 +396,14 @@ export const confirmSaleEntries = async ({
       )
 
       VALUES (
-        ${parseInt(createdInvoiceId)},
+        '${newPaymentId2}',
+        '${createdInvoiceId}',
         '${paymentFormValues?.payment_method}',
         ${parseFloat(paymentFormValues?.payment_amount || 0)},
          ${parseFloat(paymentFormValues?.change_amount || 0)},
          ${deviceId ? `'${deviceId}'` : 'NULL'},
          ${branchId ? `'${branchId}'` : 'NULL'},
-         '${uuid.v4()}',
+         '${newPaymentId2}',
          CURRENT_TIMESTAMP
       )
     `;
@@ -422,7 +437,7 @@ export const confirmSaleEntries = async ({
     if (createdInvoiceId) {
       const deleteInvoiceQuery = `
         UPDATE invoices SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${parseInt(createdInvoiceId)};
+        WHERE id = '${createdInvoiceId}';
       `;
 
       const deleteInvoiceResult = await db.executeSql(deleteInvoiceQuery);
@@ -554,6 +569,7 @@ export const confirmFulfillingSalesOrders = async ({
     // insert each sale entries to Sale logs
     let insertSaleLogsQuery = `
       INSERT INTO sale_logs (
+        id,
         item_id,
         ref_tax_id,
         ref_customer_id,
@@ -581,6 +597,7 @@ export const confirmFulfillingSalesOrders = async ({
     // insert each sale entries to Inventory logs
     let insertInventoryLogsQuery = `
       INSERT INTO inventory_logs (
+        id,
         operation_id,
         item_id,
         ref_tax_id,
@@ -648,7 +665,7 @@ export const confirmFulfillingSalesOrders = async ({
         ${taxName},
         ${qty},
         ${salesInvoiceDate},
-        ${parseInt(createdInvoiceId)},
+        '${createdInvoiceId}',
         ${accountUID},
         ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
         ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
@@ -691,10 +708,12 @@ export const confirmFulfillingSalesOrders = async ({
        * Inventory logs
        */
 
-      // operation_id 6 is equal to Stock Usage Entry
+      // operation code 'stock_usage' is Stock Usage Entry
+      const newInvLogId = uuid.v4();
       insertInventoryLogsQuery += `(
-        6,
-        ${parseInt(item.id)},
+        '${newInvLogId}',
+        (SELECT id FROM operations WHERE code = 'stock_usage'),
+        '${item.id}',
         ${taxId},
         ${unitCost},
         ${unitCostNet},
@@ -703,7 +722,7 @@ export const confirmFulfillingSalesOrders = async ({
         ${taxName},
         ${usedStockQty},
         ${salesInvoiceDate},
-        ${parseInt(createdInvoiceId)},
+        '${createdInvoiceId}',
         ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
         ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
       )`;
@@ -743,6 +762,7 @@ export const confirmFulfillingSalesOrders = async ({
       // insert each payments to payments table
       let insertPaymentsQuery = `
         INSERT INTO payments (
+          id,
           invoice_id,
           payment_method,
           payment_amount,
@@ -767,7 +787,7 @@ export const confirmFulfillingSalesOrders = async ({
           ];
 
         insertPaymentsQuery += `(
-          ${parseInt(createdInvoiceId)},
+          '${createdInvoiceId}',
           '${payment?.payment_method}',
           ${parseFloat(payment?.payment_amount || 0)},
           ${parseFloat(payment?.change_amount || 0)},
@@ -798,7 +818,7 @@ export const confirmFulfillingSalesOrders = async ({
         )
 
         VALUES (
-          ${parseInt(createdInvoiceId)},
+          '${createdInvoiceId}',
           '${paymentFormValues?.payment_method}',
           ${parseFloat(paymentFormValues?.payment_amount || 0)},
           ${parseFloat(paymentFormValues?.change_amount || 0)},
@@ -842,7 +862,7 @@ export const confirmFulfillingSalesOrders = async ({
     if (createdInvoiceId) {
       // const deleteInvoiceQuery = `
       //   DELETE FROM invoices
-      //   WHERE id = ${parseInt(createdInvoiceId)};
+      //   WHERE id = '${createdInvoiceId}';
       // `;
       // const deleteInvoiceResult = await db.executeSql(deleteInvoiceQuery);
       // if (deleteInvoiceResult[0].rowsAffected === 0) {

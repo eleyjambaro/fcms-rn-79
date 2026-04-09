@@ -309,58 +309,58 @@ export const createInventoryOperationsReportWorksheet = ({
       `${formatUOMAbbrev(item.item_uom_abbrev)}`,
       // pre-fcms stock
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_1_total_qty) || 0).toFixed(2),
+        (parseFloat(item.whole_month_operation_code_pre_app_stock_total_qty) || 0).toFixed(2),
       )}`,
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_1_total_cost) || 0).toFixed(
+        (parseFloat(item.whole_month_operation_code_pre_app_stock_total_cost) || 0).toFixed(
           2,
         ),
       )}`,
       `${commaNumber(
         (
-          parseFloat(item.whole_month_operation_id_1_total_cost_net) || 0
+          parseFloat(item.whole_month_operation_code_pre_app_stock_total_cost_net) || 0
         ).toFixed(2),
       )}`,
       // new purchase
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_2_total_qty) || 0).toFixed(2),
+        (parseFloat(item.whole_month_operation_code_new_purchase_total_qty) || 0).toFixed(2),
       )}`,
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_2_total_cost) || 0).toFixed(
+        (parseFloat(item.whole_month_operation_code_new_purchase_total_cost) || 0).toFixed(
           2,
         ),
       )}`,
       `${commaNumber(
         (
-          parseFloat(item.whole_month_operation_id_2_total_cost_net) || 0
+          parseFloat(item.whole_month_operation_code_new_purchase_total_cost_net) || 0
         ).toFixed(2),
       )}`,
       // added inventory re-count
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_3_total_qty) || 0).toFixed(2),
+        (parseFloat(item.whole_month_operation_code_inventory_recount_in_total_qty) || 0).toFixed(2),
       )}`,
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_3_total_cost) || 0).toFixed(
+        (parseFloat(item.whole_month_operation_code_inventory_recount_in_total_cost) || 0).toFixed(
           2,
         ),
       )}`,
       `${commaNumber(
         (
-          parseFloat(item.whole_month_operation_id_3_total_cost_net) || 0
+          parseFloat(item.whole_month_operation_code_inventory_recount_in_total_cost_net) || 0
         ).toFixed(2),
       )}`,
       // stock transfer in
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_4_total_qty) || 0).toFixed(2),
+        (parseFloat(item.whole_month_operation_code_stock_transfer_in_total_qty) || 0).toFixed(2),
       )}`,
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_4_total_cost) || 0).toFixed(
+        (parseFloat(item.whole_month_operation_code_stock_transfer_in_total_cost) || 0).toFixed(
           2,
         ),
       )}`,
       `${commaNumber(
         (
-          parseFloat(item.whole_month_operation_id_4_total_cost_net) || 0
+          parseFloat(item.whole_month_operation_code_stock_transfer_in_total_cost_net) || 0
         ).toFixed(2),
       )}`,
       // ADDED STOCK TOTAL COST
@@ -375,46 +375,46 @@ export const createInventoryOperationsReportWorksheet = ({
       '', // space between
       // stock usage
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_6_total_qty) || 0).toFixed(2),
+        (parseFloat(item.whole_month_operation_code_stock_usage_total_qty) || 0).toFixed(2),
       )}`,
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_6_total_cost) || 0).toFixed(
+        (parseFloat(item.whole_month_operation_code_stock_usage_total_cost) || 0).toFixed(
           2,
         ),
       )}`,
       `${commaNumber(
         (
-          parseFloat(item.whole_month_operation_id_6_total_cost_net) || 0
+          parseFloat(item.whole_month_operation_code_stock_usage_total_cost_net) || 0
         ).toFixed(2),
       )}`,
       // removed inventory re-count
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_7_total_qty) || 0).toFixed(2),
+        (parseFloat(item.whole_month_operation_code_inventory_recount_out_total_qty) || 0).toFixed(2),
       )}`,
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_7_total_cost) || 0).toFixed(
+        (parseFloat(item.whole_month_operation_code_inventory_recount_out_total_cost) || 0).toFixed(
           2,
         ),
       )}`,
       `${commaNumber(
         (
-          parseFloat(item.whole_month_operation_id_7_total_cost_net) || 0
+          parseFloat(item.whole_month_operation_code_inventory_recount_out_total_cost_net) || 0
         ).toFixed(2),
       )}`,
       // stock transfer out
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_10_total_qty) || 0).toFixed(
+        (parseFloat(item.whole_month_operation_code_stock_transfer_out_total_qty) || 0).toFixed(
           2,
         ),
       )}`,
       `${commaNumber(
-        (parseFloat(item.whole_month_operation_id_10_total_cost) || 0).toFixed(
+        (parseFloat(item.whole_month_operation_code_stock_transfer_out_total_cost) || 0).toFixed(
           2,
         ),
       )}`,
       `${commaNumber(
         (
-          parseFloat(item.whole_month_operation_id_10_total_cost_net) || 0
+          parseFloat(item.whole_month_operation_code_stock_transfer_out_total_cost_net) || 0
         ).toFixed(2),
       )}`,
       // REMOVED STOCK TOTAL COST

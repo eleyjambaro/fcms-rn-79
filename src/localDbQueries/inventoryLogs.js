@@ -1191,7 +1191,9 @@ export const addInventoryLog = async ({
       : `datetime('now')`;
 
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newLogId = uuid.v4();
     const addInventoryLogQuery = `INSERT INTO inventory_logs (
+      id,
       operation_id,
       item_id,
       ref_tax_id,
@@ -1213,8 +1215,9 @@ export const addInventoryLog = async ({
     )
 
     VALUES(
-      ${parseInt(log.operation_id)},
-      ${parseInt(item.id)},
+      '${newLogId}',
+      '${log.operation_id}',
+      '${item.id}',
       ${taxId},
       ${vendorId},
       ${vendorDisplayName},
@@ -1229,7 +1232,7 @@ export const addInventoryLog = async ({
       '${log.remarks ? log.remarks.replace(/\'/g, "''") : ''}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
-      '${uuid.v4()}',
+      '${newLogId}',
       CURRENT_TIMESTAMP
     );`;
 
@@ -1250,10 +1253,10 @@ export const getItemAvgUnitCost = async ({queryKey}) => {
     INNER JOIN items ON items.id = inventory_logs.item_id
     WHERE inventory_logs.item_id = ${id}
     AND inventory_logs.voided != 1
-    AND operations.id = 2
+    AND operations.code = 'new_purchase'
   ;`;
 
-  const getItemQuery = `SELECT * FROM items WHERE id = ${id}`;
+  const getItemQuery = `SELECT * FROM items WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

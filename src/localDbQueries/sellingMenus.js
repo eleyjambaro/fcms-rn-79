@@ -16,53 +16,33 @@ export const createOrGetUnsavedSellingMenu = async () => {
       'currentSellingMenuId',
     );
 
-    const createSellingMenuQuery = `INSERT INTO selling_menus (device_id, branch_id, sync_id, updated_at) VALUES (${
-      deviceId ? `'${deviceId}'` : 'NULL'
-    }, ${
-      branchId ? `'${branchId}'` : 'NULL'
-    }, '${uuid.v4()}', CURRENT_TIMESTAMP);`;
-
-    if (!currentSellingMenuId) {
-      // create new selling menu
-      const createSellingMenuResult = await db.executeSql(
-        createSellingMenuQuery,
-      );
-
-      if (createSellingMenuResult[0].rowsAffected > 0) {
-        await AsyncStorage.setItem(
-          'currentSellingMenuId',
-          createSellingMenuResult[0].insertId?.toString(),
-        );
-
-        currentSellingMenuId = createSellingMenuResult[0].insertId;
+    const createNewUnsavedSellingMenu = async () => {
+      const newId = uuid.v4();
+      const q = `INSERT INTO selling_menus (id, device_id, branch_id, sync_id, updated_at) VALUES ('${newId}', ${
+        deviceId ? `'${deviceId}'` : 'NULL'
+      }, ${
+        branchId ? `'${branchId}'` : 'NULL'
+      }, '${newId}', CURRENT_TIMESTAMP);`;
+      const result = await db.executeSql(q);
+      if (result[0].rowsAffected > 0) {
+        await AsyncStorage.setItem('currentSellingMenuId', newId);
+        return newId;
       } else {
         throw Error('Failed to create new selling menu');
       }
+    };
+
+    if (!currentSellingMenuId) {
+      currentSellingMenuId = await createNewUnsavedSellingMenu();
     }
 
-    const getSellingMenuQuery = `SELECT * FROM selling_menus WHERE id = ${parseInt(
-      currentSellingMenuId,
-    )}`;
+    const getSellingMenuQuery = `SELECT * FROM selling_menus WHERE id = '${currentSellingMenuId}'`;
     const getSellingMenuResult = await db.executeSql(getSellingMenuQuery);
     const sellingMenu = getSellingMenuResult[0].rows.item(0);
 
     // has id but not found, OR found a selling menu that has already created
     if (!sellingMenu || (sellingMenu && !sellingMenu.is_draft)) {
-      // create new sellingMenu
-      const createSellingMenuResult = await db.executeSql(
-        createSellingMenuQuery,
-      );
-
-      if (createSellingMenuResult[0].rowsAffected > 0) {
-        await AsyncStorage.setItem(
-          'currentSellingMenuId',
-          createSellingMenuResult[0].insertId?.toString(),
-        );
-
-        currentSellingMenuId = createSellingMenuResult[0].insertId;
-      } else {
-        throw Error('Failed to create new selling menu');
-      }
+      currentSellingMenuId = await createNewUnsavedSellingMenu();
     }
 
     return {
@@ -101,7 +81,9 @@ export const saveSellingMenu = async ({values, onSuccess}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newSellingMenuId = uuid.v4();
     const createSellingMenuQuery = `INSERT INTO selling_menus (
+    id,
     is_draft,
     name,
     date_saved,
@@ -112,12 +94,13 @@ export const saveSellingMenu = async ({values, onSuccess}) => {
   )
 
   VALUES(
+    '${newSellingMenuId}',
     0,
     '${values.name.replace(/\'/g, "''")}',
     datetime('now'),
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
-    '${uuid.v4()}',
+    '${newSellingMenuId}',
     CURRENT_TIMESTAMP
   );`;
 
@@ -150,7 +133,7 @@ export const saveSellingMenu = async ({values, onSuccess}) => {
         name = '${values.name.replace(/\'/g, "''")}',
         date_saved = datetime('now'),
         updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${parseInt(currentSellingMenuId)}
+        WHERE id = '${currentSellingMenuId}'
       `;
 
       const updateAndSaveUnsavedSellingMenuResult = await db.executeSql(
@@ -169,14 +152,14 @@ export const saveSellingMenu = async ({values, onSuccess}) => {
       );
 
       if (createSellingMenuResult[0].rowsAffected > 0) {
-        currentSellingMenuId = parseInt(createSellingMenuResult[0].insertId);
+        currentSellingMenuId = newSellingMenuId;
       } else {
         throw Error('Failed to update and save unsaved selling menu');
       }
     }
 
     scheduleSyncSoon();
-    onSuccess && onSuccess({sellingMenuId: parseInt(currentSellingMenuId)});
+    onSuccess && onSuccess({sellingMenuId: currentSellingMenuId});
 
     // remove unsaved selling menu ID from storage
     await AsyncStorage.removeItem('currentSellingMenuId');
