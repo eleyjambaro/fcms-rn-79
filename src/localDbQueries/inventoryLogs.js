@@ -1053,9 +1053,7 @@ export const addInventoryLog = async ({
     /**
      * Get inventory operation
      */
-    const getInventoryOperationQuery = `SELECT * FROM operations WHERE id = '${parseInt(
-      log.operation_id,
-    )}'`;
+    const getInventoryOperationQuery = `SELECT * FROM operations WHERE id = '${log.operation_id}'`;
     const getInventoryOperationQueryResult = await db.executeSql(
       getInventoryOperationQuery,
     );
