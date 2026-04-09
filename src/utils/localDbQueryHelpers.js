@@ -44,7 +44,7 @@ export const createQueryFilter = (filter = {}, additionalFilter = {}) => {
       } else {
         let value =
           typeof queryFilterObj[key] === 'string'
-            ? `${queryFilterObj[key]}`
+            ? `'${queryFilterObj[key]}'`
             : queryFilterObj[key];
         queryFilter = queryFilter
           ? (queryFilter += `AND ${key} = ${value} `)
