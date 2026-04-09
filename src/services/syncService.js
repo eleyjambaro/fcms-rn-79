@@ -155,8 +155,17 @@ const applyPulledRecord = async (db, tableName, record) => {
   // created_at is returned by the server but is not a column in any local SQLite
   // table — strip it before building INSERT/UPDATE to prevent "no such column" errors.
   // eslint-disable-next-line no-unused-vars
-  const {sync_id, created_at, ...fields} = record;
+  const {sync_id, created_at, ...rawFields} = record;
   if (!sync_id) return;
+
+  // Remap server-side *_sync_id FK columns to local *_id column names.
+  // Server uses _sync_id suffix (e.g. category_sync_id); local SQLite tables
+  // use the older _id suffix (e.g. category_id). Values are interchangeable
+  // because local id === sync_id (same client-generated UUID).
+  const fields = {};
+  for (const [key, value] of Object.entries(rawFields)) {
+    fields[key.replace(/_sync_id$/, '_id')] = value;
+  }
 
   const [existing] = await db.executeSql(
     `SELECT id, updated_at FROM ${tableName} WHERE sync_id = ?`,
