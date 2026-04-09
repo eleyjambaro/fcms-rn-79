@@ -699,6 +699,7 @@ export const registerItem = async ({
       await db.executeSql(insertModifierOptionsQuery);
     }
 
+    scheduleSyncSoon();
     onSuccess && onSuccess({itemId});
   } catch (error) {
     console.debug(error);
@@ -1142,7 +1143,9 @@ export const updateItem = async ({
      */
     const updateItemQuery = `
       UPDATE items
-      SET category_id = ${updatedValues.category_id ? `'${updatedValues.category_id}'` : 'null'},
+      SET category_id = ${
+        updatedValues.category_id ? `'${updatedValues.category_id}'` : 'null'
+      },
       tax_id = '${defaultTaxId}',
       preferred_vendor_id = '${defaultVendorId}',
       name = '${updatedValues.name.replace(/\'/g, "''")}',
