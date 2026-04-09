@@ -12,6 +12,7 @@ import {
 import {useQuery} from '@tanstack/react-query';
 
 import routes from '../constants/routes';
+import {OPERATION_CODES} from '../localDbQueries/operations';
 import {categories} from '../__dummyData';
 import ItemList from '../components/items/ItemList';
 import CategoryDetails from '../components/categories/CategoryDetails';
@@ -84,7 +85,7 @@ function PurchaseCategoryView(props) {
             entryType="purchase"
             filter={{
               'items.category_id': category.id,
-              'operations.id': 2, // Operation id 2 is equal to: Add stock - New Purchase (inventory operation)
+              'operations.code': OPERATION_CODES.NEW_PURCHASE,
             }}
             viewMode="category-view"
           />

@@ -43,6 +43,7 @@ import {
 import ManageExternalStorage from 'react-native-manage-external-storage';
 
 import routes from '../../constants/routes';
+import {OPERATION_CODES} from '../../localDbQueries/operations';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
 import OptionsList from '../buttons/OptionsList';
@@ -203,7 +204,7 @@ const ReportsFileExport = props => {
     [
       'inventoryLogs',
       {
-        filter: {'operations.id': 2, 'inventory_logs.voided': 0},
+        filter: {'operations.code': OPERATION_CODES.NEW_PURCHASE, 'inventory_logs.voided': 0},
         limit: 0,
         // monthYearDateFilter: dateFilter,
         selectedMonthYearDateFilter: dateFilter,
@@ -223,7 +224,7 @@ const ReportsFileExport = props => {
     [
       'inventoryLogsTotals',
       {
-        filter: {'operations.id': 2},
+        filter: {'operations.code': OPERATION_CODES.NEW_PURCHASE},
         limit: 0,
         // monthYearDateFilter: dateFilter,
         selectedMonthYearDateFilter: dateFilter,

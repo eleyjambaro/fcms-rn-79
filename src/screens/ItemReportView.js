@@ -18,6 +18,7 @@ import {
 } from '@gorhom/bottom-sheet';
 
 import routes from '../constants/routes';
+import {OPERATION_CODES} from '../localDbQueries/operations';
 import ItemDetails from '../components/items/ItemDetails';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
@@ -48,12 +49,12 @@ const ItemReportView = props => {
   const purchaseEntriesFilter = {
     'items.id': itemId,
     'items.category_id': item?.category_id,
-    'operations.id': 2, // Operation id 2 is equal to: Add stock - New Purchase (inventory operation)
+    'operations.code': OPERATION_CODES.NEW_PURCHASE,
   };
   const stockUsageEntriesFilter = {
     'items.id': itemId,
     'items.category_id': item?.category_id,
-    'operations.id': 6, // Operation id 6 is equal to: Remove stock - Stock Usage (inventory operation)
+    'operations.code': OPERATION_CODES.STOCK_USAGE,
   };
 
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);

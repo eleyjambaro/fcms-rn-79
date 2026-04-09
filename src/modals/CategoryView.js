@@ -12,6 +12,7 @@ import {
 import {useQuery} from '@tanstack/react-query';
 
 import routes from '../constants/routes';
+import {OPERATION_CODES} from '../localDbQueries/operations';
 import {categories} from '../__dummyData';
 import ItemList from '../components/items/ItemList';
 import ItemLogList from '../components/items/ItemLogList';
@@ -147,7 +148,7 @@ function CategoryView(props) {
             entryType="purchase"
             filter={{
               'items.category_id': category.id,
-              'operations.id': 2, // Operation id 2 is equal to: Add stock - New Purchase (inventory operation)
+              'operations.code': OPERATION_CODES.NEW_PURCHASE,
             }}
             totalLabel="Total Purchases"
             showTotal={false}
@@ -158,7 +159,7 @@ function CategoryView(props) {
             entryType="stock-usage"
             filter={{
               'items.category_id': category.id,
-              'operations.id': 6, // Operation id 6 is equal to: Remove stock - Stock Usage (inventory operation)
+              'operations.code': OPERATION_CODES.STOCK_USAGE,
             }}
             totalLabel="Total Stock Usage"
             showTotal={false}
