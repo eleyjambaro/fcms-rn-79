@@ -1,4 +1,8 @@
-import {getDBConnection, getCloudSyncParams, OPERATION_DEFAULT_UUIDS} from '../localDb';
+import {
+  getDBConnection,
+  getCloudSyncParams,
+  OPERATION_DEFAULT_UUIDS,
+} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {appStorageKeySeperator} from './appVersions';
 import appDefaults from '../constants/appDefaults';
@@ -130,7 +134,10 @@ export const createInventoryOperation = async ({operation}) => {
   )
 
   VALUES(
-    '${(operation.code && OPERATION_DEFAULT_UUIDS[operation.code]) || operation.id}',
+    '${
+      (operation.code && OPERATION_DEFAULT_UUIDS[operation.code]) ||
+      operation.id
+    }',
     ${operation.code ? `'${operation.code}'` : 'NULL'},
     '${operation.type}',
     '${operation.name}',

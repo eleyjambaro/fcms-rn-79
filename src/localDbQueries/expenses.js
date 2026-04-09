@@ -140,7 +140,9 @@ export const createExpenseGroup = async ({values, onInsertLimitReached}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newExpenseGroupId = uuid.v4();
     const query = `INSERT INTO expense_groups (
+    id,
     name,
     device_id,
     branch_id,
@@ -149,10 +151,11 @@ export const createExpenseGroup = async ({values, onInsertLimitReached}) => {
   )
 
   VALUES(
+    '${newExpenseGroupId}',
     '${values.name?.replace(/\'/g, "''")}',
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
-    '${uuid.v4()}',
+    '${newExpenseGroupId}',
     CURRENT_TIMESTAMP
   );`;
     const appConfig = await getAppConfig();
@@ -413,7 +416,9 @@ export const createMonthlyExpense = async ({values}) => {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
 
+    const newMonthlyExpenseId = uuid.v4();
     const createMonthlyExpenseQuery = `INSERT INTO monthly_expenses (
+      id,
       expense_group_id,
       name,
       device_id,
@@ -421,13 +426,14 @@ export const createMonthlyExpense = async ({values}) => {
       sync_id,
       updated_at
     )
-  
+
     VALUES(
+      '${newMonthlyExpenseId}',
       ${parseInt(values.expense_group_id)},
       '${values.name?.replace(/\'/g, "''")}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
-      '${uuid.v4()}',
+      '${newMonthlyExpenseId}',
       CURRENT_TIMESTAMP
     );`;
 
@@ -443,6 +449,7 @@ export const createMonthlyExpense = async ({values}) => {
     // insert each revenue groups to revenue_deductions table
     let insertRevenueDeductionsQuery = `
       INSERT INTO revenue_deductions (
+        id,
         revenue_group_id,
         monthly_expense_id,
         device_id,
@@ -450,17 +457,19 @@ export const createMonthlyExpense = async ({values}) => {
         sync_id,
         updated_at
       )
-      
+
       VALUES
     `;
 
     values.revenue_group_ids.forEach((revenueGroupId, index) => {
+      const newRevenueDeductionId = uuid.v4();
       insertRevenueDeductionsQuery += `(
+          '${newRevenueDeductionId}',
           ${revenueGroupId},
           ${monthlyExpenseId},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newRevenueDeductionId}',
           CURRENT_TIMESTAMP
         )`;
 
@@ -508,6 +517,7 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
     // insert each new revenue groups to revenue_deductions table
     let insertRevenueDeductionsQuery = `
       INSERT INTO revenue_deductions (
+        id,
         revenue_group_id,
         monthly_expense_id,
         device_id,
@@ -515,17 +525,19 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
         sync_id,
         updated_at
       )
-      
+
       VALUES
     `;
 
     updatedValues.revenue_group_ids.forEach((revenueGroupId, index) => {
+      const newRevenueDeductionId = uuid.v4();
       insertRevenueDeductionsQuery += `(
+          '${newRevenueDeductionId}',
           ${revenueGroupId},
           ${id},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newRevenueDeductionId}',
           CURRENT_TIMESTAMP
         )`;
 
@@ -713,6 +725,7 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
     // insert each revenue group ids to revenue_deductions table
     let insertRevenueDeductionsQuery = `
       INSERT INTO revenue_deductions (
+        id,
         revenue_group_id,
         expense_id,
         device_id,
@@ -725,12 +738,14 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
     `;
 
     values.revenue_group_ids.forEach((revenueGroupId, index) => {
+      const newRevenueDeductionId = uuid.v4();
       insertRevenueDeductionsQuery += `(
+          '${newRevenueDeductionId}',
           '${revenueGroupId}',
           '${expenseId}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newRevenueDeductionId}',
           CURRENT_TIMESTAMP
         )`;
 
@@ -797,6 +812,7 @@ export const updateExpense = async ({id, updatedValues}) => {
     // insert each new revenue groups to revenue_deductions table
     let insertRevenueDeductionsQuery = `
       INSERT INTO revenue_deductions (
+        id,
         revenue_group_id,
         expense_id,
         device_id,
@@ -809,12 +825,14 @@ export const updateExpense = async ({id, updatedValues}) => {
       `;
 
     updatedValues.revenue_group_ids.forEach((revenueGroupId, index) => {
+      const newRevenueDeductionId = uuid.v4();
       insertRevenueDeductionsQuery += `(
+        '${newRevenueDeductionId}',
         ${revenueGroupId},
         ${id},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${newRevenueDeductionId}',
         CURRENT_TIMESTAMP
       )`;
 

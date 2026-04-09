@@ -202,8 +202,10 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
         .to(itemUOMAbbrev);
     }
 
+    const newModifierOptionId = uuid.v4();
     const createSizeOptionQuery = `
       INSERT INTO modifier_options (
+        id,
         modifier_id,
         option_name,
         option_selling_price,
@@ -218,6 +220,7 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
       )
 
       VALUES (
+        '${newModifierOptionId}',
         '${modifierId}',
         '${values.option_name.replace(/\'/g, "''")}',
         ${parseFloat(values.option_selling_price || 0)},
@@ -227,7 +230,7 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
         ${values.use_measurement_per_piece === true ? 1 : 0},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${newModifierOptionId}',
         CURRENT_TIMESTAMP
       )
     `;

@@ -208,7 +208,9 @@ export const saveSubRecipe = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newRecipeId = uuid.v4();
     const createRecipeQuery = `INSERT INTO recipes (
+    id,
     is_draft,
     group_name,
     name,
@@ -221,6 +223,7 @@ export const saveSubRecipe = async ({values}) => {
   )
 
   VALUES(
+    '${newRecipeId}',
     0,
     ${groupName},
     '${values.name.replace(/\'/g, "''")}',
@@ -228,7 +231,7 @@ export const saveSubRecipe = async ({values}) => {
     datetime('now'),
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
-    '${uuid.v4()}',
+    '${newRecipeId}',
     CURRENT_TIMESTAMP
   );`;
 
@@ -688,7 +691,9 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
 
     const {deviceId, branchId} = await getCloudSyncParams();
     const getIngredientQuery = `SELECT * FROM ingredients WHERE item_id = ${item.id} AND recipe_id = ${recipe.id};`;
+    const newIngredientId = uuid.v4();
     const createIngredientQuery = `INSERT INTO ingredients (
+      id,
       recipe_id,
       item_id,
       in_recipe_qty,
@@ -702,6 +707,7 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
     )
 
     VALUES(
+      '${newIngredientId}',
       '${recipe.id}',
       '${values.item_id}',
       ${parseFloat(values.in_recipe_qty)},
@@ -710,7 +716,7 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
       ${values.use_measurement_per_piece === true ? 1 : 0},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
-      '${uuid.v4()}',
+      '${newIngredientId}',
       CURRENT_TIMESTAMP
     );`;
 

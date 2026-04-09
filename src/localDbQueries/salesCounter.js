@@ -654,7 +654,9 @@ export const confirmFulfillingSalesOrders = async ({
        * Sale logs
        */
 
+      const newSaleLogId = uuid.v4();
       insertSaleLogsQuery += `(
+        '${newSaleLogId}',
         '${item.id}',
         ${taxId},
         ${customerId},
@@ -671,7 +673,9 @@ export const confirmFulfillingSalesOrders = async ({
         '${createdInvoiceId}',
         ${accountUID},
         ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
-        ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
+        ${salesBranchId ? `'${salesBranchId}'` : 'NULL'},
+        '${newSaleLogId}',
+        CURRENT_TIMESTAMP
       )`;
 
       if (saleItems.length - 1 !== index) {
@@ -727,7 +731,9 @@ export const confirmFulfillingSalesOrders = async ({
         ${salesInvoiceDate},
         '${createdInvoiceId}',
         ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
-        ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
+        ${salesBranchId ? `'${salesBranchId}'` : 'NULL'},
+        '${newInvLogId}',
+        CURRENT_TIMESTAMP
       )`;
 
       if (saleItems.length - 1 !== index) {
@@ -789,13 +795,17 @@ export const confirmFulfillingSalesOrders = async ({
             Object.keys(paymentFormValues.payments)[index]
           ];
 
+        const newPaymentId = uuid.v4();
         insertPaymentsQuery += `(
+          '${newPaymentId}',
           '${createdInvoiceId}',
           '${payment?.payment_method}',
           ${parseFloat(payment?.payment_amount || 0)},
           ${parseFloat(payment?.change_amount || 0)},
           ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
-          ${salesBranchId ? `'${salesBranchId}'` : 'NULL'}
+          ${salesBranchId ? `'${salesBranchId}'` : 'NULL'},
+          '${newPaymentId}',
+          CURRENT_TIMESTAMP
         )`;
 
         if (Object.keys(paymentFormValues.payments).length - 1 !== index) {
@@ -810,6 +820,7 @@ export const confirmFulfillingSalesOrders = async ({
     } else {
       const createPaymentDetailsQuery = `
         INSERT INTO payments (
+          id,
           invoice_id,
           payment_method,
           payment_amount,
@@ -821,6 +832,7 @@ export const confirmFulfillingSalesOrders = async ({
         )
 
         VALUES (
+          '${uuid.v4()}',
           '${createdInvoiceId}',
           '${paymentFormValues?.payment_method}',
           ${parseFloat(paymentFormValues?.payment_amount || 0)},

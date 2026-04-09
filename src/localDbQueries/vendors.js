@@ -17,7 +17,9 @@ export const createVendor = async ({values, onInsertLimitReached}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newVendorId = uuid.v4();
     const query = `INSERT INTO vendors (
+    id,
     first_name,
     last_name,
     company_name,
@@ -34,6 +36,7 @@ export const createVendor = async ({values, onInsertLimitReached}) => {
   )
 
   VALUES(
+    '${newVendorId}',
     '${values.first_name.replace(/\'/g, "''")}',
     '${values.last_name.replace(/\'/g, "''")}',
     '${values.company_name.replace(/\'/g, "''")}',
@@ -45,7 +48,7 @@ export const createVendor = async ({values, onInsertLimitReached}) => {
     '${values.remarks ? values.remarks?.replace(/\'/g, "''") : ''}',
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
-    '${uuid.v4()}',
+    '${newVendorId}',
     CURRENT_TIMESTAMP
   );`;
     const appConfig = await getAppConfig();

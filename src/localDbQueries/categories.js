@@ -113,7 +113,9 @@ export const createCategory = async ({
      * Insert Category
      */
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newCategoryId = uuid.v4();
     const createCategoryQuery = `INSERT INTO categories (
+      id,
       name,
       device_id,
       branch_id,
@@ -122,10 +124,11 @@ export const createCategory = async ({
     )
 
     VALUES(
+      '${newCategoryId}',
       '${category.name?.replace(/\'/g, "''")}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
-      '${uuid.v4()}',
+      '${newCategoryId}',
       CURRENT_TIMESTAMP
     );`;
 

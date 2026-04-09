@@ -69,7 +69,9 @@ export const createRecipeKind = async ({values}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newRecipeKindId = uuid.v4();
     const query = `INSERT INTO recipe_kinds (
+    id,
     name,
     device_id,
     branch_id,
@@ -78,10 +80,11 @@ export const createRecipeKind = async ({values}) => {
   )
 
   VALUES(
+    '${newRecipeKindId}',
     '${values.name?.replace(/\'/g, "''")}',
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
-    '${uuid.v4()}',
+    '${newRecipeKindId}',
     CURRENT_TIMESTAMP
   );`;
     const result = await db.executeSql(query);

@@ -616,6 +616,7 @@ export const insertTemplateDataToDb = async ({
     if (notExistingCategoriesName.length > 0) {
       let insertNotExistingCategoriesNameToDbQuery = `
         INSERT INTO categories (
+          id,
           name,
           device_id,
           branch_id,
@@ -630,11 +631,13 @@ export const insertTemplateDataToDb = async ({
         let notExistingCategoryName = notExistingCategoriesName[index];
         insertedCategoriesName.push(notExistingCategoryName);
 
+        const newCategoryId = uuid.v4();
         insertNotExistingCategoriesNameToDbQuery += `(
+        '${newCategoryId}',
         '${notExistingCategoryName.replace(/\'/g, "''")}',
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${newCategoryId}',
         CURRENT_TIMESTAMP
       )`;
 
@@ -734,6 +737,7 @@ export const insertTemplateDataToDb = async ({
     if (notExistingTaxes.length > 0) {
       let insertNotExistingTaxesToDbQuery = `
         INSERT INTO taxes (
+          id,
           name,
           rate_percentage,
           device_id,
@@ -749,12 +753,14 @@ export const insertTemplateDataToDb = async ({
         let notExistingTax = notExistingTaxes[index];
         insertedTaxes.push(notExistingTax);
 
+        const newTaxId = uuid.v4();
         insertNotExistingTaxesToDbQuery += `(
+          '${newTaxId}',
           '${notExistingTax?.tax_name.replace(/\'/g, "''")}',
           ${parseFloat(notExistingTax?.tax_rate_percentage) || 0},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newTaxId}',
           CURRENT_TIMESTAMP
         )`;
 
@@ -1057,6 +1063,7 @@ export const insertTemplateDataToDb = async ({
     if (notExistingItems.length > 0) {
       let insertNotExistingItemsToDbQuery = `
         INSERT INTO items (
+          id,
           category_id,
           tax_id,
           preferred_vendor_id,
@@ -1155,7 +1162,9 @@ export const insertTemplateDataToDb = async ({
           qtyPerPiece = 'null';
         }
 
+        const newItemId = uuid.v4();
         insertNotExistingItemsToDbQuery += `(
+          '${newItemId}',
           ${categoryId},
           ${taxId},
           ${vendorId},
@@ -1166,7 +1175,7 @@ export const insertTemplateDataToDb = async ({
           ${qtyPerPiece},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newItemId}',
           CURRENT_TIMESTAMP
         )`;
 
@@ -1215,6 +1224,7 @@ export const insertTemplateDataToDb = async ({
        */
       let insertInventoryLogsQuery = `
         INSERT INTO inventory_logs (
+          id,
           operation_id,
           item_id,
           ref_tax_id,
@@ -1335,7 +1345,9 @@ export const insertTemplateDataToDb = async ({
             : `datetime('now', 'start of month', '-1 day')`;
         }
 
+        const newInvLogId = uuid.v4();
         insertInventoryLogsQuery += `(
+          '${newInvLogId}',
           ${operationId},
           ${itemId},
           ${taxId},
@@ -1353,7 +1365,7 @@ export const insertTemplateDataToDb = async ({
           ${remarks},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newInvLogId}',
           CURRENT_TIMESTAMP
         )`;
 

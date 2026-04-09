@@ -233,6 +233,7 @@ export const createRevenueGroup = async ({
     // insert each category ids to revenue_categories table
     let insertRevenueCategoriesQuery = `
       INSERT INTO revenue_categories (
+        id,
         revenue_group_id,
         category_id,
         device_id,
@@ -245,12 +246,14 @@ export const createRevenueGroup = async ({
     `;
 
     values.category_ids.forEach((categoryId, index) => {
+      const newRevenueCategoryId = uuid.v4();
       insertRevenueCategoriesQuery += `(
+          '${newRevenueCategoryId}',
           '${revenueGroupId}',
           '${categoryId}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newRevenueCategoryId}',
           CURRENT_TIMESTAMP
         )`;
 
@@ -348,6 +351,7 @@ export const updateRevenueGroup = async ({
     // insert each new categories to revenue_categories table
     let insertRevenueCategoriesQuery = `
       INSERT INTO revenue_categories (
+        id,
         revenue_group_id,
         category_id,
         device_id,
@@ -360,12 +364,14 @@ export const updateRevenueGroup = async ({
       `;
 
     updatedValues.category_ids.forEach((categoryId, index) => {
+      const newRevenueCategoryId = uuid.v4();
       insertRevenueCategoriesQuery += `(
+        '${newRevenueCategoryId}',
         ${id},
         ${categoryId},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
-        '${uuid.v4()}',
+        '${newRevenueCategoryId}',
         CURRENT_TIMESTAMP
       )`;
 
@@ -418,7 +424,9 @@ export const createRevenue = async ({values}) => {
 
     const {deviceId: revenueDeviceId, branchId: revenueBranchId} =
       await getCloudSyncParams();
+    const newRevenueId = uuid.v4();
     const createRevenueQuery = `INSERT INTO revenues (
+    id,
     revenue_group_id,
     revenue_group_date,
     amount,
@@ -429,12 +437,13 @@ export const createRevenue = async ({values}) => {
   )
 
   VALUES(
+    '${newRevenueId}',
     ${values.revenue_group_id},
     '${values.revenue_group_date}',
     ${values.amount},
     ${revenueDeviceId ? `'${revenueDeviceId}'` : 'NULL'},
     ${revenueBranchId ? `'${revenueBranchId}'` : 'NULL'},
-    '${uuid.v4()}',
+    '${newRevenueId}',
     CURRENT_TIMESTAMP
   );`;
 

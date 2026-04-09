@@ -63,7 +63,9 @@ export const addSpoilage = async ({values}) => {
       : `datetime('now')`;
 
     const {deviceId, branchId} = await getCloudSyncParams();
+    const newSpoilageId = uuid.v4();
     const createSpoilageQuery = `INSERT INTO spoilages (
+      id,
       item_id,
       in_spoilage_qty,
       in_spoilage_uom_abbrev,
@@ -78,6 +80,7 @@ export const addSpoilage = async ({values}) => {
     )
 
     VALUES(
+      '${newSpoilageId}',
       '${values.item_id}',
       ${parseFloat(values.in_spoilage_qty)},
       '${values.in_spoilage_uom_abbrev}',
@@ -87,7 +90,7 @@ export const addSpoilage = async ({values}) => {
       '${values.remarks ? values.remarks.replace(/\'/g, "''") : ''}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
-      '${uuid.v4()}',
+      '${newSpoilageId}',
       CURRENT_TIMESTAMP
     );`;
 
