@@ -44,7 +44,7 @@ export const pushDelta = async ({device_id, branch_id, pushed_at, delta}) => {
 export const pullDelta = async ({since, branch_id, device_id}) => {
   const headers = {
     ...(await getAuthHeaders()),
-    'X-Device-Id': device_id,
+    ...(device_id ? {'X-Device-Id': device_id} : {}),
   };
   const {data} = await cloudApiV2.get('/api/v2/sync/pull', {
     params: {since, branch_id},

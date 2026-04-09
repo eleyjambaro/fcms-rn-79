@@ -151,7 +151,10 @@ const updateSyncMetadata = async (
  * If is_deleted = 1, sets a tombstone marker (soft-delete handled per-table).
  */
 const applyPulledRecord = async (db, tableName, record) => {
-  const {sync_id, ...fields} = record;
+  // created_at is returned by the server but is not a column in any local SQLite
+  // table — strip it before building INSERT/UPDATE to prevent "no such column" errors.
+  // eslint-disable-next-line no-unused-vars
+  const {sync_id, created_at, ...fields} = record;
   if (!sync_id) return;
 
   const [existing] = await db.executeSql(
@@ -305,10 +308,17 @@ export const runSync = async () => {
       );
       const since = metaResult.rows.item(0)?.since ?? '1970-01-01T00:00:00Z';
 
+      // On a fresh install sync_metadata is empty, so `since` falls back to
+      // epoch. In that case we omit X-Device-Id so the server does NOT apply
+      // echo-suppression — without this, all historical records originally
+      // pushed from this device would be filtered out and never returned,
+      // leaving the reinstalled app with no data.
+      const isInitialPull = since === '1970-01-01T00:00:00Z';
+
       const pullResponse = await pullDelta({
         since,
         branch_id: branchId,
-        device_id: deviceId,
+        device_id: isInitialPull ? null : deviceId,
       });
 
       const {pulled_at, delta: pulledDelta = {}} = pullResponse?.data ?? {};
