@@ -4,6 +4,7 @@ import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 import {CloudAuthContext} from '../types';
 import {rnStorageKeys} from '../../constants/rnSecureStorageKeys';
 import {invalidateCloudSyncParamsCache} from '../../localDb';
+import {scheduleSyncSoon} from '../../services/syncService';
 
 const {
   cloudV2AuthToken,
@@ -190,6 +191,7 @@ const CloudAuthContextProvider = ({children}) => {
       setDeviceCredentials: async ({deviceId, deviceToken}) => {
         await saveItem(cloudV2DeviceId, deviceId);
         await saveItem(cloudV2DeviceToken, deviceToken);
+        invalidateCloudSyncParamsCache();
         dispatch({
           type: 'SET_DEVICE_CREDENTIALS',
           deviceId,
@@ -199,6 +201,8 @@ const CloudAuthContextProvider = ({children}) => {
 
       setDesignatedBranch: async branch => {
         await saveItem(cloudV2DesignatedBranch, branch);
+        invalidateCloudSyncParamsCache();
+        scheduleSyncSoon(500);
         dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: branch});
       },
 
