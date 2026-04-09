@@ -143,7 +143,7 @@ export const createCategory = async ({
 
 export const getCategory = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM categories WHERE id = ${id}`;
+  const query = `SELECT * FROM categories WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
