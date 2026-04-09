@@ -82,7 +82,7 @@ export const getRoles = async ({queryKey, pageParam = 1}) => {
 
 export const getRole = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM roles WHERE id = ${id}`;
+  const query = `SELECT * FROM roles WHERE id = '${id}'`;
 
   if (!id) {
     return {
@@ -111,7 +111,7 @@ export const getUserAccountRole = async accountRoleId => {
 
     const db = await getLocalAccountDBConnection();
 
-    const query = `SELECT * FROM roles WHERE id = ${parseInt(accountRoleId)}`;
+    const query = `SELECT * FROM roles WHERE id = '${parseInt(accountRoleId)}'`;
     const result = await db.executeSql(query);
 
     return result[0].rows.item(0);
@@ -131,15 +131,15 @@ export const assignDefaultRoleToAnAccount = async accountId => {
 
     const updateAccountRoleToDefaultQuery = `
       UPDATE accounts
-      SET role_id = ${parseInt(localUserDefaultRoleId)}
-      WHERE id = ${parseInt(accountId)}
+      SET role_id = '${parseInt(localUserDefaultRoleId)}'
+      WHERE id = '${parseInt(accountId)}'
     `;
     const updateAccountRoleToDefaultResult = await db.executeSql(
       updateAccountRoleToDefaultQuery,
     );
 
     const getAccountQuery = `
-      SELECT * FROM accounts WHERE id = ${parseInt(accountId)}
+      SELECT * FROM accounts WHERE id = '${parseInt(accountId)}'
     `;
     const getAccountResult = await db.executeSql(getAccountQuery);
 

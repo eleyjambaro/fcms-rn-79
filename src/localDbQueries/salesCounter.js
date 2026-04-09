@@ -51,7 +51,7 @@ export const confirmSaleEntries = async ({
     //  */
     // if (values.vendor_id) {
     //   const getVendorQuery = `
-    //   SELECT * FROM vendors WHERE id = ${parseInt(values.vendor_id)}
+    //   SELECT * FROM vendors WHERE id = '${parseInt(values.vendor_id)}'
 
     // `;
 
@@ -495,7 +495,7 @@ export const confirmFulfillingSalesOrders = async ({
     //  */
     // if (values.vendor_id) {
     //   const getVendorQuery = `
-    //   SELECT * FROM vendors WHERE id = ${parseInt(values.vendor_id)}
+    //   SELECT * FROM vendors WHERE id = '${parseInt(values.vendor_id)}'
 
     // `;
 
@@ -933,7 +933,7 @@ export const addSaleEntriesToSalesOrders = async ({
     //  */
     // if (values.vendor_id) {
     //   const getVendorQuery = `
-    //   SELECT * FROM vendors WHERE id = ${parseInt(values.vendor_id)}
+    //   SELECT * FROM vendors WHERE id = '${parseInt(values.vendor_id)}'
 
     // `;
 

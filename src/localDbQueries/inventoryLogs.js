@@ -179,7 +179,7 @@ export const getInventoryLog = async ({queryKey}) => {
     INNER JOIN operations ON operations.id = inventory_logs.operation_id
     INNER JOIN items ON items.id = inventory_logs.item_id
     INNER JOIN categories ON categories.id = items.category_id
-    WHERE inventory_logs.id = ${id}
+    WHERE inventory_logs.id = '${id}'
   `;
 
   try {
@@ -281,9 +281,9 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
     /**
      * Get item
      */
-    const getItemQuery = `SELECT * FROM items WHERE id = ${parseInt(
+    const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
       log.item_id,
-    )}`;
+    )}'`;
 
     const getItemQueryResult = await db.executeSql(getItemQuery);
     const item = getItemQueryResult[0].rows.item(0);
@@ -310,7 +310,7 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
         tax = defaultTaxEmptyValue;
       } else {
         const getTaxQuery = `
-          SELECT * FROM taxes WHERE id = ${updatedValues.tax_id}
+          SELECT * FROM taxes WHERE id = '${updatedValues.tax_id}'
         `;
 
         const getTaxResult = await db.executeSql(getTaxQuery);
@@ -337,7 +337,7 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
         vendor = defaultVendorEmptyValue;
       } else {
         const getVendorQuery = `
-          SELECT * FROM vendors WHERE id = ${updatedValues.vendor_id}
+          SELECT * FROM vendors WHERE id = '${updatedValues.vendor_id}'
         `;
 
         const getVendorResult = await db.executeSql(getVendorQuery);
@@ -392,8 +392,8 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
     const updateInventoryLogQuery = `UPDATE inventory_logs
       SET operation_id = '${updatedValues.operation_id}',
       item_id = '${item.id}',
-      ref_tax_id = ${taxId},
-      ref_vendor_id = ${vendorId},
+      ref_tax_id = '${taxId}',
+      ref_vendor_id = '${vendorId}',
       vendor_display_name = ${vendorDisplayName},
       adjustment_unit_cost = ${unitCost},
       adjustment_unit_cost_net = ${unitCostNet},
@@ -408,7 +408,7 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
         updatedValues.remarks ? updatedValues.remarks.replace(/\'/g, "''") : ''
       }',
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
+      WHERE id = '${id}'
     `;
 
     const result = await db.executeSql(updateInventoryLogQuery);
@@ -444,7 +444,7 @@ export const voidInventoryLog = async ({id}) => {
       UPDATE inventory_logs
       SET voided = 1,
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${inventoryLog.id}
+      WHERE id = '${inventoryLog.id}'
     `;
 
     const voidInventoryLogResult = await db.executeSql(voidInventoryLogQuery);
@@ -481,7 +481,7 @@ export const updateInventoryLogRemarks = async ({id, updatedValues}) => {
     updatedValues.remarks ? updatedValues.remarks.replace(/\'/g, "''") : ''
   }',
   updated_at = CURRENT_TIMESTAMP
-  WHERE id = ${id}`;
+  WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -806,7 +806,7 @@ export const getItemCostPercentage = async ({queryKey}) => {
     const itemGrandTotal = addedStockSum - removedStockSum;
 
     // get item
-    const getItemQuery = `SELECT * FROM items WHERE id = ${itemId}`;
+    const getItemQuery = `SELECT * FROM items WHERE id = '${itemId}'`;
     const getItemResult = await db.executeSql(getItemQuery);
     const item = getItemResult[0].rows.item(0);
 
@@ -818,7 +818,7 @@ export const getItemCostPercentage = async ({queryKey}) => {
       revenue_groups.name AS revenue_group_name
       FROM revenue_categories
       JOIN revenue_groups ON revenue_groups.id = revenue_categories.revenue_group_id
-      WHERE category_id = ${item.category_id}
+      WHERE category_id = '${item.category_id}'
     `;
 
     const getItemRevenueCategoryResult = await db.executeSql(
@@ -845,7 +845,7 @@ export const getItemCostPercentage = async ({queryKey}) => {
       SELECT SUM(amount) AS total_amount
       FROM revenues
       WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('now'))
-      AND revenue_group_id = ${revenueGroupId}
+      AND revenue_group_id = '${revenueGroupId}'
     `;
       const getCurrentMonthRevenueGroupAmountResult = await db.executeSql(
         getCurrentMonthRevenueGroupAmountQuery,
@@ -964,7 +964,7 @@ export const getCategoryCostPercentage = async ({queryKey}) => {
     const categoryGrandTotal = addedStockSum - removedStockSum;
 
     // get category
-    const getCategoryQuery = `SELECT * FROM categories WHERE id = ${categoryId}`;
+    const getCategoryQuery = `SELECT * FROM categories WHERE id = '${categoryId}'`;
     const getCategoryResult = await db.executeSql(getCategoryQuery);
     const category = getCategoryResult[0].rows.item(0);
 
@@ -976,7 +976,7 @@ export const getCategoryCostPercentage = async ({queryKey}) => {
       revenue_groups.name AS revenue_group_name
       FROM revenue_categories
       JOIN revenue_groups ON revenue_groups.id = revenue_categories.revenue_group_id
-      WHERE category_id = ${categoryId}
+      WHERE category_id = '${categoryId}'
     `;
 
     const getCategoryRevenueGroupResult = await db.executeSql(
@@ -1003,7 +1003,7 @@ export const getCategoryCostPercentage = async ({queryKey}) => {
       SELECT SUM(amount) AS total_amount
       FROM revenues
       WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('now'))
-      AND revenue_group_id = ${revenueGroupId}
+      AND revenue_group_id = '${revenueGroupId}'
     `;
       const getCurrentMonthRevenueGroupAmountResult = await db.executeSql(
         getCurrentMonthRevenueGroupAmountQuery,
@@ -1053,9 +1053,9 @@ export const addInventoryLog = async ({
     /**
      * Get inventory operation
      */
-    const getInventoryOperationQuery = `SELECT * FROM operations WHERE id = ${parseInt(
+    const getInventoryOperationQuery = `SELECT * FROM operations WHERE id = '${parseInt(
       log.operation_id,
-    )}`;
+    )}'`;
     const getInventoryOperationQueryResult = await db.executeSql(
       getInventoryOperationQuery,
     );
@@ -1251,7 +1251,7 @@ export const getItemAvgUnitCost = async ({queryKey}) => {
     FROM inventory_logs
     INNER JOIN operations ON operations.id = inventory_logs.operation_id
     INNER JOIN items ON items.id = inventory_logs.item_id
-    WHERE inventory_logs.item_id = ${id}
+    WHERE inventory_logs.item_id = '${id}'
     AND inventory_logs.voided != 1
     AND operations.code = 'new_purchase'
   ;`;
@@ -1279,13 +1279,13 @@ export const getItemAvgUnitCost = async ({queryKey}) => {
 
 export const getItemCurrentStockQuantity = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const getItemQuery = `SELECT * FROM items WHERE id = ${id}`;
+  const getItemQuery = `SELECT * FROM items WHERE id = '${id}'`;
 
   const totalAddedStocksQuery = `SELECT sum(adjustment_qty)
     FROM inventory_logs
     INNER JOIN operations ON operations.id = inventory_logs.operation_id
     INNER JOIN items ON items.id = inventory_logs.item_id
-    WHERE inventory_logs.item_id = ${id}
+    WHERE inventory_logs.item_id = '${id}'
     AND inventory_logs.voided != 1
     AND operations.type = 'add_stock'
   ;`;
@@ -1294,7 +1294,7 @@ export const getItemCurrentStockQuantity = async ({queryKey}) => {
     FROM inventory_logs
     INNER JOIN operations ON operations.id = inventory_logs.operation_id
     INNER JOIN items ON items.id = inventory_logs.item_id
-    WHERE inventory_logs.item_id = ${id}
+    WHERE inventory_logs.item_id = '${id}'
     AND inventory_logs.voided != 1
     AND operations.type = 'remove_stock'
   ;`;
@@ -1341,9 +1341,9 @@ export const getItemInitialStockLog = async ({queryKey}) => {
      * Get item initial stock inventory log (operation code = 'pre_app_stock')
      * Returns null if no initial stock log exists (e.g., item created via IDT with purchase date)
      */
-    const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = ${parseInt(
+    const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = '${parseInt(
       itemId,
-    )} AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')`;
+    )}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')`;
 
     const getItemInitStockLogResult = await db.executeSql(
       getItemInitStockLogQuery,

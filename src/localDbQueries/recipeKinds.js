@@ -98,7 +98,7 @@ export const createRecipeKind = async ({values}) => {
 
 export const getRecipeKind = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM recipe_kinds WHERE id = ${id}`;
+  const query = `SELECT * FROM recipe_kinds WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -117,7 +117,7 @@ export const updateRecipeKind = async ({id, updatedValues}) => {
   const query = `recipe_kinds
   SET name = '${updatedValues.name?.replace(/\'/g, "''")}',
   updated_at = CURRENT_TIMESTAMP
-  WHERE id = ${id}`;
+  WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -131,7 +131,7 @@ export const updateRecipeKind = async ({id, updatedValues}) => {
 };
 
 export const deleteRecipeKind = async ({id}) => {
-  const query = `UPDATE recipe_kinds SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+  const query = `UPDATE recipe_kinds SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

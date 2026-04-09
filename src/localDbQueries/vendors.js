@@ -124,7 +124,7 @@ export const getVendors = async ({queryKey, pageParam = 1}) => {
 
 export const getVendor = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM vendors WHERE id = ${id}`;
+  const query = `SELECT * FROM vendors WHERE id = '${id}'`;
 
   if (!id) {
     return {
@@ -161,7 +161,7 @@ export const updateVendor = async ({id, updatedValues}) => {
     updatedValues.remarks ? updatedValues.remarks.replace(/\'/g, "''") : ''
   }',
   updated_at = CURRENT_TIMESTAMP
-  WHERE id = ${id}`;
+  WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -175,7 +175,7 @@ export const updateVendor = async ({id, updatedValues}) => {
 };
 
 export const deleteVendor = async ({id}) => {
-  const query = `UPDATE vendors SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+  const query = `UPDATE vendors SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

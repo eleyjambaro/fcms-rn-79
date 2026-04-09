@@ -317,7 +317,7 @@ export const createBatchStockUsageEntry = async ({values}) => {
       }
     }
 
-    const getBatchStockUsageEntryQuery = `SELECT * FROM batch_stock_usage_entries WHERE item_id = ${values.item_id} AND batch_stock_usage_group_id = ${currentBatchStockUsageGroupId};`;
+    const getBatchStockUsageEntryQuery = `SELECT * FROM batch_stock_usage_entries WHERE item_id = '${values.item_id}' AND batch_stock_usage_group_id = '${currentBatchStockUsageGroupId}';`;
     const createBatchStockUsageEntryQuery = `INSERT INTO batch_stock_usage_entries (
       batch_stock_usage_group_id,
       item_id,
@@ -419,7 +419,7 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
       FROM batch_stock_usage_entries
       INNER JOIN items ON items.id = batch_stock_usage_entries.item_id
       LEFT JOIN taxes ON taxes.id = items.tax_id
-      WHERE batch_stock_usage_group_id = ${currentBatchStockUsageGroupId};
+      WHERE batch_stock_usage_group_id = '${currentBatchStockUsageGroupId}';
     `;
 
     const getAllCurrentBatchStockUsageEntriesResults = await db.executeSql(
@@ -529,7 +529,7 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
 
     // delete each batch stock usage entries
     const deleteBatchStockUsageEntriesQuery = `UPDATE batch_stock_usage_entries SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
-      WHERE batch_stock_usage_group_id = ${currentBatchStockUsageGroupId}
+      WHERE batch_stock_usage_group_id = '${currentBatchStockUsageGroupId}'
     ;`;
     const deleteBatchStockUsageEntriesResult = await db.executeSql(
       deleteBatchStockUsageEntriesQuery,
@@ -544,7 +544,7 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
       SET confirmed = 1,
       date_confirmed = ${dateConfirmed},
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${currentBatchStockUsageGroupId}
+      WHERE id = '${currentBatchStockUsageGroupId}'
     `;
 
     const updateBatchStockUsageGroupResult = await db.executeSql(
@@ -688,7 +688,7 @@ export const getBatchStockUsageGroupGrandTotal = async ({queryKey}) => {
 
 export const getBatchStockUsageGroup = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM batch_stock_usage_groups WHERE id = ${id}`;
+  const query = `SELECT * FROM batch_stock_usage_groups WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

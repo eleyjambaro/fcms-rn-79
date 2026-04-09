@@ -966,7 +966,7 @@ export const getItemReport = async ({queryKey}) => {
 
       LEFT JOIN categories ON categories.id = items.category_id
       
-      WHERE items.id = ${id}
+      WHERE items.id = '${id}'
     `;
 
     const result = await db.executeSql(selectAllQuery + query);

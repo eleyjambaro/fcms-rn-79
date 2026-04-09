@@ -114,7 +114,7 @@ export const getPrinters = async ({queryKey, pageParam = 1}) => {
 
 export const getPrinter = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM saved_printers WHERE id = ${id}`;
+  const query = `SELECT * FROM saved_printers WHERE id = '${id}'`;
 
   if (!id) {
     return {
@@ -140,7 +140,7 @@ export const updatePrinter = async ({id, updatedValues}) => {
   SET display_name = '${updatedValues.display_name.replace(/\'/g, "''")}',
   device_name = '${updatedValues.device_name.replace(/\'/g, "''")}',
   inner_mac_address = '${updatedValues.inner_mac_address.replace(/\'/g, "''")}'
-  WHERE id = ${id}`;
+  WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -152,7 +152,7 @@ export const updatePrinter = async ({id, updatedValues}) => {
 };
 
 export const deletePrinter = async ({id}) => {
-  const query = `DELETE FROM saved_printers WHERE id = ${id}`;
+  const query = `DELETE FROM saved_printers WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

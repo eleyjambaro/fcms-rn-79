@@ -106,7 +106,7 @@ export const getExpenseGroupGrandTotal = async ({queryKey}) => {
     const query = `
       FROM expenses
       WHERE strftime('%m %Y', expense_group_date) = strftime('%m %Y', '${dateFilter}')
-      AND expense_group_id = ${expenseGroupId}
+      AND expense_group_id = '${expenseGroupId}'
     `;
 
     const result = await db.executeSql(countAllQuery + query);
@@ -121,7 +121,7 @@ export const getExpenseGroupGrandTotal = async ({queryKey}) => {
 
 export const getExpenseGroup = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM expense_groups WHERE id = ${id}`;
+  const query = `SELECT * FROM expense_groups WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -187,7 +187,7 @@ export const updateExpenseGroup = async ({id, updatedValues}) => {
   const query = `UPDATE expense_groups
     SET name = '${updatedValues.name?.replace(/\'/g, "''")}',
     updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${id}
+    WHERE id = '${id}'
   `;
 
   try {
@@ -202,8 +202,8 @@ export const updateExpenseGroup = async ({id, updatedValues}) => {
 };
 
 export const deleteExpenseGroup = async ({id}) => {
-  const deleteExpenseGroupQuery = `UPDATE expense_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
-  const deleteMonthlyExpenseEntriesQuery = `UPDATE expenses SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE expense_group_id = ${id}`;
+  const deleteExpenseGroupQuery = `UPDATE expense_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
+  const deleteMonthlyExpenseEntriesQuery = `UPDATE expenses SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE expense_group_id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -262,10 +262,10 @@ export const getMonthlyExpenses = async ({queryKey, pageParam = 1}) => {
       LEFT JOIN (
         SELECT * FROM expenses
         WHERE strftime('%m %Y', expenses.expense_group_date) = strftime('%m %Y', '${dateFilter}')
-        AND expenses.expense_group_id = ${expenseGroupId}
+        AND expenses.expense_group_id = '${expenseGroupId}'
       ) AS r
       ON r.monthly_expense_id = monthly_expenses.id
-      WHERE monthly_expenses.expense_group_id = ${expenseGroupId}
+      WHERE monthly_expenses.expense_group_id = '${expenseGroupId}'
 
       ${queryFilter}
 
@@ -354,7 +354,7 @@ export const getMonthlyExpenseGrandTotal = async ({queryKey}) => {
     const query = `
       FROM expenses
       WHERE strftime('%m %Y', expense_group_date) = strftime('%m %Y', '${dateFilter}')
-      AND expense_group_id = ${expenseGroupId}
+      AND expense_group_id = '${expenseGroupId}'
       `;
 
     const result = await db.executeSql(countAllQuery + query);
@@ -369,7 +369,7 @@ export const getMonthlyExpenseGrandTotal = async ({queryKey}) => {
 
 export const getMonthlyExpense = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM monthly_expenses WHERE id = ${id}`;
+  const query = `SELECT * FROM monthly_expenses WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -389,7 +389,7 @@ export const getExpenseRevenueGroupIds = async ({queryKey}) => {
   const getExpenseRevenueGroupIdsQuery = `
     SELECT *
     FROM revenue_deductions
-    WHERE expense_id = ${id}
+    WHERE expense_id = '${id}'
   `;
 
   try {
@@ -497,7 +497,7 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
     const updateMonthlyExpenseQuery = `UPDATE monthly_expenses
       SET name = '${updatedValues.name?.replace(/\'/g, "''")}',
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
+      WHERE id = '${id}'
     `;
 
     if (!updatedValues?.revenue_group_ids?.length > 0) {
@@ -509,7 +509,7 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
     );
 
     const deleteExistingRevenueDeductionsQuery = `
-      UPDATE revenue_deductions SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE monthly_expense_id = ${id};
+      UPDATE revenue_deductions SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE monthly_expense_id = '${id}';
     `;
 
     await db.executeSql(deleteExistingRevenueDeductionsQuery);
@@ -558,8 +558,8 @@ export const updateMonthlyExpense = async ({id, updatedValues}) => {
 };
 
 export const deleteMonthlyExpense = async ({id}) => {
-  const deleteMonthlyExpenseQuery = `DELETE FROM monthly_expenses WHERE id = ${id}`;
-  const deleteExpensesQuery = `UPDATE expenses SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE monthly_expense_id = ${id}`;
+  const deleteMonthlyExpenseQuery = `DELETE FROM monthly_expenses WHERE id = '${id}'`;
+  const deleteExpensesQuery = `UPDATE expenses SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE monthly_expense_id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -611,7 +611,7 @@ export const getExpenses = async ({queryKey, pageParam = 1}) => {
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
       FROM expenses
-      WHERE expense_group_id = ${expenseGroupId}
+      WHERE expense_group_id = '${expenseGroupId}'
       AND strftime('%m %Y', expense_group_date) = strftime('%m %Y', '${dateFilter}')
 
       ${queryFilter}
@@ -651,7 +651,7 @@ export const getExpensesGrandTotal = async ({queryKey}) => {
     const query = `
       FROM expenses
       WHERE strftime('%m %Y', expense_group_date) = strftime('%m %Y', '${dateFilter}')
-      AND expense_group_id = ${expenseGroupId}
+      AND expense_group_id = '${expenseGroupId}'
       `;
 
     const result = await db.executeSql(countAllQuery + query);
@@ -767,7 +767,7 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
 
 export const getExpense = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM expenses WHERE id = ${id}`;
+  const query = `SELECT * FROM expenses WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -791,7 +791,7 @@ export const updateExpense = async ({id, updatedValues}) => {
     SET name = '${updatedValues.name?.replace(/\'/g, "''")}',
     amount = ${updatedValues.amount},
     updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${id}
+    WHERE id = '${id}'
   `;
 
   try {
@@ -803,7 +803,7 @@ export const updateExpense = async ({id, updatedValues}) => {
     }
 
     const deleteExistingRevenueDeductionsQuery = `
-      UPDATE revenue_deductions SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE expense_id = ${id};
+      UPDATE revenue_deductions SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE expense_id = '${id}';
     `;
 
     await db.executeSql(deleteExistingRevenueDeductionsQuery);
@@ -853,7 +853,7 @@ export const updateExpense = async ({id, updatedValues}) => {
 };
 
 export const deleteExpense = async ({id}) => {
-  const query = `UPDATE expenses SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+  const query = `UPDATE expenses SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

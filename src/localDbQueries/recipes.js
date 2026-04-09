@@ -65,7 +65,7 @@ export const isRecipeHasIngredient = async ({queryKey}) => {
   try {
     const db = await getDBConnection();
 
-    const query = `SELECT * FROM ingredients WHERE recipe_id = ${recipeId}`;
+    const query = `SELECT * FROM ingredients WHERE recipe_id = '${recipeId}'`;
 
     const result = await db.executeSql(query);
 
@@ -130,7 +130,7 @@ export const saveRecipe = async ({
     if (currentRecipeId) {
       // check if recipe has ingredients
       let hasIngredient = false;
-      const isRecipeHasIngredientQuery = `SELECT * FROM ingredients WHERE recipe_id = ${currentRecipeId}`;
+      const isRecipeHasIngredientQuery = `SELECT * FROM ingredients WHERE recipe_id = '${currentRecipeId}'`;
       const isRecipeHasIngredientResult = await db.executeSql(
         isRecipeHasIngredientQuery,
       );
@@ -252,7 +252,7 @@ export const saveSubRecipe = async ({values}) => {
 
       // check if recipe has ingredients
       let hasIngredient = false;
-      const isRecipeHasIngredientQuery = `SELECT * FROM ingredients WHERE recipe_id = ${currentSubRecipeId}`;
+      const isRecipeHasIngredientQuery = `SELECT * FROM ingredients WHERE recipe_id = '${currentSubRecipeId}'`;
       const isRecipeHasIngredientResult = await db.executeSql(
         isRecipeHasIngredientQuery,
       );
@@ -534,7 +534,7 @@ export const getAllRecipesWithAllIngredientsTotal = async ({
 
 export const getRecipe = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM recipes WHERE id = ${id}`;
+  const query = `SELECT * FROM recipes WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -574,8 +574,8 @@ export const updateRecipe = async ({id, updatedValues}) => {
 };
 
 export const deleteRecipe = async ({id}) => {
-  const deleteRecipeQuery = `UPDATE recipes SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
-  const deleteRecipeIngredientsQuery = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipe_id = ${id}`;
+  const deleteRecipeQuery = `UPDATE recipes SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
+  const deleteRecipeIngredientsQuery = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipe_id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -592,7 +592,7 @@ export const deleteRecipe = async ({id}) => {
 };
 
 export const deleteRecipeIngredients = async ({id}) => {
-  const deleteRecipeIngredientsQuery = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipe_id = ${id}`;
+  const deleteRecipeIngredientsQuery = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipe_id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -622,7 +622,7 @@ export const isUnsavedRecipeHasIngredient = async () => {
     } else {
       // check if recipe has ingredients
       let hasIngredient = false;
-      const isRecipeHasIngredientQuery = `SELECT * FROM ingredients WHERE recipe_id = ${currentRecipeId}`;
+      const isRecipeHasIngredientQuery = `SELECT * FROM ingredients WHERE recipe_id = '${currentRecipeId}'`;
       const isRecipeHasIngredientResult = await db.executeSql(
         isRecipeHasIngredientQuery,
       );
@@ -646,13 +646,13 @@ export const isUnsavedRecipeHasIngredient = async () => {
 };
 
 export const createRecipeIngredient = async ({values, recipeId}) => {
-  const getRecipeQuery = `SELECT * FROM recipes WHERE id = ${parseInt(
+  const getRecipeQuery = `SELECT * FROM recipes WHERE id = '${parseInt(
     recipeId,
-  )}`;
+  )}'`;
 
-  const getItemQuery = `SELECT * FROM items WHERE id = ${parseInt(
+  const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
     values.item_id,
-  )}`;
+  )}'`;
 
   try {
     const db = await getDBConnection();
@@ -690,7 +690,7 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
     }
 
     const {deviceId, branchId} = await getCloudSyncParams();
-    const getIngredientQuery = `SELECT * FROM ingredients WHERE item_id = ${item.id} AND recipe_id = ${recipe.id};`;
+    const getIngredientQuery = `SELECT * FROM ingredients WHERE item_id = '${item.id}' AND recipe_id = '${recipe.id}';`;
     const newIngredientId = uuid.v4();
     const createIngredientQuery = `INSERT INTO ingredients (
       id,
@@ -730,8 +730,8 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
         values.use_measurement_per_piece === true ? 1 : 0
       },
       updated_at = CURRENT_TIMESTAMP
-      WHERE item_id = ${item.id}
-      AND recipe_id = ${recipe.id}
+      WHERE item_id = '${item.id}'
+      AND recipe_id = '${recipe.id}'
     `;
 
     // check if there's an existing ingredient within the current recipe
@@ -759,9 +759,9 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
 
 // will be deleted in favor of createRecipeIngredient function
 export const createIngredient = async ({values}) => {
-  const getItemQuery = `SELECT * FROM items WHERE id = ${parseInt(
+  const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
     values.item_id,
-  )}`;
+  )}'`;
 
   try {
     const db = await getDBConnection();
@@ -1015,7 +1015,7 @@ export const getRecipeIngredientItemIds = async ({queryKey}) => {
     const recipeIngredientItemIds = [];
 
     const getRecipeIngredientsQuery = `
-      SELECT item_id FROM ingredients WHERE recipe_id = ${recipeId};
+      SELECT item_id FROM ingredients WHERE recipe_id = '${recipeId}';
     `;
 
     const results = await db.executeSql(getRecipeIngredientsQuery);
@@ -1036,7 +1036,7 @@ export const getRecipeIngredientItemIds = async ({queryKey}) => {
 
 export const getRecipeIngredient = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM ingredients WHERE id = ${id};`;
+  const query = `SELECT * FROM ingredients WHERE id = '${id}';`;
 
   try {
     const db = await getDBConnection();
@@ -1105,7 +1105,7 @@ export const getRecipeTotalCost = async ({queryKey}) => {
     ) AS inventory_logs_added_and_removed_totals
     ON inventory_logs_added_and_removed_totals.item_id = ingredients.item_id
 
-    WHERE ingredients.recipe_id = ${recipeId}
+    WHERE ingredients.recipe_id = '${recipeId}'
   `;
 
   if (!recipeId) {

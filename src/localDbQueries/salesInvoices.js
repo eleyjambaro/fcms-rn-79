@@ -124,7 +124,7 @@ export const getSalesInvoices = async ({queryKey, pageParam = 1}) => {
 
 export const getSalesInvoice = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM invoices WHERE id = ${id}`;
+  const query = `SELECT * FROM invoices WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

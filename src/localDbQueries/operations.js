@@ -274,7 +274,7 @@ export const getInventoryOperations = async ({queryKey, pageParam = 1}) => {
 
 export const getInventoryOperation = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM operations WHERE id = ${id}`;
+  const query = `SELECT * FROM operations WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

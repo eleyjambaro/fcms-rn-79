@@ -121,7 +121,7 @@ export const getSalesOrderGroups = async ({queryKey, pageParam = 1}) => {
 export const getSalesOrderGroup = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
 
-  const query = `SELECT * FROM sales_order_groups WHERE id = ${id}`;
+  const query = `SELECT * FROM sales_order_groups WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

@@ -277,9 +277,9 @@ export const registerItem = async ({
      */
     if (item.initial_stock_vendor_id) {
       const getInitStockVendorQuery = `
-        SELECT * FROM vendors WHERE id = ${parseInt(
+        SELECT * FROM vendors WHERE id = '${parseInt(
           item.initial_stock_vendor_id,
-        )}
+        )}'
         
       `;
 
@@ -720,7 +720,7 @@ export const getItem = async ({queryKey}) => {
     items.name AS name,
     items.category_id AS category_id,
     categories.name AS category_name,
-    (SELECT beginning_inventory_date FROM inventory_logs WHERE voided != 1 AND item_id = ${id} AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')) AS beginning_inventory_date,
+    (SELECT beginning_inventory_date FROM inventory_logs WHERE voided != 1 AND item_id = '${id}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')) AS beginning_inventory_date,
 
     (
       SELECT COUNT(*)
@@ -779,7 +779,7 @@ export const getItem = async ({queryKey}) => {
     LEFT JOIN categories ON categories.id = items.category_id
     LEFT JOIN revenue_categories ON revenue_categories.id = items.category_id
     LEFT JOIN revenue_groups ON revenue_groups.id = revenue_categories.revenue_group_id
-    WHERE items.id = ${id}
+    WHERE items.id = '${id}'
   `;
 
   try {
@@ -819,7 +819,7 @@ export const updateItem = async ({
      * Get item
      */
     const getItemQuery = `
-      SELECT * FROM items WHERE id = ${id}
+      SELECT * FROM items WHERE id = '${id}'
     `;
 
     const getItemResult = await db.executeSql(getItemQuery);
@@ -869,9 +869,9 @@ export const updateItem = async ({
     /**
      * Get item initial stock inventory log
      */
-    const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = ${parseInt(
+    const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = '${parseInt(
       id,
-    )} AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')`;
+    )}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')`;
 
     const getItemInitStockLogResult = await db.executeSql(
       getItemInitStockLogQuery,
@@ -918,7 +918,7 @@ export const updateItem = async ({
         tax = defaultTaxEmptyValue;
       } else {
         const getUpdatedDefaultTaxQuery = `
-          SELECT * FROM taxes WHERE id = ${updatedValues.tax_id}
+          SELECT * FROM taxes WHERE id = '${updatedValues.tax_id}'
         `;
 
         const getUpdatedDefaultTaxResult = await db.executeSql(
@@ -967,7 +967,7 @@ export const updateItem = async ({
         initStockTax = defaultInitStockTaxEmptyValue;
       } else {
         const getUpdatedInitStockAppliedTaxQuery = `
-        SELECT * FROM taxes WHERE id = ${updatedValues.initial_stock_applied_tax_id}
+        SELECT * FROM taxes WHERE id = '${updatedValues.initial_stock_applied_tax_id}'
 
       `;
 
@@ -1030,7 +1030,7 @@ export const updateItem = async ({
         vendor = defaultVendorEmptyValue;
       } else {
         const getUpdatedDefaultVendorQuery = `
-        SELECT * FROM vendors WHERE id = ${updatedValues.vendor_id}
+        SELECT * FROM vendors WHERE id = '${updatedValues.vendor_id}'
       `;
 
         const getUpdatedDefaultVendorResult = await db.executeSql(
@@ -1077,7 +1077,7 @@ export const updateItem = async ({
         initStockVendor = defaultInitStockVendorEmptyValue;
       } else {
         const getUpdatedInitStockVendorQuery = `
-        SELECT * FROM vendors WHERE id = ${updatedValues.initial_stock_vendor_id}
+        SELECT * FROM vendors WHERE id = '${updatedValues.initial_stock_vendor_id}'
 
       `;
 
@@ -1143,8 +1143,8 @@ export const updateItem = async ({
     const updateItemQuery = `
       UPDATE items
       SET category_id = ${updatedValues.category_id ? `'${updatedValues.category_id}'` : 'null'},
-      tax_id = ${defaultTaxId},
-      preferred_vendor_id = ${defaultVendorId},
+      tax_id = '${defaultTaxId}',
+      preferred_vendor_id = '${defaultVendorId}',
       name = '${updatedValues.name.replace(/\'/g, "''")}',
       uom_abbrev = '${updatedValues.uom_abbrev}',
       uom_abbrev_per_piece = '${updatedValues.uom_abbrev_per_piece}',
@@ -1158,7 +1158,7 @@ export const updateItem = async ({
           : ''
       }',
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
+      WHERE id = '${id}'
     `;
 
     const updateItemResult = await db.executeSql(updateItemQuery);
@@ -1185,8 +1185,8 @@ export const updateItem = async ({
       const updateLoggedInitialStockQuery = `
         UPDATE inventory_logs
         SET adjustment_unit_cost = ${unitCost},
-        ref_tax_id = ${initStockTaxId},
-        ref_vendor_id = ${initStockVendorId},
+        ref_tax_id = '${initStockTaxId}',
+        ref_vendor_id = '${initStockVendorId}',
         vendor_display_name = ${initStockVendorDisplayName},
         adjustment_unit_cost_net = ${unitCostNet},
         adjustment_unit_cost_tax = ${unitCostTax},
@@ -1202,7 +1202,7 @@ export const updateItem = async ({
             : ''
         }',
         updated_at = CURRENT_TIMESTAMP
-        WHERE item_id = ${id} AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')
+        WHERE item_id = '${id}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')
       `;
 
       /**

@@ -182,7 +182,7 @@ export const updateCategory = async ({
       SELECT * FROM categories WHERE name = '${updatedValues.name.replace(
         /\'/g,
         "''",
-      )}' AND id != ${id};
+      )}' AND id != '${id}';
     `;
 
     const getCategoryByNameResult = await db.executeSql(getCategoryByNameQuery);
@@ -205,7 +205,7 @@ export const updateCategory = async ({
     const updateCategoryQuery = `UPDATE categories
       SET name = '${updatedValues.name?.replace(/\'/g, "''")}',
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
+      WHERE id = '${id}'
     `;
 
     const result = await db.executeSql(updateCategoryQuery);
@@ -225,7 +225,7 @@ export const deleteCategory = async ({id, onError}) => {
      * Check if category is associated with an item
      */
     const getItemAssociatedWithCategoryQuery = `
-      SELECT * FROM items WHERE category_id = ${id}
+      SELECT * FROM items WHERE category_id = '${id}'
     `;
 
     const getItemAssociatedWithCategoryResult = await db.executeSql(
@@ -243,7 +243,7 @@ export const deleteCategory = async ({id, onError}) => {
       throw Error('Category associated with an item cannot be deleted.');
     }
 
-    const deleteCategoryQuery = `UPDATE categories SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+    const deleteCategoryQuery = `UPDATE categories SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
 
     const result = await db.executeSql(deleteCategoryQuery);
     scheduleSyncSoon();

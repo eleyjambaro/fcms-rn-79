@@ -7,7 +7,7 @@ import {scheduleSyncSoon} from '../services/syncService';
 
 // TODO: Make it deleteSelectedMonthSpoilages
 export const deleteRecipeIngredients = async ({id}) => {
-  const deleteRecipeIngredientsQuery = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipe_id = ${id}`;
+  const deleteRecipeIngredientsQuery = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipe_id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -26,9 +26,9 @@ export const deleteRecipeIngredients = async ({id}) => {
 };
 
 export const addSpoilage = async ({values}) => {
-  const getItemQuery = `SELECT * FROM items WHERE id = ${parseInt(
+  const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
     values.item_id,
-  )}`;
+  )}'`;
 
   try {
     const db = await getDBConnection();
@@ -530,7 +530,7 @@ export const getSpoilagesTotal = async ({queryKey, pageParam = 1}) => {
 
 export const getSpoilage = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM spoilages WHERE id = ${id};`;
+  const query = `SELECT * FROM spoilages WHERE id = '${id}';`;
 
   try {
     const db = await getDBConnection();
@@ -549,9 +549,9 @@ export const updateSpoilage = async ({id, updatedValues}) => {
   try {
     const db = await getDBConnection();
 
-    const getSpoilageQuery = `SELECT * FROM spoilages WHERE id = ${parseInt(
+    const getSpoilageQuery = `SELECT * FROM spoilages WHERE id = '${parseInt(
       id,
-    )}`;
+    )}'`;
     const getSpoilageResult = await db.executeSql(getSpoilageQuery);
     const spoilage = getSpoilageResult[0].rows.item(0);
 
@@ -559,9 +559,9 @@ export const updateSpoilage = async ({id, updatedValues}) => {
       throw Error('Failed to fetch spoilage');
     }
 
-    const getItemQuery = `SELECT * FROM items WHERE id = ${parseInt(
+    const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
       spoilage.item_id,
-    )}`;
+    )}'`;
     const getItemResult = await db.executeSql(getItemQuery);
     const item = getItemResult[0].rows.item(0);
 

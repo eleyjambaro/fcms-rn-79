@@ -250,7 +250,7 @@ export const createAccount = async ({
        * Get created account by id
        */
       const getAccountQuery = `
-        SELECT * FROM accounts WHERE id = ${parseInt(accountId)}      
+        SELECT * FROM accounts WHERE id = '${parseInt(accountId)}'      
       `;
       const getAccountResult = await db.executeSql(getAccountQuery);
       account = getAccountResult[0].rows.item(0);
@@ -548,7 +548,7 @@ export const deleteAccount = async ({id}) => {
   try {
     const db = await getLocalAccountDBConnection();
 
-    const query = `DELETE FROM accounts WHERE id = ${parseInt(id)}`;
+    const query = `DELETE FROM accounts WHERE id = '${parseInt(id)}'`;
     return db.executeSql(query);
   } catch (error) {
     console.debug(error);
@@ -1257,7 +1257,7 @@ export const getLocalUserAccount = async ({queryKey, pageParam = 1}) => {
       FROM accounts
       JOIN roles ON roles.id = accounts.role_id
 
-      WHERE accounts.id = ${parseInt(id)}
+      WHERE accounts.id = '${parseInt(id)}'
     `;
 
     const getLocalUserAccountResult = await db.executeSql(
@@ -1283,7 +1283,7 @@ export const updateLocalUserAccount = async ({id, updatedValues, onError}) => {
      */
     const getAccountByEmailQuery = `SELECT * FROM accounts WHERE (username = '${
       updatedValues.email
-    }' OR email = '${updatedValues.email}') AND id != ${parseInt(id)}`;
+    }' OR email = '${updatedValues.email}') AND id != '${parseInt(id)}'`;
     const getAccountByEmailResult = await db.executeSql(getAccountByEmailQuery);
     const fetchedAccountByEmail = getAccountByEmailResult[0].rows.item(0);
 
@@ -1302,8 +1302,8 @@ export const updateLocalUserAccount = async ({id, updatedValues, onError}) => {
     last_name = '${updatedValues.last_name}',
     username = '${updatedValues.email}',
     email = '${updatedValues.email}',
-    role_id = ${parseInt(updatedValues.role_id)}
-    WHERE is_root_account = 0 AND id = ${id}
+    role_id = '${parseInt(updatedValues.role_id)}'
+    WHERE is_root_account = 0 AND id = '${id}'
   `;
 
     return await db.executeSql(query);
@@ -1317,7 +1317,7 @@ export const deleteLocalUserAccount = async ({id}) => {
   try {
     const db = await getLocalAccountDBConnection();
 
-    const query = `DELETE FROM accounts WHERE id = ${parseInt(id)}`;
+    const query = `DELETE FROM accounts WHERE id = '${parseInt(id)}'`;
     return db.executeSql(query);
   } catch (error) {
     console.debug(error);

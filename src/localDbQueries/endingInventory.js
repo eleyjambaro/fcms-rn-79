@@ -177,7 +177,7 @@ export const createItemEndingInventoryEntry = async ({
       ON selected_month_added_and_removed.item_id = items.id
 
       JOIN categories ON categories.id = items.category_id
-      WHERE items.id = ${itemId}
+      WHERE items.id = '${itemId}'
     `;
 
     const db = await getDBConnection();

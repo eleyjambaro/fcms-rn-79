@@ -71,7 +71,7 @@ export const createCompany = async ({values, onSuccess, onError}) => {
        * Get created company by id
        */
       const getCompanyQuery = `
-        SELECT * FROM companies WHERE id = ${parseInt(companyId)}      
+        SELECT * FROM companies WHERE id = '${parseInt(companyId)}'      
       `;
       const getCompanyResult = await db.executeSql(getCompanyQuery);
       company = getCompanyResult[0].rows.item(0);
@@ -190,7 +190,7 @@ export const updateCompany = async ({updatedValues, onSuccess}) => {
       company_logo_path = '${companyLogoPath}',
       branch = '${updatedValues.branch.replace(/\'/g, "''")}',
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${company.id}
+      WHERE id = '${company.id}'
     `;
 
     const updateCompanyResult = await db.executeSql(updateCompanyQuery);

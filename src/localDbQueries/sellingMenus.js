@@ -62,7 +62,7 @@ export const isSellingMenuHasSellingMenuItems = async ({queryKey}) => {
   try {
     const db = await getDBConnection();
 
-    const query = `SELECT * FROM selling_menu_items WHERE selling_menu_id = ${sellingMenuId}`;
+    const query = `SELECT * FROM selling_menu_items WHERE selling_menu_id = '${sellingMenuId}'`;
 
     const result = await db.executeSql(query);
 
@@ -112,7 +112,7 @@ export const saveSellingMenu = async ({values, onSuccess}) => {
     if (currentSellingMenuId) {
       // check if selling menu has selling menu items
       let hasSellingMenuItem = false;
-      const isSellingMenuHasSellingMenuItemQuery = `SELECT * FROM selling_menu_items WHERE selling_menu_id = ${currentSellingMenuId}`;
+      const isSellingMenuHasSellingMenuItemQuery = `SELECT * FROM selling_menu_items WHERE selling_menu_id = '${currentSellingMenuId}'`;
       const isSellingMenuHasSellingMenuItemResult = await db.executeSql(
         isSellingMenuHasSellingMenuItemQuery,
       );
@@ -362,7 +362,7 @@ export const getAllSellingMenusWithAllSellingMenuItemsTotal = async ({
 
 export const getSellingMenu = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM selling_menus WHERE id = ${id}`;
+  const query = `SELECT * FROM selling_menus WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -397,8 +397,8 @@ export const updateSellingMenu = async ({id, updatedValues}) => {
 };
 
 export const deleteSellingMenu = async ({id}) => {
-  const deleteRecipeQuery = `UPDATE selling_menus SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
-  const deleteRecipeIngredientsQuery = `UPDATE selling_menu_items SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE selling_menu_id = ${id}`;
+  const deleteRecipeQuery = `UPDATE selling_menus SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
+  const deleteRecipeIngredientsQuery = `UPDATE selling_menu_items SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE selling_menu_id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -415,7 +415,7 @@ export const deleteSellingMenu = async ({id}) => {
 };
 
 export const deleteSellingMenuItems = async ({id}) => {
-  const deleteRecipeIngredientsQuery = `UPDATE selling_menu_items SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE selling_menu_id = ${id}`;
+  const deleteRecipeIngredientsQuery = `UPDATE selling_menu_items SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE selling_menu_id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -449,7 +449,7 @@ export const isUnsavedSellingMenuHasSellingMenuItems = async () => {
     } else {
       // check if selling menu has selling menu items
       let hasSellingMenuItem = false;
-      const isSellingMenuHasSellingMenuItemQuery = `SELECT * FROM selling_menu_items WHERE selling_menu_id = ${currentSellingMenuId}`;
+      const isSellingMenuHasSellingMenuItemQuery = `SELECT * FROM selling_menu_items WHERE selling_menu_id = '${currentSellingMenuId}'`;
       const isSellingMenuHasSellingMenuItemResult = await db.executeSql(
         isSellingMenuHasSellingMenuItemQuery,
       );
@@ -473,13 +473,13 @@ export const isUnsavedSellingMenuHasSellingMenuItems = async () => {
 };
 
 export const createSellingMenuItem = async ({values, sellingMenuId}) => {
-  const getSellingMenuQuery = `SELECT * FROM selling_menus WHERE id = ${parseInt(
+  const getSellingMenuQuery = `SELECT * FROM selling_menus WHERE id = '${parseInt(
     sellingMenuId,
-  )}`;
+  )}'`;
 
-  const getItemQuery = `SELECT * FROM items WHERE id = ${parseInt(
+  const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
     values.item_id,
-  )}`;
+  )}'`;
 
   try {
     const db = await getDBConnection();
@@ -499,7 +499,7 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
     }
 
     const {deviceId, branchId} = await getCloudSyncParams();
-    const getSellingMenuItemQuery = `SELECT * FROM selling_menu_items WHERE item_id = ${item.id} AND selling_menu_id = ${sellingMenu.id};`;
+    const getSellingMenuItemQuery = `SELECT * FROM selling_menu_items WHERE item_id = '${item.id}' AND selling_menu_id = '${sellingMenu.id}';`;
     const createSellingMenuItemQuery = `INSERT INTO selling_menu_items (
       selling_menu_id,
       item_id,
@@ -693,7 +693,7 @@ export const getSellingMenuItemIds = async ({queryKey}) => {
     const recipeIngredientItemIds = [];
 
     const getRecipeIngredientsQuery = `
-      SELECT item_id FROM selling_menu_items WHERE selling_menu_id = ${sellingMenuId};
+      SELECT item_id FROM selling_menu_items WHERE selling_menu_id = '${sellingMenuId}';
     `;
 
     const results = await db.executeSql(getRecipeIngredientsQuery);
@@ -714,7 +714,7 @@ export const getSellingMenuItemIds = async ({queryKey}) => {
 
 export const getSellingMenuItem = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM selling_menu_items WHERE id = ${id};`;
+  const query = `SELECT * FROM selling_menu_items WHERE id = '${id}';`;
 
   try {
     const db = await getDBConnection();
@@ -760,7 +760,7 @@ export const getSellingMenuTotalSellingPrice = async ({queryKey}) => {
       SELECT SUM(modifier_options.option_selling_price * selling_menu_items.in_menu_qty) as totalPrice
       FROM selling_menu_items
       INNER JOIN modifier_options ON modifier_options.id = selling_menu_items.modifier_option_id
-      WHERE selling_menu_items.selling_menu_id = ${sellingMenuId}
+      WHERE selling_menu_items.selling_menu_id = '${sellingMenuId}'
     `;
 
     const result = await db.executeSql(query);

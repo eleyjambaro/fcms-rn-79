@@ -303,7 +303,7 @@ export const updateRevenueGroup = async ({
       SELECT * FROM revenue_groups WHERE name = '${updatedValues.name.replace(
         /\'/g,
         "''",
-      )}' AND id != ${id};
+      )}' AND id != '${id}';
     `;
 
     const getRevenueGroupByNameResult = await db.executeSql(
@@ -330,7 +330,7 @@ export const updateRevenueGroup = async ({
     const updateRevenueGroupQuery = `UPDATE revenue_groups
       SET name = '${updatedValues.name.replace(/\'/g, "''")}',
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
+      WHERE id = '${id}'
     `;
 
     const updateRevenueGroupResult = await db.executeSql(
@@ -342,7 +342,7 @@ export const updateRevenueGroup = async ({
     }
 
     const deleteExistingRevenueCategoriesQuery = `
-      UPDATE revenue_categories SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE revenue_group_id = ${id};
+      UPDATE revenue_categories SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE revenue_group_id = '${id}';
     `;
 
     await db.executeSql(deleteExistingRevenueCategoriesQuery);
@@ -392,8 +392,8 @@ export const updateRevenueGroup = async ({
 };
 
 export const deleteRevenueGroup = async ({id}) => {
-  const deleteRevenueGroupQuery = `UPDATE revenue_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
-  const deleteRevenuesQuery = `UPDATE revenues SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE revenue_group_id = ${id}`;
+  const deleteRevenueGroupQuery = `UPDATE revenue_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
+  const deleteRevenuesQuery = `UPDATE revenues SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE revenue_group_id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -419,7 +419,7 @@ export const createRevenue = async ({values}) => {
     const getCurrentMonthRevenueQuery = `
       SELECT * FROM revenues
       WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${values.revenue_group_date}')
-      AND revenue_group_id = ${values.revenue_group_id}
+      AND revenue_group_id = '${values.revenue_group_id}'
     `;
 
     const {deviceId: revenueDeviceId, branchId: revenueBranchId} =
@@ -467,7 +467,7 @@ export const createRevenue = async ({values}) => {
       UPDATE revenues
       SET amount = ${values.amount},
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${currentMonthRevenue.id}
+      WHERE id = '${currentMonthRevenue.id}'
     `;
 
     await db.executeSql(updateCurrentMonthRevenueQuery);
@@ -480,7 +480,7 @@ export const createRevenue = async ({values}) => {
 
 export const getRevenue = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM revenues WHERE id = ${id}`;
+  const query = `SELECT * FROM revenues WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -499,7 +499,7 @@ export const updateRevenue = async ({id, updatedValues}) => {
   const query = `UPDATE revenues
   SET amount = ${updatedValues.amount},
   updated_at = CURRENT_TIMESTAMP
-  WHERE id = ${id}`;
+  WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -513,7 +513,7 @@ export const updateRevenue = async ({id, updatedValues}) => {
 };
 
 export const deleteRevenue = async ({id}) => {
-  const query = `UPDATE revenues SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+  const query = `UPDATE revenues SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -531,7 +531,7 @@ export const getRevenueCategoryIds = async ({queryKey}) => {
   const getRevenueCategoryIdsQuery = `
     SELECT *
     FROM revenue_categories
-    WHERE revenue_group_id = ${id}
+    WHERE revenue_group_id = '${id}'
   `;
 
   try {
@@ -559,7 +559,7 @@ export const getRevenueCategoryNames = async ({queryKey}) => {
     SELECT *
     FROM revenue_categories
     JOIN categories ON categories.id = revenue_categories.category_id
-    WHERE revenue_group_id = ${id}
+    WHERE revenue_group_id = '${id}'
   `;
 
   try {

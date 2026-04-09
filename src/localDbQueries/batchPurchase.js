@@ -91,9 +91,9 @@ export const getItemsAndBatchPurchaseEntries = async ({
         batch_purchase_groups.id AS batch_purchase_group_id
         FROM batch_purchase_entries
         LEFT JOIN batch_purchase_groups ON batch_purchase_groups.id = batch_purchase_entries.batch_purchase_group_id
-        WHERE batch_purchase_group_id = ${parseInt(
+        WHERE batch_purchase_group_id = '${parseInt(
           currentBatchPurchaseGroupId || 0,
-        )}
+        )}'
       ) AS current_batch_purchase_group_entries
       ON current_batch_purchase_group_entries.item_id = items.id
 
@@ -359,7 +359,7 @@ export const createBatchPurchaseEntry = async ({values}) => {
       }
     }
 
-    const getBatchPurchaseEntryQuery = `SELECT * FROM batch_purchase_entries WHERE item_id = ${values.item_id} AND batch_purchase_group_id = ${currentBatchPurchaseGroupId};`;
+    const getBatchPurchaseEntryQuery = `SELECT * FROM batch_purchase_entries WHERE item_id = '${values.item_id}' AND batch_purchase_group_id = '${currentBatchPurchaseGroupId}';`;
     const createBatchPurchaseEntryQuery = `INSERT INTO batch_purchase_entries (
       batch_purchase_group_id,
       item_id,
@@ -468,9 +468,9 @@ export const hasCurrentBatchPurchaseGroup = async () => {
 
     // Validate batch purchase group
     const getBatchPurchaseGroupQuery = `
-      SELECT * FROM batch_purchase_groups WHERE id = ${parseInt(
+      SELECT * FROM batch_purchase_groups WHERE id = '${parseInt(
         currentBatchPurchaseGroupId,
-      )}
+      )}'
     `;
 
     const getBatchPurchaseGroupResult = await db.executeSql(
@@ -508,9 +508,9 @@ export const getCurrentBatchPurchaseGroupId = async () => {
     if (currentBatchPurchaseGroupId) {
       // Validate batch purchase group id
       const getBatchPurchaseGroupQuery = `
-      SELECT * FROM batch_purchase_groups WHERE id = ${parseInt(
+      SELECT * FROM batch_purchase_groups WHERE id = '${parseInt(
         currentBatchPurchaseGroupId,
-      )}
+      )}'
     `;
 
       const getBatchPurchaseGroupResult = await db.executeSql(
@@ -686,7 +686,7 @@ export const confirmBatchPurchaseEntries = async ({
       FROM batch_purchase_entries
       INNER JOIN items ON items.id = batch_purchase_entries.item_id
       LEFT JOIN taxes ON taxes.id = batch_purchase_entries.tax_id
-      WHERE batch_purchase_group_id = ${currentBatchPurchaseGroupId};
+      WHERE batch_purchase_group_id = '${currentBatchPurchaseGroupId}';
     `;
 
     const getAllCurrentBatchPurchaseEntriesResults = await db.executeSql(
@@ -1013,7 +1013,7 @@ export const getBatchPurchaseGroupGrandTotal = async ({queryKey}) => {
 
 export const getBatchPurchaseGroup = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM batch_purchase_groups WHERE id = ${id}`;
+  const query = `SELECT * FROM batch_purchase_groups WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -1141,13 +1141,13 @@ export const deleteUnconfirmedBatchPurchaseGroupsAndEntries = async () => {
       ?.map(value => `${value}`)
       ?.join(
         ', ',
-      )}) AND batch_purchase_group_id != ${currentBatchPurchaseGroupId}`;
+      )}) AND batch_purchase_group_id != '${currentBatchPurchaseGroupId}'`;
 
     await db.executeSql(deleteUnconfirmedBatchPurchaseEntries);
 
     const deleteUnconfirmedBatchPurchaseGroups = `UPDATE batch_purchase_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id IN (${unconfirmedBatchPurchaseGroupIds
       ?.map(value => `${value}`)
-      ?.join(', ')}) AND id != ${currentBatchPurchaseGroupId}`;
+      ?.join(', ')}) AND id != '${currentBatchPurchaseGroupId}'`;
 
     await db.executeSql(deleteUnconfirmedBatchPurchaseGroups);
   } catch (error) {

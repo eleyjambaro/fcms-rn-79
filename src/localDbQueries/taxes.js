@@ -106,7 +106,7 @@ export const getTaxes = async ({queryKey, pageParam = 1}) => {
 
 export const getTax = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM taxes WHERE id = ${id}`;
+  const query = `SELECT * FROM taxes WHERE id = '${id}'`;
 
   if (!id) {
     return {
@@ -132,7 +132,7 @@ export const updateTax = async ({id, updatedValues}) => {
   SET name = '${updatedValues.name.replace(/\'/g, "''")}',
   rate_percentage = '${parseFloat(updatedValues.rate_percentage || 0)}',
   is_app_default = '${parseInt(updatedValues.is_app_default || 0)}'
-  WHERE id = ${id}`;
+  WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -145,7 +145,7 @@ export const updateTax = async ({id, updatedValues}) => {
 };
 
 export const deleteTax = async ({id}) => {
-  const query = `DELETE FROM taxes WHERE id = ${id}`;
+  const query = `DELETE FROM taxes WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
