@@ -1,6 +1,7 @@
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {appVersion} from '../constants/appConfig';
+import uuid from 'react-native-uuid';
 
 export const appStorageKeySeperator = '_app_version_';
 
@@ -52,14 +53,17 @@ export const handleNewAppVersion = async ({onNewVersionDetected}) => {
        * Save installed app version as latest version
        */
       const {deviceId, branchId} = await getCloudSyncParams();
+      const newId = uuid.v4();
       const saveVersionQuery = `
         INSERT INTO app_versions (
+          id,
           version,
           device_id,
           branch_id
         )
 
         VALUES(
+          '${newId}',
           '${installedAppVersion}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'}
@@ -115,7 +119,7 @@ export const deleteAllPreviousAppVersions = async () => {
       return;
     }
 
-    const deleteAllPreviousAppVersionsQuery = `DELETE FROM app_versions WHERE id != ${latestVersion?.id}`;
+    const deleteAllPreviousAppVersionsQuery = `DELETE FROM app_versions WHERE id != '${latestVersion?.id}'`;
 
     await db.executeSql(deleteAllPreviousAppVersionsQuery);
   } catch (error) {
