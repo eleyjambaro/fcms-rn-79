@@ -16,6 +16,7 @@
 
 import {getDBConnection, getCloudSyncParams} from '../localDb/index';
 import {pushDelta, pullDelta} from '../serverDbQueries/v2/sync';
+import {queryClient} from '../queryClient';
 
 // ---------------------------------------------------------------------------
 // Entity configuration
@@ -163,14 +164,17 @@ const applyPulledRecord = async (db, tableName, record) => {
   );
 
   if (existing.rows.length === 0) {
-    // Insert new record from server
-    const columns = ['sync_id', 'synced_at', ...Object.keys(fields)].join(', ');
-    const placeholders = Array(Object.keys(fields).length + 2)
+    // Insert new record from server.
+    // Local tables use `id TEXT PRIMARY KEY NOT NULL` where id === sync_id
+    // (both are the same client-generated UUID). We must supply `id` explicitly
+    // or SQLite silently drops the row (INSERT OR IGNORE absorbs NOT NULL failures).
+    const columns = ['id', 'sync_id', 'synced_at', ...Object.keys(fields)].join(', ');
+    const placeholders = Array(Object.keys(fields).length + 3)
       .fill('?')
       .join(', ');
     await db.executeSql(
       `INSERT OR IGNORE INTO ${tableName} (${columns}) VALUES (${placeholders})`,
-      [sync_id, fields.updated_at ?? null, ...Object.values(fields)],
+      [sync_id, sync_id, fields.updated_at ?? null, ...Object.values(fields)],
     );
   } else {
     const localRow = existing.rows.item(0);
@@ -340,6 +344,12 @@ export const runSync = async () => {
         if (pulled_at) {
           await updateSyncMetadata(db, key, {lastPulledAt: pulled_at});
         }
+      }
+
+      // If any records were pulled into SQLite, invalidate all React Query caches
+      // so that currently-rendered screens refetch their data and show the new records.
+      if (Object.keys(result.pulled).length > 0) {
+        queryClient.invalidateQueries();
       }
     } catch (err) {
       result.errors.push(`Pull failed: ${err.message}`);

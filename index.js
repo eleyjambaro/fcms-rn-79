@@ -16,7 +16,8 @@ import {
 } from '@react-navigation/native';
 import {navigationRef} from './RootNavigation'; // see: https://reactnavigation.org/docs/navigating-without-navigation-prop/
 import merge from 'deepmerge';
-import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
+import {QueryClientProvider} from '@tanstack/react-query';
+import {queryClient} from './src/queryClient';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {BottomSheetModalProvider} from '@gorhom/bottom-sheet';
 import {gestureHandlerRootHOC} from 'react-native-gesture-handler';
@@ -105,23 +106,7 @@ const CombinedDarkTheme = {
   },
 };
 
-// Create a query client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      networkMode: 'online',
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-      retry: 1,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-    },
-    mutations: {
-      networkMode: 'online',
-      retry: 1,
-    },
-  },
-});
+// queryClient is imported from src/queryClient.js (singleton shared with syncService)
 
 export default function Main() {
   const isDarkTheme = useColorScheme() === 'dark' ? true : false;
