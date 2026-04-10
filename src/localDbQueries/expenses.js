@@ -429,7 +429,7 @@ export const createMonthlyExpense = async ({values}) => {
 
     VALUES(
       '${newMonthlyExpenseId}',
-      ${parseInt(values.expense_group_id)},
+      '${values.expense_group_id}',
       '${values.name?.replace(/\'/g, "''")}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
