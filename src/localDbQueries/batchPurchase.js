@@ -1,6 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
-import {getDBConnection, getCloudSyncParams, OPERATION_DEFAULT_UUIDS} from '../localDb';
+import {
+  getDBConnection,
+  getCloudSyncParams,
+  OPERATION_DEFAULT_UUIDS,
+} from '../localDb';
 import {
   createQueryFilter,
   isMutationDisabled,
@@ -91,9 +95,7 @@ export const getItemsAndBatchPurchaseEntries = async ({
         batch_purchase_groups.id AS batch_purchase_group_id
         FROM batch_purchase_entries
         LEFT JOIN batch_purchase_groups ON batch_purchase_groups.id = batch_purchase_entries.batch_purchase_group_id
-        WHERE batch_purchase_group_id = '${parseInt(
-          currentBatchPurchaseGroupId || 0,
-        )}'
+        WHERE batch_purchase_group_id = '${currentBatchPurchaseGroupId || 0}'
       ) AS current_batch_purchase_group_entries
       ON current_batch_purchase_group_entries.item_id = items.id
 
@@ -470,9 +472,7 @@ export const hasCurrentBatchPurchaseGroup = async () => {
 
     // Validate batch purchase group
     const getBatchPurchaseGroupQuery = `
-      SELECT * FROM batch_purchase_groups WHERE id = '${parseInt(
-        currentBatchPurchaseGroupId,
-      )}'
+      SELECT * FROM batch_purchase_groups WHERE id = '${currentBatchPurchaseGroupId}'
     `;
 
     const getBatchPurchaseGroupResult = await db.executeSql(
@@ -510,9 +510,7 @@ export const getCurrentBatchPurchaseGroupId = async () => {
     if (currentBatchPurchaseGroupId) {
       // Validate batch purchase group id
       const getBatchPurchaseGroupQuery = `
-      SELECT * FROM batch_purchase_groups WHERE id = '${parseInt(
-        currentBatchPurchaseGroupId,
-      )}'
+      SELECT * FROM batch_purchase_groups WHERE id = '${currentBatchPurchaseGroupId}'
     `;
 
       const getBatchPurchaseGroupResult = await db.executeSql(
@@ -584,10 +582,7 @@ export const getCurrentBatchPurchaseGroupId = async () => {
 
         if (createBatchPurchaseGroupResult[0].rowsAffected > 0) {
           // Set created batch purchase group's id as current batch purchase group id
-          await AsyncStorage.setItem(
-            'currentBatchPurchaseGroupId',
-            newBpgId,
-          );
+          await AsyncStorage.setItem('currentBatchPurchaseGroupId', newBpgId);
 
           return newBpgId;
         } else {
@@ -1106,16 +1101,15 @@ export const deleteUnconfirmedBatchPurchaseGroupsAndEntries = async () => {
   try {
     const db = await getDBConnection();
 
-    let currentBatchPurchaseGroupId = 0;
+    let currentBatchPurchaseGroupId = null;
 
     // Get the current existing unconfirmed Batch Purchase Group
     const currentBatchPurchaseGroupIdStringValue = await AsyncStorage.getItem(
       'currentBatchPurchaseGroupId',
     );
 
-    currentBatchPurchaseGroupId = parseInt(
-      currentBatchPurchaseGroupIdStringValue || 0,
-    );
+    currentBatchPurchaseGroupId =
+      currentBatchPurchaseGroupIdStringValue || null;
 
     /**
      * Get all unconfirmed batch purchase groups
