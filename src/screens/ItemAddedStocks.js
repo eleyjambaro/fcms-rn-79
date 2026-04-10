@@ -82,7 +82,7 @@ const ItemAddedStocks = props => {
     'items.category_id': '',
     'items.id': itemId,
     'operations.id': '',
-    'operations.type': `'add_stock'`,
+    'operations.type': 'add_stock',
   });
 
   const adjustmentTypeOptions = [
