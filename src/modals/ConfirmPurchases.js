@@ -63,6 +63,7 @@ const ConfirmPurchases = props => {
   const {route} = props;
   const currentBatchPurchaseGroupId =
     route.params?.current_batch_purchase_group_id;
+  const initialVendorId = route.params?.vendor_id || '';
   const {colors} = useTheme();
   const currencySymbol = useCurrencySymbol();
   const navigation = useNavigation();
@@ -255,7 +256,7 @@ const ConfirmPurchases = props => {
 
   const {setFormikActions} = useItemFormContext();
 
-  const [vendorId, setVendorId] = useState(null);
+  const [vendorId, setVendorId] = useState(initialVendorId || null);
   const {
     status: getVendorStatus,
     data: getVendorData,
@@ -338,7 +339,7 @@ const ConfirmPurchases = props => {
       />
       <Formik
         initialValues={{
-          vendor_id: '',
+          vendor_id: initialVendorId,
           official_receipt_number: '',
         }}
         onSubmit={handleConfirm}

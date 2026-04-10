@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import {StyleSheet, Text, View, FlatList, RefreshControl} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
-import {Button, useTheme} from 'react-native-paper';
+import {ActivityIndicator, Button, Subheading, useTheme} from 'react-native-paper';
 import {
   useInfiniteQuery,
   useQuery,
@@ -21,7 +21,10 @@ import {
   hasCurrentBatchPurchaseGroup,
   getBatchPurchaseEntriesCount,
 } from '../../localDbQueries/batchPurchase';
+import {getVendor} from '../../localDbQueries/vendors';
 import ListEmpty from '../stateIndicators/ListEmpty';
+import MoreSelectionButton from '../buttons/MoreSelectionButton';
+import useItemFormContext from '../../hooks/useItemFormContext';
 
 const PurchaseList = props => {
   const {
@@ -36,7 +39,13 @@ const PurchaseList = props => {
   } = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {setFormikActions} = useItemFormContext();
   const [focusedItem, setFocusedItem] = useState(null);
+  const [vendorId, setVendorId] = useState(null);
+  const {
+    status: getVendorStatus,
+    data: getVendorData,
+  } = useQuery(['vendor', {id: vendorId}], getVendor);
   const {
     data,
     fetchNextPage,
@@ -81,6 +90,33 @@ const PurchaseList = props => {
     ['batchPurchaseEntriesCount', {currentBatchPurchaseGroupId}],
     getBatchPurchaseEntriesCount,
   );
+
+  const renderVendorValue = (status, data, props) => {
+    if (!vendorId || vendorId === '0') return null;
+
+    if (status === 'loading') {
+      return (
+        <ActivityIndicator
+          animating={true}
+          color={colors.primary}
+          style={{marginRight: 5}}
+          size="small"
+        />
+      );
+    }
+
+    if (status === 'error') {
+      return <Subheading style={props.style}>Something went wrong</Subheading>;
+    }
+
+    if (!data || !data.result) return null;
+
+    return (
+      <Subheading {...props}>
+        {props?.trimTextLength(`${data.result?.vendor_display_name}`)}
+      </Subheading>
+    );
+  };
 
   const loadMore = () => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -204,6 +240,33 @@ const PurchaseList = props => {
 
       {renderCategoryGrandTotal()}
       {renderGrandTotal()}
+      <MoreSelectionButton
+        placeholder="Select Vendor"
+        label="Vendor"
+        renderValueCurrentValue={vendorId}
+        renderValue={(_value, renderingValueProps) =>
+          renderVendorValue(getVendorStatus, getVendorData, renderingValueProps)
+        }
+        onChangeValue={currentValue => {
+          setVendorId(currentValue);
+        }}
+        onPress={() => {
+          setFormikActions(() => ({
+            setFieldValue: (key, value) => {
+              if (key === 'vendor_id') {
+                setVendorId(value);
+              }
+            },
+            setFieldTouched: () => {},
+            setFieldError: () => {},
+          }));
+          navigation.navigate(routes.itemVendor(), {
+            vendor_id: vendorId,
+            vendor_id_field_key: 'vendor_id',
+            is_vendor_id_required: false,
+          });
+        }}
+      />
       <View
         style={{
           backgroundColor: 'white',
@@ -211,10 +274,11 @@ const PurchaseList = props => {
         }}>
         <Button
           mode="contained"
-          disabled={!currentBatchPurchaseGroupId || purchaseEntriesCount < 1}
+          disabled={!currentBatchPurchaseGroupId || purchaseEntriesCount < 1 || !vendorId}
           onPress={() => {
             navigation.navigate(routes.confirmPurchases(), {
               current_batch_purchase_group_id: currentBatchPurchaseGroupId,
+              vendor_id: vendorId,
             });
           }}>
           {'Confirm Purchase' + purchaseEntriesCount}
