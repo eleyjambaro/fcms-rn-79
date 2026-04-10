@@ -1085,12 +1085,12 @@ export const insertTemplateDataToDb = async ({
         let item = notExistingItems[index];
 
         const categoryId = categoriesIdMap[item.category_name.toLowerCase()]
-          ? parseInt(categoriesIdMap[item.category_name.toLowerCase()])
+          ? categoriesIdMap[item.category_name.toLowerCase()]
           : 'null';
 
         const taxId =
           item.tax_name && taxesIdMap[item.tax_name.toLowerCase()]
-            ? parseInt(taxesIdMap[item.tax_name.toLowerCase()])
+            ? taxesIdMap[item.tax_name.toLowerCase()]
             : 'null';
         const taxName = item.tax_name
           ? `'${item.tax_name.replace(/\'/g, "''")}'`
@@ -1102,7 +1102,7 @@ export const insertTemplateDataToDb = async ({
 
         const vendorId =
           item.vendor_name && vendorsIdMap[item.vendor_name.toLowerCase()]
-            ? parseInt(vendorsIdMap[item.vendor_name.toLowerCase()])
+            ? vendorsIdMap[item.vendor_name.toLowerCase()]
             : 'null';
         const vendorName = item.vendor_name
           ? `'${item.vendor_name.replace(/\'/g, "''")}'`
@@ -1253,16 +1253,16 @@ export const insertTemplateDataToDb = async ({
         let item = notExistingItems[index];
 
         const itemId = insertedItemsIdMap[item.item_name.toLowerCase()]
-          ? parseInt(insertedItemsIdMap[item.item_name.toLowerCase()])
+          ? insertedItemsIdMap[item.item_name.toLowerCase()]
           : 'null';
 
         const categoryId = categoriesIdMap[item.category_name.toLowerCase()]
-          ? parseInt(categoriesIdMap[item.category_name.toLowerCase()])
+          ? categoriesIdMap[item.category_name.toLowerCase()]
           : 'null';
 
         const taxId =
           item.tax_name && taxesIdMap[item.tax_name.toLowerCase()]
-            ? parseInt(taxesIdMap[item.tax_name.toLowerCase()])
+            ? taxesIdMap[item.tax_name.toLowerCase()]
             : 'null';
         const taxName = item.tax_name
           ? `'${item.tax_name.replace(/\'/g, "''")}'`
@@ -1274,7 +1274,7 @@ export const insertTemplateDataToDb = async ({
 
         const vendorId =
           item.vendor_name && vendorsIdMap[item.vendor_name.toLowerCase()]
-            ? parseInt(vendorsIdMap[item.vendor_name.toLowerCase()])
+            ? vendorsIdMap[item.vendor_name.toLowerCase()]
             : 'null';
         const vendorName = item.vendor_name
           ? `'${item.vendor_name.replace(/\'/g, "''")}'`
