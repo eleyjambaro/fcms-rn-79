@@ -361,6 +361,7 @@ export const createBatchPurchaseEntry = async ({values}) => {
 
     const getBatchPurchaseEntryQuery = `SELECT * FROM batch_purchase_entries WHERE item_id = '${values.item_id}' AND batch_purchase_group_id = '${currentBatchPurchaseGroupId}';`;
     const createBatchPurchaseEntryQuery = `INSERT INTO batch_purchase_entries (
+      id,
       batch_purchase_group_id,
       item_id,
       tax_id,
@@ -373,6 +374,7 @@ export const createBatchPurchaseEntry = async ({values}) => {
     )
 
     VALUES(
+      '${uuid.v4()}',
       '${currentBatchPurchaseGroupId}',
       '${values.item_id}',
       ${values.tax_id ? `'${values.tax_id}'` : 'null'},
