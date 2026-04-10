@@ -86,6 +86,9 @@ export const getSettings = async ({queryKey}) => {
       resultMap: settingsMap,
     };
   } catch (error) {
+    if (error?.message?.includes('no such table')) {
+      return {result: [], resultMap: {}};
+    }
     console.debug(error);
     throw Error('Failed to fetch settings.');
   }
@@ -195,6 +198,9 @@ export const getAllSettings = async ({queryKey}) => {
       resultMap: settingsMap,
     };
   } catch (error) {
+    if (error?.message?.includes('no such table')) {
+      return {result: [], resultMap: {}};
+    }
     console.debug(error);
     throw Error('Failed to fetch all settings.');
   }
