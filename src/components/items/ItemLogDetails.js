@@ -28,7 +28,6 @@ import {getVendor} from '../../localDbQueries/vendors';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
 import DashedDivider from '../dividers/DashedDivider';
-import appDefaults from '../../constants/appDefaults';
 
 const ItemLogDetails = props => {
   const {log, containerStyle, onPressItemOptions, onPressEditRemarks} = props;
@@ -316,9 +315,7 @@ const ItemLogDetails = props => {
           }}>
           <View style={{flex: 1}}>
             <Headline numberOfLines={3} style={{marginRight: 10}}>
-              {log.operation_code === OPERATION_CODES.PRE_APP_STOCK
-                ? `Pre-${appDefaults.appDisplayName} Stock`
-                : log.operation_name}
+              {log.operation_name}
             </Headline>
             <Subheading
               onPress={() =>
@@ -399,20 +396,22 @@ const ItemLogDetails = props => {
             </Subheading>
           </View>
 
-          <View style={[styles.detailsListItem]}>
-            <Text
-              style={{
-                fontWeight: 'bold',
-              }}>{`Total Amount (Tax Inclusive):`}</Text>
-            <Text
-              style={{
-                marginLeft: 7,
-                fontWeight: 'bold',
-                color: colors.dark,
-              }}>
-              {`${currencySymbol} ${commaNumber(grossPrice.toFixed(2))}`}
-            </Text>
-          </View>
+          {log.operation_type === 'add_stock' && (
+            <View style={[styles.detailsListItem]}>
+              <Text
+                style={{
+                  fontWeight: 'bold',
+                }}>{`Total Amount (Tax Inclusive):`}</Text>
+              <Text
+                style={{
+                  marginLeft: 7,
+                  fontWeight: 'bold',
+                  color: colors.dark,
+                }}>
+                {`${currencySymbol} ${commaNumber(grossPrice.toFixed(2))}`}
+              </Text>
+            </View>
+          )}
           <View style={[styles.detailsListItem]}>
             <Text style={{fontWeight: 'bold'}}>{`Total Amount (Net):`}</Text>
             <Text
@@ -461,27 +460,33 @@ const ItemLogDetails = props => {
             </>
           )}
 
-          <DashedDivider containerStyle={{marginHorizontal: 15}} />
+          {log.operation_type === 'add_stock' && (
+            <>
+              <DashedDivider containerStyle={{marginHorizontal: 15}} />
 
-          <View style={[styles.detailsListItem]}>
-            <Text
-              style={{fontWeight: 'bold'}}>{`Unit Cost (Tax Inclusive):`}</Text>
-            <Text
-              style={{
-                marginLeft: 7,
-                fontWeight: 'bold',
-                color: colors.dark,
-              }}>
-              {`${currencySymbol} ${commaNumber(unitCost.toFixed(2))}`}
-            </Text>
-            <Text
-              style={{
-                marginLeft: 5,
-                color: colors.dark,
-              }}>
-              {`/ ${formatUOMAbbrev(log.item_uom_abbrev)}`}
-            </Text>
-          </View>
+              <View style={[styles.detailsListItem]}>
+                <Text
+                  style={{
+                    fontWeight: 'bold',
+                  }}>{`Unit Cost (Tax Inclusive):`}</Text>
+                <Text
+                  style={{
+                    marginLeft: 7,
+                    fontWeight: 'bold',
+                    color: colors.dark,
+                  }}>
+                  {`${currencySymbol} ${commaNumber(unitCost.toFixed(2))}`}
+                </Text>
+                <Text
+                  style={{
+                    marginLeft: 5,
+                    color: colors.dark,
+                  }}>
+                  {`/ ${formatUOMAbbrev(log.item_uom_abbrev)}`}
+                </Text>
+              </View>
+            </>
+          )}
           <View style={[styles.detailsListItem]}>
             <Text style={{fontWeight: 'bold'}}>{`Unit Cost (Net):`}</Text>
             <Text
@@ -505,7 +510,9 @@ const ItemLogDetails = props => {
 
           <View style={[styles.detailsListItem]}>
             <Text style={{fontWeight: 'bold'}}>
-              {log.operation_code === OPERATION_CODES.PRE_APP_STOCK ? 'Beginning Inventory Date:' : 'Date:'}
+              {log.operation_code === OPERATION_CODES.PRE_APP_STOCK
+                ? 'Beginning Inventory Date:'
+                : 'Date:'}
             </Text>
             {renderDate()}
           </View>
