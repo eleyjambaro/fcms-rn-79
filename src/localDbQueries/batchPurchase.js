@@ -781,7 +781,7 @@ export const confirmBatchPurchaseEntries = async ({
 
         // tmp values
         tmpValues += `(
-          ${batchPurchaseEntry.item_id},
+          '${batchPurchaseEntry.item_id}',
           ${unitCost}
         )`;
 
