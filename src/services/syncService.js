@@ -36,14 +36,13 @@ import uuid from 'react-native-uuid';
 const GROUP_A_ENTITIES = [
   // Catalog / master data
   {key: 'categories', table: 'categories'},
-  {key: 'taxes', table: 'taxes'},
   {key: 'vendors', table: 'vendors'},
   {
     key: 'vendor_contact_persons',
     table: 'vendor_contact_persons',
     pushFieldMap: {vendor_id: 'vendor_sync_id'},
   },
-  {key: 'operations', table: 'operations'},
+  // Note: `taxes` and `operations` are excluded from delta sync (no sync_id column)
   {key: 'recipe_kinds', table: 'recipe_kinds'},
   {
     key: 'recipes',
