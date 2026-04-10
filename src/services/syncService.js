@@ -17,6 +17,7 @@
 import {getDBConnection, getCloudSyncParams} from '../localDb/index';
 import {pushDelta, pullDelta} from '../serverDbQueries/v2/sync';
 import {queryClient} from '../queryClient';
+import uuid from 'react-native-uuid';
 
 // ---------------------------------------------------------------------------
 // Entity configuration
@@ -27,41 +28,163 @@ import {queryClient} from '../queryClient';
  * All entities are here because every device in a branch both writes to and
  * needs to receive changes from other devices. Unique device-generated sync_ids
  * mean cross-device inserts never conflict.
+ *
+ * `pushFieldMap` — maps local SQLite column names to the server-side field names
+ * for FK columns. Local tables use `*_id` suffix; server expects `*_sync_id`.
+ * Only FK columns that reference other sync-able entities need to be listed here.
  */
 const GROUP_A_ENTITIES = [
   // Catalog / master data
   {key: 'categories', table: 'categories'},
   {key: 'taxes', table: 'taxes'},
   {key: 'vendors', table: 'vendors'},
-  {key: 'vendor_contact_persons', table: 'vendor_contact_persons'},
+  {
+    key: 'vendor_contact_persons',
+    table: 'vendor_contact_persons',
+    pushFieldMap: {vendor_id: 'vendor_sync_id'},
+  },
   {key: 'operations', table: 'operations'},
   {key: 'recipe_kinds', table: 'recipe_kinds'},
-  {key: 'recipes', table: 'recipes'},
-  {key: 'ingredients', table: 'ingredients'},
-  {key: 'items', table: 'items'},
-  {key: 'modifiers', table: 'modifiers'},
-  {key: 'modifier_options', table: 'modifier_options'},
+  {
+    key: 'recipes',
+    table: 'recipes',
+    pushFieldMap: {recipe_kind_id: 'recipe_kind_sync_id'},
+  },
+  {
+    key: 'ingredients',
+    table: 'ingredients',
+    pushFieldMap: {recipe_id: 'recipe_sync_id', item_id: 'item_sync_id'},
+  },
+  {
+    key: 'items',
+    table: 'items',
+    pushFieldMap: {
+      category_id: 'category_sync_id',
+      recipe_id: 'recipe_sync_id',
+      sub_recipe_id: 'sub_recipe_sync_id',
+      tax_id: 'tax_sync_id',
+      preferred_vendor_id: 'preferred_vendor_sync_id',
+    },
+  },
+  {
+    key: 'modifiers',
+    table: 'modifiers',
+    pushFieldMap: {item_id: 'item_sync_id'},
+  },
+  {
+    key: 'modifier_options',
+    table: 'modifier_options',
+    pushFieldMap: {modifier_id: 'modifier_sync_id'},
+  },
   {key: 'selling_menus', table: 'selling_menus'},
-  {key: 'selling_menu_items', table: 'selling_menu_items'},
+  {
+    key: 'selling_menu_items',
+    table: 'selling_menu_items',
+    pushFieldMap: {
+      selling_menu_id: 'selling_menu_sync_id',
+      item_id: 'item_sync_id',
+      modifier_option_id: 'modifier_option_sync_id',
+    },
+  },
   // Transaction / operational data
   {key: 'batch_purchase_groups', table: 'batch_purchase_groups'},
-  {key: 'batch_purchase_entries', table: 'batch_purchase_entries'},
+  {
+    key: 'batch_purchase_entries',
+    table: 'batch_purchase_entries',
+    pushFieldMap: {
+      batch_purchase_group_id: 'batch_purchase_group_sync_id',
+      item_id: 'item_sync_id',
+      tax_id: 'tax_sync_id',
+      vendor_id: 'vendor_sync_id',
+    },
+  },
   {key: 'batch_stock_usage_groups', table: 'batch_stock_usage_groups'},
-  {key: 'batch_stock_usage_entries', table: 'batch_stock_usage_entries'},
+  {
+    key: 'batch_stock_usage_entries',
+    table: 'batch_stock_usage_entries',
+    pushFieldMap: {
+      batch_stock_usage_group_id: 'batch_stock_usage_group_sync_id',
+      item_id: 'item_sync_id',
+    },
+  },
   {key: 'revenue_groups', table: 'revenue_groups'},
-  {key: 'revenues', table: 'revenues'},
+  {
+    key: 'revenues',
+    table: 'revenues',
+    pushFieldMap: {revenue_group_id: 'revenue_group_sync_id'},
+  },
   {key: 'expense_groups', table: 'expense_groups'},
-  {key: 'expenses', table: 'expenses'},
-  {key: 'revenue_deductions', table: 'revenue_deductions'},
-  {key: 'revenue_categories', table: 'revenue_categories'},
-  {key: 'spoilages', table: 'spoilages'},
+  {
+    key: 'expenses',
+    table: 'expenses',
+    pushFieldMap: {expense_group_id: 'expense_group_sync_id'},
+  },
+  {
+    key: 'revenue_deductions',
+    table: 'revenue_deductions',
+    pushFieldMap: {
+      revenue_group_id: 'revenue_group_sync_id',
+      expense_id: 'expense_sync_id',
+    },
+  },
+  {
+    key: 'revenue_categories',
+    table: 'revenue_categories',
+    pushFieldMap: {
+      revenue_group_id: 'revenue_group_sync_id',
+      category_id: 'category_sync_id',
+    },
+  },
+  {
+    key: 'spoilages',
+    table: 'spoilages',
+    pushFieldMap: {item_id: 'item_sync_id'},
+  },
   {key: 'sales_order_groups', table: 'sales_order_groups'},
-  {key: 'invoices', table: 'invoices'},
-  {key: 'sale_logs', table: 'sale_logs'},
-  {key: 'sales_orders', table: 'sales_orders'},
-  {key: 'refunds', table: 'refunds'},
-  {key: 'payments', table: 'payments'},
-  {key: 'inventory_logs', table: 'inventory_logs'},
+  {
+    key: 'invoices',
+    table: 'invoices',
+    pushFieldMap: {sales_order_group_id: 'sales_order_group_sync_id'},
+  },
+  {
+    key: 'sale_logs',
+    table: 'sale_logs',
+    pushFieldMap: {
+      invoice_id: 'invoice_sync_id',
+      item_id: 'item_sync_id',
+      refund_id: 'refund_sync_id',
+    },
+  },
+  {
+    key: 'sales_orders',
+    table: 'sales_orders',
+    pushFieldMap: {
+      invoice_id: 'invoice_sync_id',
+      sales_order_group_id: 'sales_order_group_sync_id',
+      item_id: 'item_sync_id',
+    },
+  },
+  {
+    key: 'refunds',
+    table: 'refunds',
+    pushFieldMap: {sale_log_id: 'sale_log_sync_id'},
+  },
+  {
+    key: 'payments',
+    table: 'payments',
+    pushFieldMap: {invoice_id: 'invoice_sync_id'},
+  },
+  {
+    key: 'inventory_logs',
+    table: 'inventory_logs',
+    pushFieldMap: {
+      operation_id: 'operation_sync_id',
+      item_id: 'item_sync_id',
+      recipe_id: 'recipe_sync_id',
+      batch_purchase_group_id: 'batch_purchase_group_sync_id',
+      invoice_id: 'invoice_sync_id',
+    },
+  },
 ];
 
 /**
@@ -121,9 +244,9 @@ const updateSyncMetadata = async (
 
   if (existing[0].rows.length === 0) {
     await db.executeSql(
-      `INSERT INTO sync_metadata (entity_type, last_pushed_at, last_pulled_at)
-       VALUES (?, ?, ?)`,
-      [entityType, lastPushedAt ?? null, lastPulledAt ?? null],
+      `INSERT INTO sync_metadata (id, entity_type, last_pushed_at, last_pulled_at)
+       VALUES (?, ?, ?, ?)`,
+      [uuid.v4(), entityType, lastPushedAt ?? null, lastPulledAt ?? null],
     );
   } else {
     const updates = [];
@@ -177,14 +300,29 @@ const applyPulledRecord = async (db, tableName, record) => {
     // Local tables use `id TEXT PRIMARY KEY NOT NULL` where id === sync_id
     // (both are the same client-generated UUID). We must supply `id` explicitly
     // or SQLite silently drops the row (INSERT OR IGNORE absorbs NOT NULL failures).
-    const columns = ['id', 'sync_id', 'synced_at', ...Object.keys(fields)].join(', ');
+    const columns = ['id', 'sync_id', 'synced_at', ...Object.keys(fields)].join(
+      ', ',
+    );
     const placeholders = Array(Object.keys(fields).length + 3)
       .fill('?')
       .join(', ');
-    await db.executeSql(
-      `INSERT OR IGNORE INTO ${tableName} (${columns}) VALUES (${placeholders})`,
-      [sync_id, sync_id, fields.updated_at ?? null, ...Object.values(fields)],
+    console.debug(
+      `[sync] INSERT ${tableName} sync_id=${sync_id} cols=[${columns}]`,
     );
+    try {
+      await db.executeSql(
+        `INSERT OR IGNORE INTO ${tableName} (${columns}) VALUES (${placeholders})`,
+        [sync_id, sync_id, fields.updated_at ?? null, ...Object.values(fields)],
+      );
+    } catch (insertErr) {
+      console.warn(
+        `[sync] INSERT failed for ${tableName} sync_id=${sync_id}:`,
+        insertErr?.message ?? insertErr,
+        '| columns:',
+        columns,
+      );
+      throw insertErr;
+    }
   } else {
     const localRow = existing.rows.item(0);
     // Only overwrite if server record is newer
@@ -269,11 +407,28 @@ export const runSync = async () => {
 
     // ---- Phase 1: Collect delta ----
     const delta = {};
-    for (const {key, table} of ALL_PUSH_ENTITIES) {
+    for (const {key, table, pushFieldMap} of ALL_PUSH_ENTITIES) {
       try {
         const rows = await collectUnsynced(db, table);
         if (rows.length > 0) {
-          delta[key] = rows;
+          // Remap local *_id FK column names to the server-expected *_sync_id names
+          // so the server's array_intersect_key picks them up correctly.
+          delta[key] = pushFieldMap
+            ? rows.map(row => {
+                const remapped = {...row};
+                for (const [localField, serverField] of Object.entries(
+                  pushFieldMap,
+                )) {
+                  if (
+                    Object.prototype.hasOwnProperty.call(remapped, localField)
+                  ) {
+                    remapped[serverField] = remapped[localField];
+                    delete remapped[localField];
+                  }
+                }
+                return remapped;
+              })
+            : rows;
         }
       } catch (err) {
         result.errors.push(`Collect failed for ${table}: ${err.message}`);
@@ -336,6 +491,22 @@ export const runSync = async () => {
 
       const {pulled_at, delta: pulledDelta = {}} = pullResponse?.data ?? {};
 
+      // Log what the server returned so we can diagnose missing entities.
+      const pulledCounts = Object.fromEntries(
+        Object.entries(pulledDelta).map(([k, v]) => [
+          k,
+          Array.isArray(v) ? v.length : v,
+        ]),
+      );
+      console.debug(
+        '[sync] pull response entities:',
+        JSON.stringify(pulledCounts),
+        '| since:',
+        since,
+        '| isInitialPull:',
+        isInitialPull,
+      );
+
       for (const {key, table} of GROUP_A_ENTITIES) {
         const records = pulledDelta[key] ?? [];
         for (const record of records) {
@@ -351,7 +522,13 @@ export const runSync = async () => {
           result.pulled[key] = records.length;
         }
         if (pulled_at) {
-          await updateSyncMetadata(db, key, {lastPulledAt: pulled_at});
+          try {
+            await updateSyncMetadata(db, key, {lastPulledAt: pulled_at});
+          } catch (err) {
+            result.errors.push(
+              `Update watermark failed for ${key}: ${err.message}`,
+            );
+          }
         }
       }
 
@@ -367,5 +544,13 @@ export const runSync = async () => {
     syncInProgress = false;
   }
 
+  console.debug(
+    '[sync] runSync complete. pushed:',
+    JSON.stringify(result.pushed),
+    '| pulled:',
+    JSON.stringify(result.pulled),
+    '| errors:',
+    JSON.stringify(result.errors),
+  );
   return result;
 };
