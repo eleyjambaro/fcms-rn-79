@@ -3,7 +3,7 @@ import * as RNFS from 'react-native-fs';
 import XLSX from 'xlsx';
 import uuid from 'react-native-uuid';
 
-import {getDBConnection, getCloudSyncParams} from '../localDb';
+import {getDBConnection, getCloudSyncParams, OPERATION_DEFAULT_UUIDS} from '../localDb';
 import {
   createQueryFilter,
   isInsertLimitReached,
@@ -1165,9 +1165,9 @@ export const insertTemplateDataToDb = async ({
         const newItemId = uuid.v4();
         insertNotExistingItemsToDbQuery += `(
           '${newItemId}',
-          ${categoryId},
-          ${taxId},
-          ${vendorId},
+          '${categoryId}',
+          '${taxId}',
+          '${vendorId}',
           '${item.item_name.trim().replace(/\'/g, "''")}',
           '${uomAbbrev.toLowerCase()}',
           ${unitCost},
@@ -1219,8 +1219,9 @@ export const insertTemplateDataToDb = async ({
     if (notExistingItems.length > 0) {
       /**
        * Insert inventory logs for imported items
-       * - operation_id 1 = Initial Stock (Pre-App Stock) - when no purchase date
-       * - operation_id 2 = New Purchase - when purchase date is provided
+       * - operation_id initial_stock UUID - when no purchase date
+       * - operation_id new_purchase UUID - when purchase date is provided
+       * - operation_id stock_transfer_in UUID - when transfer_in_date is provided
        */
       let insertInventoryLogsQuery = `
         INSERT INTO inventory_logs (
@@ -1324,19 +1325,19 @@ export const insertTemplateDataToDb = async ({
         let beginningInventoryDateValue;
 
         if (item.purchase_date) {
-          operationId = 2; // New Purchase
+          operationId = OPERATION_DEFAULT_UUIDS.new_purchase;
           const purchaseDate = parseExcelDate(item.purchase_date);
           const purchaseDateISO = purchaseDate.toISOString().split('T')[0];
           adjustmentDateValue = `datetime('${purchaseDateISO}')`;
           beginningInventoryDateValue = 'null';
         } else if (item.transfer_in_date) {
-          operationId = 4; // Stock Transfer In
+          operationId = OPERATION_DEFAULT_UUIDS.stock_transfer_in;
           const transferInDate = parseExcelDate(item.transfer_in_date);
           const transferInDateISO = transferInDate.toISOString().split('T')[0];
           adjustmentDateValue = `datetime('${transferInDateISO}')`;
           beginningInventoryDateValue = 'null';
         } else {
-          operationId = 1; // Initial Stock
+          operationId = OPERATION_DEFAULT_UUIDS.initial_stock;
           beginningInventoryDateValue = beginningInventoryDate
             ? `datetime('${beginningInventoryDate}', 'start of month')`
             : `datetime('now', 'start of month')`;
@@ -1348,10 +1349,10 @@ export const insertTemplateDataToDb = async ({
         const newInvLogId = uuid.v4();
         insertInventoryLogsQuery += `(
           '${newInvLogId}',
-          ${operationId},
-          ${itemId},
-          ${taxId},
-          ${vendorId},
+          '${operationId}',
+          '${itemId}',
+          '${taxId}',
+          '${vendorId}',
           ${vendorName},
           ${officialReceiptNumber},
           ${unitCost},
