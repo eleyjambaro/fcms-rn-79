@@ -646,13 +646,9 @@ export const isUnsavedRecipeHasIngredient = async () => {
 };
 
 export const createRecipeIngredient = async ({values, recipeId}) => {
-  const getRecipeQuery = `SELECT * FROM recipes WHERE id = '${parseInt(
-    recipeId,
-  )}'`;
+  const getRecipeQuery = `SELECT * FROM recipes WHERE id = '${recipeId}'`;
 
-  const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
-    values.item_id,
-  )}'`;
+  const getItemQuery = `SELECT * FROM items WHERE id = '${values.item_id}'`;
 
   try {
     const db = await getDBConnection();
@@ -759,9 +755,7 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
 
 // will be deleted in favor of createRecipeIngredient function
 export const createIngredient = async ({values}) => {
-  const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
-    values.item_id,
-  )}'`;
+  const getItemQuery = `SELECT * FROM items WHERE id = '${values.item_id}'`;
 
   try {
     const db = await getDBConnection();
