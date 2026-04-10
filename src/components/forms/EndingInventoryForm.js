@@ -21,7 +21,10 @@ import routes from '../../constants/routes';
 import CheckboxSelection from './CheckboxSelection';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
-import {getInventoryOperations, OPERATION_CODES} from '../../localDbQueries/operations';
+import {
+  getInventoryOperations,
+  OPERATION_CODES,
+} from '../../localDbQueries/operations';
 import {getTax} from '../../localDbQueries/taxes';
 import * as RootNavigation from '../../../RootNavigation';
 import ItemInventorySummary from '../items/ItemInventorySummary';
@@ -30,6 +33,7 @@ import {ScrollView} from 'react-native-gesture-handler';
 import TextWithIconButton from '../buttons/TextWithIconButton';
 import ConfirmationCheckbox from './ConfirmationCheckbox';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import {OPERATION_DEFAULT_UUIDS} from '../../localDb';
 
 const EndingInventoryValidationSchema = Yup.object().shape({
   remaining_stock_qty: Yup.string()
@@ -289,7 +293,7 @@ const EndingInventoryForm = props => {
                         item_id: item.id,
                         adjustment_qty: numberOfStocksToAdd,
                         month_year_date: monthYearDateFilter,
-                        operation_id: 2,
+                        operation_id: OPERATION_DEFAULT_UUIDS.new_purchase,
                         operation_code: OPERATION_CODES.NEW_PURCHASE,
                         from_ending_inventory: true,
                       });
