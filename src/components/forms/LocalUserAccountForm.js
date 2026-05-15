@@ -14,10 +14,9 @@ import {useQuery} from '@tanstack/react-query';
 
 import TextInputLabel from './TextInputLabel';
 import FormRequiredFieldHelperText from './FormRequiredFieldsHelperText';
-import {getRoles} from '../../localDbQueries/roles';
+import {getCloudRoles} from '../../serverDbQueries/v2/roles';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
-import useAuthContext from '../../hooks/useAuthContext';
 
 const LocalUserAccountValidationSchema = Yup.object().shape({
   edit_mode: Yup.boolean(),
@@ -53,8 +52,8 @@ const LocalUserAccountForm = props => {
   const userRoleConfig = authUser?.role_config;
   const [showDropDown, setShowDropDown] = useState(false);
   const {status: getRolesStatus, data: getRolesData} = useQuery(
-    ['roles', {}],
-    getRoles,
+    ['cloudRoles'],
+    getCloudRoles,
   );
   const [roleId, setRoleId] = useState(initialValues.role_id);
 
@@ -109,7 +108,7 @@ const LocalUserAccountForm = props => {
     );
   }
 
-  const roles = getRolesData?.result;
+  const roles = getRolesData?.data ?? [];
   const roleSelectionList = roles?.map(role => {
     return {
       label: `${role.name}`,

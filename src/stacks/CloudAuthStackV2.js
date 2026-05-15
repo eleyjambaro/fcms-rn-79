@@ -10,6 +10,7 @@ import CloudV2SignUpStep2 from '../screens/CloudV2SignUpStep2';
 import CloudV2OTPVerification from '../screens/CloudV2OTPVerification';
 import CloudV2DeviceRegistration from '../screens/CloudV2DeviceRegistration';
 import CloudV2BranchSetup from '../screens/CloudV2BranchSetup';
+import CloudV2SubAccountSignIn from '../screens/CloudV2SubAccountSignIn';
 
 const Stack = createStackNavigator();
 
@@ -68,6 +69,10 @@ const CloudAuthStackV2 = () => {
       <Stack.Screen
         name={routes.cloudV2OTPVerification()}
         component={CloudV2OTPVerification}
+      />
+      <Stack.Screen
+        name={routes.cloudV2SubAccountSignIn()}
+        component={CloudV2SubAccountSignIn}
       />
     </Stack.Navigator>
   );

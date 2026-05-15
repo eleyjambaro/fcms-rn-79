@@ -78,6 +78,15 @@ const reducer = (prevState, action) => {
         deviceToken: null,
         designatedBranch: null,
       };
+    case 'SWITCH_USER':
+      return {
+        ...prevState,
+        isLoading: false,
+        isSignout: true,
+        authToken: null,
+        authUser: null,
+        // deviceId, deviceToken, designatedBranch preserved for sub-account sign-in
+      };
     case 'SET_DEVICE_CREDENTIALS':
       return {
         ...prevState,
@@ -204,6 +213,16 @@ const CloudAuthContextProvider = ({children}) => {
         invalidateCloudSyncParamsCache();
         scheduleSyncSoon(500);
         dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: branch});
+      },
+
+      switchUser: async () => {
+        try {
+          await saveItem(cloudV2AuthToken, null);
+          await saveItem(cloudV2AuthUser, null);
+        } catch (error) {
+          console.debug('[CloudAuthContextProvider] switchUser error:', error);
+        }
+        dispatch({type: 'SWITCH_USER'});
       },
 
       setExpiredAuthTokenDialogVisible,

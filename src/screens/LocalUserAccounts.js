@@ -10,15 +10,11 @@ import {
 } from 'react-native-paper';
 import {useQueryClient, useMutation} from '@tanstack/react-query';
 
-import routes from '../constants/routes';
 import LocalUserAccountList from '../components/accounts/LocalUserAccountList';
 import LocalUserAccountForm from '../components/forms/LocalUserAccountForm';
-import TestModeLimitModal from '../components/modals/TestModeLimitModal';
-import useAppConfigContext from '../hooks/useAppConfigContext';
 import useSearchbarContext from '../hooks/useSearchbarContext';
-import {createVendor} from '../localDbQueries/vendors';
 import {ScrollView} from 'react-native-gesture-handler';
-import {createLocalUserAccount} from '../localDbQueries/accounts';
+import {createCloudSubAccount} from '../serverDbQueries/v2/accounts';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
 import useCurrentUser from '../hooks/useCurrentUser';
 
@@ -32,14 +28,12 @@ function LocalUserAccounts(props) {
   const [authState] = useCurrentUser();
   const authUser = authState?.authUser;
   const queryClient = useQueryClient();
-  const createLocalUserAccountMutation = useMutation(createLocalUserAccount, {
+  const createLocalUserAccountMutation = useMutation(createCloudSubAccount, {
     onSuccess: () => {
-      queryClient.invalidateQueries('localUserAccounts');
+      queryClient.invalidateQueries(['cloudSubAccounts']);
     },
   });
   const {keyword, setKeyword} = useSearchbarContext();
-  const {config} = useAppConfigContext();
-  const [limitReachedMessage, setLimitReachedMessage] = useState('');
   const [formErrorMessage, setErrorMessage] = useState('');
 
   const onChangeSearch = keyword => setKeyword(keyword);
@@ -60,19 +54,12 @@ function LocalUserAccounts(props) {
   };
 
   const handleSubmit = async (values, actions) => {
-    console.log(values);
     try {
-      await createLocalUserAccountMutation.mutateAsync({
-        values,
-        onInsertLimitReached: ({message}) => {
-          setLimitReachedMessage(() => message);
-        },
-        onError: ({errorMessage}) => {
-          setErrorMessage(() => errorMessage);
-        },
-      });
+      await createLocalUserAccountMutation.mutateAsync(values);
     } catch (error) {
-      console.debug(error);
+      const msg =
+        error?.response?.data?.message || 'Failed to create user account.';
+      setErrorMessage(() => msg);
       return;
     }
 
@@ -99,14 +86,6 @@ function LocalUserAccounts(props) {
           </ScrollView>
         </Modal>
       </Portal>
-      <TestModeLimitModal
-        title="Limit Reached"
-        textContent={limitReachedMessage}
-        visible={limitReachedMessage ? true : false}
-        onDismiss={() => {
-          setLimitReachedMessage(() => '');
-        }}
-      />
       <ErrorMessageModal
         textContent={`${formErrorMessage}`}
         visible={formErrorMessage}

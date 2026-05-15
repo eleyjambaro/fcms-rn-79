@@ -13,7 +13,6 @@ import {useMutation} from '@tanstack/react-query';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import {signIn} from '../serverDbQueries/v2/auth';
-import routes from '../constants/routes';
 import appDefaults from '../constants/appDefaults';
 import CloudAppIcon from '../components/icons/CloudAppIcon';
 
@@ -24,9 +23,9 @@ const schema = Yup.object({
   password: Yup.string().required('Password is required'),
 });
 
-const CloudV2SignIn = ({navigation}) => {
+const CloudV2SubAccountSignIn = ({navigation}) => {
   const {colors} = useTheme();
-  const [, {signIn: dispatchSignIn}] = useCloudAuthContext();
+  const [cloudAuthState, {signIn: dispatchSignIn}] = useCloudAuthContext();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [serverError, setServerError] = useState('');
 
@@ -34,8 +33,23 @@ const CloudV2SignIn = ({navigation}) => {
 
   const handleSubmit = async (values, actions) => {
     setServerError('');
+
+    const deviceId = cloudAuthState.deviceId;
+    if (!deviceId) {
+      setServerError(
+        'This device must be set up by the account owner first. Ask your manager to sign in on this device to complete setup.',
+      );
+      actions.setSubmitting(false);
+      return;
+    }
+
     try {
-      const data = await mutation.mutateAsync(values);
+      const data = await mutation.mutateAsync({
+        email: values.email,
+        password: values.password,
+        device_id: deviceId,
+      });
+
       if (data?.status === 'success') {
         await dispatchSignIn(data);
       } else {
@@ -64,8 +78,7 @@ const CloudV2SignIn = ({navigation}) => {
         containerStyle={{marginBottom: 0}}
       />
       <Text style={styles.subtitle}>
-        Sign in to your {appDefaults.appDisplayName} Cloud account to connect
-        this device.
+        Sign in as a team member to access this device.
       </Text>
 
       <Formik
@@ -138,21 +151,10 @@ const CloudV2SignIn = ({navigation}) => {
       </Formik>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account?</Text>
+        <Text style={styles.footerText}>Account owner?</Text>
         <Pressable
           style={styles.footerLink}
-          onPress={() => navigation.navigate(routes.cloudV2SignUpStep1())}>
-          <Text style={[styles.footerLinkText, {color: colors.primary}]}>
-            Sign up
-          </Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Team member?</Text>
-        <Pressable
-          style={styles.footerLink}
-          onPress={() => navigation.navigate(routes.cloudV2SubAccountSignIn())}>
+          onPress={() => navigation.goBack()}>
           <Text style={[styles.footerLinkText, {color: colors.primary}]}>
             Sign in here
           </Text>
@@ -211,4 +213,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CloudV2SignIn;
+export default CloudV2SubAccountSignIn;

@@ -6,11 +6,11 @@ import useCloudAuthContext from './useCloudAuthContext';
  * Returns the same [state, authActions, otherState, otherActions] shape so
  * all existing consumers work without structural changes.
  *
- * authUser shape:
- *   { ...account fields from cloud API, is_root_account: true }
+ * authUser shape mirrors the cloud API account response:
+ *   { id, email, first_name, last_name, is_root_account, role_id, role_config, ... }
  *
- * is_root_account is always true because cloud signup creates the owner
- * account — there are no sub-accounts (admin/encoder) in cloud v2 yet.
+ * is_root_account and role_config come directly from the API and are stored
+ * in cloudV2AuthUser SecureStorage — no client-side override needed.
  */
 const useCurrentUser = () => {
   const [cloudState, cloudActions, otherState, otherActions] =
@@ -19,7 +19,6 @@ const useCurrentUser = () => {
   const authUser = cloudState.authUser
     ? {
         ...cloudState.authUser.account,
-        is_root_account: true,
       }
     : null;
 

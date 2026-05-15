@@ -27,23 +27,23 @@ import {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import {
-  useInfiniteQuery,
+  useQuery,
   useQueryClient,
   useMutation,
 } from '@tanstack/react-query';
 
 import LocalUserAccountListItem from './LocalUserAccountListItem';
-import routes from '../../constants/routes';
 import OptionsList from '../buttons/OptionsList';
+import ManageSubAccountDevicesModal from '../modals/ManageSubAccountDevicesModal';
 import ListLoadingFooter from '../../components/stateIndicators/ListLoadingFooter';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import LocalUserAccountForm from '../forms/LocalUserAccountForm';
 import {
-  deleteLocalUserAccount,
-  getLocalUserAccounts,
-  updateLocalUserAccount,
-} from '../../localDbQueries/accounts';
+  getCloudSubAccounts,
+  updateCloudSubAccount,
+  deleteCloudSubAccount,
+} from '../../serverDbQueries/v2/accounts';
 import ErrorMessageModal from '../modals/ErrorMessageModal';
 import useCurrentUser from '../../hooks/useCurrentUser';
 
@@ -56,36 +56,21 @@ const LocalUserAccountList = props => {
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
     status,
     error,
     refetch,
     isRefetching,
-  } = useInfiniteQuery(['localUserAccounts', {filter}], getLocalUserAccounts, {
-    getNextPageParam: (lastPage, pages) => {
-      let pagesResult = [];
-
-      for (let page of pages) {
-        pagesResult.push(...page.result);
-      }
-
-      if (pagesResult.length < lastPage.totalCount) {
-        return lastPage.page + 1;
-      }
-    },
-    networkMode: 'always',
-  });
+  } = useQuery(['cloudSubAccounts'], getCloudSubAccounts);
+  const isFetchingNextPage = false;
   const queryClient = useQueryClient();
-  const updateLocalUserAccountMutation = useMutation(updateLocalUserAccount, {
+  const updateLocalUserAccountMutation = useMutation(updateCloudSubAccount, {
     onSuccess: () => {
-      queryClient.invalidateQueries('localUserAccounts');
+      queryClient.invalidateQueries(['cloudSubAccounts']);
     },
   });
-  const deleteLocalUserAccountMutation = useMutation(deleteLocalUserAccount, {
+  const deleteLocalUserAccountMutation = useMutation(deleteCloudSubAccount, {
     onSuccess: () => {
-      queryClient.invalidateQueries('localUserAccounts');
+      queryClient.invalidateQueries(['cloudSubAccounts']);
     },
   });
 
@@ -96,6 +81,8 @@ const LocalUserAccountList = props => {
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
 
   const [formErrorMessage, setErrorMessage] = useState('');
+  const [manageDevicesModalVisible, setManageDevicesModalVisible] =
+    useState(false);
 
   const showUpdateLocalUserAccountModal = () =>
     setUpdateLocalUserAccountModalVisible(true);
@@ -105,22 +92,8 @@ const LocalUserAccountList = props => {
   const showDeleteDialog = () => setDeleteDialogVisible(true);
   const hideDeleteDialog = () => setDeleteDialogVisible(false);
 
-  const loadMore = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  };
-
   const getAllPagesData = () => {
-    let pagesData = [];
-
-    if (data.pages) {
-      for (let page of data.pages) {
-        pagesData.push(...page.result);
-      }
-    }
-
-    return pagesData;
+    return data?.data ?? [];
   };
 
   const handleCancel = () => {
@@ -128,17 +101,17 @@ const LocalUserAccountList = props => {
   };
 
   const handleSubmit = async (values, actions) => {
-    console.log(values);
     try {
       await updateLocalUserAccountMutation.mutateAsync({
         id: focusedItem?.id,
-        updatedValues: values,
-        onError: ({errorMessage}) => {
-          setErrorMessage(() => errorMessage);
-        },
+        first_name: values.first_name,
+        last_name: values.last_name,
+        role_id: values.role_id,
       });
     } catch (error) {
-      console.debug(error);
+      const msg =
+        error?.response?.data?.message || 'Failed to update user account.';
+      setErrorMessage(() => msg);
       return;
     } finally {
       actions.resetForm();
@@ -161,6 +134,14 @@ const LocalUserAccountList = props => {
       icon: 'pencil-outline',
       handler: () => {
         showUpdateLocalUserAccountModal();
+        closeOptionsBottomSheet();
+      },
+    },
+    {
+      label: 'Manage Device Access',
+      icon: 'cellphone-lock',
+      handler: () => {
+        setManageDevicesModalVisible(true);
         closeOptionsBottomSheet();
       },
     },
@@ -190,8 +171,8 @@ const LocalUserAccountList = props => {
 
   const optionsBottomSheetModalRef = useRef(null);
   const optionsBottomSheetSnapPoints = useMemo(
-    () => [120, localUserAccountOptions.length * 80 + 70],
-    [],
+    () => [120, localUserAccountOptions.length * 70 + 70],
+    [localUserAccountOptions.length],
   );
 
   const openOptionsBottomSheet = () => {
@@ -204,9 +185,7 @@ const LocalUserAccountList = props => {
 
   const handleConfirmDeleteLocalUserAccount = async () => {
     try {
-      await deleteLocalUserAccountMutation.mutateAsync({
-        id: focusedItem.id,
-      });
+      await deleteLocalUserAccountMutation.mutateAsync(focusedItem.id);
     } catch (error) {
       console.debug(error);
     } finally {
@@ -340,12 +319,16 @@ const LocalUserAccountList = props => {
         }}
       />
 
+      <ManageSubAccountDevicesModal
+        visible={manageDevicesModalVisible}
+        onDismiss={() => setManageDevicesModalVisible(false)}
+        account={focusedItem}
+      />
+
       <FlatList
         style={{backgroundColor: colors.surface}}
         data={getAllPagesData()}
         renderItem={renderItem}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.3}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <View

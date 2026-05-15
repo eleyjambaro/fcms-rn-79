@@ -77,6 +77,7 @@ import ActivateLicense from '../screens/ActivateLicense';
 import Spoilage from '../screens/Spoilage';
 import SelectSpoilageItem from '../modals/SelectSpoilageItem';
 import LocalUserAccounts from '../screens/LocalUserAccounts';
+import CloudRoles from '../screens/CloudRoles';
 import UnauthorizedAccount from '../screens/UnauthorizedAccount';
 import ProduceFinishedProductStock from '../modals/ProduceFinishedProductStock';
 import Counter from '../screens/Counter';
@@ -108,6 +109,7 @@ const MemoizedActivateLicense = React.memo(ActivateLicense);
 const MemoizedUpdateCompany = React.memo(UpdateCompany);
 const MemoizedAccount = React.memo(Account);
 const MemoizedLocalUserAccounts = React.memo(LocalUserAccounts);
+const MemoizedCloudRoles = React.memo(CloudRoles);
 const MemoizedDeleteMyAccount = React.memo(DeleteMyAccount);
 const MemoizedCreateRecipe = React.memo(CreateRecipe);
 const MemoizedEditRecipe = React.memo(EditRecipe);
@@ -235,6 +237,11 @@ const RootStack = () => {
             );
           }}
         </Stack.Screen>
+        <Stack.Screen
+          name={routes.cloudRoles()}
+          component={MemoizedCloudRoles}
+          options={{headerTitle: 'Manage Roles'}}
+        />
         <Stack.Screen
           name={routes.deleteMyAccount()}
           component={MemoizedDeleteMyAccount}

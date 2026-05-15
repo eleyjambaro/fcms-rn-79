@@ -116,6 +116,8 @@ export const routes = {
   cloudV2OTPVerification: () => 'CloudV2OTPVerification',
   cloudV2DeviceRegistration: () => 'CloudV2DeviceRegistration',
   cloudV2BranchSetup: () => 'CloudV2BranchSetup',
+  cloudV2SubAccountSignIn: () => 'CloudV2SubAccountSignIn',
+  cloudRoles: () => 'CloudRoles',
 };
 
 export default routes;

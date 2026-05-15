@@ -1124,9 +1124,16 @@ const Account = props => {
       <Drawer.Section title="Security & Privacy">
         <Drawer.Item
           icon="account-supervisor-outline"
-          label="Manage Local Users & Roles"
+          label="Manage Team Members"
           onPress={() => {
             navigation.navigate(routes.localUserAccounts());
+          }}
+        />
+        <Drawer.Item
+          icon="shield-account-outline"
+          label="Manage Roles"
+          onPress={() => {
+            navigation.navigate(routes.cloudRoles());
           }}
         />
       </Drawer.Section>
@@ -1139,9 +1146,16 @@ const Account = props => {
         <Drawer.Section title="Security & Privacy">
           <Drawer.Item
             icon="account-supervisor-outline"
-            label="Manage Local Users & Roles"
+            label="Manage Team Members"
             onPress={() => {
               navigation.navigate(routes.localUserAccounts());
+            }}
+          />
+          <Drawer.Item
+            icon="shield-account-outline"
+            label="Manage Roles"
+            onPress={() => {
+              navigation.navigate(routes.cloudRoles());
             }}
           />
           <Drawer.Item

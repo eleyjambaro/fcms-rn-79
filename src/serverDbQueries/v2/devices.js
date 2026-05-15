@@ -13,6 +13,13 @@ const getAuthHeaders = async () => {
   }
 };
 
+export const getCloudDevices = async () => {
+  const {data} = await cloudApiV2.get('/api/v2/devices/', {
+    headers: await getAuthHeaders(),
+  });
+  return data;
+};
+
 export const registerDevice = async ({device_name, physical_device_id, device_fingerprint}) => {
   const {data} = await cloudApiV2.post(
     '/api/v2/devices/register',
