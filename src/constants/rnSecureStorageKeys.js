@@ -9,6 +9,7 @@ export const rnStorageKeys = {
   cloudV2AuthUser: 'cloudV2AuthUser',
   cloudV2DeviceId: 'cloudV2DeviceId',
   cloudV2DeviceToken: 'cloudV2DeviceToken',
+  cloudV2DeviceCompanyId: 'cloudV2DeviceCompanyId',
   cloudV2DesignatedBranch: 'cloudV2DesignatedBranch',
 };
 

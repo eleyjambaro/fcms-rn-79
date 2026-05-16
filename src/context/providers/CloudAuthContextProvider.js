@@ -11,6 +11,7 @@ const {
   cloudV2AuthUser,
   cloudV2DeviceId,
   cloudV2DeviceToken,
+  cloudV2DeviceCompanyId,
   cloudV2DesignatedBranch,
 } = rnStorageKeys;
 
@@ -39,6 +40,13 @@ const loadItem = async (key, parse = false) => {
   return raw;
 };
 
+const clearDeviceFromStorage = async () => {
+  await saveItem(cloudV2DeviceId, null);
+  await saveItem(cloudV2DeviceToken, null);
+  await saveItem(cloudV2DeviceCompanyId, null);
+  await saveItem(cloudV2DesignatedBranch, null);
+};
+
 const reducer = (prevState, action) => {
   switch (action.type) {
     case 'RESTORE':
@@ -58,6 +66,10 @@ const reducer = (prevState, action) => {
         isSignout: false,
         authToken: action.authToken,
         authUser: action.authUser,
+        // clearDevice: root account signing in under a different company
+        ...(action.clearDevice
+          ? {deviceId: null, deviceToken: null, designatedBranch: null}
+          : {}),
       };
     case 'SIGN_UP':
       return {
@@ -66,6 +78,10 @@ const reducer = (prevState, action) => {
         isSignout: false,
         authToken: action.authToken,
         authUser: action.authUser,
+        // New company account — always start fresh device registration
+        deviceId: null,
+        deviceToken: null,
+        designatedBranch: null,
       };
     case 'SIGN_OUT':
       return {
@@ -158,7 +174,21 @@ const CloudAuthContextProvider = ({children}) => {
           : null;
         await saveItem(cloudV2AuthToken, token);
         await saveItem(cloudV2AuthUser, user);
-        dispatch({type: 'SIGN_IN', authToken: token, authUser: user});
+
+        // Root account sign-in: clear device credentials if the company changed.
+        // This forces device registration for a new company while preserving
+        // credentials when the same owner signs back in.
+        // Sub-account sign-in always preserves device credentials.
+        let clearDevice = false;
+        if (user?.account?.is_root_account) {
+          const storedCompanyId = await loadItem(cloudV2DeviceCompanyId);
+          if (storedCompanyId !== user.company?.id) {
+            await clearDeviceFromStorage();
+            clearDevice = true;
+          }
+        }
+
+        dispatch({type: 'SIGN_IN', authToken: token, authUser: user, clearDevice});
       },
 
       signUp: async data => {
@@ -168,10 +198,12 @@ const CloudAuthContextProvider = ({children}) => {
           : null;
         await saveItem(cloudV2AuthToken, token);
         await saveItem(cloudV2AuthUser, user);
+        // New company account — always clear any existing device credentials
+        await clearDeviceFromStorage();
         dispatch({type: 'SIGN_UP', authToken: token, authUser: user});
       },
 
-      // Called after OTP verify — same shape as signIn
+      // Called after OTP verify — same shape as signIn, always a root account
       setAuthFromVerify: async data => {
         const token = data?.data?.token ?? null;
         const user = data?.data
@@ -179,15 +211,24 @@ const CloudAuthContextProvider = ({children}) => {
           : null;
         await saveItem(cloudV2AuthToken, token);
         await saveItem(cloudV2AuthUser, user);
-        dispatch({type: 'SIGN_IN', authToken: token, authUser: user});
+
+        const storedCompanyId = await loadItem(cloudV2DeviceCompanyId);
+        let clearDevice = false;
+        if (storedCompanyId !== user?.company?.id) {
+          await clearDeviceFromStorage();
+          clearDevice = true;
+        }
+
+        dispatch({type: 'SIGN_IN', authToken: token, authUser: user, clearDevice});
       },
 
       signOut: async () => {
         try {
           await saveItem(cloudV2AuthToken, null);
           await saveItem(cloudV2AuthUser, null);
-          // deviceId, deviceToken, designatedBranch intentionally preserved so
-          // sub-accounts can still sign in on this device after the owner signs out
+          // deviceId, deviceToken, deviceCompanyId, designatedBranch intentionally
+          // preserved so sub-accounts can still sign in on this device after the
+          // owner signs out
         } catch (error) {
           console.debug('[CloudAuthContextProvider] signOut error:', error);
         }
@@ -195,9 +236,10 @@ const CloudAuthContextProvider = ({children}) => {
         dispatch({type: 'SIGN_OUT'});
       },
 
-      setDeviceCredentials: async ({deviceId, deviceToken}) => {
+      setDeviceCredentials: async ({deviceId, deviceToken, companyId}) => {
         await saveItem(cloudV2DeviceId, deviceId);
         await saveItem(cloudV2DeviceToken, deviceToken);
+        await saveItem(cloudV2DeviceCompanyId, companyId ?? null);
         invalidateCloudSyncParamsCache();
         dispatch({
           type: 'SET_DEVICE_CREDENTIALS',

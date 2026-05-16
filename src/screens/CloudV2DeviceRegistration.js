@@ -11,7 +11,7 @@ import CloudAppIcon from '../components/icons/CloudAppIcon';
 
 const CloudV2DeviceRegistration = () => {
   const {colors} = useTheme();
-  const [, {setDeviceCredentials, setDesignatedBranch}] = useCloudAuthContext();
+  const [cloudAuthState, {setDeviceCredentials, setDesignatedBranch}] = useCloudAuthContext();
   const [error, setError] = useState('');
 
   const mutation = useMutation(registerDevice);
@@ -32,7 +32,8 @@ const CloudV2DeviceRegistration = () => {
       if (data?.status === 'success') {
         const deviceId = data.data.device_id;
         const deviceToken = data.data.device_token;
-        await setDeviceCredentials({deviceId, deviceToken});
+        const companyId = cloudAuthState.authUser?.company?.id ?? null;
+        await setDeviceCredentials({deviceId, deviceToken, companyId});
 
         // If this device already has a branch assigned on the server (returning
         // user who signed out), save it now so we skip the branch setup screen.
