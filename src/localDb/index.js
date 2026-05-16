@@ -8,7 +8,10 @@ import SecureStorage from 'react-native-fast-secure-storage';
 import {appDefaults} from '../constants/appDefaults';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 
-const {cloudV2DeviceId: cloudV2DeviceIdKey, cloudV2DesignatedBranch: cloudV2DesignatedBranchKey} = rnStorageKeys;
+const {
+  cloudV2DeviceId: cloudV2DeviceIdKey,
+  cloudV2DesignatedBranch: cloudV2DesignatedBranchKey,
+} = rnStorageKeys;
 
 const loadCloudV2Item = async (key, parse = false) => {
   try {
@@ -17,7 +20,11 @@ const loadCloudV2Item = async (key, parse = false) => {
     const raw = await SecureStorage.getItem(key);
     if (!raw) return null;
     if (parse) {
-      try { return JSON.parse(raw); } catch { return null; }
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
     }
     return raw;
   } catch {
@@ -49,11 +56,22 @@ export const invalidateCloudSyncParamsCache = () => {
 
 enablePromise(true);
 
-const dbName = appDefaults.dbName;
 const localAccountDbName = appDefaults.localAccountDbName;
 
+// Active company ID set by CloudAuthContextProvider on sign-in/restore.
+// All company data is stored in a company-scoped DB file so that multiple
+// companies on the same physical device cannot see each other's data.
+let _activeCompanyId = null;
+
+export const setActiveCompanyDb = companyId => {
+  _activeCompanyId = companyId ?? null;
+};
+
 export const getDBConnection = async () => {
-  return openDatabase({name: dbName, location: 'default', readOnly: false});
+  const name = _activeCompanyId
+    ? `${appDefaults.dbName}_${_activeCompanyId}`
+    : appDefaults.dbName; // unauthenticated fallback (no sensitive data accessed)
+  return openDatabase({name, location: 'default', readOnly: false});
 };
 
 export const getLocalAccountDBConnection = async () => {
@@ -1587,9 +1605,13 @@ export const alterTables = async currentAppVersion => {
 
       // Backfill existing rows with saved Cloud v2 device and branch IDs
       const savedDeviceId = await loadCloudV2Item(cloudV2DeviceIdKey);
-      const savedBranch = await loadCloudV2Item(cloudV2DesignatedBranchKey, true);
+      const savedBranch = await loadCloudV2Item(
+        cloudV2DesignatedBranchKey,
+        true,
+      );
       const backfillDeviceId = savedDeviceId ?? null;
-      const backfillBranchId = savedBranch?.id != null ? String(savedBranch.id) : null;
+      const backfillBranchId =
+        savedBranch?.id != null ? String(savedBranch.id) : null;
 
       if (backfillDeviceId || backfillBranchId) {
         for (const table of cloudSyncTables) {
@@ -1638,9 +1660,14 @@ export const alterTables = async currentAppVersion => {
         );
       }
 
-      console.info('[alterTables] operations.code column added and backfilled.');
+      console.info(
+        '[alterTables] operations.code column added and backfilled.',
+      );
     } catch (error) {
-      console.debug('[alterTables] Error adding operations.code column:', error);
+      console.debug(
+        '[alterTables] Error adding operations.code column:',
+        error,
+      );
     }
 
     /**
@@ -1878,7 +1905,10 @@ export const migrateIntegerIdsToUUID = async () => {
       return;
     }
   } catch (e) {
-    console.debug('[migrateIntegerIdsToUUID] Could not detect migration state:', e);
+    console.debug(
+      '[migrateIntegerIdsToUUID] Could not detect migration state:',
+      e,
+    );
     return;
   }
 
@@ -1886,38 +1916,89 @@ export const migrateIntegerIdsToUUID = async () => {
 
   // ── Phase B: add _new_id to every table ───────────────────────────────────
   const allTables = [
-    'app_versions', 'categories', 'taxes', 'vendors', 'vendor_contact_persons',
-    'recipe_kinds', 'recipes', 'items', 'modifiers', 'modifier_options',
-    'selling_menus', 'operations', 'batch_purchase_groups',
-    'batch_stock_usage_groups', 'invoices', 'sales_order_groups',
-    'ingredients', 'batch_purchase_entries', 'batch_stock_usage_entries',
-    'spoilages', 'revenue_groups', 'expense_groups', 'revenues', 'expenses',
-    'revenue_deductions', 'revenue_categories', 'selling_menu_items',
-    'inventory_logs', 'sale_logs', 'refunds', 'sales_orders', 'payments',
-    'saved_printers', 'sync_metadata',
+    'app_versions',
+    'categories',
+    'taxes',
+    'vendors',
+    'vendor_contact_persons',
+    'recipe_kinds',
+    'recipes',
+    'items',
+    'modifiers',
+    'modifier_options',
+    'selling_menus',
+    'operations',
+    'batch_purchase_groups',
+    'batch_stock_usage_groups',
+    'invoices',
+    'sales_order_groups',
+    'ingredients',
+    'batch_purchase_entries',
+    'batch_stock_usage_entries',
+    'spoilages',
+    'revenue_groups',
+    'expense_groups',
+    'revenues',
+    'expenses',
+    'revenue_deductions',
+    'revenue_categories',
+    'selling_menu_items',
+    'inventory_logs',
+    'sale_logs',
+    'refunds',
+    'sales_orders',
+    'payments',
+    'saved_printers',
+    'sync_metadata',
   ];
 
   for (const t of allTables) {
     try {
       await executeSqlIfColumnNotExist(
-        db, t, '_new_id',
+        db,
+        t,
+        '_new_id',
         `ALTER TABLE ${t} ADD COLUMN _new_id TEXT DEFAULT NULL;`,
       );
     } catch (e) {
-      console.debug(`[migrateIntegerIdsToUUID] Error adding _new_id to ${t}:`, e);
+      console.debug(
+        `[migrateIntegerIdsToUUID] Error adding _new_id to ${t}:`,
+        e,
+      );
     }
   }
 
   // ── Phase C: populate _new_id ─────────────────────────────────────────────
   const deltaSyncTables = [
-    'categories', 'items', 'modifiers', 'modifier_options', 'vendors',
-    'vendor_contact_persons', 'recipe_kinds', 'recipes', 'ingredients',
-    'selling_menus', 'selling_menu_items', 'inventory_logs',
-    'batch_purchase_groups', 'batch_purchase_entries',
-    'batch_stock_usage_groups', 'batch_stock_usage_entries',
-    'invoices', 'sale_logs', 'sales_order_groups', 'sales_orders',
-    'payments', 'refunds', 'spoilages', 'revenue_groups', 'revenues',
-    'expense_groups', 'expenses', 'revenue_deductions', 'revenue_categories',
+    'categories',
+    'items',
+    'modifiers',
+    'modifier_options',
+    'vendors',
+    'vendor_contact_persons',
+    'recipe_kinds',
+    'recipes',
+    'ingredients',
+    'selling_menus',
+    'selling_menu_items',
+    'inventory_logs',
+    'batch_purchase_groups',
+    'batch_purchase_entries',
+    'batch_stock_usage_groups',
+    'batch_stock_usage_entries',
+    'invoices',
+    'sale_logs',
+    'sales_order_groups',
+    'sales_orders',
+    'payments',
+    'refunds',
+    'spoilages',
+    'revenue_groups',
+    'revenues',
+    'expense_groups',
+    'expenses',
+    'revenue_deductions',
+    'revenue_categories',
   ];
 
   // Delta-sync tables: prefer existing sync_id as the new UUID
@@ -1927,7 +2008,10 @@ export const migrateIntegerIdsToUUID = async () => {
         `UPDATE ${t} SET _new_id = sync_id WHERE sync_id IS NOT NULL AND (sync_id != '') AND (_new_id IS NULL OR _new_id = '');`,
       );
     } catch (e) {
-      console.debug(`[migrateIntegerIdsToUUID] Error populating _new_id from sync_id for ${t}:`, e);
+      console.debug(
+        `[migrateIntegerIdsToUUID] Error populating _new_id from sync_id for ${t}:`,
+        e,
+      );
     }
   }
 
@@ -1938,7 +2022,10 @@ export const migrateIntegerIdsToUUID = async () => {
         `UPDATE operations SET _new_id = '${fixedUUID}' WHERE code = '${code}';`,
       );
     } catch (e) {
-      console.debug(`[migrateIntegerIdsToUUID] Error setting fixed UUID for operation code=${code}:`, e);
+      console.debug(
+        `[migrateIntegerIdsToUUID] Error setting fixed UUID for operation code=${code}:`,
+        e,
+      );
     }
   }
 
@@ -1949,7 +2036,10 @@ export const migrateIntegerIdsToUUID = async () => {
         `UPDATE ${t} SET _new_id = ${SQL_UUID_EXPR} WHERE _new_id IS NULL OR _new_id = '';`,
       );
     } catch (e) {
-      console.debug(`[migrateIntegerIdsToUUID] Error generating UUIDs for ${t}:`, e);
+      console.debug(
+        `[migrateIntegerIdsToUUID] Error generating UUIDs for ${t}:`,
+        e,
+      );
     }
   }
 
@@ -1960,7 +2050,10 @@ export const migrateIntegerIdsToUUID = async () => {
       await db.executeSql(`ALTER TABLE ${t} RENAME TO _mig_${t};`);
     }
   } catch (e) {
-    console.debug('[migrateIntegerIdsToUUID] Error during table rename phase:', e);
+    console.debug(
+      '[migrateIntegerIdsToUUID] Error during table rename phase:',
+      e,
+    );
     await db.executeSql('PRAGMA foreign_keys=on;');
     throw e;
   }
@@ -2002,7 +2095,10 @@ export const migrateIntegerIdsToUUID = async () => {
     await db.executeSql(createSavedPrintersTableQuery);
     await db.executeSql(createSyncMetadataTableQuery);
   } catch (e) {
-    console.debug('[migrateIntegerIdsToUUID] Error during table creation phase:', e);
+    console.debug(
+      '[migrateIntegerIdsToUUID] Error during table creation phase:',
+      e,
+    );
     await db.executeSql('PRAGMA foreign_keys=on;');
     throw e;
   }
@@ -2247,7 +2343,10 @@ export const migrateIntegerIdsToUUID = async () => {
       SELECT _new_id, entity_type, last_pushed_at, last_pulled_at FROM _mig_sync_metadata;
     `);
   } catch (e) {
-    console.debug('[migrateIntegerIdsToUUID] Error during data insertion phase:', e);
+    console.debug(
+      '[migrateIntegerIdsToUUID] Error during data insertion phase:',
+      e,
+    );
     await db.executeSql('PRAGMA foreign_keys=on;');
     throw e;
   }

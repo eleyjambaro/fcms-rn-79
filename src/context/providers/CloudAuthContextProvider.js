@@ -3,7 +3,7 @@ import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 
 import {CloudAuthContext} from '../types';
 import {rnStorageKeys} from '../../constants/rnSecureStorageKeys';
-import {invalidateCloudSyncParamsCache} from '../../localDb';
+import {invalidateCloudSyncParamsCache, setActiveCompanyDb} from '../../localDb';
 import {scheduleSyncSoon} from '../../services/syncService';
 
 const {
@@ -141,6 +141,9 @@ const CloudAuthContextProvider = ({children}) => {
         const deviceToken = await loadItem(cloudV2DeviceToken);
         const designatedBranch = await loadItem(cloudV2DesignatedBranch, true);
 
+        // Activate the company-scoped DB before any component reads local data
+        setActiveCompanyDb(authUser?.company?.id ?? null);
+
         dispatch({
           type: 'RESTORE',
           authToken,
@@ -151,6 +154,7 @@ const CloudAuthContextProvider = ({children}) => {
         });
       } catch (error) {
         console.debug('[CloudAuthContextProvider] restore error:', error);
+        setActiveCompanyDb(null);
         dispatch({
           type: 'RESTORE',
           authToken: null,
@@ -188,6 +192,9 @@ const CloudAuthContextProvider = ({children}) => {
           }
         }
 
+        // Switch to this company's isolated DB file
+        setActiveCompanyDb(user?.company?.id ?? null);
+
         dispatch({type: 'SIGN_IN', authToken: token, authUser: user, clearDevice});
       },
 
@@ -200,6 +207,8 @@ const CloudAuthContextProvider = ({children}) => {
         await saveItem(cloudV2AuthUser, user);
         // New company account — always clear any existing device credentials
         await clearDeviceFromStorage();
+        // Switch to the new company's isolated DB file
+        setActiveCompanyDb(user?.company?.id ?? null);
         dispatch({type: 'SIGN_UP', authToken: token, authUser: user});
       },
 
@@ -218,6 +227,9 @@ const CloudAuthContextProvider = ({children}) => {
           await clearDeviceFromStorage();
           clearDevice = true;
         }
+
+        // Switch to this company's isolated DB file
+        setActiveCompanyDb(user?.company?.id ?? null);
 
         dispatch({type: 'SIGN_IN', authToken: token, authUser: user, clearDevice});
       },
