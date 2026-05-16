@@ -74,9 +74,8 @@ const reducer = (prevState, action) => {
         isSignout: true,
         authToken: null,
         authUser: null,
-        deviceId: null,
-        deviceToken: null,
-        designatedBranch: null,
+        // deviceId, deviceToken, designatedBranch preserved — device is a
+        // company asset; signing out of a personal session must not deregister it
       };
     case 'SWITCH_USER':
       return {
@@ -187,9 +186,8 @@ const CloudAuthContextProvider = ({children}) => {
         try {
           await saveItem(cloudV2AuthToken, null);
           await saveItem(cloudV2AuthUser, null);
-          await saveItem(cloudV2DeviceId, null);
-          await saveItem(cloudV2DeviceToken, null);
-          await saveItem(cloudV2DesignatedBranch, null);
+          // deviceId, deviceToken, designatedBranch intentionally preserved so
+          // sub-accounts can still sign in on this device after the owner signs out
         } catch (error) {
           console.debug('[CloudAuthContextProvider] signOut error:', error);
         }

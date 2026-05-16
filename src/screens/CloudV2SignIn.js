@@ -26,7 +26,7 @@ const schema = Yup.object({
 
 const CloudV2SignIn = ({navigation}) => {
   const {colors} = useTheme();
-  const [, {signIn: dispatchSignIn}] = useCloudAuthContext();
+  const [cloudAuthState, {signIn: dispatchSignIn}] = useCloudAuthContext();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [serverError, setServerError] = useState('');
 
@@ -35,7 +35,11 @@ const CloudV2SignIn = ({navigation}) => {
   const handleSubmit = async (values, actions) => {
     setServerError('');
     try {
-      const data = await mutation.mutateAsync(values);
+      const payload = {...values};
+      if (cloudAuthState.deviceId) {
+        payload.device_id = cloudAuthState.deviceId;
+      }
+      const data = await mutation.mutateAsync(payload);
       if (data?.status === 'success') {
         await dispatchSignIn(data);
       } else {
