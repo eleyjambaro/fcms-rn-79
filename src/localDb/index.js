@@ -63,8 +63,21 @@ const localAccountDbName = appDefaults.localAccountDbName;
 // companies on the same physical device cannot see each other's data.
 let _activeCompanyId = null;
 
-export const setActiveCompanyDb = companyId => {
+// Sets the active company and ensures that company's DB tables exist before
+// returning. Must be awaited before dispatching auth state changes so that
+// components never open a DB that hasn't been initialised yet.
+export const setActiveCompanyDb = async companyId => {
   _activeCompanyId = companyId ?? null;
+  if (_activeCompanyId) {
+    try {
+      // createTables / alterTables are defined later in this file but are
+      // already in scope by the time this function is called at runtime.
+      await createTables();
+      await alterTables();
+    } catch (e) {
+      console.debug('[localDb] setActiveCompanyDb init error:', e);
+    }
+  }
 };
 
 export const getDBConnection = async () => {

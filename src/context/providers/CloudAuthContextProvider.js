@@ -4,6 +4,7 @@ import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 import {CloudAuthContext} from '../types';
 import {rnStorageKeys} from '../../constants/rnSecureStorageKeys';
 import {invalidateCloudSyncParamsCache, setActiveCompanyDb} from '../../localDb';
+import {queryClient} from '../../queryClient';
 import {scheduleSyncSoon} from '../../services/syncService';
 
 const {
@@ -141,8 +142,9 @@ const CloudAuthContextProvider = ({children}) => {
         const deviceToken = await loadItem(cloudV2DeviceToken);
         const designatedBranch = await loadItem(cloudV2DesignatedBranch, true);
 
-        // Activate the company-scoped DB before any component reads local data
-        setActiveCompanyDb(authUser?.company?.id ?? null);
+        // Activate the company-scoped DB and ensure tables exist before any
+        // component reads local data (isLoading stays true until this resolves)
+        await setActiveCompanyDb(authUser?.company?.id ?? null);
 
         dispatch({
           type: 'RESTORE',
@@ -154,7 +156,7 @@ const CloudAuthContextProvider = ({children}) => {
         });
       } catch (error) {
         console.debug('[CloudAuthContextProvider] restore error:', error);
-        setActiveCompanyDb(null);
+        await setActiveCompanyDb(null);
         dispatch({
           type: 'RESTORE',
           authToken: null,
@@ -192,8 +194,8 @@ const CloudAuthContextProvider = ({children}) => {
           }
         }
 
-        // Switch to this company's isolated DB file
-        setActiveCompanyDb(user?.company?.id ?? null);
+        // Switch to this company's isolated DB file (creates tables if needed)
+        await setActiveCompanyDb(user?.company?.id ?? null);
 
         dispatch({type: 'SIGN_IN', authToken: token, authUser: user, clearDevice});
       },
@@ -207,8 +209,8 @@ const CloudAuthContextProvider = ({children}) => {
         await saveItem(cloudV2AuthUser, user);
         // New company account — always clear any existing device credentials
         await clearDeviceFromStorage();
-        // Switch to the new company's isolated DB file
-        setActiveCompanyDb(user?.company?.id ?? null);
+        // Switch to the new company's isolated DB file (creates tables if needed)
+        await setActiveCompanyDb(user?.company?.id ?? null);
         dispatch({type: 'SIGN_UP', authToken: token, authUser: user});
       },
 
@@ -228,8 +230,8 @@ const CloudAuthContextProvider = ({children}) => {
           clearDevice = true;
         }
 
-        // Switch to this company's isolated DB file
-        setActiveCompanyDb(user?.company?.id ?? null);
+        // Switch to this company's isolated DB file (creates tables if needed)
+        await setActiveCompanyDb(user?.company?.id ?? null);
 
         dispatch({type: 'SIGN_IN', authToken: token, authUser: user, clearDevice});
       },
@@ -244,6 +246,8 @@ const CloudAuthContextProvider = ({children}) => {
         } catch (error) {
           console.debug('[CloudAuthContextProvider] signOut error:', error);
         }
+        // Clear cached query results so the next user never sees stale data
+        queryClient.clear();
         invalidateCloudSyncParamsCache();
         dispatch({type: 'SIGN_OUT'});
       },
@@ -274,6 +278,7 @@ const CloudAuthContextProvider = ({children}) => {
         } catch (error) {
           console.debug('[CloudAuthContextProvider] switchUser error:', error);
         }
+        queryClient.clear();
         dispatch({type: 'SWITCH_USER'});
       },
 
