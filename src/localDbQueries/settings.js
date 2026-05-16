@@ -1,6 +1,4 @@
-import {getLocalAccountDBConnection} from '../localDb';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {appStorageKeySeperator} from './appVersions';
+import {getDBConnection} from '../localDb';
 
 export const defaultSettings = [
   // Logo settings
@@ -46,7 +44,7 @@ export const createSetting = async ({values}) => {
   );`;
 
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
 
     return db.executeSql(query);
   } catch (error) {
@@ -67,7 +65,7 @@ export const getSettings = async ({queryKey}) => {
   }
 
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
     const results = await db.executeSql(query);
 
     let settings = [];
@@ -96,7 +94,7 @@ export const getSettings = async ({queryKey}) => {
 
 export const updateSettings = async ({values, onSuccess, onError}) => {
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
 
     if (!values.length > 0) {
       throw Error('values parameter for settings is missing');
@@ -141,32 +139,19 @@ export const updateSettings = async ({values, onSuccess, onError}) => {
   }
 };
 
-export const createDefaultSettings = async (version = '0.0.0') => {
-  let hasDefaultSettings = false;
-  const key = `hasDefaultSettings${appStorageKeySeperator}${version}`;
-
+export const createDefaultSettings = async () => {
   try {
-    hasDefaultSettings = await AsyncStorage.getItem(key);
+    const db = await getDBConnection();
+    const results = await db.executeSql(`SELECT COUNT(*) as count FROM settings`);
+    const count = results[0]?.rows?.item(0)?.count ?? 0;
 
-    if (hasDefaultSettings === 'true') {
-      console.log(
-        `Default Settings (version ${version}) has been already initialized.`,
-      );
+    if (count > 0) {
       return;
     }
 
-    const results = await Promise.all(
-      defaultSettings.map(async values => {
-        return await createSetting({values});
-      }),
+    return await Promise.all(
+      defaultSettings.map(values => createSetting({values})),
     );
-
-    await AsyncStorage.setItem(key, 'true');
-    console.log(
-      `Default Settings (version ${version}) has been initialized successfully.`,
-    );
-
-    return results;
   } catch (error) {
     console.debug(error);
     throw error;
@@ -179,7 +164,7 @@ export const getAllSettings = async ({queryKey}) => {
   let query = `SELECT * FROM settings`;
 
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
     const results = await db.executeSql(query);
 
     let settings = [];
@@ -208,7 +193,7 @@ export const getAllSettings = async ({queryKey}) => {
 
 export const deleteAllSettings = async () => {
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
 
     const query = `DELETE FROM settings`;
     await db.executeSql(query);
@@ -224,7 +209,7 @@ export const deletePreviousAppVersionDefaultSettings = async (
   currentVersion = '0.0.0',
 ) => {
   try {
-    const db = await getLocalAccountDBConnection();
+    const db = await getDBConnection();
 
     const query = `DELETE FROM settings WHERE app_version != '${currentVersion}'`;
     return db.executeSql(query);

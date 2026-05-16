@@ -159,6 +159,7 @@ export const createLocalAccountTables = async () => {
     branch VARCHAR
   );`;
 
+  // Settings are now company-scoped (see createSettingsTableQuery at module level)
   const createSettingsTableQuery = `CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR,
@@ -1048,6 +1049,15 @@ const createSellingMenuItemsTableQuery = `
   );
 `;
 
+const createSettingsTableQuery = `CREATE TABLE IF NOT EXISTS settings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name VARCHAR,
+  value VARCHAR,
+  setting_group VARCHAR,
+  setting_sub_group VARCHAR,
+  app_version VARCHAR
+);`;
+
 export const createTables = async () => {
   let db;
 
@@ -1094,6 +1104,7 @@ export const createTables = async () => {
     await db.executeSql(createSellingMenusTableQuery);
     await db.executeSql(createSellingMenuItemsTableQuery);
     await db.executeSql(createSyncMetadataTableQuery);
+    await db.executeSql(createSettingsTableQuery);
   } catch (error) {
     console.debug(error);
     throw error;
