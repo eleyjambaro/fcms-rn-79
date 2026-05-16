@@ -66,7 +66,7 @@ export const deletePreviousAppVersionDefaultUnits = async (
 export const getDefaultUnits = async () => {
   try {
     const units = await AsyncStorage.getItem('units');
-    return JSON.parse(units);
+    return JSON.parse(units) ?? [];
   } catch (error) {
     console.debug(error);
     throw error;

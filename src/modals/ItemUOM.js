@@ -103,7 +103,7 @@ const ItemUOM = () => {
         <Divider />
         <CheckboxSelection
           value={selectedUnit}
-          options={data.map(unit => {
+          options={(data ?? []).map(unit => {
             const unitName = unit.singular === 'Each' ? 'Piece' : unit.singular;
             const unitAbbrev = unit.abbr === 'ea' ? 'pc' : unit.abbr;
 
