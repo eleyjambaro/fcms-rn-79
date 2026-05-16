@@ -34,6 +34,7 @@ import {
 
 import LocalUserAccountListItem from './LocalUserAccountListItem';
 import OptionsList from '../buttons/OptionsList';
+import ManageSubAccountBranchesModal from '../modals/ManageSubAccountBranchesModal';
 import ManageSubAccountDevicesModal from '../modals/ManageSubAccountDevicesModal';
 import ListLoadingFooter from '../../components/stateIndicators/ListLoadingFooter';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
@@ -82,6 +83,8 @@ const LocalUserAccountList = props => {
 
   const [formErrorMessage, setErrorMessage] = useState('');
   const [manageDevicesModalVisible, setManageDevicesModalVisible] =
+    useState(false);
+  const [manageBranchesModalVisible, setManageBranchesModalVisible] =
     useState(false);
 
   const showUpdateLocalUserAccountModal = () =>
@@ -142,6 +145,14 @@ const LocalUserAccountList = props => {
       icon: 'cellphone-lock',
       handler: () => {
         setManageDevicesModalVisible(true);
+        closeOptionsBottomSheet();
+      },
+    },
+    {
+      label: 'Manage Branch Access',
+      icon: 'source-branch',
+      handler: () => {
+        setManageBranchesModalVisible(true);
         closeOptionsBottomSheet();
       },
     },
@@ -322,6 +333,11 @@ const LocalUserAccountList = props => {
       <ManageSubAccountDevicesModal
         visible={manageDevicesModalVisible}
         onDismiss={() => setManageDevicesModalVisible(false)}
+        account={focusedItem}
+      />
+      <ManageSubAccountBranchesModal
+        visible={manageBranchesModalVisible}
+        onDismiss={() => setManageBranchesModalVisible(false)}
         account={focusedItem}
       />
 
