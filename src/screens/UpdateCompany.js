@@ -1,57 +1,46 @@
 import {StyleSheet, View, ScrollView, Linking} from 'react-native';
-import {
-  Button,
-  Text,
-  TextInput,
-  Avatar,
-  useTheme,
-  Portal,
-  Dialog,
-} from 'react-native-paper';
+import {Button, Text, useTheme, Portal, Dialog} from 'react-native-paper';
 import React, {useState} from 'react';
-import {Formik} from 'formik';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 
-import useCurrentUser from '../hooks/useCurrentUser';
 import CompanyForm from '../components/forms/CompanyForm';
-import {
-  createCompany,
-  getCompany,
-  updateCompany,
-} from '../localDbQueries/companies';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
-import AppIcon from '../components/icons/AppIcon';
-import {getSettings, updateSettings} from '../localDbQueries/settings';
 import BannerAdComponent from '../components/ads/BannerAdComponent';
 import {adUnitIds} from '../constants/adUnitIds';
+import {
+  getCloudCompany,
+  updateCloudCompany,
+  uploadCloudCompanyLogo,
+} from '../serverDbQueries/v2/companies';
+import {updateBranch} from '../serverDbQueries/v2/branches';
+import useCloudAuthContext from '../hooks/useCloudAuthContext';
 
 const UpdateCompany = () => {
   const {colors} = useTheme();
   const navigation = useNavigation();
-  const route = useRoute();
   const queryClient = useQueryClient();
-  const {status, data} = useQuery(['company'], getCompany);
-  const updateCompanyMutation = useMutation(updateCompany, {
+  const [cloudState, cloudAuthActions] = useCloudAuthContext();
+  const {designatedBranch} = cloudState;
+  const {refreshCloudAuthCompany} = cloudAuthActions;
+
+  const {status, data} = useQuery(['cloudCompany'], getCloudCompany);
+
+  const updateCloudCompanyMutation = useMutation(updateCloudCompany, {
     onSuccess: () => {
-      queryClient.invalidateQueries('company');
+      queryClient.invalidateQueries(['cloudCompany']);
     },
   });
 
-  const {status: getSettingsStatus, data: getSettingsData} = useQuery(
-    [
-      'settings',
-      {settingNames: ['logo_display_company_name', 'logo_display_branch']},
-    ],
-    getSettings,
-  );
-  const updateSettingsMutation = useMutation(updateSettings, {
+  const uploadCloudCompanyLogoMutation = useMutation(uploadCloudCompanyLogo, {
     onSuccess: () => {
-      queryClient.invalidateQueries('settings');
+      queryClient.invalidateQueries(['cloudCompany']);
     },
   });
+
+  const updateBranchMutation = useMutation(updateBranch);
 
   const [
     needStorageManagementPermissionDialogVisible,
@@ -60,25 +49,33 @@ const UpdateCompany = () => {
   const [formErrorMessage, setFormErrorMessage] = useState('');
 
   const handleSubmit = async (values, actions) => {
-    console.log(values);
-
     try {
-      await updateSettingsMutation.mutateAsync({
-        values: [
-          {
-            name: 'logo_display_company_name',
-            value: values.logo_display_company_name,
-          },
-          {
-            name: 'logo_display_branch',
-            value: values.logo_display_branch,
-          },
-        ],
+      if (values.has_new_selected_logo_file === '1' && values.logo_file_uri) {
+        await uploadCloudCompanyLogoMutation.mutateAsync({
+          fileUri: values.logo_file_uri,
+          fileName: values.logo_file_name,
+          mimeType: values.logo_file_type,
+        });
+      }
+
+      await updateCloudCompanyMutation.mutateAsync({
+        name: values.company_name,
+        display_name: values.company_display_name || null,
+        address: values.company_address || null,
+        email: values.company_email || null,
+        phone: values.company_mobile_number || null,
+        logo_display_name: values.logo_display_company_name === '1',
+        logo_display_branch: values.logo_display_branch === '1',
       });
 
-      await updateCompanyMutation.mutateAsync({
-        updatedValues: values,
-      });
+      if (designatedBranch?.id) {
+        await updateBranchMutation.mutateAsync({
+          id: designatedBranch.id,
+          display_name: values.branch || null,
+        });
+      }
+
+      await refreshCloudAuthCompany();
 
       actions.resetForm();
       navigation.goBack();
@@ -88,15 +85,18 @@ const UpdateCompany = () => {
       if (error.code === 'ENOENT') {
         setNeedStorageManagementPermissionDialogVisible(() => true);
       } else {
+        setFormErrorMessage(
+          error?.response?.data?.message || 'Something went wrong.',
+        );
       }
     }
   };
 
-  if (status === 'loading' || getSettingsStatus === 'loading') {
+  if (status === 'loading') {
     return <DefaultLoadingScreen />;
   }
 
-  if (status === 'error' || getSettingsStatus === 'error') {
+  if (status === 'error') {
     return (
       <DefaultErrorScreen
         errorTitle="Oops!"
@@ -105,10 +105,8 @@ const UpdateCompany = () => {
     );
   }
 
-  const settings = getSettingsData?.resultMap;
-  const company = data?.result;
+  const company = data?.data;
 
-  if (!settings) return null;
   if (!company) return null;
 
   return (
@@ -183,10 +181,15 @@ const UpdateCompany = () => {
         <ScrollView showsVerticalScrollIndicator={false}>
           <CompanyForm
             initialValues={{
-              ...company,
-              logo_display_company_name:
-                settings.logo_display_company_name || '0',
-              logo_display_branch: settings.logo_display_branch || '0',
+              company_name: company.name || '',
+              company_display_name: company.display_name || '',
+              company_address: company.address || '',
+              company_mobile_number: company.phone || '',
+              company_email: company.email || '',
+              company_logo_path: company.logo_url || '',
+              branch: designatedBranch?.display_name || '',
+              logo_display_company_name: company.logo_display_name ? '1' : '0',
+              logo_display_branch: company.logo_display_branch ? '1' : '0',
             }}
             editMode={true}
             onSubmit={handleSubmit}

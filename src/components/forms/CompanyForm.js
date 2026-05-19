@@ -94,6 +94,9 @@ const CompanyForm = props => {
 
     setFieldTouched('company_logo_path', true);
     setFieldValue('company_logo_path', stats.path);
+    setFieldValue('logo_file_uri', file.uri);
+    setFieldValue('logo_file_type', file.type || 'image/jpeg');
+    setFieldValue('logo_file_name', file.name || 'logo.jpg');
     setFieldValue('has_new_selected_logo_file', '1');
   };
 
@@ -401,6 +404,9 @@ const CompanyForm = props => {
           initialValues.logo_display_company_name || '0',
         logo_display_branch: initialValues.logo_display_branch || '0',
         has_new_selected_logo_file: '0',
+        logo_file_uri: '',
+        logo_file_type: 'image/jpeg',
+        logo_file_name: 'logo.jpg',
       }}
       validationSchema={CompanyValidationSchema}
       onSubmit={onSubmit}>

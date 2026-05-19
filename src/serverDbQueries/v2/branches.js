@@ -36,3 +36,10 @@ export const getBranch = async id => {
   });
   return data;
 };
+
+export const updateBranch = async ({id, ...values}) => {
+  const {data} = await cloudApiV2.put(`/api/v2/branches/${id}`, values, {
+    headers: await getAuthHeaders(),
+  });
+  return data;
+};

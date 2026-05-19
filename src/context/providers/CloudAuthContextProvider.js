@@ -12,6 +12,7 @@ import {queryClient} from '../../queryClient';
 import {setDefaultUnits} from '../../localData/units';
 import {createDefaultSettings} from '../../localDbQueries/settings';
 import {scheduleSyncSoon} from '../../services/syncService';
+import {getCloudCompany} from '../../serverDbQueries/v2/companies';
 
 const {
   cloudV2AuthToken,
@@ -119,6 +120,13 @@ const reducer = (prevState, action) => {
       return {
         ...prevState,
         designatedBranch: action.designatedBranch,
+      };
+    case 'REFRESH_COMPANY':
+      return {
+        ...prevState,
+        authUser: prevState.authUser
+          ? {...prevState.authUser, company: action.company}
+          : prevState.authUser,
       };
   }
 };
@@ -324,6 +332,23 @@ const CloudAuthContextProvider = ({children}) => {
         await createDefaultSettings();
         scheduleSyncSoon(500);
         dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: branch});
+      },
+
+      refreshCloudAuthCompany: async () => {
+        try {
+          const response = await getCloudCompany();
+          const company = response?.data ?? null;
+          if (!company) return;
+
+          // Merge updated company into the persisted authUser so it survives restarts
+          const currentUser = await loadItem(cloudV2AuthUser, true);
+          if (currentUser) {
+            await saveItem(cloudV2AuthUser, {...currentUser, company});
+          }
+          dispatch({type: 'REFRESH_COMPANY', company});
+        } catch (error) {
+          console.debug('[CloudAuthContextProvider] refreshCloudAuthCompany error:', error);
+        }
       },
 
       switchUser: async () => {
