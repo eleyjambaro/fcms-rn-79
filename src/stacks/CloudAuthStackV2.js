@@ -1,8 +1,10 @@
-import React from 'react';
+import React, {useState, useCallback} from 'react';
 import {createStackNavigator} from '@react-navigation/stack';
+import {useQuery} from '@tanstack/react-query';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import routes from '../constants/routes';
+import {lookupBranch} from '../serverDbQueries/v2/devices';
 
 import CloudV2SignIn from '../screens/CloudV2SignIn';
 import CloudV2SignUpStep1 from '../screens/CloudV2SignUpStep1';
@@ -11,6 +13,7 @@ import CloudV2OTPVerification from '../screens/CloudV2OTPVerification';
 import CloudV2DeviceRegistration from '../screens/CloudV2DeviceRegistration';
 import CloudV2BranchSetup from '../screens/CloudV2BranchSetup';
 import CloudV2SubAccountSignIn from '../screens/CloudV2SubAccountSignIn';
+import Splash from '../screens/Splash';
 
 const Stack = createStackNavigator();
 
@@ -25,10 +28,51 @@ const Stack = createStackNavigator();
  * the next phase automatically.
  */
 const CloudAuthStackV2 = () => {
-  const [cloudAuthState] = useCloudAuthContext();
+  const [cloudAuthState, {setDesignatedBranch}] = useCloudAuthContext();
 
   const hasAuth = !!(cloudAuthState.authToken && cloudAuthState.authUser);
   const hasDevice = !!(cloudAuthState.deviceId && cloudAuthState.deviceToken);
+  const hasBranch = !!cloudAuthState.designatedBranch;
+
+  // Tracks whether the server-side branch check for Phase 3 has resolved.
+  // Starts false so we show Splash while the check is in-flight.
+  // Only flipped to true when we KNOW the device has no branch — meaning the
+  // BranchSetup screen is safe to show. When a branch IS found, setDesignatedBranch
+  // makes hasBranch true before we ever flip this, so App.js switches to RootStack
+  // without BranchSetup ever being visible.
+  const [branchCheckDone, setBranchCheckDone] = useState(false);
+
+  const handleBranchCheckSuccess = useCallback(
+    async data => {
+      if (data?.data?.branch) {
+        // Branch found on server: apply it. hasBranch becomes true → App.js
+        // renders RootStack. We deliberately do NOT set branchCheckDone here
+        // so Splash stays visible during the async setDesignatedBranch work.
+        await setDesignatedBranch(data.data.branch);
+      } else {
+        setBranchCheckDone(true);
+      }
+    },
+    [setDesignatedBranch],
+  );
+
+  const handleBranchCheckError = useCallback(() => {
+    // Server unreachable — let the user pick manually
+    setBranchCheckDone(true);
+  }, []);
+
+  // When the device is registered but no branch is stored locally, check the
+  // server before showing the branch selection screen — the device may already
+  // be assigned to a branch (e.g. after a reinstall that cleared local storage).
+  useQuery(
+    ['cloudV2DeviceMe', cloudAuthState.deviceId],
+    ({queryKey}) => lookupBranch(queryKey[1]),
+    {
+      enabled: hasAuth && hasDevice && !hasBranch,
+      onSuccess: handleBranchCheckSuccess,
+      onError: handleBranchCheckError,
+    },
+  );
 
   // Phase 2: authenticated but no device registered yet
   if (hasAuth && !hasDevice) {
@@ -42,8 +86,13 @@ const CloudAuthStackV2 = () => {
     );
   }
 
-  // Phase 3: authenticated + device, but no branch assigned yet
+  // Phase 3: authenticated + device, but no branch assigned yet.
+  // Hold on Splash until branchCheckDone — this prevents the branch selection
+  // screen from flashing when the device already has a server-side branch.
   if (hasAuth && hasDevice) {
+    if (!branchCheckDone) {
+      return <Splash />;
+    }
     return (
       <Stack.Navigator screenOptions={{headerShown: false}}>
         <Stack.Screen
