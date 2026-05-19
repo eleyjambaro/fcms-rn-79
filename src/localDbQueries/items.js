@@ -14,7 +14,7 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter}] = queryKey;
   const limit = 10;
   const orderBy = 'items.name';
-  let queryFilter = createQueryFilter(filter);
+  let queryFilter = createQueryFilter(filter, {'items.is_deleted': 0});
 
   try {
     const db = await getDBConnection();
@@ -83,7 +83,7 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
           FROM inventory_logs
           LEFT JOIN items ON items.id = inventory_logs.item_id
           LEFT JOIN operations ON operations.id = inventory_logs.operation_id
-          WHERE inventory_logs.voided != 1
+          WHERE inventory_logs.voided != 1 AND inventory_logs.is_deleted != 1
           GROUP BY inventory_logs.item_id, operations.type
         ) AS inventory_logs_added_and_removed
         LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id

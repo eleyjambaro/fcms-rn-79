@@ -51,6 +51,8 @@ export const getInventoryLogs = async ({queryKey, pageParam = 1}) => {
     };
   }
 
+  additionalFilter['inventory_logs.is_deleted'] = 0;
+  additionalFilter['items.is_deleted'] = 0;
   let queryFilter = createQueryFilter(filter, additionalFilter);
 
   try {
@@ -537,6 +539,8 @@ export const getInventoryLogsTotals = async ({queryKey, pageParam = 1}) => {
   }
 
   additionalFilter['inventory_logs.voided'] = 0;
+  additionalFilter['inventory_logs.is_deleted'] = 0;
+  additionalFilter['items.is_deleted'] = 0;
 
   let queryFilter = createQueryFilter(filter, additionalFilter);
 
@@ -584,6 +588,8 @@ export const getInventoryLogsTotal = async ({queryKey, pageParam = 1}) => {
 
   let additionalFilter = {
     'inventory_logs.voided': 0,
+    'inventory_logs.is_deleted': 0,
+    'items.is_deleted': 0,
   };
 
   let queryFilter = createQueryFilter(filter, additionalFilter);
@@ -631,6 +637,8 @@ export const getItemInventoryLogsGrandTotal = async ({
 
   addedStockSumQueryFilterObj['operations.type'] = 'add_stock';
   addedStockSumQueryFilterObj['inventory_logs.voided'] = 0;
+  addedStockSumQueryFilterObj['inventory_logs.is_deleted'] = 0;
+  addedStockSumQueryFilterObj['items.is_deleted'] = 0;
 
   if (
     addedStockSumQueryFilterObj &&
@@ -653,6 +661,8 @@ export const getItemInventoryLogsGrandTotal = async ({
 
   removedStockSumQueryFilterObj['operations.type'] = 'remove_stock';
   removedStockSumQueryFilterObj['inventory_logs.voided'] = 0;
+  removedStockSumQueryFilterObj['inventory_logs.is_deleted'] = 0;
+  removedStockSumQueryFilterObj['items.is_deleted'] = 0;
 
   if (
     removedStockSumQueryFilterObj &&
