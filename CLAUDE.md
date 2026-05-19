@@ -36,23 +36,39 @@ Copy `.env.example` to `.env` and set `CLOUD_API_V2_BASE_URL` to your local serv
 
 ## Architecture
 
-### Dual Authentication System
+### Authentication System
 
-The app supports two auth modes that gate which navigation stack is rendered in `App.js`:
+**Cloud Auth is the primary and only supported auth mode.** Local Auth (`AuthStack`) is legacy and deprecated — do not build new features against it.
 
-- **Cloud Auth** (`CloudAuthStackV2`): Email/OTP sign-in → device registration → branch selection. Tokens stored in `react-native-fast-secure-storage` under keys defined in `/src/constants/rnSecureStorageKeys.js`. State managed by `CloudAuthContextProvider`.
-- **Local Auth** (`AuthStack`): On-device account with bcrypt password hashing and locally-generated JWT (16-hour expiry). State managed by `AuthContextProvider`.
+- **Cloud Auth** (`CloudAuthStackV2`): Email/password or OTP sign-in → device registration → branch selection. Tokens stored in `react-native-fast-secure-storage` under keys in `/src/constants/rnSecureStorageKeys.js`. State managed by `CloudAuthContextProvider`.
+  - Sub-accounts (team members) sign in via `CloudV2SubAccountSignIn` and require a `device_id` tied to their account via `DeviceAccountAssignment` on the server.
+  - `App.js` gates on `isCloudAuthenticated && hasDevice && hasBranch` — all three must be true to show `RootStack`.
+- **Local Auth** (`AuthStack`): **Deprecated.** Do not add new features here.
+
+### Multi-Company Data Isolation
+
+**Each company gets its own SQLite database file.** This is enforced at the `getDBConnection()` level in `/src/localDb/index.js` — no query-level filtering is needed or used.
+
+- Company DB filename: `FCMS_<companyId>` (e.g. `FCMS_abc-123...`). The fallback `FCMS.db` is only used in the unauthenticated state where no company data is accessed.
+- `setActiveCompanyDb(companyId)` in `/src/localDb/index.js` sets the active company, creates tables (`createTables()`), and runs migrations (`alterTables()`). It is **async** and must be `await`ed.
+- `getActiveCompanyId()` returns the currently active company ID — used by company-scoped AsyncStorage keys (e.g. units).
+- `CloudAuthContextProvider` calls `setActiveCompanyDb` at every auth transition (restore, sign-in, sign-up, OTP verify) **before** dispatching state, so `isLoading` stays `true` until the DB is ready. It also seeds company defaults (`setDefaultUnits`, `createDefaultSettings`) at the same point.
+- On sign-out or user switch, `queryClient.clear()` is called to purge React Query's cache so no prior company's data is visible to the next user.
 
 ### Dual Database System
 
-- **Company DB**: SQLite database holding items, recipes, purchases, expenses, revenues, etc. Queried via `/src/localDbQueries/`.
-- **Account DB**: Separate SQLite database for local accounts, roles, and companies.
-- Both initialized via `useInitDBTables` hook. Direct SQL queries use a promise-based wrapper in `/src/localDb/`.
+- **Company DB** (`FCMS_<companyId>`): Items, recipes, purchases, expenses, revenues, settings, units, etc. Queried via `/src/localDbQueries/`. **Company-scoped — one file per company.**
+- **Account DB** (`FCMSLocalAccount.db`): Legacy local auth data (accounts, roles, companies). Used only by the deprecated local auth system. Do not add new tables here.
+- Direct SQL queries use a promise-based wrapper in `/src/localDb/`.
 - Query builders in `/src/utils/localDbHelpers.js` support `%IN`, `%LIKE` filter operators and `createQueryFilter()`.
+
+#### Company-scoped AsyncStorage
+
+Units are stored in AsyncStorage under a company-scoped key (`units_<companyId>`), managed by `/src/localData/units.js`. `getActiveCompanyId()` is used to derive the key. Never use a bare hardcoded key for per-company data.
 
 ### Delta Sync (Cloud Sync)
 
-All Company DB tables participate in delta sync **except**: `app_versions`, `operations`, `taxes`, `saved_printers`, and `sync_metadata`. Account DB tables (`roles`, `accounts`, `companies`, `settings`) are never synced.
+All Company DB tables participate in delta sync **except**: `app_versions`, `operations`, `taxes`, `saved_printers`, `settings`, and `sync_metadata`. Account DB tables are never synced.
 
 Delta sync tables receive four extra columns added via `alterTables()` in `/src/localDb/index.js`:
 
@@ -61,7 +77,7 @@ Delta sync tables receive four extra columns added via `alterTables()` in `/src/
 - `synced_at` — stamped by the sync service after a successful push
 - `is_deleted` — soft-delete flag (`1` = deleted); **never use `DELETE FROM` on these tables**
 
-**Soft-delete rule**: all deletions on delta sync tables must use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` instead of `DELETE FROM`. Hard deletes are only allowed on excluded tables (`app_versions`, `operations`, `taxes`, `saved_printers`, `monthly_expenses`, and Account DB tables).
+**Soft-delete rule**: all deletions on delta sync tables must use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` instead of `DELETE FROM`. Hard deletes are only allowed on excluded tables (`app_versions`, `operations`, `taxes`, `saved_printers`, `settings`, `monthly_expenses`, and Account DB tables).
 
 Delta sync tables (defined in `deltaSyncTables` array in `/src/localDb/index.js`):
 
@@ -113,7 +129,7 @@ Navigation outside components uses `RootNavigation.js` ref.
 
 Context API with 13+ providers in `/src/context/providers/`. Key providers:
 
-- `CloudAuthContextProvider` / `AuthContextProvider` — auth state
+- `CloudAuthContextProvider` — cloud auth state **and** company DB lifecycle (activates company DB, seeds defaults, clears React Query cache on sign-out). `AuthContextProvider` is deprecated.
 - `AppConfigContextProvider` — global app config
 - `ItemFormContextProvider`, `RecipeFormContextProvider`, `ExpenseFormContextProvider`, `SellingMenuFormContextProvider` — form state
 - `SearchbarContextProvider`, `SalesCounterContextProvider` — feature-specific state

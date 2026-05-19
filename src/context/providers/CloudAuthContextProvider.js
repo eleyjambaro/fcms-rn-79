@@ -3,9 +3,13 @@ import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 
 import {CloudAuthContext} from '../types';
 import {rnStorageKeys} from '../../constants/rnSecureStorageKeys';
-import {invalidateCloudSyncParamsCache, setActiveCompanyDb} from '../../localDb';
+import {
+  invalidateCloudSyncParamsCache,
+  setActiveCompanyDb,
+} from '../../localDb';
 import {queryClient} from '../../queryClient';
 import {setDefaultUnits} from '../../localData/units';
+import {createDefaultSettings} from '../../localDbQueries/settings';
 import {scheduleSyncSoon} from '../../services/syncService';
 
 const {
@@ -148,6 +152,7 @@ const CloudAuthContextProvider = ({children}) => {
         await setActiveCompanyDb(authUser?.company?.id ?? null);
         if (authUser?.company?.id) {
           await setDefaultUnits();
+          await createDefaultSettings();
         }
 
         dispatch({
@@ -202,9 +207,15 @@ const CloudAuthContextProvider = ({children}) => {
         await setActiveCompanyDb(user?.company?.id ?? null);
         if (user?.company?.id) {
           await setDefaultUnits();
+          await createDefaultSettings();
         }
 
-        dispatch({type: 'SIGN_IN', authToken: token, authUser: user, clearDevice});
+        dispatch({
+          type: 'SIGN_IN',
+          authToken: token,
+          authUser: user,
+          clearDevice,
+        });
       },
 
       signUp: async data => {
@@ -220,6 +231,7 @@ const CloudAuthContextProvider = ({children}) => {
         await setActiveCompanyDb(user?.company?.id ?? null);
         if (user?.company?.id) {
           await setDefaultUnits();
+          await createDefaultSettings();
         }
         dispatch({type: 'SIGN_UP', authToken: token, authUser: user});
       },
@@ -244,9 +256,15 @@ const CloudAuthContextProvider = ({children}) => {
         await setActiveCompanyDb(user?.company?.id ?? null);
         if (user?.company?.id) {
           await setDefaultUnits();
+          await createDefaultSettings();
         }
 
-        dispatch({type: 'SIGN_IN', authToken: token, authUser: user, clearDevice});
+        dispatch({
+          type: 'SIGN_IN',
+          authToken: token,
+          authUser: user,
+          clearDevice,
+        });
       },
 
       signOut: async () => {

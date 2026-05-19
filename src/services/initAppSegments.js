@@ -6,12 +6,7 @@ import {
   deleteDefaultOperations,
   createDefaultInventoryOperations,
 } from '../localDbQueries/operations';
-import {
-  deleteAllSettings,
-  createDefaultSettings,
-} from '../localDbQueries/settings';
 import {deleteDefaultTaxes, createDefaultTaxes} from '../localDbQueries/taxes';
-import {deleteAllUnits, setDefaultUnits} from '../localData/units';
 import {handleNewAppVersion} from '../localDbQueries/appVersions';
 import mobileAds from 'react-native-google-mobile-ads';
 
@@ -27,18 +22,18 @@ export async function initializeTablesAndHandleAppVersion() {
       await AsyncStorage.multiRemove(versionedKeys);
 
       await deleteDefaultRoles();
-      await deleteAllSettings();
       await deleteDefaultOperations();
       await deleteDefaultTaxes();
-      await deleteAllUnits();
+      // Settings and units are company-scoped — seeded per-company in
+      // CloudAuthContextProvider after setActiveCompanyDb, not here.
     },
   });
 
   await createDefaultRoles(appVersion);
-  await createDefaultSettings(appVersion);
   await createDefaultInventoryOperations(appVersion);
   await createDefaultTaxes(appVersion);
-  await setDefaultUnits(appVersion);
+  // createDefaultSettings and setDefaultUnits are company-specific and are
+  // called in CloudAuthContextProvider after the company DB is activated.
 }
 
 export async function initializeOtherServices() {
