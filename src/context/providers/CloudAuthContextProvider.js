@@ -216,7 +216,10 @@ const CloudAuthContextProvider = ({children}) => {
           user?.company?.id ?? null,
           signInBranch?.id ?? null,
         );
-        if (user?.company?.id) {
+        // Seed defaults only when a branch is already known — if there's no
+        // branch yet, setDesignatedBranch will seed after branch selection,
+        // avoiding a wasted init on a file that becomes an orphan immediately.
+        if (user?.company?.id && signInBranch?.id) {
           await setDefaultUnits();
           await createDefaultSettings();
         }
@@ -240,11 +243,9 @@ const CloudAuthContextProvider = ({children}) => {
         await clearDeviceFromStorage();
         // Switch to the new company's isolated DB file (no branch yet — branch
         // is assigned during device registration which follows sign-up)
+        // No branch during sign-up (assigned at device registration); defer
+        // seeding to setDesignatedBranch to avoid orphaning this DB file.
         await setActiveCompanyDb(user?.company?.id ?? null, null);
-        if (user?.company?.id) {
-          await setDefaultUnits();
-          await createDefaultSettings();
-        }
         dispatch({type: 'SIGN_UP', authToken: token, authUser: user});
       },
 
@@ -272,7 +273,8 @@ const CloudAuthContextProvider = ({children}) => {
           user?.company?.id ?? null,
           verifyBranch?.id ?? null,
         );
-        if (user?.company?.id) {
+        // Same deferred-seeding logic as signIn — only seed when branch is known.
+        if (user?.company?.id && verifyBranch?.id) {
           await setDefaultUnits();
           await createDefaultSettings();
         }
