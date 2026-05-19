@@ -16,13 +16,13 @@ export const isItemHasModifierOptions = async ({queryKey}) => {
   try {
     const db = await getDBConnection();
     const selectQuery = `
-      SELECT * FROM modifier_options
+      SELECT * FROM active_modifier_options modifier_options
 
-      LEFT JOIN modifiers
+      LEFT JOIN active_modifiers modifiers
       ON modifiers.id = modifier_options.modifier_id
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}
@@ -71,16 +71,16 @@ export const getItemSellingSizeModifierOptions = async ({
 
     `;
     const countAllQuery = `SELECT COUNT(*) `;
-    const query = `  
-      FROM modifier_options
+    const query = `
+      FROM active_modifier_options modifier_options
 
-      INNER JOIN modifiers
+      INNER JOIN active_modifiers modifiers
       ON modifiers.id = modifier_options.modifier_id
-      INNER JOIN items
+      INNER JOIN active_items items
       ON items.id = modifiers.item_id
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}
@@ -117,7 +117,7 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
     }
 
     const getItemQuery = `
-      SELECT * FROM items WHERE id = '${itemId}'
+      SELECT * FROM active_items items WHERE id = '${itemId}'
     `;
     const getItemResult = await db.executeSql(getItemQuery);
     const item = getItemResult[0].rows.item(0);
@@ -128,7 +128,7 @@ export const createItemSellingSizeOption = async ({itemId, values}) => {
 
     // check if item has already have Selling Size Modifier
     const getItemSellingSizeModifierQuery = `
-      SELECT * FROM modifiers WHERE item_id = '${itemId}'
+      SELECT * FROM active_modifiers modifiers WHERE item_id = '${itemId}'
       AND type_ref = '${appDefaultsTypeRefs.sellingSizeOptions}'
     `;
 
@@ -278,13 +278,13 @@ export const getItemModifierOptions = async ({queryKey, pageParam = 1}) => {
     const offset = (pageParam - 1) * limit;
     const queryOrderBy = orderBy ? `ORDER BY ${orderBy} DESC` : '';
     const selectQuery = `
-      SELECT * FROM modifier_options
+      SELECT * FROM active_modifier_options modifier_options
 
-      INNER JOIN items
+      INNER JOIN active_items items
       ON items.id = ingredients.item_id
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}

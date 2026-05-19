@@ -50,7 +50,7 @@ Copy `.env.example` to `.env` and set `CLOUD_API_V2_BASE_URL` to your local serv
 **Each company gets its own SQLite database file.** This is enforced at the `getDBConnection()` level in `/src/localDb/index.js` — no query-level filtering is needed or used.
 
 - Company DB filename: `FCMS_<companyId>` (e.g. `FCMS_abc-123...`). The fallback `FCMS.db` is only used in the unauthenticated state where no company data is accessed.
-- `setActiveCompanyDb(companyId)` in `/src/localDb/index.js` sets the active company, creates tables (`createTables()`), and runs migrations (`alterTables()`). It is **async** and must be `await`ed.
+- `setActiveCompanyDb(companyId)` in `/src/localDb/index.js` sets the active company, creates tables (`createTables()`), runs migrations (`alterTables()`), and creates SQL views (`createViews()`). It is **async** and must be `await`ed.
 - `getActiveCompanyId()` returns the currently active company ID — used by company-scoped AsyncStorage keys (e.g. units).
 - `CloudAuthContextProvider` calls `setActiveCompanyDb` at every auth transition (restore, sign-in, sign-up, OTP verify) **before** dispatching state, so `isLoading` stays `true` until the DB is ready. It also seeds company defaults (`setDefaultUnits`, `createDefaultSettings`) at the same point.
 - On sign-out or user switch, `queryClient.clear()` is called to purge React Query's cache so no prior company's data is visible to the next user.
@@ -79,7 +79,16 @@ Delta sync tables receive four extra columns added via `alterTables()` in `/src/
 
 **Soft-delete rule**: all deletions on delta sync tables must use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` instead of `DELETE FROM`. Hard deletes are only allowed on excluded tables (`app_versions`, `operations`, `taxes`, `saved_printers`, `settings`, `monthly_expenses`, and Account DB tables).
 
-Delta sync tables (defined in `deltaSyncTables` array in `/src/localDb/index.js`):
+**Active views**: `createViews()` in `/src/localDb/index.js` creates an `active_<table>` SQLite view for every delta sync table (e.g. `active_items`, `active_inventory_logs`). Each view is defined as `SELECT * FROM <table> WHERE is_deleted != 1`. **All SELECT queries in `/src/localDbQueries/` must use these views instead of the base tables** so soft-deleted records are automatically excluded. Use an alias matching the original table name to keep column references working:
+
+```sql
+FROM active_items items
+JOIN active_inventory_logs inventory_logs ON inventory_logs.item_id = items.id
+```
+
+INSERT / UPDATE / DELETE continue to target the base tables directly. To change what "active" means globally, update only `createViews()`.
+
+Delta sync tables (defined in `DELTA_SYNC_TABLES` constant in `/src/localDb/index.js`):
 
 | Table                       | File                                |
 | --------------------------- | ----------------------------------- |

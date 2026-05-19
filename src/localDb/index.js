@@ -76,6 +76,7 @@ export const setActiveCompanyDb = async companyId => {
       // already in scope by the time this function is called at runtime.
       await createTables();
       await alterTables();
+      await createViews();
     } catch (e) {
       console.debug('[localDb] setActiveCompanyDb init error:', e);
     }
@@ -1059,6 +1060,47 @@ const createSettingsTableQuery = `CREATE TABLE IF NOT EXISTS settings (
   setting_sub_group VARCHAR,
   app_version VARCHAR
 );`;
+
+const DELTA_SYNC_TABLES = [
+  'categories',
+  'items',
+  'modifiers',
+  'modifier_options',
+  'vendors',
+  'vendor_contact_persons',
+  'recipe_kinds',
+  'recipes',
+  'ingredients',
+  'selling_menus',
+  'selling_menu_items',
+  'inventory_logs',
+  'batch_purchase_groups',
+  'batch_purchase_entries',
+  'batch_stock_usage_groups',
+  'batch_stock_usage_entries',
+  'invoices',
+  'sale_logs',
+  'sales_order_groups',
+  'sales_orders',
+  'payments',
+  'refunds',
+  'spoilages',
+  'revenue_groups',
+  'revenues',
+  'expense_groups',
+  'expenses',
+  'revenue_deductions',
+  'revenue_categories',
+];
+
+export const createViews = async () => {
+  const db = await getDBConnection();
+  for (const table of DELTA_SYNC_TABLES) {
+    await db.executeSql(
+      `CREATE VIEW IF NOT EXISTS active_${table} AS SELECT * FROM ${table} WHERE is_deleted != 1`,
+    );
+  }
+};
 
 export const createTables = async () => {
   let db;

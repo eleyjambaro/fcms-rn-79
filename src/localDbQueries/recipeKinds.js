@@ -35,10 +35,10 @@ export const getRecipeKinds = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM recipe_kinds
-     
+      FROM active_recipe_kinds recipe_kinds
+
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       LIMIT ${limit} OFFSET ${offset}
@@ -98,7 +98,7 @@ export const createRecipeKind = async ({values}) => {
 
 export const getRecipeKind = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM recipe_kinds WHERE id = '${id}'`;
+  const query = `SELECT * FROM active_recipe_kinds recipe_kinds WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

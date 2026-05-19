@@ -36,7 +36,7 @@ export const createOrGetUnsavedSellingMenu = async () => {
       currentSellingMenuId = await createNewUnsavedSellingMenu();
     }
 
-    const getSellingMenuQuery = `SELECT * FROM selling_menus WHERE id = '${currentSellingMenuId}'`;
+    const getSellingMenuQuery = `SELECT * FROM active_selling_menus selling_menus WHERE id = '${currentSellingMenuId}'`;
     const getSellingMenuResult = await db.executeSql(getSellingMenuQuery);
     const sellingMenu = getSellingMenuResult[0].rows.item(0);
 
@@ -62,7 +62,7 @@ export const isSellingMenuHasSellingMenuItems = async ({queryKey}) => {
   try {
     const db = await getDBConnection();
 
-    const query = `SELECT * FROM selling_menu_items WHERE selling_menu_id = '${sellingMenuId}'`;
+    const query = `SELECT * FROM active_selling_menu_items selling_menu_items WHERE selling_menu_id = '${sellingMenuId}'`;
 
     const result = await db.executeSql(query);
 
@@ -112,7 +112,7 @@ export const saveSellingMenu = async ({values, onSuccess}) => {
     if (currentSellingMenuId) {
       // check if selling menu has selling menu items
       let hasSellingMenuItem = false;
-      const isSellingMenuHasSellingMenuItemQuery = `SELECT * FROM selling_menu_items WHERE selling_menu_id = '${currentSellingMenuId}'`;
+      const isSellingMenuHasSellingMenuItemQuery = `SELECT * FROM active_selling_menu_items selling_menu_items WHERE selling_menu_id = '${currentSellingMenuId}'`;
       const isSellingMenuHasSellingMenuItemResult = await db.executeSql(
         isSellingMenuHasSellingMenuItemQuery,
       );
@@ -184,10 +184,10 @@ export const getSellingMenus = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM selling_menus
+      FROM active_selling_menus selling_menus
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}
@@ -237,12 +237,12 @@ export const getAllSellingMenusWithAllSellingMenuItems = async ({
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM selling_menu_items
+      FROM active_selling_menu_items selling_menu_items
 
-      INNER JOIN items
+      INNER JOIN active_items items
       ON items.id = selling_menu_items.item_id
 
-      INNER JOIN selling_menus
+      INNER JOIN active_selling_menus selling_menus
       ON selling_menus.id = selling_menu_items.selling_menu_id
 
       ${queryFilter}
@@ -292,14 +292,14 @@ export const getAllSellingMenusWithAllSellingMenuItemsTotal = async ({
       recipe_all_ingredients_total.total_cost_net AS recipe_all_ingredients_total_cost_net,
       recipe_all_ingredients_total.total_cost_tax AS recipe_all_ingredients_total_cost_tax
 
-      FROM selling_menus
+      FROM active_selling_menus selling_menus
 
       LEFT JOIN (
         SELECT selling_menu_items.selling_menu_id AS selling_menu_id,
         SUM(inventory_logs_added_and_removed_totals.total_added_stock_cost / inventory_logs_added_and_removed_totals.total_added_stock_qty * selling_menu_items.in_recipe_qty_based_on_item_uom) AS total_cost,
         SUM(inventory_logs_added_and_removed_totals.total_added_stock_cost_net / inventory_logs_added_and_removed_totals.total_added_stock_qty * selling_menu_items.in_recipe_qty_based_on_item_uom) AS total_cost_net,
         SUM(inventory_logs_added_and_removed_totals.total_added_stock_cost_tax / inventory_logs_added_and_removed_totals.total_added_stock_qty * selling_menu_items.in_recipe_qty_based_on_item_uom) AS total_cost_tax
-        FROM selling_menu_items
+        FROM active_selling_menu_items selling_menu_items
 
         LEFT JOIN (
           SELECT inventory_logs_added_and_removed.item_id AS item_id,
@@ -322,13 +322,13 @@ export const getAllSellingMenusWithAllSellingMenuItemsTotal = async ({
             items.id AS item_id,
             items.name AS item_name,
             items.category_id AS item_category_id
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             LEFT JOIN operations ON operations.id = inventory_logs.operation_id
             WHERE inventory_logs.voided != 1
             GROUP BY inventory_logs.item_id, operations.type
           ) AS inventory_logs_added_and_removed
-          LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id
+          LEFT JOIN active_items items ON items.id = inventory_logs_added_and_removed.item_id
           GROUP BY inventory_logs_added_and_removed.item_id
         ) AS inventory_logs_added_and_removed_totals
         ON inventory_logs_added_and_removed_totals.item_id = selling_menu_items.item_id
@@ -362,7 +362,7 @@ export const getAllSellingMenusWithAllSellingMenuItemsTotal = async ({
 
 export const getSellingMenu = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM selling_menus WHERE id = '${id}'`;
+  const query = `SELECT * FROM active_selling_menus selling_menus WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -449,7 +449,7 @@ export const isUnsavedSellingMenuHasSellingMenuItems = async () => {
     } else {
       // check if selling menu has selling menu items
       let hasSellingMenuItem = false;
-      const isSellingMenuHasSellingMenuItemQuery = `SELECT * FROM selling_menu_items WHERE selling_menu_id = '${currentSellingMenuId}'`;
+      const isSellingMenuHasSellingMenuItemQuery = `SELECT * FROM active_selling_menu_items selling_menu_items WHERE selling_menu_id = '${currentSellingMenuId}'`;
       const isSellingMenuHasSellingMenuItemResult = await db.executeSql(
         isSellingMenuHasSellingMenuItemQuery,
       );
@@ -473,11 +473,11 @@ export const isUnsavedSellingMenuHasSellingMenuItems = async () => {
 };
 
 export const createSellingMenuItem = async ({values, sellingMenuId}) => {
-  const getSellingMenuQuery = `SELECT * FROM selling_menus WHERE id = '${parseInt(
+  const getSellingMenuQuery = `SELECT * FROM active_selling_menus selling_menus WHERE id = '${parseInt(
     sellingMenuId,
   )}'`;
 
-  const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
+  const getItemQuery = `SELECT * FROM active_items items WHERE id = '${parseInt(
     values.item_id,
   )}'`;
 
@@ -499,7 +499,7 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
     }
 
     const {deviceId, branchId} = await getCloudSyncParams();
-    const getSellingMenuItemQuery = `SELECT * FROM selling_menu_items WHERE item_id = '${item.id}' AND selling_menu_id = '${sellingMenu.id}';`;
+    const getSellingMenuItemQuery = `SELECT * FROM active_selling_menu_items selling_menu_items WHERE item_id = '${item.id}' AND selling_menu_id = '${sellingMenu.id}';`;
     const createSellingMenuItemQuery = `INSERT INTO selling_menu_items (
       selling_menu_id,
       item_id,
@@ -569,13 +569,13 @@ export const getAllSellingMenuItems = async () => {
     selling_menus.id AS menu_id,
     selling_menus.name AS menu_name,
     modifier_options.id AS option_id
-    FROM selling_menu_items
+    FROM active_selling_menu_items selling_menu_items
 
-    INNER JOIN items
+    INNER JOIN active_items items
     ON items.id = selling_menu_items.item_id
-    INNER JOIN selling_menus
+    INNER JOIN active_selling_menus selling_menus
     ON selling_menus.id = selling_menu_items.selling_menu_id
-    LEFT JOIN modifier_options
+    LEFT JOIN active_modifier_options modifier_options
     ON modifier_options.id = selling_menu_items.modifier_option_id
     ;
   `;
@@ -643,16 +643,16 @@ export const getSellingMenuItems = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM selling_menu_items
+      FROM active_selling_menu_items selling_menu_items
 
-      INNER JOIN items
+      INNER JOIN active_items items
       ON items.id = selling_menu_items.item_id
 
-      INNER JOIN modifier_options
+      INNER JOIN active_modifier_options modifier_options
       ON modifier_options.id = selling_menu_items.modifier_option_id
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}
@@ -693,7 +693,7 @@ export const getSellingMenuItemIds = async ({queryKey}) => {
     const recipeIngredientItemIds = [];
 
     const getRecipeIngredientsQuery = `
-      SELECT item_id FROM selling_menu_items WHERE selling_menu_id = '${sellingMenuId}';
+      SELECT item_id FROM active_selling_menu_items selling_menu_items WHERE selling_menu_id = '${sellingMenuId}';
     `;
 
     const results = await db.executeSql(getRecipeIngredientsQuery);
@@ -714,7 +714,7 @@ export const getSellingMenuItemIds = async ({queryKey}) => {
 
 export const getSellingMenuItem = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM selling_menu_items WHERE id = '${id}';`;
+  const query = `SELECT * FROM active_selling_menu_items selling_menu_items WHERE id = '${id}';`;
 
   try {
     const db = await getDBConnection();
@@ -758,8 +758,8 @@ export const getSellingMenuTotalSellingPrice = async ({queryKey}) => {
 
     const query = `
       SELECT SUM(modifier_options.option_selling_price * selling_menu_items.in_menu_qty) as totalPrice
-      FROM selling_menu_items
-      INNER JOIN modifier_options ON modifier_options.id = selling_menu_items.modifier_option_id
+      FROM active_selling_menu_items selling_menu_items
+      INNER JOIN active_modifier_options modifier_options ON modifier_options.id = selling_menu_items.modifier_option_id
       WHERE selling_menu_items.selling_menu_id = '${sellingMenuId}'
     `;
 

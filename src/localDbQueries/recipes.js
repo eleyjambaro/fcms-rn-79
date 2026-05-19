@@ -34,7 +34,7 @@ export const createOrGetUnsavedRecipe = async () => {
       currentRecipeId = await createNewUnsavedRecipe();
     }
 
-    const getRecipeQuery = `SELECT * FROM recipes WHERE id = '${currentRecipeId}'`;
+    const getRecipeQuery = `SELECT * FROM active_recipes recipes WHERE id = '${currentRecipeId}'`;
     const getRecipeResult = await db.executeSql(getRecipeQuery);
     const recipe = getRecipeResult[0].rows.item(0);
 
@@ -65,7 +65,7 @@ export const isRecipeHasIngredient = async ({queryKey}) => {
   try {
     const db = await getDBConnection();
 
-    const query = `SELECT * FROM ingredients WHERE recipe_id = '${recipeId}'`;
+    const query = `SELECT * FROM active_ingredients ingredients WHERE recipe_id = '${recipeId}'`;
 
     const result = await db.executeSql(query);
 
@@ -130,7 +130,7 @@ export const saveRecipe = async ({
     if (currentRecipeId) {
       // check if recipe has ingredients
       let hasIngredient = false;
-      const isRecipeHasIngredientQuery = `SELECT * FROM ingredients WHERE recipe_id = '${currentRecipeId}'`;
+      const isRecipeHasIngredientQuery = `SELECT * FROM active_ingredients ingredients WHERE recipe_id = '${currentRecipeId}'`;
       const isRecipeHasIngredientResult = await db.executeSql(
         isRecipeHasIngredientQuery,
       );
@@ -252,7 +252,7 @@ export const saveSubRecipe = async ({values}) => {
 
       // check if recipe has ingredients
       let hasIngredient = false;
-      const isRecipeHasIngredientQuery = `SELECT * FROM ingredients WHERE recipe_id = '${currentSubRecipeId}'`;
+      const isRecipeHasIngredientQuery = `SELECT * FROM active_ingredients ingredients WHERE recipe_id = '${currentSubRecipeId}'`;
       const isRecipeHasIngredientResult = await db.executeSql(
         isRecipeHasIngredientQuery,
       );
@@ -303,10 +303,10 @@ export const getRecipes = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM recipes
+      FROM active_recipes recipes
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}
@@ -381,7 +381,7 @@ export const getAllRecipesWithAllIngredients = async ({
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM ingredients
+      FROM active_ingredients ingredients
 
       LEFT JOIN (
         SELECT inventory_logs_added_and_removed.item_id AS item_id,
@@ -404,21 +404,21 @@ export const getAllRecipesWithAllIngredients = async ({
           items.id AS item_id,
           items.name AS item_name,
           items.category_id AS item_category_id
-          FROM inventory_logs
-          LEFT JOIN items ON items.id = inventory_logs.item_id
+          FROM active_inventory_logs inventory_logs
+          LEFT JOIN active_items items ON items.id = inventory_logs.item_id
           LEFT JOIN operations ON operations.id = inventory_logs.operation_id
           WHERE inventory_logs.voided != 1
           GROUP BY inventory_logs.item_id, operations.type
         ) AS inventory_logs_added_and_removed
-        LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = inventory_logs_added_and_removed.item_id
         GROUP BY inventory_logs_added_and_removed.item_id
       ) AS inventory_logs_added_and_removed_totals
       ON inventory_logs_added_and_removed_totals.item_id = ingredients.item_id
 
-      INNER JOIN items
+      INNER JOIN active_items items
       ON items.id = ingredients.item_id
 
-      INNER JOIN recipes
+      INNER JOIN active_recipes recipes
       ON recipes.id = ingredients.recipe_id
 
       ${queryFilter}
@@ -467,14 +467,14 @@ export const getAllRecipesWithAllIngredientsTotal = async ({
       recipe_all_ingredients_total.total_cost_net AS recipe_all_ingredients_total_cost_net,
       recipe_all_ingredients_total.total_cost_tax AS recipe_all_ingredients_total_cost_tax
 
-      FROM recipes
+      FROM active_recipes recipes
 
       LEFT JOIN (
         SELECT ingredients.recipe_id AS recipe_id,
         SUM(inventory_logs_added_and_removed_totals.total_added_stock_cost / inventory_logs_added_and_removed_totals.total_added_stock_qty * ingredients.in_recipe_qty_based_on_item_uom) AS total_cost,
         SUM(inventory_logs_added_and_removed_totals.total_added_stock_cost_net / inventory_logs_added_and_removed_totals.total_added_stock_qty * ingredients.in_recipe_qty_based_on_item_uom) AS total_cost_net,
         SUM(inventory_logs_added_and_removed_totals.total_added_stock_cost_tax / inventory_logs_added_and_removed_totals.total_added_stock_qty * ingredients.in_recipe_qty_based_on_item_uom) AS total_cost_tax
-        FROM ingredients
+        FROM active_ingredients ingredients
 
         LEFT JOIN (
           SELECT inventory_logs_added_and_removed.item_id AS item_id,
@@ -497,13 +497,13 @@ export const getAllRecipesWithAllIngredientsTotal = async ({
             items.id AS item_id,
             items.name AS item_name,
             items.category_id AS item_category_id
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             LEFT JOIN operations ON operations.id = inventory_logs.operation_id
             WHERE inventory_logs.voided != 1
             GROUP BY inventory_logs.item_id, operations.type
           ) AS inventory_logs_added_and_removed
-          LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id
+          LEFT JOIN active_items items ON items.id = inventory_logs_added_and_removed.item_id
           GROUP BY inventory_logs_added_and_removed.item_id
         ) AS inventory_logs_added_and_removed_totals
         ON inventory_logs_added_and_removed_totals.item_id = ingredients.item_id
@@ -534,7 +534,7 @@ export const getAllRecipesWithAllIngredientsTotal = async ({
 
 export const getRecipe = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM recipes WHERE id = '${id}'`;
+  const query = `SELECT * FROM active_recipes recipes WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -622,7 +622,7 @@ export const isUnsavedRecipeHasIngredient = async () => {
     } else {
       // check if recipe has ingredients
       let hasIngredient = false;
-      const isRecipeHasIngredientQuery = `SELECT * FROM ingredients WHERE recipe_id = '${currentRecipeId}'`;
+      const isRecipeHasIngredientQuery = `SELECT * FROM active_ingredients ingredients WHERE recipe_id = '${currentRecipeId}'`;
       const isRecipeHasIngredientResult = await db.executeSql(
         isRecipeHasIngredientQuery,
       );
@@ -646,9 +646,9 @@ export const isUnsavedRecipeHasIngredient = async () => {
 };
 
 export const createRecipeIngredient = async ({values, recipeId}) => {
-  const getRecipeQuery = `SELECT * FROM recipes WHERE id = '${recipeId}'`;
+  const getRecipeQuery = `SELECT * FROM active_recipes recipes WHERE id = '${recipeId}'`;
 
-  const getItemQuery = `SELECT * FROM items WHERE id = '${values.item_id}'`;
+  const getItemQuery = `SELECT * FROM active_items items WHERE id = '${values.item_id}'`;
 
   try {
     const db = await getDBConnection();
@@ -686,7 +686,7 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
     }
 
     const {deviceId, branchId} = await getCloudSyncParams();
-    const getIngredientQuery = `SELECT * FROM ingredients WHERE item_id = '${item.id}' AND recipe_id = '${recipe.id}';`;
+    const getIngredientQuery = `SELECT * FROM active_ingredients ingredients WHERE item_id = '${item.id}' AND recipe_id = '${recipe.id}';`;
     const newIngredientId = uuid.v4();
     const createIngredientQuery = `INSERT INTO ingredients (
       id,
@@ -755,7 +755,7 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
 
 // will be deleted in favor of createRecipeIngredient function
 export const createIngredient = async ({values}) => {
-  const getItemQuery = `SELECT * FROM items WHERE id = '${values.item_id}'`;
+  const getItemQuery = `SELECT * FROM active_items items WHERE id = '${values.item_id}'`;
 
   try {
     const db = await getDBConnection();
@@ -796,7 +796,7 @@ export const createIngredient = async ({values}) => {
       .to(item.uom_abbrev);
 
     const newIngredientId = uuid.v4();
-    const getIngredientQuery = `SELECT * FROM ingredients WHERE item_id = '${item.id}' AND recipe_id = '${currentRecipeId}';`;
+    const getIngredientQuery = `SELECT * FROM active_ingredients ingredients WHERE item_id = '${item.id}' AND recipe_id = '${currentRecipeId}';`;
     const createIngredientQuery = `INSERT INTO ingredients (
       id,
       recipe_id,
@@ -858,7 +858,7 @@ export const createIngredient = async ({values}) => {
 
 export const getAllRecipeIngredients = async () => {
   const query = `
-    SELECT * FROM ingredients;
+    SELECT * FROM active_ingredients ingredients;
   `;
   try {
     let allIngredients = [];
@@ -930,7 +930,7 @@ export const getRecipeIngredients = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM ingredients
+      FROM active_ingredients ingredients
 
       LEFT JOIN (
         SELECT inventory_logs_added_and_removed.item_id AS item_id,
@@ -953,22 +953,22 @@ export const getRecipeIngredients = async ({queryKey, pageParam = 1}) => {
           items.id AS item_id,
           items.name AS item_name,
           items.category_id AS item_category_id
-          FROM inventory_logs
-          LEFT JOIN items ON items.id = inventory_logs.item_id
+          FROM active_inventory_logs inventory_logs
+          LEFT JOIN active_items items ON items.id = inventory_logs.item_id
           LEFT JOIN operations ON operations.id = inventory_logs.operation_id
           WHERE inventory_logs.voided != 1
           GROUP BY inventory_logs.item_id, operations.type
         ) AS inventory_logs_added_and_removed
-        LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = inventory_logs_added_and_removed.item_id
         GROUP BY inventory_logs_added_and_removed.item_id
       ) AS inventory_logs_added_and_removed_totals
       ON inventory_logs_added_and_removed_totals.item_id = ingredients.item_id
 
-      INNER JOIN items
+      INNER JOIN active_items items
       ON items.id = ingredients.item_id
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}
@@ -1009,7 +1009,7 @@ export const getRecipeIngredientItemIds = async ({queryKey}) => {
     const recipeIngredientItemIds = [];
 
     const getRecipeIngredientsQuery = `
-      SELECT item_id FROM ingredients WHERE recipe_id = '${recipeId}';
+      SELECT item_id FROM active_ingredients ingredients WHERE recipe_id = '${recipeId}';
     `;
 
     const results = await db.executeSql(getRecipeIngredientsQuery);
@@ -1030,7 +1030,7 @@ export const getRecipeIngredientItemIds = async ({queryKey}) => {
 
 export const getRecipeIngredient = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM ingredients WHERE id = '${id}';`;
+  const query = `SELECT * FROM active_ingredients ingredients WHERE id = '${id}';`;
 
   try {
     const db = await getDBConnection();
@@ -1065,7 +1065,7 @@ export const getRecipeTotalCost = async ({queryKey}) => {
     SELECT SUM((inventory_logs_added_and_removed_totals.total_added_stock_cost - inventory_logs_added_and_removed_totals.total_removed_stock_cost) / (inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty) * ingredients.in_recipe_qty_based_on_item_uom) AS total_cost,
     SUM((inventory_logs_added_and_removed_totals.total_added_stock_cost_net - inventory_logs_added_and_removed_totals.total_removed_stock_cost_net) / (inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty) * ingredients.in_recipe_qty_based_on_item_uom) AS total_cost_net,
     SUM((inventory_logs_added_and_removed_totals.total_added_stock_cost_tax - inventory_logs_added_and_removed_totals.total_removed_stock_cost_tax) / (inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty) * ingredients.in_recipe_qty_based_on_item_uom) AS total_cost_tax
-    FROM ingredients
+    FROM active_ingredients ingredients
 
     LEFT JOIN (
       SELECT inventory_logs_added_and_removed.item_id AS item_id,
@@ -1088,13 +1088,13 @@ export const getRecipeTotalCost = async ({queryKey}) => {
         items.id AS item_id,
         items.name AS item_name,
         items.category_id AS item_category_id
-        FROM inventory_logs
-        LEFT JOIN items ON items.id = inventory_logs.item_id
+        FROM active_inventory_logs inventory_logs
+        LEFT JOIN active_items items ON items.id = inventory_logs.item_id
         LEFT JOIN operations ON operations.id = inventory_logs.operation_id
         WHERE inventory_logs.voided != 1
         GROUP BY inventory_logs.item_id, operations.type
       ) AS inventory_logs_added_and_removed
-      LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id
+      LEFT JOIN active_items items ON items.id = inventory_logs_added_and_removed.item_id
       GROUP BY inventory_logs_added_and_removed.item_id
     ) AS inventory_logs_added_and_removed_totals
     ON inventory_logs_added_and_removed_totals.item_id = ingredients.item_id
@@ -1139,7 +1139,7 @@ export const getRecipeRegisteredFinishedProduct = async ({queryKey}) => {
      * finished_product_origin_id (for older version; below version 1.1.111)
      */
     const getRecipeRegisteredFinishedProductQuery = `
-      SELECT * FROM items
+      SELECT * FROM active_items items
       WHERE is_finished_product = 1 AND (recipe_id = '${recipeId}' OR finished_product_origin_id = '${recipeId}')
       ORDER BY date DESC
       LIMIT 1

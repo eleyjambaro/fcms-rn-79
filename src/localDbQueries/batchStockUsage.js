@@ -46,7 +46,7 @@ export const getItemsAndBatchStockUsageEntries = async ({
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM items
+      FROM active_items items
       LEFT JOIN (
         SELECT inventory_logs_added_and_removed.item_id AS item_id,
         inventory_logs_added_and_removed.item_name AS item_name,
@@ -62,19 +62,19 @@ export const getItemsAndBatchStockUsageEntries = async ({
           items.id AS item_id,
           items.name AS item_name,
           items.category_id AS item_category_id
-          FROM inventory_logs
-          LEFT JOIN items ON items.id = inventory_logs.item_id
+          FROM active_inventory_logs inventory_logs
+          LEFT JOIN active_items items ON items.id = inventory_logs.item_id
           LEFT JOIN operations ON operations.id = inventory_logs.operation_id
           GROUP BY inventory_logs.item_id, operations.type
         ) AS inventory_logs_added_and_removed
-        LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = inventory_logs_added_and_removed.item_id
         GROUP BY inventory_logs_added_and_removed.item_id
       ) AS inventory_logs_added_and_removed_totals
       ON inventory_logs_added_and_removed_totals.item_id = items.id
 
-      LEFT JOIN batch_stock_usage_entries ON batch_stock_usage_entries.item_id = items.id
-      LEFT JOIN batch_stock_usage_groups ON batch_stock_usage_groups.id = batch_stock_usage_entries.batch_stock_usage_group_id
-      LEFT JOIN categories ON categories.id = items.category_id 
+      LEFT JOIN active_batch_stock_usage_entries batch_stock_usage_entries ON batch_stock_usage_entries.item_id = items.id
+      LEFT JOIN active_batch_stock_usage_groups batch_stock_usage_groups ON batch_stock_usage_groups.id = batch_stock_usage_entries.batch_stock_usage_group_id
+      LEFT JOIN active_categories categories ON categories.id = items.category_id 
       
       ${queryFilter}
       
@@ -161,8 +161,8 @@ export const getBatchStockUsageEntries = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM items
-      INNER JOIN batch_stock_usage_entries ON batch_stock_usage_entries.item_id = items.id
+      FROM active_items items
+      INNER JOIN active_batch_stock_usage_entries batch_stock_usage_entries ON batch_stock_usage_entries.item_id = items.id
 
       ${queryFilter}
       
@@ -228,8 +228,8 @@ export const getBatchStockUsageEntriesCount = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM items
-      INNER JOIN batch_stock_usage_entries ON batch_stock_usage_entries.item_id = items.id
+      FROM active_items items
+      INNER JOIN active_batch_stock_usage_entries batch_stock_usage_entries ON batch_stock_usage_entries.item_id = items.id
 
       ${queryFilter}
     ;`;
@@ -264,8 +264,8 @@ export const getBatchStockUsageEntriesGrandTotal = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT SUM(batch_stock_usage_entries.remove_stock_unit_cost * batch_stock_usage_entries.remove_stock_qty)`;
     const query = `
-      FROM items
-      INNER JOIN batch_stock_usage_entries ON batch_stock_usage_entries.item_id = items.id
+      FROM active_items items
+      INNER JOIN active_batch_stock_usage_entries batch_stock_usage_entries ON batch_stock_usage_entries.item_id = items.id
 
       ${queryFilter}
     ;`;
@@ -416,8 +416,8 @@ export const confirmBatchStockUsageEntries = async ({usageDate}) => {
       taxes.id AS item_tax_id,
       taxes.name AS item_tax_name,
       taxes.rate_percentage AS item_tax_rate_percentage
-      FROM batch_stock_usage_entries
-      INNER JOIN items ON items.id = batch_stock_usage_entries.item_id
+      FROM active_batch_stock_usage_entries batch_stock_usage_entries
+      INNER JOIN active_items items ON items.id = batch_stock_usage_entries.item_id
       LEFT JOIN taxes ON taxes.id = items.tax_id
       WHERE batch_stock_usage_group_id = '${currentBatchStockUsageGroupId}';
     `;
@@ -605,8 +605,8 @@ export const getBatchStockUsageGroups = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM batch_stock_usage_groups
-      INNER JOIN inventory_logs ON inventory_logs.batch_stock_usage_group_id = batch_stock_usage_groups.id
+      FROM active_batch_stock_usage_groups batch_stock_usage_groups
+      INNER JOIN active_inventory_logs inventory_logs ON inventory_logs.batch_stock_usage_group_id = batch_stock_usage_groups.id
 
       GROUP BY batch_stock_usage_groups.id
 
@@ -667,8 +667,8 @@ export const getBatchStockUsageGroupGrandTotal = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT SUM(inventory_logs.adjustment_unit_cost * inventory_logs.adjustment_qty)`;
     const query = `
-      FROM batch_stock_usage_groups
-      INNER JOIN inventory_logs ON inventory_logs.batch_stock_usage_group_id = batch_stock_usage_groups.id
+      FROM active_batch_stock_usage_groups batch_stock_usage_groups
+      INNER JOIN active_inventory_logs inventory_logs ON inventory_logs.batch_stock_usage_group_id = batch_stock_usage_groups.id
 
       ${queryFilter}
     ;`;
@@ -744,11 +744,11 @@ export const getBatchStockUsageGroupItems = async ({
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM inventory_logs
-      INNER JOIN items ON items.id = inventory_logs.item_id
+      FROM active_inventory_logs inventory_logs
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       LIMIT ${limit} OFFSET ${offset}

@@ -57,27 +57,27 @@ export const createItemEndingInventoryEntry = async ({
       
       (
         SELECT name
-        FROM revenue_groups
+        FROM active_revenue_groups revenue_groups
         WHERE revenue_groups.id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
       (
         SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM revenues
+        FROM active_revenues revenues
         WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${monthYearDateFilter}'))
         AND revenue_group_id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
         )
       ) AS selected_month_revenue_group_total_amount
 
-      FROM items
+      FROM active_items items
 
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.item_id AS item_id,
@@ -101,17 +101,17 @@ export const createItemEndingInventoryEntry = async ({
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${monthYearDateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.item_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_total_added_and_removed.item_id
         GROUP BY selected_month_total_added_and_removed.item_id
       ) AS selected_month_totals
       ON selected_month_totals.item_id = items.id
@@ -138,17 +138,17 @@ export const createItemEndingInventoryEntry = async ({
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${monthYearDateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_previous_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_previous_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.item_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN items ON items.id = previous_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = previous_month_total_added_and_removed.item_id
         GROUP BY previous_month_total_added_and_removed.item_id
       ) AS previous_month_totals
       ON previous_month_totals.item_id = items.id
@@ -166,22 +166,22 @@ export const createItemEndingInventoryEntry = async ({
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${monthYearDateFilter}', 'start of month')
             AND DATE('${monthYearDateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS selected_month_logs
-          LEFT JOIN items ON items.id = selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = selected_month_logs.operation_id
           GROUP BY selected_month_logs.item_id, operations.type
         ) AS selected_month_display_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_display_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_display_added_and_removed.item_id
         GROUP BY selected_month_display_added_and_removed.item_id
       ) AS selected_month_added_and_removed
       ON selected_month_added_and_removed.item_id = items.id
 
-      JOIN categories ON categories.id = items.category_id
+      JOIN active_categories categories ON categories.id = items.category_id
       WHERE items.id = '${itemId}'
     `;
 

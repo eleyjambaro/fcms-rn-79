@@ -39,11 +39,11 @@ export const getExpenseGroups = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM expense_groups
+      FROM active_expense_groups expense_groups
       LEFT JOIN (
         SELECT expenses.expense_group_id,
         SUM(expenses.amount) AS expense_group_grand_total
-        FROM expenses
+        FROM active_expenses expenses
         WHERE strftime('%m %Y', expenses.expense_group_date) = strftime('%m %Y', '${dateFilter}')
         GROUP BY expenses.expense_group_id
       ) AS e
@@ -84,7 +84,7 @@ export const getExpenseGroupsGrandTotal = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT SUM(expenses.amount) AS expense_groups_grand_total`;
     const query = `
-      FROM expenses
+      FROM active_expenses expenses
       WHERE strftime('%m %Y', expenses.expense_group_date) = strftime('%m %Y', '${dateFilter}')`;
 
     const result = await db.executeSql(countAllQuery + query);
@@ -104,7 +104,7 @@ export const getExpenseGroupGrandTotal = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT SUM(expenses.amount) AS expenses_grand_total`;
     const query = `
-      FROM expenses
+      FROM active_expenses expenses
       WHERE strftime('%m %Y', expense_group_date) = strftime('%m %Y', '${dateFilter}')
       AND expense_group_id = '${expenseGroupId}'
     `;
@@ -121,7 +121,7 @@ export const getExpenseGroupGrandTotal = async ({queryKey}) => {
 
 export const getExpenseGroup = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM expense_groups WHERE id = '${id}'`;
+  const query = `SELECT * FROM active_expense_groups expense_groups WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -260,7 +260,7 @@ export const getMonthlyExpenses = async ({queryKey, pageParam = 1}) => {
     const query = `
       FROM monthly_expenses
       LEFT JOIN (
-        SELECT * FROM expenses
+        SELECT * FROM active_expenses expenses
         WHERE strftime('%m %Y', expenses.expense_group_date) = strftime('%m %Y', '${dateFilter}')
         AND expenses.expense_group_id = '${expenseGroupId}'
       ) AS r
@@ -304,7 +304,7 @@ export const getMonthlyExpensesTotalAmount = async () => {
       SELECT monthly_expense_id, SUM(amount) AS total_amount
     `;
     const query = `
-      FROM expenses
+      FROM active_expenses expenses
       GROUP BY monthly_expense_id
     ;`;
 
@@ -332,7 +332,7 @@ export const getMonthlyExpensesGrandTotal = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT SUM(expenses.amount) AS expense_groups_grand_total`;
     const query = `
-      FROM expenses
+      FROM active_expenses expenses
       WHERE strftime('%m %Y', expenses.expense_group_date) = strftime('%m %Y', '${dateFilter}')`;
 
     const result = await db.executeSql(countAllQuery + query);
@@ -352,7 +352,7 @@ export const getMonthlyExpenseGrandTotal = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT SUM(expenses.amount) AS expenses_grand_total`;
     const query = `
-      FROM expenses
+      FROM active_expenses expenses
       WHERE strftime('%m %Y', expense_group_date) = strftime('%m %Y', '${dateFilter}')
       AND expense_group_id = '${expenseGroupId}'
       `;
@@ -388,7 +388,7 @@ export const getExpenseRevenueGroupIds = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
   const getExpenseRevenueGroupIdsQuery = `
     SELECT *
-    FROM revenue_deductions
+    FROM active_revenue_deductions revenue_deductions
     WHERE expense_id = '${id}'
   `;
 
@@ -610,7 +610,7 @@ export const getExpenses = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM expenses
+      FROM active_expenses expenses
       WHERE expense_group_id = '${expenseGroupId}'
       AND strftime('%m %Y', expense_group_date) = strftime('%m %Y', '${dateFilter}')
 
@@ -649,7 +649,7 @@ export const getExpensesGrandTotal = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT SUM(expenses.amount) AS expenses_grand_total`;
     const query = `
-      FROM expenses
+      FROM active_expenses expenses
       WHERE strftime('%m %Y', expense_group_date) = strftime('%m %Y', '${dateFilter}')
       AND expense_group_id = '${expenseGroupId}'
       `;
@@ -767,7 +767,7 @@ export const createExpense = async ({values, onInsertLimitReached}) => {
 
 export const getExpense = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM expenses WHERE id = '${id}'`;
+  const query = `SELECT * FROM active_expenses expenses WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();

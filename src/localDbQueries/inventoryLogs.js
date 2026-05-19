@@ -51,8 +51,6 @@ export const getInventoryLogs = async ({queryKey, pageParam = 1}) => {
     };
   }
 
-  additionalFilter['inventory_logs.is_deleted'] = 0;
-  additionalFilter['items.is_deleted'] = 0;
   let queryFilter = createQueryFilter(filter, additionalFilter);
 
   try {
@@ -102,13 +100,13 @@ export const getInventoryLogs = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM inventory_logs
+      FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
-      INNER JOIN items ON items.id = inventory_logs.item_id
-      INNER JOIN categories ON categories.id = items.category_id
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
+      INNER JOIN active_categories categories ON categories.id = items.category_id
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}
@@ -539,8 +537,6 @@ export const getInventoryLogsTotals = async ({queryKey, pageParam = 1}) => {
   }
 
   additionalFilter['inventory_logs.voided'] = 0;
-  additionalFilter['inventory_logs.is_deleted'] = 0;
-  additionalFilter['items.is_deleted'] = 0;
 
   let queryFilter = createQueryFilter(filter, additionalFilter);
 
@@ -553,10 +549,10 @@ export const getInventoryLogsTotals = async ({queryKey, pageParam = 1}) => {
       SUM(inventory_logs.adjustment_unit_cost_tax * inventory_logs.adjustment_qty) AS grand_total_cost_tax
     `;
     const query = `
-      FROM inventory_logs
+      FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
-      INNER JOIN items ON items.id = inventory_logs.item_id
-      INNER JOIN categories ON categories.id = items.category_id
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
+      INNER JOIN active_categories categories ON categories.id = items.category_id
 
       ${queryFilter}
 
@@ -588,8 +584,6 @@ export const getInventoryLogsTotal = async ({queryKey, pageParam = 1}) => {
 
   let additionalFilter = {
     'inventory_logs.voided': 0,
-    'inventory_logs.is_deleted': 0,
-    'items.is_deleted': 0,
   };
 
   let queryFilter = createQueryFilter(filter, additionalFilter);
@@ -602,9 +596,9 @@ export const getInventoryLogsTotal = async ({queryKey, pageParam = 1}) => {
       SELECT SUM(adjustment_unit_cost_net * adjustment_qty) AS logs_total
     `;
     const query = `
-      FROM inventory_logs
+      FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
-      INNER JOIN items ON items.id = inventory_logs.item_id
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
 
       ${queryFilter}
 
@@ -637,8 +631,6 @@ export const getItemInventoryLogsGrandTotal = async ({
 
   addedStockSumQueryFilterObj['operations.type'] = 'add_stock';
   addedStockSumQueryFilterObj['inventory_logs.voided'] = 0;
-  addedStockSumQueryFilterObj['inventory_logs.is_deleted'] = 0;
-  addedStockSumQueryFilterObj['items.is_deleted'] = 0;
 
   if (
     addedStockSumQueryFilterObj &&
@@ -661,8 +653,6 @@ export const getItemInventoryLogsGrandTotal = async ({
 
   removedStockSumQueryFilterObj['operations.type'] = 'remove_stock';
   removedStockSumQueryFilterObj['inventory_logs.voided'] = 0;
-  removedStockSumQueryFilterObj['inventory_logs.is_deleted'] = 0;
-  removedStockSumQueryFilterObj['items.is_deleted'] = 0;
 
   if (
     removedStockSumQueryFilterObj &&
@@ -691,17 +681,17 @@ export const getItemInventoryLogsGrandTotal = async ({
       SELECT SUM(adjustment_unit_cost_net * adjustment_qty) AS logs_total
     `;
     const addedStockSumQuery = `
-      FROM inventory_logs
+      FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
-      INNER JOIN items ON items.id = inventory_logs.item_id
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
 
       ${addedStockSumQueryFilter}
     ;`;
 
     const removedStockSumQuery = `
-      FROM inventory_logs
+      FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
-      INNER JOIN items ON items.id = inventory_logs.item_id
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
 
       ${removedStockSumQueryFilter}
     ;`;
@@ -787,17 +777,17 @@ export const getItemCostPercentage = async ({queryKey}) => {
       SELECT SUM(adjustment_unit_cost * adjustment_qty) AS logs_total
     `;
     const addedStockSumQuery = `
-      FROM inventory_logs
+      FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
-      INNER JOIN items ON items.id = inventory_logs.item_id
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
 
       ${addedStockSumQueryFilter}
     ;`;
 
     const removedStockSumQuery = `
-      FROM inventory_logs
+      FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
-      INNER JOIN items ON items.id = inventory_logs.item_id
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
 
       ${removedStockSumQueryFilter}
     ;`;
@@ -945,17 +935,17 @@ export const getCategoryCostPercentage = async ({queryKey}) => {
       SELECT SUM(adjustment_unit_cost * adjustment_qty) AS logs_total
     `;
     const addedStockSumQuery = `
-      FROM inventory_logs
+      FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
-      INNER JOIN items ON items.id = inventory_logs.item_id
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
 
       ${addedStockSumQueryFilter}
     ;`;
 
     const removedStockSumQuery = `
-      FROM inventory_logs
+      FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
-      INNER JOIN items ON items.id = inventory_logs.item_id
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
 
       ${removedStockSumQueryFilter}
     ;`;

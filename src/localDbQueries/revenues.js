@@ -37,22 +37,22 @@ export const getRevenueGroups = async ({queryKey, pageParam = 1}) => {
       r.id AS revenue_id,
       (
         SELECT SUM(revenues.amount)
-        FROM revenues
+        FROM active_revenues revenues
         WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')
       ) AS selected_month_grand_total_amount,
       (
         (r.amount /
         (
           SELECT SUM(revenues.amount)
-          FROM revenues
+          FROM active_revenues revenues
           WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')
         )) * 100
       ) AS percentage
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM revenue_groups
-      LEFT JOIN (SELECT * FROM revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) as r
+      FROM active_revenue_groups revenue_groups
+      LEFT JOIN (SELECT * FROM active_revenues revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) as r
       ON r.revenue_group_id = revenue_groups.id
 
       ${queryFilter}
@@ -90,7 +90,7 @@ export const getRevenueGroupsGrandTotal = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT SUM(revenues.amount) AS revenue_groups_grand_total`;
     const query = `
-      FROM revenues
+      FROM active_revenues revenues
       WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')`;
 
     const result = await db.executeSql(countAllQuery + query);
@@ -110,7 +110,7 @@ export const getRevenueGroupsTotals = async ({queryKey}) => {
     const db = await getDBConnection();
     const getRevenueGroupsGrandTotalAmountQuery = `
       SELECT SUM(revenues.amount) AS revenue_groups_grand_total
-      FROM revenues
+      FROM active_revenues revenues
       WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')
     `;
 
@@ -176,7 +176,7 @@ export const createRevenueGroup = async ({
     }
 
     const getRevenueGroupByNameQuery = `
-      SELECT * FROM revenue_groups WHERE name = '${values.name.replace(
+      SELECT * FROM active_revenue_groups revenue_groups WHERE name = '${values.name.replace(
         /\'/g,
         "''",
       )}';
@@ -300,7 +300,7 @@ export const updateRevenueGroup = async ({
     }
 
     const getRevenueGroupByNameQuery = `
-      SELECT * FROM revenue_groups WHERE name = '${updatedValues.name.replace(
+      SELECT * FROM active_revenue_groups revenue_groups WHERE name = '${updatedValues.name.replace(
         /\'/g,
         "''",
       )}' AND id != '${id}';
@@ -417,7 +417,7 @@ export const createRevenue = async ({values}) => {
     const db = await getDBConnection();
 
     const getCurrentMonthRevenueQuery = `
-      SELECT * FROM revenues
+      SELECT * FROM active_revenues revenues
       WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${values.revenue_group_date}')
       AND revenue_group_id = '${values.revenue_group_id}'
     `;
@@ -480,7 +480,7 @@ export const createRevenue = async ({values}) => {
 
 export const getRevenue = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM revenues WHERE id = '${id}'`;
+  const query = `SELECT * FROM active_revenues revenues WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -530,7 +530,7 @@ export const getRevenueCategoryIds = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
   const getRevenueCategoryIdsQuery = `
     SELECT *
-    FROM revenue_categories
+    FROM active_revenue_categories revenue_categories
     WHERE revenue_group_id = '${id}'
   `;
 
@@ -557,8 +557,8 @@ export const getRevenueCategoryNames = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
   const getRevenueCategoryNamesQuery = `
     SELECT *
-    FROM revenue_categories
-    JOIN categories ON categories.id = revenue_categories.category_id
+    FROM active_revenue_categories revenue_categories
+    JOIN active_categories categories ON categories.id = revenue_categories.category_id
     WHERE revenue_group_id = '${id}'
   `;
 

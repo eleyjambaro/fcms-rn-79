@@ -14,7 +14,7 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter}] = queryKey;
   const limit = 10;
   const orderBy = 'items.name';
-  let queryFilter = createQueryFilter(filter, {'items.is_deleted': 0});
+  let queryFilter = createQueryFilter(filter);
 
   try {
     const db = await getDBConnection();
@@ -24,8 +24,8 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
     const selectAllQuery = `
       /* modifier_options table with modifier fields */
       WITH cte_item_modifier_options AS (
-        SELECT * FROM modifier_options
-        JOIN modifiers ON modifiers.id = modifier_options.modifier_id
+        SELECT * FROM active_modifier_options modifier_options
+        JOIN active_modifiers modifiers ON modifiers.id = modifier_options.modifier_id
       )
 
       SELECT *,
@@ -58,7 +58,7 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
       ((inventory_logs_added_and_removed_totals.total_added_stock_cost_tax - inventory_logs_added_and_removed_totals.total_removed_stock_cost_tax) / (inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty)) AS avg_unit_cost_tax
     `;
     const query = `
-      FROM items
+      FROM active_items items
       LEFT JOIN (
         SELECT inventory_logs_added_and_removed.item_id AS item_id,
         inventory_logs_added_and_removed.item_name AS item_name,
@@ -80,13 +80,13 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
           items.id AS item_id,
           items.name AS item_name,
           items.category_id AS item_category_id
-          FROM inventory_logs
-          LEFT JOIN items ON items.id = inventory_logs.item_id
+          FROM active_inventory_logs inventory_logs
+          LEFT JOIN active_items items ON items.id = inventory_logs.item_id
           LEFT JOIN operations ON operations.id = inventory_logs.operation_id
-          WHERE inventory_logs.voided != 1 AND inventory_logs.is_deleted != 1
+          WHERE inventory_logs.voided != 1
           GROUP BY inventory_logs.item_id, operations.type
         ) AS inventory_logs_added_and_removed
-        LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = inventory_logs_added_and_removed.item_id
         GROUP BY inventory_logs_added_and_removed.item_id
       ) AS inventory_logs_added_and_removed_totals
       ON inventory_logs_added_and_removed_totals.item_id = items.id

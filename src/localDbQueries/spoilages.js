@@ -26,7 +26,7 @@ export const deleteRecipeIngredients = async ({id}) => {
 };
 
 export const addSpoilage = async ({values}) => {
-  const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
+  const getItemQuery = `SELECT * FROM active_items items WHERE id = '${parseInt(
     values.item_id,
   )}'`;
 
@@ -221,7 +221,7 @@ export const getSpoilages = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM spoilages
+      FROM active_spoilages spoilages
 
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.item_id AS item_id,
@@ -245,17 +245,17 @@ export const getSpoilages = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND ${selectedEndDate}
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.item_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_total_added_and_removed.item_id
         GROUP BY selected_month_total_added_and_removed.item_id
       ) AS selected_month_totals
       ON selected_month_totals.item_id = spoilages.item_id
@@ -282,28 +282,28 @@ export const getSpoilages = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND ${selectedEndDate}
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_previous_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_previous_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.item_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN items ON items.id = previous_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = previous_month_total_added_and_removed.item_id
         GROUP BY previous_month_total_added_and_removed.item_id
       ) AS previous_month_totals
       ON previous_month_totals.item_id = spoilages.item_id
 
-      INNER JOIN items
+      INNER JOIN active_items items
       ON items.id = spoilages.item_id
-      INNER JOIN categories
+      INNER JOIN active_categories categories
       ON categories.id = items.category_id
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}
@@ -430,7 +430,7 @@ export const getSpoilagesTotal = async ({queryKey, pageParam = 1}) => {
       previous_month_totals.previous_month_total_added_stock_cost_net - previous_month_totals.previous_month_total_removed_stock_cost_net AS previous_month_grand_total_cost_net,
       previous_month_totals.previous_month_total_added_stock_cost_tax - previous_month_totals.previous_month_total_removed_stock_cost_tax AS previous_month_grand_total_cost_tax
   
-      FROM spoilages
+      FROM active_spoilages spoilages
 
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.item_id AS item_id,
@@ -454,17 +454,17 @@ export const getSpoilagesTotal = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND ${selectedEndDate}
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.item_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_total_added_and_removed.item_id
         GROUP BY selected_month_total_added_and_removed.item_id
       ) AS selected_month_totals
       ON selected_month_totals.item_id = spoilages.item_id
@@ -491,22 +491,22 @@ export const getSpoilagesTotal = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND ${selectedEndDate}
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_previous_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_previous_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.item_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN items ON items.id = previous_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = previous_month_total_added_and_removed.item_id
         GROUP BY previous_month_total_added_and_removed.item_id
       ) AS previous_month_totals
       ON previous_month_totals.item_id = spoilages.item_id
 
-      INNER JOIN items
+      INNER JOIN active_items items
       ON items.id = spoilages.item_id
 
       ${queryFilter}
@@ -530,7 +530,7 @@ export const getSpoilagesTotal = async ({queryKey, pageParam = 1}) => {
 
 export const getSpoilage = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM spoilages WHERE id = '${id}';`;
+  const query = `SELECT * FROM active_spoilages spoilages WHERE id = '${id}';`;
 
   try {
     const db = await getDBConnection();
@@ -549,7 +549,7 @@ export const updateSpoilage = async ({id, updatedValues}) => {
   try {
     const db = await getDBConnection();
 
-    const getSpoilageQuery = `SELECT * FROM spoilages WHERE id = '${parseInt(
+    const getSpoilageQuery = `SELECT * FROM active_spoilages spoilages WHERE id = '${parseInt(
       id,
     )}'`;
     const getSpoilageResult = await db.executeSql(getSpoilageQuery);
@@ -559,7 +559,7 @@ export const updateSpoilage = async ({id, updatedValues}) => {
       throw Error('Failed to fetch spoilage');
     }
 
-    const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
+    const getItemQuery = `SELECT * FROM active_items items WHERE id = '${parseInt(
       spoilage.item_id,
     )}'`;
     const getItemResult = await db.executeSql(getItemQuery);

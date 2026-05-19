@@ -22,7 +22,7 @@ export const getCategories = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM categories
+      FROM active_categories categories
 
       ${queryFilter}
 

@@ -92,7 +92,7 @@ export const getVendors = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM vendors
+      FROM active_vendors vendors
 
       ${queryFilter}
 
@@ -124,7 +124,7 @@ export const getVendors = async ({queryKey, pageParam = 1}) => {
 
 export const getVendor = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM vendors WHERE id = '${id}'`;
+  const query = `SELECT * FROM active_vendors vendors WHERE id = '${id}'`;
 
   if (!id) {
     return {

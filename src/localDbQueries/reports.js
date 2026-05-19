@@ -117,32 +117,32 @@ export const getItemsMonthlyReport = async ({queryKey, pageParam = 1}) => {
       FROM (
         SELECT *,
         (
-          SELECT name FROM revenue_groups
+          SELECT name FROM active_revenue_groups revenue_groups
           WHERE revenue_groups.id = (
             SELECT revenue_group_id
-            FROM revenue_categories
+            FROM active_revenue_categories revenue_categories
             WHERE revenue_categories.category_id = i.id
             ORDER BY date_created DESC
           )
         ) AS revenue_group_name,
         (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE revenue_categories.category_id = i.id
           ORDER BY date_created DESC
         ) AS revenue_group_id,
         (
           SELECT IFNULL(SUM(amount), 0)
-          FROM revenues
+          FROM active_revenues revenues
           WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
           AND revenue_group_id = (
             SELECT revenue_group_id
-            FROM revenue_categories
+            FROM active_revenue_categories revenue_categories
             WHERE category_id = i.id
             ORDER BY date_created DESC
           )
         ) AS selected_month_revenue_group_total_amount
-        FROM items i
+        FROM active_items i
       ) AS items
 
       LEFT JOIN (
@@ -167,17 +167,17 @@ export const getItemsMonthlyReport = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.item_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_total_added_and_removed.item_id
         GROUP BY selected_month_total_added_and_removed.item_id
       ) AS selected_month_totals
       ON selected_month_totals.item_id = items.id
@@ -204,17 +204,17 @@ export const getItemsMonthlyReport = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_previous_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_previous_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.item_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN items ON items.id = previous_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = previous_month_total_added_and_removed.item_id
         GROUP BY previous_month_total_added_and_removed.item_id
       ) AS previous_month_totals
       ON previous_month_totals.item_id = items.id
@@ -232,17 +232,17 @@ export const getItemsMonthlyReport = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS selected_month_logs
-          LEFT JOIN items ON items.id = selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = selected_month_logs.operation_id
           GROUP BY selected_month_logs.item_id, operations.type
         ) AS selected_month_display_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_display_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_display_added_and_removed.item_id
         GROUP BY selected_month_display_added_and_removed.item_id
       ) AS selected_month_added_and_removed
       ON selected_month_added_and_removed.item_id = items.id
@@ -264,18 +264,18 @@ export const getItemsMonthlyReport = async ({queryKey, pageParam = 1}) => {
           FROM (
             SELECT *,
             inventory_logs.id AS id
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             LEFT JOIN operations ON operations.id = inventory_logs.operation_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS whole_month_logs
-          LEFT JOIN items ON items.id = whole_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = whole_month_logs.item_id
           GROUP BY whole_month_logs.item_id, whole_month_logs.type
         ) AS whole_month_total_added_and_removed
-        LEFT JOIN items ON items.id = whole_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = whole_month_total_added_and_removed.item_id
         GROUP BY whole_month_total_added_and_removed.item_id
       ) AS whole_month_totals
       ON whole_month_totals.item_id = items.id
@@ -333,7 +333,7 @@ export const getItemsMonthlyReport = async ({queryKey, pageParam = 1}) => {
           operations.code AS operation_code
           FROM (
             SELECT *
-            FROM inventory_logs
+            FROM active_inventory_logs inventory_logs
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
@@ -346,7 +346,7 @@ export const getItemsMonthlyReport = async ({queryKey, pageParam = 1}) => {
       ) AS whole_month_operations_and_totals_in_columns
       ON whole_month_operations_and_totals_in_columns.item_id = items.id
 
-      JOIN categories ON categories.id = items.category_id
+      JOIN active_categories categories ON categories.id = items.category_id
       
       ${queryFilter}
 
@@ -481,21 +481,21 @@ export const getItemsMonthlyReportTotals = async ({
       
       (
         SELECT name
-        FROM revenue_groups
+        FROM active_revenue_groups revenue_groups
         WHERE revenue_groups.id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
       (
         SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM revenues
+        FROM active_revenues revenues
         WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
         AND revenue_group_id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
         )
@@ -503,7 +503,7 @@ export const getItemsMonthlyReportTotals = async ({
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM items
+      FROM active_items items
 
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.item_id AS item_id,
@@ -527,17 +527,17 @@ export const getItemsMonthlyReportTotals = async ({
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.item_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_total_added_and_removed.item_id
         GROUP BY selected_month_total_added_and_removed.item_id
       ) AS selected_month_totals
       ON selected_month_totals.item_id = items.id
@@ -564,17 +564,17 @@ export const getItemsMonthlyReportTotals = async ({
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_previous_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_previous_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.item_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN items ON items.id = previous_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = previous_month_total_added_and_removed.item_id
         GROUP BY previous_month_total_added_and_removed.item_id
       ) AS previous_month_totals
       ON previous_month_totals.item_id = items.id
@@ -595,18 +595,18 @@ export const getItemsMonthlyReportTotals = async ({
           whole_month_logs.item_id AS item_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS whole_month_logs
-          LEFT JOIN items ON items.id = whole_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = whole_month_logs.item_id
           LEFT JOIN operations ON operations.id = whole_month_logs.operation_id
           GROUP BY whole_month_logs.item_id, operations.type
         ) AS whole_month_total_added_and_removed
-        LEFT JOIN items ON items.id = whole_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = whole_month_total_added_and_removed.item_id
         GROUP BY whole_month_total_added_and_removed.item_id
       ) AS whole_month_totals
       ON whole_month_totals.item_id = items.id
@@ -653,18 +653,18 @@ export const getItemsMonthlyReportTotals = async ({
           operations.code AS operation_code
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS whole_month_logs
-          LEFT JOIN items ON items.id = whole_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = whole_month_logs.item_id
           LEFT JOIN operations ON operations.id = whole_month_logs.operation_id
           GROUP BY whole_month_logs.item_id, whole_month_logs.operation_id
         ) AS whole_month_operations_and_totals
-        LEFT JOIN items ON items.id = whole_month_operations_and_totals.item_id
+        LEFT JOIN active_items items ON items.id = whole_month_operations_and_totals.item_id
         GROUP BY whole_month_operations_and_totals.item_id
       ) AS whole_month_operations_and_totals_in_columns
       ON whole_month_operations_and_totals_in_columns.item_id = items.id
@@ -682,22 +682,22 @@ export const getItemsMonthlyReportTotals = async ({
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS selected_month_logs
-          LEFT JOIN items ON items.id = selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = selected_month_logs.operation_id
           GROUP BY selected_month_logs.item_id, operations.type
         ) AS selected_month_display_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_display_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_display_added_and_removed.item_id
         GROUP BY selected_month_display_added_and_removed.item_id
       ) AS selected_month_added_and_removed
       ON selected_month_added_and_removed.item_id = items.id
 
-      JOIN categories ON categories.id = items.category_id
+      JOIN active_categories categories ON categories.id = items.category_id
       
       ${queryFilter}
 
@@ -839,28 +839,28 @@ export const getItemReport = async ({queryKey}) => {
       
       (
         SELECT name
-        FROM revenue_groups
+        FROM active_revenue_groups revenue_groups
         WHERE revenue_groups.id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
       (
         SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM revenues
+        FROM active_revenues revenues
         WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
         AND revenue_group_id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
         )
       ) AS selected_month_revenue_group_total_amount
     `;
     const query = `
-      FROM items
+      FROM active_items items
 
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.item_id AS item_id,
@@ -884,17 +884,17 @@ export const getItemReport = async ({queryKey}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.item_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_total_added_and_removed.item_id
         GROUP BY selected_month_total_added_and_removed.item_id
       ) AS selected_month_totals
       ON selected_month_totals.item_id = items.id
@@ -921,17 +921,17 @@ export const getItemReport = async ({queryKey}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_previous_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_previous_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.item_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN items ON items.id = previous_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = previous_month_total_added_and_removed.item_id
         GROUP BY previous_month_total_added_and_removed.item_id
       ) AS previous_month_totals
       ON previous_month_totals.item_id = items.id
@@ -949,23 +949,23 @@ export const getItemReport = async ({queryKey}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS selected_month_logs
-          LEFT JOIN items ON items.id = selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = selected_month_logs.operation_id
           GROUP BY selected_month_logs.item_id, operations.type
         ) AS selected_month_display_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_display_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_display_added_and_removed.item_id
         GROUP BY selected_month_display_added_and_removed.item_id
       ) AS selected_month_added_and_removed
       ON selected_month_added_and_removed.item_id = items.id
 
-      LEFT JOIN categories ON categories.id = items.category_id
-      
+      LEFT JOIN active_categories categories ON categories.id = items.category_id
+
       WHERE items.id = '${id}'
     `;
 
@@ -1070,34 +1070,34 @@ export const getCategoriesMonthlyReport = async ({queryKey, pageParam = 1}) => {
       FROM (
         SELECT *,
         (
-          SELECT name FROM revenue_groups
+          SELECT name FROM active_revenue_groups revenue_groups
           WHERE revenue_groups.id = (
             SELECT revenue_group_id
-            FROM revenue_categories
+            FROM active_revenue_categories revenue_categories
             WHERE revenue_categories.category_id = c.id
             ORDER BY date_created DESC
           )
         ) AS revenue_group_name,
         (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE revenue_categories.category_id = c.id
           ORDER BY date_created DESC
         ) AS revenue_group_id,
         (
           SELECT IFNULL(SUM(amount), 0)
-          FROM revenues
+          FROM active_revenues revenues
           WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
           AND revenue_group_id = (
             SELECT revenue_group_id
-            FROM revenue_categories
+            FROM active_revenue_categories revenue_categories
             WHERE category_id = c.id
             ORDER BY date_created DESC
           )
         ) AS selected_month_revenue_group_total_amount
-        FROM categories c
+        FROM active_categories c
       ) AS categories
-     
+
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.category_id AS category_id,
         IFNULL(SUM(CASE WHEN selected_month_total_added_and_removed.operation_type = 'add_stock' THEN selected_month_total_added_and_removed.total_stock_cost END), 0) AS selected_month_total_added_stock_cost,
@@ -1114,18 +1114,18 @@ export const getCategoriesMonthlyReport = async ({queryKey, pageParam = 1}) => {
           from_earliest_to_selected_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_selected_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_selected_month_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.category_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = selected_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = selected_month_total_added_and_removed.category_id
         GROUP BY selected_month_total_added_and_removed.category_id
       ) AS selected_month_totals
       ON selected_month_totals.category_id = categories.id
@@ -1146,18 +1146,18 @@ export const getCategoriesMonthlyReport = async ({queryKey, pageParam = 1}) => {
           from_earliest_to_previous_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_previous_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_previous_month_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.category_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = previous_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = previous_month_total_added_and_removed.category_id
         GROUP BY previous_month_total_added_and_removed.category_id
       ) AS previous_month_totals
       ON previous_month_totals.category_id = categories.id
@@ -1178,18 +1178,18 @@ export const getCategoriesMonthlyReport = async ({queryKey, pageParam = 1}) => {
           whole_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS whole_month_logs
-          LEFT JOIN categories ON categories.id = whole_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = whole_month_logs.category_id
           LEFT JOIN operations ON operations.id = whole_month_logs.operation_id
           GROUP BY whole_month_logs.category_id, operations.type
         ) AS whole_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = whole_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = whole_month_total_added_and_removed.category_id
         GROUP BY whole_month_total_added_and_removed.category_id
       ) AS whole_month_totals
       ON whole_month_totals.category_id = categories.id
@@ -1236,22 +1236,22 @@ export const getCategoriesMonthlyReport = async ({queryKey, pageParam = 1}) => {
           operations.code AS operation_code
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS whole_month_logs
-          LEFT JOIN categories ON categories.id = whole_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = whole_month_logs.category_id
           LEFT JOIN operations ON operations.id = whole_month_logs.operation_id
           GROUP BY whole_month_logs.category_id, whole_month_logs.operation_id
         ) AS whole_month_operations_and_totals
-        LEFT JOIN categories ON categories.id = whole_month_operations_and_totals.category_id
+        LEFT JOIN active_categories categories ON categories.id = whole_month_operations_and_totals.category_id
         GROUP BY whole_month_operations_and_totals.category_id
       ) AS whole_month_operations_and_totals_in_columns
       ON whole_month_operations_and_totals_in_columns.category_id = categories.id
-      
+
       ${queryFilter}
 
       ${queryOrderBy}
@@ -1298,11 +1298,11 @@ export const getCategoriesMonthlyReportTotals = async ({
       categories.id AS category_id,
       categories.name AS category_name,
 
-      SUM(whole_month_totals.whole_month_total_removed_stock_cost) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_removed_stock_cost_percentage,
-      SUM(whole_month_totals.whole_month_total_removed_stock_cost_net) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_removed_stock_cost_net_percentage,
+      SUM(whole_month_totals.whole_month_total_removed_stock_cost) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM active_revenues revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_removed_stock_cost_percentage,
+      SUM(whole_month_totals.whole_month_total_removed_stock_cost_net) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM active_revenues revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_removed_stock_cost_net_percentage,
 
-      SUM(whole_month_totals.whole_month_total_added_stock_cost) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_added_stock_cost_percentage,
-      SUM(whole_month_totals.whole_month_total_added_stock_cost_net) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_added_stock_cost_net_percentage,
+      SUM(whole_month_totals.whole_month_total_added_stock_cost) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM active_revenues revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_added_stock_cost_percentage,
+      SUM(whole_month_totals.whole_month_total_added_stock_cost_net) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM active_revenues revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_added_stock_cost_net_percentage,
 
       selected_month_totals.selected_month_total_added_stock_cost AS selected_month_total_added_stock_cost,
       selected_month_totals.selected_month_total_removed_stock_cost AS selected_month_total_removed_stock_cost,
@@ -1390,32 +1390,32 @@ export const getCategoriesMonthlyReportTotals = async ({
       FROM (
         SELECT *,
         (
-          SELECT name FROM revenue_groups
+          SELECT name FROM active_revenue_groups revenue_groups
           WHERE revenue_groups.id = (
             SELECT revenue_group_id
-            FROM revenue_categories
+            FROM active_revenue_categories revenue_categories
             WHERE revenue_categories.category_id = c.id
             ORDER BY date_created DESC
           )
         ) AS revenue_group_name,
         (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE revenue_categories.category_id = c.id
           ORDER BY date_created DESC
         ) AS revenue_group_id,
         (
           SELECT IFNULL(SUM(amount), 0)
-          FROM revenues
+          FROM active_revenues revenues
           WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
           AND revenue_group_id = (
             SELECT revenue_group_id
-            FROM revenue_categories
+            FROM active_revenue_categories revenue_categories
             WHERE category_id = c.id
             ORDER BY date_created DESC
           )
         ) AS selected_month_revenue_group_total_amount
-        FROM categories c
+        FROM active_categories c
       ) AS categories
 
       LEFT JOIN (
@@ -1434,18 +1434,18 @@ export const getCategoriesMonthlyReportTotals = async ({
           from_earliest_to_selected_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_selected_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_selected_month_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.category_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = selected_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = selected_month_total_added_and_removed.category_id
         GROUP BY selected_month_total_added_and_removed.category_id
       ) AS selected_month_totals
       ON selected_month_totals.category_id = categories.id
@@ -1466,18 +1466,18 @@ export const getCategoriesMonthlyReportTotals = async ({
           from_earliest_to_previous_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_previous_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_previous_month_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.category_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = previous_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = previous_month_total_added_and_removed.category_id
         GROUP BY previous_month_total_added_and_removed.category_id
       ) AS previous_month_totals
       ON previous_month_totals.category_id = categories.id
@@ -1498,18 +1498,18 @@ export const getCategoriesMonthlyReportTotals = async ({
           whole_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS whole_month_logs
-          LEFT JOIN categories ON categories.id = whole_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = whole_month_logs.category_id
           LEFT JOIN operations ON operations.id = whole_month_logs.operation_id
           GROUP BY whole_month_logs.category_id, operations.type
         ) AS whole_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = whole_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = whole_month_total_added_and_removed.category_id
         GROUP BY whole_month_total_added_and_removed.category_id
       ) AS whole_month_totals
       ON whole_month_totals.category_id = categories.id
@@ -1556,22 +1556,22 @@ export const getCategoriesMonthlyReportTotals = async ({
           operations.code AS operation_code
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS whole_month_logs
-          LEFT JOIN categories ON categories.id = whole_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = whole_month_logs.category_id
           LEFT JOIN operations ON operations.id = whole_month_logs.operation_id
           GROUP BY whole_month_logs.category_id, whole_month_logs.operation_id
         ) AS whole_month_operations_and_totals
-        LEFT JOIN categories ON categories.id = whole_month_operations_and_totals.category_id
+        LEFT JOIN active_categories categories ON categories.id = whole_month_operations_and_totals.category_id
         GROUP BY whole_month_operations_and_totals.category_id
       ) AS whole_month_operations_and_totals_in_columns
       ON whole_month_operations_and_totals_in_columns.category_id = categories.id
-      
+
       ${queryFilter}
     `;
 
@@ -1825,21 +1825,21 @@ export const getItemsCustomReport = async ({queryKey, pageParam = 1}) => {
       
       (
         SELECT name
-        FROM revenue_groups
+        FROM active_revenue_groups revenue_groups
         WHERE revenue_groups.id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
       (
         SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM revenues
+        FROM active_revenues revenues
         WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
         AND revenue_group_id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
         )
@@ -1847,7 +1847,7 @@ export const getItemsCustomReport = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM items
+      FROM active_items items
 
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.item_id AS item_id,
@@ -1871,17 +1871,17 @@ export const getItemsCustomReport = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.item_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_total_added_and_removed.item_id
         GROUP BY selected_month_total_added_and_removed.item_id
       ) AS selected_month_totals
       ON selected_month_totals.item_id = items.id
@@ -1908,17 +1908,17 @@ export const getItemsCustomReport = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_previous_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_previous_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.item_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN items ON items.id = previous_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = previous_month_total_added_and_removed.item_id
         GROUP BY previous_month_total_added_and_removed.item_id
       ) AS previous_month_totals
       ON previous_month_totals.item_id = items.id
@@ -1936,17 +1936,17 @@ export const getItemsCustomReport = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS selected_month_logs
-          LEFT JOIN items ON items.id = selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = selected_month_logs.operation_id
           GROUP BY selected_month_logs.item_id, operations.type
         ) AS selected_month_display_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_display_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_display_added_and_removed.item_id
         GROUP BY selected_month_display_added_and_removed.item_id
       ) AS selected_month_added_and_removed
       ON selected_month_added_and_removed.item_id = items.id
@@ -1973,23 +1973,23 @@ export const getItemsCustomReport = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN ${start}
             AND ${end}
           ) AS date_filtered_logs
-          LEFT JOIN items ON items.id = date_filtered_logs.item_id
+          LEFT JOIN active_items items ON items.id = date_filtered_logs.item_id
           LEFT JOIN operations ON operations.id = date_filtered_logs.operation_id
           GROUP BY date_filtered_logs.item_id, operations.type
         ) AS date_filtered_total_added_and_removed
-        LEFT JOIN items ON items.id = date_filtered_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = date_filtered_total_added_and_removed.item_id
         GROUP BY date_filtered_total_added_and_removed.item_id
       ) AS date_filtered_totals
       ON date_filtered_totals.item_id = items.id
 
-      JOIN categories ON categories.id = items.category_id
-      
+      JOIN active_categories categories ON categories.id = items.category_id
+
       ${queryFilter}
 
       ${queryOrderBy}
@@ -2125,21 +2125,21 @@ export const getItemsCustomReportTotals = async ({queryKey, pageParam = 1}) => {
       
       (
         SELECT name
-        FROM revenue_groups
+        FROM active_revenue_groups revenue_groups
         WHERE revenue_groups.id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
       (
         SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM revenues
+        FROM active_revenues revenues
         WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
         AND revenue_group_id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
         )
@@ -2147,7 +2147,7 @@ export const getItemsCustomReportTotals = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM items
+      FROM active_items items
 
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.item_id AS item_id,
@@ -2171,17 +2171,17 @@ export const getItemsCustomReportTotals = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.item_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_total_added_and_removed.item_id
         GROUP BY selected_month_total_added_and_removed.item_id
       ) AS selected_month_totals
       ON selected_month_totals.item_id = items.id
@@ -2208,17 +2208,17 @@ export const getItemsCustomReportTotals = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN items ON items.id = from_earliest_to_previous_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = from_earliest_to_previous_month_logs.item_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.item_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN items ON items.id = previous_month_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = previous_month_total_added_and_removed.item_id
         GROUP BY previous_month_total_added_and_removed.item_id
       ) AS previous_month_totals
       ON previous_month_totals.item_id = items.id
@@ -2236,17 +2236,17 @@ export const getItemsCustomReportTotals = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS selected_month_logs
-          LEFT JOIN items ON items.id = selected_month_logs.item_id
+          LEFT JOIN active_items items ON items.id = selected_month_logs.item_id
           LEFT JOIN operations ON operations.id = selected_month_logs.operation_id
           GROUP BY selected_month_logs.item_id, operations.type
         ) AS selected_month_display_added_and_removed
-        LEFT JOIN items ON items.id = selected_month_display_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = selected_month_display_added_and_removed.item_id
         GROUP BY selected_month_display_added_and_removed.item_id
       ) AS selected_month_added_and_removed
       ON selected_month_added_and_removed.item_id = items.id
@@ -2273,23 +2273,23 @@ export const getItemsCustomReportTotals = async ({queryKey, pageParam = 1}) => {
           items.name AS item_name,
           items.category_id AS item_category_id
           FROM (
-            SELECT * FROM inventory_logs
+            SELECT * FROM active_inventory_logs inventory_logs
             WHERE voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN ${start}
             AND ${end}
           ) AS date_filtered_logs
-          LEFT JOIN items ON items.id = date_filtered_logs.item_id
+          LEFT JOIN active_items items ON items.id = date_filtered_logs.item_id
           LEFT JOIN operations ON operations.id = date_filtered_logs.operation_id
           GROUP BY date_filtered_logs.item_id, operations.type
         ) AS date_filtered_total_added_and_removed
-        LEFT JOIN items ON items.id = date_filtered_total_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = date_filtered_total_added_and_removed.item_id
         GROUP BY date_filtered_total_added_and_removed.item_id
       ) AS date_filtered_totals
       ON date_filtered_totals.item_id = items.id
 
-      JOIN categories ON categories.id = items.category_id
-      
+      JOIN active_categories categories ON categories.id = items.category_id
+
       ${queryFilter}
 
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}
@@ -2434,21 +2434,21 @@ export const getCategoriesCustomReport = async ({queryKey, pageParam = 1}) => {
       date_filtered_totals.date_filtered_total_added_stock_cost_tax - date_filtered_totals.date_filtered_total_removed_stock_cost_tax AS date_filtered_grand_total_cost_tax,
       (
         SELECT name
-        FROM revenue_groups
+        FROM active_revenue_groups revenue_groups
         WHERE revenue_groups.id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = categories.id
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
       (
         SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM revenues
+        FROM active_revenues revenues
         WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
         AND revenue_group_id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = categories.id
           ORDER BY date_created DESC
         )
@@ -2456,7 +2456,7 @@ export const getCategoriesCustomReport = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM categories
+      FROM active_categories categories
 
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.category_id AS category_id,
@@ -2474,18 +2474,18 @@ export const getCategoriesCustomReport = async ({queryKey, pageParam = 1}) => {
           from_earliest_to_selected_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_selected_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_selected_month_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.category_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = selected_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = selected_month_total_added_and_removed.category_id
         GROUP BY selected_month_total_added_and_removed.category_id
       ) AS selected_month_totals
       ON selected_month_totals.category_id = categories.id
@@ -2506,18 +2506,18 @@ export const getCategoriesCustomReport = async ({queryKey, pageParam = 1}) => {
           from_earliest_to_previous_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_previous_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_previous_month_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.category_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = previous_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = previous_month_total_added_and_removed.category_id
         GROUP BY previous_month_total_added_and_removed.category_id
       ) AS previous_month_totals
       ON previous_month_totals.category_id = categories.id
@@ -2538,22 +2538,22 @@ export const getCategoriesCustomReport = async ({queryKey, pageParam = 1}) => {
           from_earliest_to_date_filtered_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN ${start}
             AND ${end}
           ) AS from_earliest_to_date_filtered_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_date_filtered_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_date_filtered_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_date_filtered_logs.operation_id
           GROUP BY from_earliest_to_date_filtered_logs.category_id, operations.type
         ) AS date_filtered_total_added_and_removed
-        LEFT JOIN categories ON categories.id = date_filtered_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = date_filtered_total_added_and_removed.category_id
         GROUP BY date_filtered_total_added_and_removed.category_id
       ) AS date_filtered_totals
       ON date_filtered_totals.category_id = categories.id
-      
+
       ${queryFilter}
 
       ${queryOrderBy}
@@ -2669,21 +2669,21 @@ export const getCategoriesCustomReportTotals = async ({
 
       (
         SELECT name
-        FROM revenue_groups
+        FROM active_revenue_groups revenue_groups
         WHERE revenue_groups.id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = categories.id
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
       (
         SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM revenues
+        FROM active_revenues revenues
         WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
         AND revenue_group_id = (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE category_id = categories.id
           ORDER BY date_created DESC
         )
@@ -2691,7 +2691,7 @@ export const getCategoriesCustomReportTotals = async ({
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM categories
+      FROM active_categories categories
 
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.category_id AS category_id,
@@ -2709,18 +2709,18 @@ export const getCategoriesCustomReportTotals = async ({
           from_earliest_to_selected_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_selected_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_selected_month_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.category_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = selected_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = selected_month_total_added_and_removed.category_id
         GROUP BY selected_month_total_added_and_removed.category_id
       ) AS selected_month_totals
       ON selected_month_totals.category_id = categories.id
@@ -2741,18 +2741,18 @@ export const getCategoriesCustomReportTotals = async ({
           from_earliest_to_previous_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_previous_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_previous_month_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.category_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = previous_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = previous_month_total_added_and_removed.category_id
         GROUP BY previous_month_total_added_and_removed.category_id
       ) AS previous_month_totals
       ON previous_month_totals.category_id = categories.id
@@ -2773,18 +2773,18 @@ export const getCategoriesCustomReportTotals = async ({
           from_earliest_to_date_filtered_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN ${start}
             AND ${end}
           ) AS from_earliest_to_date_filtered_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_date_filtered_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_date_filtered_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_date_filtered_logs.operation_id
           GROUP BY from_earliest_to_date_filtered_logs.category_id, operations.type
         ) AS date_filtered_total_added_and_removed
-        LEFT JOIN categories ON categories.id = date_filtered_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = date_filtered_total_added_and_removed.category_id
         GROUP BY date_filtered_total_added_and_removed.category_id
       ) AS date_filtered_totals
       ON date_filtered_totals.category_id = categories.id
@@ -2980,34 +2980,34 @@ export const getRevenueGroupsMonthlyReportTotals = async ({
       FROM (
         SELECT *,
         (
-          SELECT name FROM revenue_groups
+          SELECT name FROM active_revenue_groups revenue_groups
           WHERE revenue_groups.id = (
             SELECT revenue_group_id
-            FROM revenue_categories
+            FROM active_revenue_categories revenue_categories
             WHERE revenue_categories.category_id = c.id
             ORDER BY date_created DESC
           )
         ) AS revenue_group_name,
         (
           SELECT revenue_group_id
-          FROM revenue_categories
+          FROM active_revenue_categories revenue_categories
           WHERE revenue_categories.category_id = c.id
           ORDER BY date_created DESC
         ) AS revenue_group_id,
         (
           SELECT IFNULL(SUM(amount), 0)
-          FROM revenues
+          FROM active_revenues revenues
           WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
           AND revenue_group_id = (
             SELECT revenue_group_id
-            FROM revenue_categories
+            FROM active_revenue_categories revenue_categories
             WHERE category_id = c.id
             ORDER BY date_created DESC
           )
         ) AS selected_month_revenue_group_total_amount
-        FROM categories c
+        FROM active_categories c
       ) AS categories
-     
+
       LEFT JOIN (
         SELECT selected_month_total_added_and_removed.category_id AS category_id,
         IFNULL(SUM(CASE WHEN selected_month_total_added_and_removed.operation_type = 'add_stock' THEN selected_month_total_added_and_removed.total_stock_cost END), 0) AS selected_month_total_added_stock_cost,
@@ -3024,18 +3024,18 @@ export const getRevenueGroupsMonthlyReportTotals = async ({
           from_earliest_to_selected_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_selected_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_selected_month_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
           GROUP BY from_earliest_to_selected_month_logs.category_id, operations.type
         ) AS selected_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = selected_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = selected_month_total_added_and_removed.category_id
         GROUP BY selected_month_total_added_and_removed.category_id
       ) AS selected_month_totals
       ON selected_month_totals.category_id = categories.id
@@ -3056,18 +3056,18 @@ export const getRevenueGroupsMonthlyReportTotals = async ({
           from_earliest_to_previous_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
+            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
             AND DATE('${dateFilter}', 'start of month', '-1 day')
           ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN categories ON categories.id = from_earliest_to_previous_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = from_earliest_to_previous_month_logs.category_id
           LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
           GROUP BY from_earliest_to_previous_month_logs.category_id, operations.type
         ) AS previous_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = previous_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = previous_month_total_added_and_removed.category_id
         GROUP BY previous_month_total_added_and_removed.category_id
       ) AS previous_month_totals
       ON previous_month_totals.category_id = categories.id
@@ -3088,18 +3088,18 @@ export const getRevenueGroupsMonthlyReportTotals = async ({
           whole_month_logs.category_id AS category_id
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS whole_month_logs
-          LEFT JOIN categories ON categories.id = whole_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = whole_month_logs.category_id
           LEFT JOIN operations ON operations.id = whole_month_logs.operation_id
           GROUP BY whole_month_logs.category_id, operations.type
         ) AS whole_month_total_added_and_removed
-        LEFT JOIN categories ON categories.id = whole_month_total_added_and_removed.category_id
+        LEFT JOIN active_categories categories ON categories.id = whole_month_total_added_and_removed.category_id
         GROUP BY whole_month_total_added_and_removed.category_id
       ) AS whole_month_totals
       ON whole_month_totals.category_id = categories.id
@@ -3146,18 +3146,18 @@ export const getRevenueGroupsMonthlyReportTotals = async ({
           operations.code AS operation_code
           FROM (
             SELECT *
-            FROM inventory_logs
-            LEFT JOIN items ON items.id = inventory_logs.item_id
+            FROM active_inventory_logs inventory_logs
+            LEFT JOIN active_items items ON items.id = inventory_logs.item_id
             WHERE inventory_logs.voided != 1
             AND DATE(inventory_logs.adjustment_date)
             BETWEEN DATE('${dateFilter}', 'start of month')
             AND DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')
           ) AS whole_month_logs
-          LEFT JOIN categories ON categories.id = whole_month_logs.category_id
+          LEFT JOIN active_categories categories ON categories.id = whole_month_logs.category_id
           LEFT JOIN operations ON operations.id = whole_month_logs.operation_id
           GROUP BY whole_month_logs.category_id, whole_month_logs.operation_id
         ) AS whole_month_operations_and_totals
-        LEFT JOIN categories ON categories.id = whole_month_operations_and_totals.category_id
+        LEFT JOIN active_categories categories ON categories.id = whole_month_operations_and_totals.category_id
         GROUP BY whole_month_operations_and_totals.category_id
       ) AS whole_month_operations_and_totals_in_columns
       ON whole_month_operations_and_totals_in_columns.category_id = categories.id
@@ -3195,7 +3195,7 @@ export const getTotalItems = async ({queryKey, pageParam = 1}) => {
 
     const query = `
       SELECT COUNT(*)
-      FROM items
+      FROM active_items items
     `;
 
     const result = await db.executeSql(query);
@@ -3216,7 +3216,7 @@ export const getTotalCategories = async ({queryKey, pageParam = 1}) => {
 
     const query = `
       SELECT COUNT(*)
-      FROM categories
+      FROM active_categories categories
     `;
 
     const result = await db.executeSql(query);

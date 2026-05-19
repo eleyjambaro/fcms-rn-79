@@ -60,7 +60,7 @@ export const getItemsAndBatchPurchaseEntries = async ({
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
       FROM (
-        SELECT * FROM items
+        SELECT * FROM active_items
         WHERE is_finished_product = 0
       ) AS items
 
@@ -79,13 +79,13 @@ export const getItemsAndBatchPurchaseEntries = async ({
           items.id AS item_id,
           items.name AS item_name,
           items.category_id AS item_category_id
-          FROM inventory_logs
-          LEFT JOIN items ON items.id = inventory_logs.item_id
+          FROM active_inventory_logs inventory_logs
+          LEFT JOIN active_items items ON items.id = inventory_logs.item_id
           LEFT JOIN operations ON operations.id = inventory_logs.operation_id
           WHERE inventory_logs.voided != 1
           GROUP BY inventory_logs.item_id, operations.type
         ) AS inventory_logs_added_and_removed
-        LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = inventory_logs_added_and_removed.item_id
         GROUP BY inventory_logs_added_and_removed.item_id
       ) AS inventory_logs_added_and_removed_totals
       ON inventory_logs_added_and_removed_totals.item_id = items.id
@@ -93,13 +93,13 @@ export const getItemsAndBatchPurchaseEntries = async ({
       LEFT JOIN (
         SELECT *,
         batch_purchase_groups.id AS batch_purchase_group_id
-        FROM batch_purchase_entries
-        LEFT JOIN batch_purchase_groups ON batch_purchase_groups.id = batch_purchase_entries.batch_purchase_group_id
+        FROM active_batch_purchase_entries batch_purchase_entries
+        LEFT JOIN active_batch_purchase_groups batch_purchase_groups ON batch_purchase_groups.id = batch_purchase_entries.batch_purchase_group_id
         WHERE batch_purchase_group_id = '${currentBatchPurchaseGroupId || 0}'
       ) AS current_batch_purchase_group_entries
       ON current_batch_purchase_group_entries.item_id = items.id
 
-      LEFT JOIN categories ON categories.id = items.category_id    
+      LEFT JOIN active_categories categories ON categories.id = items.category_id
 
       ${queryFilter}
       
@@ -173,7 +173,7 @@ export const getBatchPurchaseEntries = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM items
+      FROM active_items items
       LEFT JOIN (
         SELECT inventory_logs_added_and_removed.item_id AS item_id,
         inventory_logs_added_and_removed.item_name AS item_name,
@@ -189,18 +189,18 @@ export const getBatchPurchaseEntries = async ({queryKey, pageParam = 1}) => {
           items.id AS item_id,
           items.name AS item_name,
           items.category_id AS item_category_id
-          FROM inventory_logs
-          LEFT JOIN items ON items.id = inventory_logs.item_id
+          FROM active_inventory_logs inventory_logs
+          LEFT JOIN active_items items ON items.id = inventory_logs.item_id
           LEFT JOIN operations ON operations.id = inventory_logs.operation_id
           WHERE inventory_logs.voided != 1
           GROUP BY inventory_logs.item_id, operations.type
         ) AS inventory_logs_added_and_removed
-        LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id
+        LEFT JOIN active_items items ON items.id = inventory_logs_added_and_removed.item_id
         GROUP BY inventory_logs_added_and_removed.item_id
       ) AS inventory_logs_added_and_removed_totals
       ON inventory_logs_added_and_removed_totals.item_id = items.id
 
-      INNER JOIN batch_purchase_entries ON batch_purchase_entries.item_id = items.id
+      INNER JOIN active_batch_purchase_entries batch_purchase_entries ON batch_purchase_entries.item_id = items.id
 
       ${queryFilter}
       
@@ -275,8 +275,8 @@ export const getBatchPurchaseEntriesCount = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM items
-      INNER JOIN batch_purchase_entries ON batch_purchase_entries.item_id = items.id
+      FROM active_items items
+      INNER JOIN active_batch_purchase_entries batch_purchase_entries ON batch_purchase_entries.item_id = items.id
 
       ${queryFilter}
     ;`;
@@ -307,8 +307,8 @@ export const getBatchPurchaseEntriesGrandTotal = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT SUM(batch_purchase_entries.add_stock_unit_cost * batch_purchase_entries.add_stock_qty)`;
     const query = `
-      FROM items
-      INNER JOIN batch_purchase_entries ON batch_purchase_entries.item_id = items.id
+      FROM active_items items
+      INNER JOIN active_batch_purchase_entries batch_purchase_entries ON batch_purchase_entries.item_id = items.id
 
       ${queryFilter}
     ;`;
@@ -680,8 +680,8 @@ export const confirmBatchPurchaseEntries = async ({
       taxes.id AS item_tax_id,
       taxes.name AS item_tax_name,
       taxes.rate_percentage AS item_tax_rate_percentage
-      FROM batch_purchase_entries
-      INNER JOIN items ON items.id = batch_purchase_entries.item_id
+      FROM active_batch_purchase_entries batch_purchase_entries
+      INNER JOIN active_items items ON items.id = batch_purchase_entries.item_id
       LEFT JOIN taxes ON taxes.id = batch_purchase_entries.tax_id
       WHERE batch_purchase_group_id = '${currentBatchPurchaseGroupId}';
     `;
@@ -927,8 +927,8 @@ export const getBatchPurchaseGroups = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM batch_purchase_groups
-      INNER JOIN inventory_logs ON inventory_logs.batch_purchase_group_id = batch_purchase_groups.id
+      FROM active_batch_purchase_groups batch_purchase_groups
+      INNER JOIN active_inventory_logs inventory_logs ON inventory_logs.batch_purchase_group_id = batch_purchase_groups.id
 
       GROUP BY batch_purchase_groups.id
 
@@ -989,8 +989,8 @@ export const getBatchPurchaseGroupGrandTotal = async ({queryKey}) => {
     const db = await getDBConnection();
     const countAllQuery = `SELECT SUM(inventory_logs.adjustment_unit_cost * inventory_logs.adjustment_qty)`;
     const query = `
-      FROM batch_purchase_groups
-      INNER JOIN inventory_logs ON inventory_logs.batch_purchase_group_id = batch_purchase_groups.id
+      FROM active_batch_purchase_groups batch_purchase_groups
+      INNER JOIN active_inventory_logs inventory_logs ON inventory_logs.batch_purchase_group_id = batch_purchase_groups.id
 
       ${queryFilter}
     ;`;
@@ -1063,11 +1063,11 @@ export const getBatchPurchaseGroupItems = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM inventory_logs
-      INNER JOIN items ON items.id = inventory_logs.item_id
+      FROM active_inventory_logs inventory_logs
+      INNER JOIN active_items items ON items.id = inventory_logs.item_id
 
       ${queryFilter}
-      
+
       ${queryOrderBy}
 
       LIMIT ${limit} OFFSET ${offset}
