@@ -4,6 +4,7 @@ import {
   SQLiteDatabase,
 } from 'react-native-sqlite-storage';
 import SecureStorage from 'react-native-fast-secure-storage';
+import RNFS from 'react-native-fs';
 
 import {appDefaults} from '../constants/appDefaults';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
@@ -73,6 +74,9 @@ export const getActiveBranchId = () => _activeBranchId;
 export const setActiveCompanyDb = async (companyId, branchId = null) => {
   _activeCompanyId = companyId ?? null;
   _activeBranchId = branchId ?? null;
+  if (_activeCompanyId && _activeBranchId) {
+    await migrateCompanyDbToBranchScopedDb(_activeCompanyId, _activeBranchId);
+  }
   if (_activeCompanyId) {
     try {
       // createTables / alterTables are defined later in this file but are
@@ -94,6 +98,36 @@ export const getDBConnection = async () => {
     name = `${appDefaults.dbName}_${_activeCompanyId}`;
   }
   return openDatabase({name, location: 'default', readOnly: false});
+};
+
+// Renames the legacy company-only DB file to the new company+branch filename so
+// existing users keep their data after the branch-scoped naming change.
+// Uses moveFile (atomic rename) so no orphan is left behind. If the new file
+// already exists the old one is simply deleted. Safe to call on every startup —
+// once the old file is gone the RNFS.exists checks exit immediately.
+const migrateCompanyDbToBranchScopedDb = async (companyId, branchId) => {
+  try {
+    const parts = RNFS.DocumentDirectoryPath.split('/');
+    parts.pop();
+    parts.push('databases');
+    const databasesDir = parts.join('/');
+
+    const oldPath = `${databasesDir}/${appDefaults.dbName}_${companyId}`;
+    const newPath = `${databasesDir}/${appDefaults.dbName}_${companyId}_${branchId}`;
+
+    const [oldExists, newExists] = await Promise.all([
+      RNFS.exists(oldPath),
+      RNFS.exists(newPath),
+    ]);
+
+    if (!newExists && oldExists) {
+      await RNFS.moveFile(oldPath, newPath);
+    } else if (newExists && oldExists) {
+      await RNFS.unlink(oldPath);
+    }
+  } catch (e) {
+    console.debug('[localDb] migrateCompanyDbToBranchScopedDb error:', e);
+  }
 };
 
 export const getLocalAccountDBConnection = async () => {
