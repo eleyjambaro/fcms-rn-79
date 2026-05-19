@@ -58,18 +58,21 @@ enablePromise(true);
 
 const localAccountDbName = appDefaults.localAccountDbName;
 
-// Active company ID set by CloudAuthContextProvider on sign-in/restore.
-// All company data is stored in a company-scoped DB file so that multiple
-// companies on the same physical device cannot see each other's data.
+// Active company/branch IDs set by CloudAuthContextProvider on sign-in/restore.
+// Each company+branch pair gets its own SQLite file so that data from different
+// branches (and companies) on the same device is fully isolated.
 let _activeCompanyId = null;
+let _activeBranchId = null;
 
-// Sets the active company and ensures that company's DB tables exist before
+// Sets the active company+branch and ensures that DB tables exist before
 // returning. Must be awaited before dispatching auth state changes so that
 // components never open a DB that hasn't been initialised yet.
 export const getActiveCompanyId = () => _activeCompanyId;
+export const getActiveBranchId = () => _activeBranchId;
 
-export const setActiveCompanyDb = async companyId => {
+export const setActiveCompanyDb = async (companyId, branchId = null) => {
   _activeCompanyId = companyId ?? null;
+  _activeBranchId = branchId ?? null;
   if (_activeCompanyId) {
     try {
       // createTables / alterTables are defined later in this file but are
@@ -84,9 +87,12 @@ export const setActiveCompanyDb = async companyId => {
 };
 
 export const getDBConnection = async () => {
-  const name = _activeCompanyId
-    ? `${appDefaults.dbName}_${_activeCompanyId}`
-    : appDefaults.dbName; // unauthenticated fallback (no sensitive data accessed)
+  let name = appDefaults.dbName; // unauthenticated fallback
+  if (_activeCompanyId && _activeBranchId) {
+    name = `${appDefaults.dbName}_${_activeCompanyId}_${_activeBranchId}`;
+  } else if (_activeCompanyId) {
+    name = `${appDefaults.dbName}_${_activeCompanyId}`;
+  }
   return openDatabase({name, location: 'default', readOnly: false});
 };
 

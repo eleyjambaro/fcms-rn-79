@@ -1,12 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import convert from 'convert-units';
-import {getActiveCompanyId} from '../localDb';
+import {getActiveCompanyId, getActiveBranchId} from '../localDb';
 
 export const defaultUnitsAbbr = ['mg', 'g', 'kg', 'ml', 'l', 'ea'];
 
 const unitsKey = () => {
   const companyId = getActiveCompanyId();
-  return companyId ? `units_${companyId}` : 'units';
+  const branchId = getActiveBranchId();
+  if (companyId && branchId) return `units_${companyId}_${branchId}`;
+  if (companyId) return `units_${companyId}`;
+  return 'units';
 };
 
 export const setDefaultUnits = async () => {

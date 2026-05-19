@@ -45,26 +45,26 @@ Copy `.env.example` to `.env` and set `CLOUD_API_V2_BASE_URL` to your local serv
   - `App.js` gates on `isCloudAuthenticated && hasDevice && hasBranch` — all three must be true to show `RootStack`.
 - **Local Auth** (`AuthStack`): **Deprecated.** Do not add new features here.
 
-### Multi-Company Data Isolation
+### Multi-Company / Multi-Branch Data Isolation
 
-**Each company gets its own SQLite database file.** This is enforced at the `getDBConnection()` level in `/src/localDb/index.js` — no query-level filtering is needed or used.
+**Each company+branch pair gets its own SQLite database file.** This is enforced at the `getDBConnection()` level in `/src/localDb/index.js` — no query-level filtering is needed or used.
 
-- Company DB filename: `FCMS_<companyId>` (e.g. `FCMS_abc-123...`). The fallback `FCMS.db` is only used in the unauthenticated state where no company data is accessed.
-- `setActiveCompanyDb(companyId)` in `/src/localDb/index.js` sets the active company, creates tables (`createTables()`), runs migrations (`alterTables()`), and creates SQL views (`createViews()`). It is **async** and must be `await`ed.
-- `getActiveCompanyId()` returns the currently active company ID — used by company-scoped AsyncStorage keys (e.g. units).
-- `CloudAuthContextProvider` calls `setActiveCompanyDb` at every auth transition (restore, sign-in, sign-up, OTP verify) **before** dispatching state, so `isLoading` stays `true` until the DB is ready. It also seeds company defaults (`setDefaultUnits`, `createDefaultSettings`) at the same point.
-- On sign-out or user switch, `queryClient.clear()` is called to purge React Query's cache so no prior company's data is visible to the next user.
+- DB filename: `FCMS_<companyId>_<branchId>` when both are known (normal operating state). Falls back to `FCMS_<companyId>` when only the company is known (e.g. during device registration before a branch is assigned), and to `FCMS.db` in the unauthenticated state where no company data is accessed.
+- `setActiveCompanyDb(companyId, branchId)` in `/src/localDb/index.js` sets the active company and branch, creates tables (`createTables()`), runs migrations (`alterTables()`), and creates SQL views (`createViews()`). It is **async** and must be `await`ed.
+- `getActiveCompanyId()` and `getActiveBranchId()` return the currently active IDs — used by company+branch-scoped AsyncStorage keys (e.g. units).
+- `CloudAuthContextProvider` calls `setActiveCompanyDb` at every auth transition (restore, sign-in, sign-up, OTP verify, **and branch selection**) **before** dispatching state, so `isLoading` stays `true` until the DB is ready. It also seeds defaults (`setDefaultUnits`, `createDefaultSettings`) at the same point.
+- On sign-out or user switch, `queryClient.clear()` is called to purge React Query's cache so no prior user's data is visible to the next user.
 
 ### Dual Database System
 
-- **Company DB** (`FCMS_<companyId>`): Items, recipes, purchases, expenses, revenues, settings, units, etc. Queried via `/src/localDbQueries/`. **Company-scoped — one file per company.**
+- **Company DB** (`FCMS_<companyId>_<branchId>`): Items, recipes, purchases, expenses, revenues, settings, units, etc. Queried via `/src/localDbQueries/`. **Company+branch-scoped — one file per company/branch combination.**
 - **Account DB** (`FCMSLocalAccount.db`): Legacy local auth data (accounts, roles, companies). Used only by the deprecated local auth system. Do not add new tables here.
 - Direct SQL queries use a promise-based wrapper in `/src/localDb/`.
 - Query builders in `/src/utils/localDbHelpers.js` support `%IN`, `%LIKE` filter operators and `createQueryFilter()`.
 
-#### Company-scoped AsyncStorage
+#### Company+branch-scoped AsyncStorage
 
-Units are stored in AsyncStorage under a company-scoped key (`units_<companyId>`), managed by `/src/localData/units.js`. `getActiveCompanyId()` is used to derive the key. Never use a bare hardcoded key for per-company data.
+Units are stored in AsyncStorage under a company+branch-scoped key (`units_<companyId>_<branchId>`), managed by `/src/localData/units.js`. `getActiveCompanyId()` and `getActiveBranchId()` are used to derive the key. Never use a bare hardcoded key for per-company or per-branch data.
 
 ### Delta Sync (Cloud Sync)
 

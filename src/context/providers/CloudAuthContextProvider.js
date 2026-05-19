@@ -6,6 +6,7 @@ import {rnStorageKeys} from '../../constants/rnSecureStorageKeys';
 import {
   invalidateCloudSyncParamsCache,
   setActiveCompanyDb,
+  getActiveCompanyId,
 } from '../../localDb';
 import {queryClient} from '../../queryClient';
 import {setDefaultUnits} from '../../localData/units';
@@ -147,9 +148,12 @@ const CloudAuthContextProvider = ({children}) => {
         const deviceToken = await loadItem(cloudV2DeviceToken);
         const designatedBranch = await loadItem(cloudV2DesignatedBranch, true);
 
-        // Activate the company-scoped DB and seed company-specific defaults
+        // Activate the company+branch-scoped DB and seed defaults
         // before any component reads local data (isLoading stays true until done)
-        await setActiveCompanyDb(authUser?.company?.id ?? null);
+        await setActiveCompanyDb(
+          authUser?.company?.id ?? null,
+          designatedBranch?.id ?? null,
+        );
         if (authUser?.company?.id) {
           await setDefaultUnits();
           await createDefaultSettings();
@@ -203,8 +207,15 @@ const CloudAuthContextProvider = ({children}) => {
           }
         }
 
-        // Switch to this company's isolated DB file and seed defaults
-        await setActiveCompanyDb(user?.company?.id ?? null);
+        // Switch to this company+branch isolated DB file and seed defaults.
+        // If clearDevice=true the branch was just erased; otherwise it's still in storage.
+        const signInBranch = clearDevice
+          ? null
+          : await loadItem(cloudV2DesignatedBranch, true);
+        await setActiveCompanyDb(
+          user?.company?.id ?? null,
+          signInBranch?.id ?? null,
+        );
         if (user?.company?.id) {
           await setDefaultUnits();
           await createDefaultSettings();
@@ -227,8 +238,9 @@ const CloudAuthContextProvider = ({children}) => {
         await saveItem(cloudV2AuthUser, user);
         // New company account — always clear any existing device credentials
         await clearDeviceFromStorage();
-        // Switch to the new company's isolated DB file and seed defaults
-        await setActiveCompanyDb(user?.company?.id ?? null);
+        // Switch to the new company's isolated DB file (no branch yet — branch
+        // is assigned during device registration which follows sign-up)
+        await setActiveCompanyDb(user?.company?.id ?? null, null);
         if (user?.company?.id) {
           await setDefaultUnits();
           await createDefaultSettings();
@@ -252,8 +264,14 @@ const CloudAuthContextProvider = ({children}) => {
           clearDevice = true;
         }
 
-        // Switch to this company's isolated DB file and seed defaults
-        await setActiveCompanyDb(user?.company?.id ?? null);
+        // Switch to this company+branch isolated DB file and seed defaults.
+        const verifyBranch = clearDevice
+          ? null
+          : await loadItem(cloudV2DesignatedBranch, true);
+        await setActiveCompanyDb(
+          user?.company?.id ?? null,
+          verifyBranch?.id ?? null,
+        );
         if (user?.company?.id) {
           await setDefaultUnits();
           await createDefaultSettings();
@@ -298,6 +316,10 @@ const CloudAuthContextProvider = ({children}) => {
       setDesignatedBranch: async branch => {
         await saveItem(cloudV2DesignatedBranch, branch);
         invalidateCloudSyncParamsCache();
+        // Switch to the company+branch-scoped DB and ensure it is initialised.
+        await setActiveCompanyDb(getActiveCompanyId(), branch?.id ?? null);
+        await setDefaultUnits();
+        await createDefaultSettings();
         scheduleSyncSoon(500);
         dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: branch});
       },
