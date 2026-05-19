@@ -5,6 +5,7 @@ import {CloudAuthContext} from '../types';
 import {rnStorageKeys} from '../../constants/rnSecureStorageKeys';
 import {invalidateCloudSyncParamsCache, setActiveCompanyDb} from '../../localDb';
 import {queryClient} from '../../queryClient';
+import {setDefaultUnits} from '../../localData/units';
 import {scheduleSyncSoon} from '../../services/syncService';
 
 const {
@@ -142,9 +143,12 @@ const CloudAuthContextProvider = ({children}) => {
         const deviceToken = await loadItem(cloudV2DeviceToken);
         const designatedBranch = await loadItem(cloudV2DesignatedBranch, true);
 
-        // Activate the company-scoped DB and ensure tables exist before any
-        // component reads local data (isLoading stays true until this resolves)
+        // Activate the company-scoped DB and seed company-specific defaults
+        // before any component reads local data (isLoading stays true until done)
         await setActiveCompanyDb(authUser?.company?.id ?? null);
+        if (authUser?.company?.id) {
+          await setDefaultUnits();
+        }
 
         dispatch({
           type: 'RESTORE',
@@ -194,8 +198,11 @@ const CloudAuthContextProvider = ({children}) => {
           }
         }
 
-        // Switch to this company's isolated DB file (creates tables if needed)
+        // Switch to this company's isolated DB file and seed defaults
         await setActiveCompanyDb(user?.company?.id ?? null);
+        if (user?.company?.id) {
+          await setDefaultUnits();
+        }
 
         dispatch({type: 'SIGN_IN', authToken: token, authUser: user, clearDevice});
       },
@@ -209,8 +216,11 @@ const CloudAuthContextProvider = ({children}) => {
         await saveItem(cloudV2AuthUser, user);
         // New company account — always clear any existing device credentials
         await clearDeviceFromStorage();
-        // Switch to the new company's isolated DB file (creates tables if needed)
+        // Switch to the new company's isolated DB file and seed defaults
         await setActiveCompanyDb(user?.company?.id ?? null);
+        if (user?.company?.id) {
+          await setDefaultUnits();
+        }
         dispatch({type: 'SIGN_UP', authToken: token, authUser: user});
       },
 
@@ -230,8 +240,11 @@ const CloudAuthContextProvider = ({children}) => {
           clearDevice = true;
         }
 
-        // Switch to this company's isolated DB file (creates tables if needed)
+        // Switch to this company's isolated DB file and seed defaults
         await setActiveCompanyDb(user?.company?.id ?? null);
+        if (user?.company?.id) {
+          await setDefaultUnits();
+        }
 
         dispatch({type: 'SIGN_IN', authToken: token, authUser: user, clearDevice});
       },

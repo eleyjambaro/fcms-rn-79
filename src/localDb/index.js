@@ -66,6 +66,8 @@ let _activeCompanyId = null;
 // Sets the active company and ensures that company's DB tables exist before
 // returning. Must be awaited before dispatching auth state changes so that
 // components never open a DB that hasn't been initialised yet.
+export const getActiveCompanyId = () => _activeCompanyId;
+
 export const setActiveCompanyDb = async companyId => {
   _activeCompanyId = companyId ?? null;
   if (_activeCompanyId) {

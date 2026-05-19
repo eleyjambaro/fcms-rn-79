@@ -1,30 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import convert from 'convert-units';
-import {appStorageKeySeperator} from '../localDbQueries/appVersions';
+import {getActiveCompanyId} from '../localDb';
 
 export const defaultUnitsAbbr = ['mg', 'g', 'kg', 'ml', 'l', 'ea'];
 
-export const setDefaultUnits = async (version = '0.0.0') => {
-  let hasDefaultUnits = false;
-  const key = `hasDefaultUnits${appStorageKeySeperator}${version}`;
+const unitsKey = () => {
+  const companyId = getActiveCompanyId();
+  return companyId ? `units_${companyId}` : 'units';
+};
 
+export const setDefaultUnits = async () => {
   try {
-    hasDefaultUnits = await AsyncStorage.getItem(key);
-    const defaultUnits = defaultUnitsAbbr.map(unitAbbr => {
-      return convert().describe(unitAbbr);
-    });
-
-    if (hasDefaultUnits === 'true') {
-      console.log(`Default Units (${version}) has been already initialized.`);
-      return defaultUnits;
+    const existing = await AsyncStorage.getItem(unitsKey());
+    if (existing) {
+      return JSON.parse(existing) ?? [];
     }
 
-    await AsyncStorage.setItem('units', JSON.stringify(defaultUnits));
-    await AsyncStorage.setItem(key, 'true');
-    console.log(
-      `Default Units (${version}) has been initialized successfully.`,
-    );
-
+    const defaultUnits = defaultUnitsAbbr.map(abbr => convert().describe(abbr));
+    await AsyncStorage.setItem(unitsKey(), JSON.stringify(defaultUnits));
     return defaultUnits;
   } catch (error) {
     console.debug(error);
@@ -34,9 +27,7 @@ export const setDefaultUnits = async (version = '0.0.0') => {
 
 export const deleteAllUnits = async () => {
   try {
-    await AsyncStorage.removeItem('units');
-
-    console.info('Units deleted');
+    await AsyncStorage.removeItem(unitsKey());
   } catch (error) {
     console.debug(error);
     throw error;
@@ -45,18 +36,16 @@ export const deleteAllUnits = async () => {
 
 export const deleteDefaultUnits = async () => {
   try {
-    await AsyncStorage.removeItem('units');
+    await AsyncStorage.removeItem(unitsKey());
   } catch (error) {
     console.debug(error);
     throw error;
   }
 };
 
-export const deletePreviousAppVersionDefaultUnits = async (
-  currentVersion = '0.0.0',
-) => {
+export const deletePreviousAppVersionDefaultUnits = async () => {
   try {
-    await AsyncStorage.removeItem('units');
+    await AsyncStorage.removeItem(unitsKey());
   } catch (error) {
     console.debug(error);
     throw error;
@@ -65,7 +54,7 @@ export const deletePreviousAppVersionDefaultUnits = async (
 
 export const getDefaultUnits = async () => {
   try {
-    const units = await AsyncStorage.getItem('units');
+    const units = await AsyncStorage.getItem(unitsKey());
     return JSON.parse(units) ?? [];
   } catch (error) {
     console.debug(error);
@@ -75,7 +64,7 @@ export const getDefaultUnits = async () => {
 
 export const addUnit = async ({unit: newUnit}) => {
   try {
-    const unitsJSON = await AsyncStorage.getItem('units');
+    const unitsJSON = await AsyncStorage.getItem(unitsKey());
 
     if (!unitsJSON) {
       throw new Error('Default units should be initialized first');
@@ -88,18 +77,13 @@ export const addUnit = async ({unit: newUnit}) => {
       if (unit.abbr === newUnit.abbr) {
         hasDuplicate = true;
       }
-
-      if (unit.abbr !== newUnit.abbr) {
-        return true;
-      } else {
-        return false;
-      }
+      return unit.abbr !== newUnit.abbr;
     });
 
     updatedUnits.push(newUnit);
 
     if (!hasDuplicate) {
-      await AsyncStorage.setItem('units', JSON.stringify(updatedUnits));
+      await AsyncStorage.setItem(unitsKey(), JSON.stringify(updatedUnits));
     }
 
     return newUnit;
