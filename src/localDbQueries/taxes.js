@@ -164,16 +164,16 @@ export const deleteTax = async ({id}) => {
 export const createDefaultTaxes = async () => {
   try {
     const db = await getDBConnection();
-    const results = await db.executeSql(
-      `SELECT COUNT(*) as count FROM active_taxes`,
-    );
-    const count = results[0]?.rows?.item(0)?.count ?? 0;
 
-    if (count > 0) {
-      return;
+    for (const values of defaultTaxes) {
+      const results = await db.executeSql(
+        `SELECT COUNT(*) as count FROM active_taxes WHERE LOWER(name) = LOWER('${values.name.replace(/'/g, "''")}')`,
+      );
+      const count = results[0]?.rows?.item(0)?.count ?? 0;
+      if (count === 0) {
+        await createTax({values});
+      }
     }
-
-    return await Promise.all(defaultTaxes.map(values => createTax({values})));
   } catch (error) {
     console.debug(error);
     throw error;
