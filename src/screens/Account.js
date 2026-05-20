@@ -19,6 +19,8 @@ import {
   Title,
   HelperText,
   Subheading,
+  Avatar,
+  Card,
 } from 'react-native-paper';
 import * as RNFS from 'react-native-fs';
 import uuid from 'react-native-uuid';
@@ -62,6 +64,7 @@ import {adUnitIds} from '../constants/adUnitIds';
 import BannerAdComponent from '../components/ads/BannerAdComponent';
 import ConfirmationCheckbox from '../components/forms/ConfirmationCheckbox';
 import ManageListButton from '../components/buttons/ManageListButton';
+import {getCloudRoles} from '../serverDbQueries/v2/roles';
 
 const Account = props => {
   const {navigation} = props;
@@ -78,6 +81,13 @@ const Account = props => {
       queryClient.invalidateQueries('templateData');
     },
   });
+
+  const {data: cloudRolesData} = useQuery(['cloudRoles'], getCloudRoles, {
+    enabled: !authUser?.is_root_account && !!authUser?.role_id,
+  });
+  const teamMemberRoleName = cloudRolesData?.data?.find(
+    r => r.id === authUser?.role_id,
+  )?.name;
 
   const userRoleConfig = authUser?.role_config;
   const androidVersion = Platform.constants['Release'];
@@ -1189,27 +1199,7 @@ const Account = props => {
   };
 
   const renderEditCompanyProfileButton = () => {
-    const enabledModule = 'account.updateCompanyProfile';
-
-    if (authUser.is_root_account) {
-      // remain to default values
-    } else if (userRoleConfig?.enable?.[0] === '*') {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        return null;
-      } else {
-        // remain to default values
-      }
-    } else if (userRoleConfig?.enable?.includes(enabledModule)) {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        return null;
-      } else {
-        // remain to default values
-      }
-    } else {
-      return null;
-    }
+    if (!authUser?.is_root_account) return null;
 
     return (
       <ManageListButton
@@ -1219,6 +1209,59 @@ const Account = props => {
           navigation.navigate(routes.updateCompany());
         }}
       />
+    );
+  };
+
+  const renderTeamMemberCard = () => {
+    if (authUser?.is_root_account) return null;
+
+    const fullName = `${authUser?.first_name || ''} ${
+      authUser?.last_name || ''
+    }`.trim();
+    const initials = fullName
+      .split(' ')
+      .map(s => (s ? s[0].toUpperCase() : ''))
+      .slice(0, 2)
+      .join('');
+    const roleName = teamMemberRoleName || '';
+
+    return (
+      <View style={{marginHorizontal: 15, marginBottom: 20}}>
+        <Card>
+          <Card.Content style={{flexDirection: 'row', alignItems: 'center'}}>
+            <Avatar.Text
+              size={50}
+              color={colors.surface}
+              label={initials || '?'}
+              style={{marginRight: 15, backgroundColor: colors.neutralTint3}}
+              labelStyle={{fontWeight: 'bold'}}
+            />
+            <View style={{flex: 1}}>
+              <Text
+                style={{fontSize: 18, fontWeight: 'bold', color: colors.dark}}
+                numberOfLines={1}>
+                {fullName}
+              </Text>
+              <Text
+                style={{fontSize: 14, color: colors.neutralTint2}}
+                numberOfLines={1}>
+                {authUser?.email}
+              </Text>
+              {roleName ? (
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 'bold',
+                    color: colors.neutralTint2,
+                  }}
+                  numberOfLines={1}>
+                  {roleName}
+                </Text>
+              ) : null}
+            </View>
+          </Card.Content>
+        </Card>
+      </View>
     );
   };
 
@@ -2121,6 +2164,7 @@ const Account = props => {
           ) : null}
 
           {renderUserAccountProfile()}
+          {renderTeamMemberCard()}
 
           {renderDataSyncAndBackupSection()}
           {renderInventoryDataTemplateSection()}
