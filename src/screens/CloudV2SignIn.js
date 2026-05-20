@@ -3,6 +3,7 @@ import {View, StyleSheet, Pressable, ScrollView} from 'react-native';
 import {
   Avatar,
   Button,
+  Card,
   Text,
   TextInput,
   useTheme,
@@ -153,53 +154,60 @@ const CloudV2SignIn = ({navigation}) => {
         </Pressable>
       </View>
 
-      <View style={styles.teamMemberFooter}>
-        {cloudAuthState.deviceId && cloudAuthState.designatedBranch ? (
-          <View style={styles.deviceInfoCard}>
-            {cloudAuthState.deviceCompanyInfo?.logo_url ? (
-              <Avatar.Image
-                source={{uri: cloudAuthState.deviceCompanyInfo.logo_url}}
-                size={60}
-              />
-            ) : (
-              <Avatar.Text
-                label={(
-                  cloudAuthState.deviceCompanyInfo?.display_name ||
-                  cloudAuthState.deviceCompanyInfo?.name ||
-                  '?'
-                ).charAt(0).toUpperCase()}
-                size={60}
-                color={colors.onPrimary ?? '#fff'}
-                style={{backgroundColor: colors.primary}}
-              />
-            )}
-            {(cloudAuthState.deviceCompanyInfo?.display_name || cloudAuthState.deviceCompanyInfo?.name) ? (
-              <Text style={styles.deviceCompanyName}>
-                {cloudAuthState.deviceCompanyInfo.display_name || cloudAuthState.deviceCompanyInfo.name}
-              </Text>
-            ) : null}
-            <Text style={[styles.deviceBranchName, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
-              {cloudAuthState.designatedBranch.display_name ?? cloudAuthState.designatedBranch.name}
-            </Text>
-          </View>
-        ) : null}
+      <Card style={styles.teamMemberCard} elevation={2}>
+        <Card.Content style={styles.teamMemberCardContent}>
+          {cloudAuthState.deviceId && cloudAuthState.designatedBranch ? (
+            <View style={styles.deviceInfoCard}>
+              <View style={styles.deviceInfoRow}>
+                {cloudAuthState.deviceCompanyInfo?.logo_url ? (
+                  <Avatar.Image
+                    source={{uri: cloudAuthState.deviceCompanyInfo.logo_url}}
+                    size={52}
+                  />
+                ) : (
+                  <Avatar.Text
+                    label={(
+                      cloudAuthState.deviceCompanyInfo?.display_name ||
+                      cloudAuthState.deviceCompanyInfo?.name ||
+                      '?'
+                    ).charAt(0).toUpperCase()}
+                    size={52}
+                    color={colors.onPrimary ?? '#fff'}
+                    style={{backgroundColor: colors.primary}}
+                  />
+                )}
+                <View style={styles.deviceInfoText}>
+                  {(cloudAuthState.deviceCompanyInfo?.display_name || cloudAuthState.deviceCompanyInfo?.name) ? (
+                    <Text style={styles.deviceCompanyName}>
+                      {cloudAuthState.deviceCompanyInfo.display_name || cloudAuthState.deviceCompanyInfo.name}
+                    </Text>
+                  ) : null}
+                  <Text style={[styles.deviceBranchName, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+                    {cloudAuthState.designatedBranch.display_name ?? cloudAuthState.designatedBranch.name}
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.divider, {backgroundColor: colors.outlineVariant ?? colors.placeholder}]} />
+            </View>
+          ) : null}
 
-        <View style={[styles.footer, styles.footerNoMargin]}>
-          <Text style={styles.footerText}>Team member?</Text>
-          <Pressable
-            style={styles.footerLink}
-            onPress={() => navigation.navigate(routes.cloudV2SubAccountSignIn())}>
-            <Text style={[styles.footerLinkText, {color: colors.primary}]}>
-              Sign in here
+          <View style={styles.teamMemberRow}>
+            <Text style={styles.footerText}>Team member?</Text>
+            <Pressable
+              style={styles.footerLink}
+              onPress={() => navigation.navigate(routes.cloudV2SubAccountSignIn())}>
+              <Text style={[styles.footerLinkText, {color: colors.primary}]}>
+                Sign in here
+              </Text>
+            </Pressable>
+          </View>
+          {!cloudAuthState.deviceId ? (
+            <Text style={[styles.deviceHint, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+              Device setup required — sign in as account owner first.
             </Text>
-          </Pressable>
-        </View>
-        {!cloudAuthState.deviceId ? (
-          <Text style={[styles.deviceHint, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
-            Device setup required — sign in as account owner first.
-          </Text>
-        ) : null}
-      </View>
+          ) : null}
+        </Card.Content>
+      </Card>
     </ScrollView>
   );
 };
@@ -251,32 +259,54 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
   },
-  teamMemberFooter: {
-    alignItems: 'center',
+  teamMemberCard: {
     marginTop: 32,
-    gap: 6,
+    borderRadius: 12,
+  },
+  teamMemberCardContent: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 4,
   },
   deviceInfoCard: {
+    width: '100%',
+    gap: 0,
+  },
+  deviceInfoRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 8,
+    justifyContent: 'center',
+    gap: 14,
+  },
+  deviceInfoText: {
+    flexShrink: 1,
+    gap: 3,
   },
   deviceCompanyName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
-    textAlign: 'center',
   },
   deviceBranchName: {
     fontSize: 13,
-    textAlign: 'center',
   },
-  footerNoMargin: {
-    marginTop: 0,
+  divider: {
+    height: 1,
+    alignSelf: 'stretch',
+    marginTop: 12,
+    marginBottom: 4,
+    opacity: 0.4,
+  },
+  teamMemberRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
   },
   deviceHint: {
     fontSize: 12,
     textAlign: 'center',
     opacity: 0.7,
+    marginTop: 4,
   },
 });
 
