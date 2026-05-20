@@ -26,9 +26,7 @@ export const deleteRecipeIngredients = async ({id}) => {
 };
 
 export const addSpoilage = async ({values}) => {
-  const getItemQuery = `SELECT * FROM active_items items WHERE id = '${parseInt(
-    values.item_id,
-  )}'`;
+  const getItemQuery = `SELECT * FROM active_items items WHERE id = '${values.item_id}'`;
 
   try {
     const db = await getDBConnection();
@@ -549,9 +547,7 @@ export const updateSpoilage = async ({id, updatedValues}) => {
   try {
     const db = await getDBConnection();
 
-    const getSpoilageQuery = `SELECT * FROM active_spoilages spoilages WHERE id = '${parseInt(
-      id,
-    )}'`;
+    const getSpoilageQuery = `SELECT * FROM active_spoilages spoilages WHERE id = '${id}'`;
     const getSpoilageResult = await db.executeSql(getSpoilageQuery);
     const spoilage = getSpoilageResult[0].rows.item(0);
 
@@ -559,9 +555,7 @@ export const updateSpoilage = async ({id, updatedValues}) => {
       throw Error('Failed to fetch spoilage');
     }
 
-    const getItemQuery = `SELECT * FROM active_items items WHERE id = '${parseInt(
-      spoilage.item_id,
-    )}'`;
+    const getItemQuery = `SELECT * FROM active_items items WHERE id = '${spoilage.item_id}'`;
     const getItemResult = await db.executeSql(getItemQuery);
     const item = getItemResult[0].rows.item(0);
 
