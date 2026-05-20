@@ -4,7 +4,9 @@ import {rnStorageKeys} from '../../constants/rnSecureStorageKeys';
 
 const getAuthHeaders = async () => {
   try {
-    const hasToken = await SecureStorage.hasItem(rnStorageKeys.cloudV2AuthToken);
+    const hasToken = await SecureStorage.hasItem(
+      rnStorageKeys.cloudV2AuthToken,
+    );
     if (!hasToken) return {};
     const token = await SecureStorage.getItem(rnStorageKeys.cloudV2AuthToken);
     return {Authorization: `Bearer ${token}`};

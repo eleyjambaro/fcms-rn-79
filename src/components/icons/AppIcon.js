@@ -104,9 +104,11 @@ const AppIcon = props => {
 
   const renderDefaultIconOrImageFile = () => {
     if (filePath) {
-      return (
-        <Avatar.Image source={{uri: `file://${filePath}`}} size={iconSize} />
-      );
+      const uri =
+        filePath.startsWith('http://') || filePath.startsWith('https://')
+          ? filePath
+          : `file://${filePath}`;
+      return <Avatar.Image source={{uri}} size={iconSize} />;
     }
 
     return (
