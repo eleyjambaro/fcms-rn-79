@@ -11,6 +11,7 @@ export const rnStorageKeys = {
   cloudV2DeviceToken: 'cloudV2DeviceToken',
   cloudV2DeviceCompanyId: 'cloudV2DeviceCompanyId',
   cloudV2DesignatedBranch: 'cloudV2DesignatedBranch',
+  cloudV2DeviceCompanyInfo: 'cloudV2DeviceCompanyInfo',
 };
 
 export default rnStorageKeys;

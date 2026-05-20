@@ -52,3 +52,10 @@ export const lookupBranch = async device_id => {
   });
   return data;
 };
+
+export const getDeviceCompanyInfo = async ({device_id, device_token}) => {
+  const {data} = await cloudApiV2.get('/api/v2/devices/company-info', {
+    params: {device_id, device_token},
+  });
+  return data;
+};

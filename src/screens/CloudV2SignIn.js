@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, StyleSheet, Pressable, ScrollView} from 'react-native';
 import {
+  Avatar,
   Button,
   Text,
   TextInput,
@@ -153,6 +154,36 @@ const CloudV2SignIn = ({navigation}) => {
       </View>
 
       <View style={styles.teamMemberFooter}>
+        {cloudAuthState.deviceId && cloudAuthState.designatedBranch ? (
+          <View style={styles.deviceInfoCard}>
+            {cloudAuthState.deviceCompanyInfo?.logo_url ? (
+              <Avatar.Image
+                source={{uri: cloudAuthState.deviceCompanyInfo.logo_url}}
+                size={60}
+              />
+            ) : (
+              <Avatar.Text
+                label={(
+                  cloudAuthState.deviceCompanyInfo?.display_name ||
+                  cloudAuthState.deviceCompanyInfo?.name ||
+                  '?'
+                ).charAt(0).toUpperCase()}
+                size={60}
+                color={colors.onPrimary ?? '#fff'}
+                style={{backgroundColor: colors.primary}}
+              />
+            )}
+            {(cloudAuthState.deviceCompanyInfo?.display_name || cloudAuthState.deviceCompanyInfo?.name) ? (
+              <Text style={styles.deviceCompanyName}>
+                {cloudAuthState.deviceCompanyInfo.display_name || cloudAuthState.deviceCompanyInfo.name}
+              </Text>
+            ) : null}
+            <Text style={[styles.deviceBranchName, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+              {cloudAuthState.designatedBranch.display_name ?? cloudAuthState.designatedBranch.name}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={[styles.footer, styles.footerNoMargin]}>
           <Text style={styles.footerText}>Team member?</Text>
           <Pressable
@@ -224,6 +255,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 32,
     gap: 6,
+  },
+  deviceInfoCard: {
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  deviceCompanyName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  deviceBranchName: {
+    fontSize: 13,
+    textAlign: 'center',
   },
   footerNoMargin: {
     marginTop: 0,

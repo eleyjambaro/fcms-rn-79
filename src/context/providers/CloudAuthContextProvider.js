@@ -13,6 +13,7 @@ import {setDefaultUnits} from '../../localData/units';
 import {createDefaultSettings} from '../../localDbQueries/settings';
 import {scheduleSyncSoon} from '../../services/syncService';
 import {getCloudCompany} from '../../serverDbQueries/v2/companies';
+import {getDeviceCompanyInfo} from '../../serverDbQueries/v2/devices';
 
 const {
   cloudV2AuthToken,
@@ -21,6 +22,7 @@ const {
   cloudV2DeviceToken,
   cloudV2DeviceCompanyId,
   cloudV2DesignatedBranch,
+  cloudV2DeviceCompanyInfo,
 } = rnStorageKeys;
 
 const saveItem = async (key, value) => {
@@ -53,6 +55,7 @@ const clearDeviceFromStorage = async () => {
   await saveItem(cloudV2DeviceToken, null);
   await saveItem(cloudV2DeviceCompanyId, null);
   await saveItem(cloudV2DesignatedBranch, null);
+  await saveItem(cloudV2DeviceCompanyInfo, null);
 };
 
 const reducer = (prevState, action) => {
@@ -66,6 +69,7 @@ const reducer = (prevState, action) => {
         deviceId: action.deviceId,
         deviceToken: action.deviceToken,
         designatedBranch: action.designatedBranch,
+        deviceCompanyInfo: action.deviceCompanyInfo,
       };
     case 'SIGN_IN':
       return {
@@ -76,7 +80,7 @@ const reducer = (prevState, action) => {
         authUser: action.authUser,
         // clearDevice: root account signing in under a different company
         ...(action.clearDevice
-          ? {deviceId: null, deviceToken: null, designatedBranch: null}
+          ? {deviceId: null, deviceToken: null, designatedBranch: null, deviceCompanyInfo: null}
           : {}),
       };
     case 'SIGN_UP':
@@ -90,6 +94,7 @@ const reducer = (prevState, action) => {
         deviceId: null,
         deviceToken: null,
         designatedBranch: null,
+        deviceCompanyInfo: null,
       };
     case 'SIGN_OUT':
       return {
@@ -120,6 +125,7 @@ const reducer = (prevState, action) => {
       return {
         ...prevState,
         designatedBranch: action.designatedBranch,
+        deviceCompanyInfo: action.deviceCompanyInfo ?? prevState.deviceCompanyInfo,
       };
     case 'REFRESH_COMPANY':
       return {
@@ -127,6 +133,11 @@ const reducer = (prevState, action) => {
         authUser: prevState.authUser
           ? {...prevState.authUser, company: action.company}
           : prevState.authUser,
+      };
+    case 'SET_DEVICE_COMPANY_INFO':
+      return {
+        ...prevState,
+        deviceCompanyInfo: action.deviceCompanyInfo,
       };
   }
 };
@@ -139,6 +150,7 @@ const initialState = {
   deviceId: null,
   deviceToken: null,
   designatedBranch: null,
+  deviceCompanyInfo: null,
 };
 
 const CloudAuthContextProvider = ({children}) => {
@@ -155,6 +167,7 @@ const CloudAuthContextProvider = ({children}) => {
         const deviceId = await loadItem(cloudV2DeviceId);
         const deviceToken = await loadItem(cloudV2DeviceToken);
         const designatedBranch = await loadItem(cloudV2DesignatedBranch, true);
+        const deviceCompanyInfo = await loadItem(cloudV2DeviceCompanyInfo, true);
 
         // Activate the company+branch-scoped DB and seed defaults
         // before any component reads local data (isLoading stays true until done)
@@ -174,7 +187,22 @@ const CloudAuthContextProvider = ({children}) => {
           deviceId,
           deviceToken,
           designatedBranch,
+          deviceCompanyInfo,
         });
+
+        // Fire-and-forget: refresh company info via device token so existing
+        // devices and reinstalls always show the current logo/name.
+        if (deviceId && deviceToken) {
+          getDeviceCompanyInfo({device_id: deviceId, device_token: deviceToken})
+            .then(async response => {
+              const info = response?.data ?? null;
+              if (info) {
+                await saveItem(cloudV2DeviceCompanyInfo, info);
+                dispatch({type: 'SET_DEVICE_COMPANY_INFO', deviceCompanyInfo: info});
+              }
+            })
+            .catch(() => {});
+        }
       } catch (error) {
         console.debug('[CloudAuthContextProvider] restore error:', error);
         await setActiveCompanyDb(null);
@@ -324,6 +352,17 @@ const CloudAuthContextProvider = ({children}) => {
       },
 
       setDesignatedBranch: async branch => {
+        // Snapshot company display info so it survives sign-out and is visible
+        // on the sign-in screen for team members picking up the device.
+        const currentUser = await loadItem(cloudV2AuthUser, true);
+        const deviceCompanyInfo = currentUser?.company
+          ? {
+              name: currentUser.company.name ?? null,
+              display_name: currentUser.company.display_name ?? null,
+              logo_url: currentUser.company.logo_url ?? null,
+            }
+          : null;
+        await saveItem(cloudV2DeviceCompanyInfo, deviceCompanyInfo);
         await saveItem(cloudV2DesignatedBranch, branch);
         invalidateCloudSyncParamsCache();
         // Switch to the company+branch-scoped DB and ensure it is initialised.
@@ -331,7 +370,7 @@ const CloudAuthContextProvider = ({children}) => {
         await setDefaultUnits();
         await createDefaultSettings();
         scheduleSyncSoon(500);
-        dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: branch});
+        dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: branch, deviceCompanyInfo});
       },
 
       refreshCloudAuthCompany: async () => {
