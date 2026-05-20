@@ -161,7 +161,8 @@ export const deleteTax = async ({id}) => {
   }
 };
 
-export const createDefaultTaxes = async () => {
+export const createDefaultTaxes = async ({disabled = true} = {}) => {
+  if (disabled) return;
   try {
     const db = await getDBConnection();
 
