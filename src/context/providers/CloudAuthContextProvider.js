@@ -11,6 +11,8 @@ import {
 import {queryClient} from '../../queryClient';
 import {setDefaultUnits} from '../../localData/units';
 import {createDefaultSettings} from '../../localDbQueries/settings';
+import {createDefaultInventoryOperations} from '../../localDbQueries/operations';
+import {appVersion} from '../../constants/appConfig';
 import {scheduleSyncSoon} from '../../services/syncService';
 import {getCloudCompany} from '../../serverDbQueries/v2/companies';
 import {getDeviceCompanyInfo} from '../../serverDbQueries/v2/devices';
@@ -178,6 +180,7 @@ const CloudAuthContextProvider = ({children}) => {
         if (authUser?.company?.id) {
           await setDefaultUnits();
           await createDefaultSettings();
+          await createDefaultInventoryOperations(appVersion);
         }
 
         dispatch({
@@ -258,6 +261,7 @@ const CloudAuthContextProvider = ({children}) => {
         if (user?.company?.id && signInBranch?.id) {
           await setDefaultUnits();
           await createDefaultSettings();
+          await createDefaultInventoryOperations(appVersion);
         }
 
         dispatch({
@@ -313,6 +317,7 @@ const CloudAuthContextProvider = ({children}) => {
         if (user?.company?.id && verifyBranch?.id) {
           await setDefaultUnits();
           await createDefaultSettings();
+          await createDefaultInventoryOperations(appVersion);
         }
 
         dispatch({
@@ -377,6 +382,7 @@ const CloudAuthContextProvider = ({children}) => {
         await setActiveCompanyDb(getActiveCompanyId(), branch?.id ?? null);
         await setDefaultUnits();
         await createDefaultSettings();
+        await createDefaultInventoryOperations(appVersion);
         scheduleSyncSoon(500);
         dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: branch, deviceCompanyInfo});
       },

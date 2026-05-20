@@ -1,6 +1,8 @@
 import {
   getDBConnection,
   getCloudSyncParams,
+  getActiveCompanyId,
+  getActiveBranchId,
   OPERATION_DEFAULT_UUIDS,
 } from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -122,7 +124,7 @@ export const createInventoryOperation = async ({operation}) => {
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const query = `INSERT INTO operations (
+    const query = `INSERT OR IGNORE INTO operations (
     id,
     code,
     type,
@@ -155,7 +157,9 @@ export const createInventoryOperation = async ({operation}) => {
 
 export const createDefaultInventoryOperations = async (version = '0.0.0') => {
   let hasDefaultInventoryOperations = false;
-  const key = `hasDefaultInventoryOperations${appStorageKeySeperator}${version}`;
+  const companyId = getActiveCompanyId() ?? 'nocompany';
+  const branchId = getActiveBranchId() ?? 'nobranch';
+  const key = `hasDefaultInventoryOperations${appStorageKeySeperator}${version}_${companyId}_${branchId}`;
 
   try {
     hasDefaultInventoryOperations = await AsyncStorage.getItem(key);

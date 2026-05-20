@@ -2,10 +2,7 @@ import {createLocalAccountTables, createTables, alterTables} from '../localDb';
 import {appVersion} from '../constants/appConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {deleteDefaultRoles, createDefaultRoles} from '../localDbQueries/roles';
-import {
-  deleteDefaultOperations,
-  createDefaultInventoryOperations,
-} from '../localDbQueries/operations';
+import {deleteDefaultOperations} from '../localDbQueries/operations';
 import {deleteDefaultTaxes, createDefaultTaxes} from '../localDbQueries/taxes';
 import {handleNewAppVersion} from '../localDbQueries/appVersions';
 import mobileAds from 'react-native-google-mobile-ads';
@@ -30,10 +27,10 @@ export async function initializeTablesAndHandleAppVersion() {
   });
 
   await createDefaultRoles(appVersion);
-  await createDefaultInventoryOperations(appVersion);
   await createDefaultTaxes(appVersion);
-  // createDefaultSettings and setDefaultUnits are company-specific and are
-  // called in CloudAuthContextProvider after the company DB is activated.
+  // createDefaultSettings, setDefaultUnits, and createDefaultInventoryOperations
+  // are company-specific and are called in CloudAuthContextProvider after the
+  // company DB is activated.
 }
 
 export async function initializeOtherServices() {
