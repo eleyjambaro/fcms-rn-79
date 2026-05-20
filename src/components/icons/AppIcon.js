@@ -60,6 +60,8 @@ const AppIcon = props => {
     onPressEditButton && onPressEditButton();
   };
 
+  const textAlign = variant === 'horizontal' ? 'left' : 'center';
+
   const renderMainText = () => {
     const iconMainText = mainText ? mainText : 'Food Cost';
 
@@ -69,7 +71,7 @@ const AppIcon = props => {
       <Text
         style={[
           styles.mainText,
-          {fontSize: mainTextFontSize, color: mainTextColor},
+          {fontSize: mainTextFontSize, color: mainTextColor, textAlign},
         ]}
         numberOfLines={1}>{`${iconMainText}`}</Text>
     );
@@ -90,12 +92,12 @@ const AppIcon = props => {
       <Text
         style={[
           styles.subText,
-
           {
             fontSize: subTextFontSize,
             fontWeight: 'bold',
             color: subTextColor,
             marginTop: subTextMarginTop,
+            textAlign,
           },
         ]}
         numberOfLines={1}>{`${iconSubText}`}</Text>
@@ -160,7 +162,7 @@ const AppIcon = props => {
 
     defaultTextContainerStyle = {
       marginLeft: 9,
-      alignItems: 'center',
+      alignItems: 'flex-start',
     };
   }
 
@@ -214,7 +216,6 @@ const styles = StyleSheet.create({
   },
   subText: {
     fontSize: 9,
-    textAlign: 'center',
     marginTop: -2,
     textTransform: 'uppercase',
   },

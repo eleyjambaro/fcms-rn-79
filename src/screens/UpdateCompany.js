@@ -73,6 +73,9 @@ const UpdateCompany = () => {
           id: designatedBranch.id,
           display_name: values.branch || null,
         });
+        await cloudAuthActions.patchDesignatedBranch({
+          display_name: values.branch || null,
+        });
       }
 
       await refreshCloudAuthCompany();
@@ -187,7 +190,7 @@ const UpdateCompany = () => {
               company_mobile_number: company.phone || '',
               company_email: company.email || '',
               company_logo_path: company.logo_url || '',
-              branch: designatedBranch?.display_name || '',
+              branch: designatedBranch?.display_name ?? designatedBranch?.name ?? '',
               logo_display_company_name: company.logo_display_name ? '1' : '0',
               logo_display_branch: company.logo_display_branch ? '1' : '0',
             }}

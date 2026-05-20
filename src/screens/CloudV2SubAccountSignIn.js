@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, StyleSheet, Pressable, ScrollView} from 'react-native';
 import {
+  Avatar,
   Button,
   Text,
   TextInput,
@@ -94,6 +95,11 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
     );
   }
 
+  const companyInfo = cloudAuthState.deviceCompanyInfo;
+  const branch = cloudAuthState.designatedBranch;
+  const companyLabel =
+    companyInfo?.display_name || companyInfo?.name || null;
+
   return (
     <ScrollView
       contentContainerStyle={[
@@ -101,11 +107,36 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
         {backgroundColor: colors.surface},
       ]}
       keyboardShouldPersistTaps="handled">
-      <CloudAppIcon
-        mainText={`${appDefaults.appDisplayName} Cloud`}
-        subText=""
-        containerStyle={{marginBottom: 0}}
-      />
+      {companyInfo ? (
+        <View style={styles.companyHeader}>
+          {companyInfo.logo_url ? (
+            <Avatar.Image source={{uri: companyInfo.logo_url}} size={80} />
+          ) : (
+            <Avatar.Text
+              label={(companyLabel || '?').charAt(0).toUpperCase()}
+              size={80}
+              color={colors.onPrimary ?? '#fff'}
+              style={{backgroundColor: colors.primary}}
+            />
+          )}
+          <View style={styles.companyHeaderText}>
+            {companyLabel ? (
+              <Text style={styles.companyName}>{companyLabel}</Text>
+            ) : null}
+            {branch ? (
+              <Text style={[styles.branchName, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+                {branch.display_name ?? branch.name}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ) : (
+        <CloudAppIcon
+          mainText={`${appDefaults.appDisplayName} Cloud`}
+          subText=""
+          containerStyle={{marginBottom: 0}}
+        />
+      )}
       <Text style={styles.subtitle}>
         Sign in as a team member to access this device.
       </Text>
@@ -239,6 +270,24 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontSize: 15,
     fontWeight: 'bold',
+  },
+  companyHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 10,
+  },
+  companyHeaderText: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  companyName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  branchName: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   deviceNotReady: {
     alignItems: 'center',

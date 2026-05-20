@@ -24,8 +24,8 @@ const CompanyIcon = props => {
     ? company.display_name || ''
     : '';
   const branch =
-    companyName && company.logo_display_branch && designatedBranch?.display_name
-      ? designatedBranch.display_name
+    companyName && company.logo_display_branch
+      ? (designatedBranch?.display_name ?? designatedBranch?.name ?? '')
       : '';
 
   return (

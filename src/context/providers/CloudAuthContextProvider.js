@@ -351,6 +351,14 @@ const CloudAuthContextProvider = ({children}) => {
         });
       },
 
+      patchDesignatedBranch: async updates => {
+        const current = await loadItem(cloudV2DesignatedBranch, true);
+        if (!current) return;
+        const updated = {...current, ...updates};
+        await saveItem(cloudV2DesignatedBranch, updated);
+        dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: updated});
+      },
+
       setDesignatedBranch: async branch => {
         // Snapshot company display info so it survives sign-out and is visible
         // on the sign-in screen for team members picking up the device.
