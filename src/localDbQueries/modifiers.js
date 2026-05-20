@@ -50,7 +50,7 @@ export const getItemSellingSizeModifierOptions = async ({
 
   let queryFilter = createQueryFilter(filter, {
     'modifiers.item_id': itemId,
-    'modifiers.type_ref': `'${appDefaultsTypeRefs.sellingSizeOptions}'`,
+    'modifiers.type_ref': appDefaultsTypeRefs.sellingSizeOptions,
   });
 
   try {
