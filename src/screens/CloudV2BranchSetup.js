@@ -21,15 +21,16 @@ import {assignBranch} from '../serverDbQueries/v2/devices';
 import {getBranches, createBranch} from '../serverDbQueries/v2/branches';
 import appDefaults from '../constants/appDefaults';
 import CloudAppIcon from '../components/icons/CloudAppIcon';
+import routes from '../constants/routes';
 
 const createBranchSchema = Yup.object({
   name: Yup.string().required('Branch name is required'),
   address: Yup.string(),
 });
 
-const CloudV2BranchSetup = () => {
+const CloudV2BranchSetup = ({navigation}) => {
   const {colors} = useTheme();
-  const [cloudAuthState, {setDesignatedBranch}] = useCloudAuthContext();
+  const [cloudAuthState] = useCloudAuthContext();
   const queryClient = useQueryClient();
 
   const [selectedBranchId, setSelectedBranchId] = useState(null);
@@ -59,9 +60,9 @@ const CloudV2BranchSetup = () => {
       if (data?.status === 'success') {
         const branch = branchesQuery.data?.data?.find(
           b => b.id === selectedBranchId,
-        );
-        await setDesignatedBranch(branch ?? {id: selectedBranchId});
-        // Context update → App.js shows RootStack
+        ) ?? {id: selectedBranchId};
+        // Navigate to team assignment before advancing to RootStack
+        navigation.navigate(routes.cloudV2TeamAssignment(), {branch});
       } else {
         setServerError(data?.message || 'Failed to assign branch.');
       }

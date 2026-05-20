@@ -12,6 +12,7 @@ import CloudV2SignUpStep2 from '../screens/CloudV2SignUpStep2';
 import CloudV2OTPVerification from '../screens/CloudV2OTPVerification';
 import CloudV2DeviceRegistration from '../screens/CloudV2DeviceRegistration';
 import CloudV2BranchSetup from '../screens/CloudV2BranchSetup';
+import CloudV2TeamAssignment from '../screens/CloudV2TeamAssignment';
 import CloudV2SubAccountSignIn from '../screens/CloudV2SubAccountSignIn';
 import Splash from '../screens/Splash';
 
@@ -98,6 +99,10 @@ const CloudAuthStackV2 = () => {
         <Stack.Screen
           name={routes.cloudV2BranchSetup()}
           component={CloudV2BranchSetup}
+        />
+        <Stack.Screen
+          name={routes.cloudV2TeamAssignment()}
+          component={CloudV2TeamAssignment}
         />
       </Stack.Navigator>
     );

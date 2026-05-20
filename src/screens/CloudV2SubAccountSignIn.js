@@ -10,6 +10,7 @@ import {
 import {Formik} from 'formik';
 import * as Yup from 'yup';
 import {useMutation} from '@tanstack/react-query';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import {signIn} from '../serverDbQueries/v2/auth';
@@ -33,21 +34,11 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
 
   const handleSubmit = async (values, actions) => {
     setServerError('');
-
-    const deviceId = cloudAuthState.deviceId;
-    if (!deviceId) {
-      setServerError(
-        'This device must be set up by the account owner first. Ask your manager to sign in on this device to complete setup.',
-      );
-      actions.setSubmitting(false);
-      return;
-    }
-
     try {
       const data = await mutation.mutateAsync({
         email: values.email,
         password: values.password,
-        device_id: deviceId,
+        device_id: cloudAuthState.deviceId,
       });
 
       if (data?.status === 'success') {
@@ -64,6 +55,44 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
       actions.setSubmitting(false);
     }
   };
+
+  // Device not set up yet — show a blocking informational state before the form
+  if (!cloudAuthState.deviceId) {
+    return (
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          {backgroundColor: colors.surface},
+        ]}>
+        <CloudAppIcon
+          mainText={`${appDefaults.appDisplayName} Cloud`}
+          subText=""
+          containerStyle={{marginBottom: 0}}
+        />
+        <View style={styles.deviceNotReady}>
+          <MaterialCommunityIcons
+            name="devices"
+            size={52}
+            color={colors.primary}
+            style={styles.deviceIcon}
+          />
+          <Text style={styles.deviceNotReadyTitle}>Device Not Ready</Text>
+          <Text style={[styles.deviceNotReadyMessage, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+            This device hasn't been set up by an account owner yet. Your
+            manager needs to sign in on this device first to enable team member
+            access.
+          </Text>
+        </View>
+        <Button
+          mode="contained"
+          onPress={() => navigation.goBack()}
+          style={styles.button}
+          contentStyle={styles.buttonContent}>
+          Account Owner? Sign In Here
+        </Button>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -210,6 +239,26 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontSize: 15,
     fontWeight: 'bold',
+  },
+  deviceNotReady: {
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    marginBottom: 32,
+  },
+  deviceIcon: {
+    marginBottom: 16,
+    opacity: 0.85,
+  },
+  deviceNotReadyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  deviceNotReadyMessage: {
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
 

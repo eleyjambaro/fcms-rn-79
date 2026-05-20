@@ -117,6 +117,7 @@ export const routes = {
   cloudV2DeviceRegistration: () => 'CloudV2DeviceRegistration',
   cloudV2BranchSetup: () => 'CloudV2BranchSetup',
   cloudV2SubAccountSignIn: () => 'CloudV2SubAccountSignIn',
+  cloudV2TeamAssignment: () => 'CloudV2TeamAssignment',
   cloudRoles: () => 'CloudRoles',
 };
 

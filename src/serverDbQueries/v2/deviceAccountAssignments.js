@@ -30,6 +30,15 @@ export const createCloudDeviceAccountAssignment = async ({device_id, account_id}
   return data;
 };
 
+export const batchAssignDeviceAccounts = async ({device_id, account_ids}) => {
+  const {data} = await cloudApiV2.post(
+    '/api/v2/device-account-assignments/batch',
+    {device_id, account_ids},
+    {headers: await getAuthHeaders()},
+  );
+  return data;
+};
+
 export const deleteCloudDeviceAccountAssignment = async id => {
   const {data} = await cloudApiV2.delete(`/api/v2/device-account-assignments/${id}`, {
     headers: await getAuthHeaders(),

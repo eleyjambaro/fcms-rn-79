@@ -152,15 +152,22 @@ const CloudV2SignIn = ({navigation}) => {
         </Pressable>
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Team member?</Text>
-        <Pressable
-          style={styles.footerLink}
-          onPress={() => navigation.navigate(routes.cloudV2SubAccountSignIn())}>
-          <Text style={[styles.footerLinkText, {color: colors.primary}]}>
-            Sign in here
+      <View style={styles.teamMemberFooter}>
+        <View style={[styles.footer, styles.footerNoMargin]}>
+          <Text style={styles.footerText}>Team member?</Text>
+          <Pressable
+            style={styles.footerLink}
+            onPress={() => navigation.navigate(routes.cloudV2SubAccountSignIn())}>
+            <Text style={[styles.footerLinkText, {color: colors.primary}]}>
+              Sign in here
+            </Text>
+          </Pressable>
+        </View>
+        {!cloudAuthState.deviceId ? (
+          <Text style={[styles.deviceHint, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+            Device setup required — sign in as account owner first.
           </Text>
-        </Pressable>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -212,6 +219,19 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontSize: 15,
     fontWeight: 'bold',
+  },
+  teamMemberFooter: {
+    alignItems: 'center',
+    marginTop: 32,
+    gap: 6,
+  },
+  footerNoMargin: {
+    marginTop: 0,
+  },
+  deviceHint: {
+    fontSize: 12,
+    textAlign: 'center',
+    opacity: 0.7,
   },
 });
 
