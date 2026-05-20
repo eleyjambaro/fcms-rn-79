@@ -277,10 +277,7 @@ export const registerItem = async ({
      */
     if (item.initial_stock_vendor_id) {
       const getInitStockVendorQuery = `
-        SELECT * FROM vendors WHERE id = '${parseInt(
-          item.initial_stock_vendor_id,
-        )}'
-        
+        SELECT * FROM vendors WHERE id = '${item.initial_stock_vendor_id}'
       `;
 
       const getInitStockVendorResult = await db.executeSql(
@@ -870,9 +867,7 @@ export const updateItem = async ({
     /**
      * Get item initial stock inventory log
      */
-    const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = '${parseInt(
-      id,
-    )}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')`;
+    const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = '${id}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')`;
 
     const getItemInitStockLogResult = await db.executeSql(
       getItemInitStockLogQuery,

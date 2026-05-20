@@ -281,9 +281,7 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
     /**
      * Get item
      */
-    const getItemQuery = `SELECT * FROM items WHERE id = '${parseInt(
-      log.item_id,
-    )}'`;
+    const getItemQuery = `SELECT * FROM items WHERE id = '${log.item_id}'`;
 
     const getItemQueryResult = await db.executeSql(getItemQuery);
     const item = getItemQueryResult[0].rows.item(0);
@@ -1059,6 +1057,12 @@ export const addInventoryLog = async ({
     );
     const inventoryOperation = getInventoryOperationQueryResult[0].rows.item(0);
 
+    if (!inventoryOperation) {
+      throw new Error(
+        `Inventory operation not found for id: ${log.operation_id}`,
+      );
+    }
+
     /**
      * Get item
      */
@@ -1339,9 +1343,7 @@ export const getItemInitialStockLog = async ({queryKey}) => {
      * Get item initial stock inventory log (operation code = 'pre_app_stock')
      * Returns null if no initial stock log exists (e.g., item created via IDT with purchase date)
      */
-    const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = '${parseInt(
-      itemId,
-    )}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')`;
+    const getItemInitStockLogQuery = `SELECT * FROM inventory_logs WHERE voided != 1 AND item_id = '${itemId}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')`;
 
     const getItemInitStockLogResult = await db.executeSql(
       getItemInitStockLogQuery,
