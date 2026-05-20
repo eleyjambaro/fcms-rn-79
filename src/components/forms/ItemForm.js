@@ -248,6 +248,8 @@ const ItemForm = props => {
 
   // ---- packaging type dropdown ----
   const [showPackagingDropDown, setShowPackagingDropDown] = useState(false);
+  const [noInitStockDialogVisible, setNoInitStockDialogVisible] =
+    useState(false);
 
   // -------------------------------------------------------------------------
   // Queries
@@ -273,9 +275,9 @@ const ItemForm = props => {
 
   const {status: getItemInitStockLogStatus, data: getItemInitStockLogData} =
     useQuery(
-      ['itemInitialStockLog', {itemId: item?.item_id}],
+      ['itemInitialStockLog', {itemId: item?.id}],
       getItemInitialStockLog,
-      {enabled: editMode && !!item?.item_id && !item?.is_finished_product},
+      {enabled: editMode && !!item?.id && !item?.is_finished_product},
     );
 
   const {
@@ -1357,6 +1359,23 @@ const ItemForm = props => {
       {/* ── Dialogs ── */}
       <Portal>
         <Dialog
+          visible={noInitStockDialogVisible}
+          onDismiss={() => setNoInitStockDialogVisible(false)}>
+          <Dialog.Title>No Initial Stock Found</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              This item has no pre-app initial stock record to update.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions style={{justifyContent: 'space-around'}}>
+            <Button onPress={() => setNoInitStockDialogVisible(false)}>
+              Okay
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <Portal>
+        <Dialog
           visible={unitOfMeasurementRequiredDialogVisible}
           onDismiss={() => setUnitOfMeasurementRequiredDialogVisible(false)}>
           <Dialog.Title>Item UOM is required!</Dialog.Title>
@@ -1622,6 +1641,8 @@ const ItemForm = props => {
                     item_id: item?.id,
                     log_id: initStockLog.id,
                   });
+                } else {
+                  setNoInitStockDialogVisible(true);
                 }
               }}
             />
