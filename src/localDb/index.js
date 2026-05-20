@@ -263,7 +263,11 @@ const createTaxesTableQuery = `
     is_compound_tax INTEGER DEFAULT 0,
     is_app_default INTEGER DEFAULT 0,
     device_id VARCHAR DEFAULT NULL,
-    branch_id VARCHAR DEFAULT NULL
+    branch_id VARCHAR DEFAULT NULL,
+    sync_id VARCHAR(36) DEFAULT NULL,
+    updated_at DATETIME DEFAULT NULL,
+    synced_at DATETIME DEFAULT NULL,
+    is_deleted INTEGER DEFAULT 0
   );
 `;
 
@@ -1102,6 +1106,7 @@ const createSettingsTableQuery = `CREATE TABLE IF NOT EXISTS settings (
 );`;
 
 const DELTA_SYNC_TABLES = [
+  'taxes',
   'categories',
   'items',
   'modifiers',
@@ -1783,6 +1788,7 @@ export const alterTables = async currentAppVersion => {
      */
     try {
       const deltaSyncTables = [
+        'taxes',
         'categories',
         'items',
         'modifiers',

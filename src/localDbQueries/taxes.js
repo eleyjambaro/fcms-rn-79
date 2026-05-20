@@ -1,10 +1,8 @@
 import {getDBConnection, getCloudSyncParams} from '../localDb';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createQueryFilter,
   isInsertLimitReached,
 } from '../utils/localDbQueryHelpers';
-import {appStorageKeySeperator} from './appVersions';
 import getAppConfig from '../constants/appConfig';
 import uuid from 'react-native-uuid';
 
@@ -18,6 +16,7 @@ export const createTax = async ({values, onInsertLimitReached}) => {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
     const newId = uuid.v4();
+    const newSyncId = uuid.v4();
     const query = `INSERT INTO taxes (
     id,
     name,
@@ -25,7 +24,9 @@ export const createTax = async ({values, onInsertLimitReached}) => {
     is_compound_tax,
     is_app_default,
     device_id,
-    branch_id
+    branch_id,
+    sync_id,
+    updated_at
   )
 
   VALUES(
@@ -35,7 +36,9 @@ export const createTax = async ({values, onInsertLimitReached}) => {
     ${parseInt(values.is_compound_tax || 0)},
     ${parseInt(values.is_app_default || 0)},
     ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'}
+    ${branchId ? `'${branchId}'` : 'NULL'},
+    '${newSyncId}',
+    CURRENT_TIMESTAMP
   );`;
     const appConfig = await getAppConfig();
     const insertLimit = appConfig?.insertLimit;
@@ -74,7 +77,7 @@ export const getTaxes = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM taxes
+      FROM active_taxes taxes
 
       ${queryFilter}
 
@@ -106,7 +109,7 @@ export const getTaxes = async ({queryKey, pageParam = 1}) => {
 
 export const getTax = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM taxes WHERE id = '${id}'`;
+  const query = `SELECT * FROM active_taxes taxes WHERE taxes.id = '${id}'`;
 
   if (!id) {
     return {
@@ -131,7 +134,8 @@ export const updateTax = async ({id, updatedValues}) => {
   const query = `UPDATE taxes
   SET name = '${updatedValues.name.replace(/\'/g, "''")}',
   rate_percentage = '${parseFloat(updatedValues.rate_percentage || 0)}',
-  is_app_default = '${parseInt(updatedValues.is_app_default || 0)}'
+  is_app_default = '${parseInt(updatedValues.is_app_default || 0)}',
+  updated_at = CURRENT_TIMESTAMP
   WHERE id = '${id}'`;
 
   try {
@@ -145,7 +149,7 @@ export const updateTax = async ({id, updatedValues}) => {
 };
 
 export const deleteTax = async ({id}) => {
-  const query = `DELETE FROM taxes WHERE id = '${id}'`;
+  const query = `UPDATE taxes SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -157,30 +161,19 @@ export const deleteTax = async ({id}) => {
   }
 };
 
-export const createDefaultTaxes = async (version = '0.0.0') => {
-  let hasDefaultTaxes = false;
-  const key = `hasDefaultTaxes${appStorageKeySeperator}${version}`;
-
+export const createDefaultTaxes = async () => {
   try {
-    hasDefaultTaxes = await AsyncStorage.getItem(key);
+    const db = await getDBConnection();
+    const results = await db.executeSql(
+      `SELECT COUNT(*) as count FROM active_taxes`,
+    );
+    const count = results[0]?.rows?.item(0)?.count ?? 0;
 
-    if (hasDefaultTaxes === 'true') {
-      console.log(`Default Taxes (${version}) has been already initialized.`);
+    if (count > 0) {
       return;
     }
 
-    const results = await Promise.all(
-      defaultTaxes.map(async values => {
-        return await createTax({values});
-      }),
-    );
-
-    await AsyncStorage.setItem(key, 'true');
-    console.log(
-      `Default Taxes (${version}) has been initialized successfully.`,
-    );
-
-    return results;
+    return await Promise.all(defaultTaxes.map(values => createTax({values})));
   } catch (error) {
     console.debug(error);
     throw error;
@@ -191,7 +184,7 @@ export const deleteAllTaxes = async () => {
   try {
     const db = await getDBConnection();
 
-    const query = `DELETE FROM taxes`;
+    const query = `UPDATE taxes SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP`;
     return db.executeSql(query);
   } catch (error) {
     console.debug(error);
@@ -203,7 +196,7 @@ export const deleteDefaultTaxes = async () => {
   try {
     const db = await getDBConnection();
 
-    const query = `DELETE FROM taxes WHERE is_app_default = 1`;
+    const query = `UPDATE taxes SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE is_app_default = 1`;
     await db.executeSql(query);
 
     console.info('Default taxes deleted');
@@ -219,7 +212,7 @@ export const deletePreviousAppVersionDefaultTaxes = async (
   try {
     const db = await getDBConnection();
 
-    const query = `DELETE FROM taxes WHERE app_version != '${currentVersion}'`;
+    const query = `UPDATE taxes SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE app_version != '${currentVersion}'`;
     return db.executeSql(query);
   } catch (error) {
     console.debug(error);
