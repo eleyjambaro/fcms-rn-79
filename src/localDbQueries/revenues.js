@@ -367,8 +367,8 @@ export const updateRevenueGroup = async ({
       const newRevenueCategoryId = uuid.v4();
       insertRevenueCategoriesQuery += `(
         '${newRevenueCategoryId}',
-        ${id},
-        ${categoryId},
+        '${id}',
+        '${categoryId}',
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
         '${newRevenueCategoryId}',
@@ -438,7 +438,7 @@ export const createRevenue = async ({values}) => {
 
   VALUES(
     '${newRevenueId}',
-    ${values.revenue_group_id},
+    '${values.revenue_group_id}',
     '${values.revenue_group_date}',
     ${values.amount},
     ${revenueDeviceId ? `'${revenueDeviceId}'` : 'NULL'},
