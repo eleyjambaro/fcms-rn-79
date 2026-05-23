@@ -78,6 +78,7 @@ import Spoilage from '../screens/Spoilage';
 import SelectSpoilageItem from '../modals/SelectSpoilageItem';
 import LocalUserAccounts from '../screens/LocalUserAccounts';
 import CloudRoles from '../screens/CloudRoles';
+import ManageBranches from '../screens/ManageBranches';
 import UnauthorizedAccount from '../screens/UnauthorizedAccount';
 import ProduceFinishedProductStock from '../modals/ProduceFinishedProductStock';
 import Counter from '../screens/Counter';
@@ -110,6 +111,7 @@ const MemoizedUpdateCompany = React.memo(UpdateCompany);
 const MemoizedAccount = React.memo(Account);
 const MemoizedLocalUserAccounts = React.memo(LocalUserAccounts);
 const MemoizedCloudRoles = React.memo(CloudRoles);
+const MemoizedManageBranches = React.memo(ManageBranches);
 const MemoizedDeleteMyAccount = React.memo(DeleteMyAccount);
 const MemoizedCreateRecipe = React.memo(CreateRecipe);
 const MemoizedEditRecipe = React.memo(EditRecipe);
@@ -246,6 +248,11 @@ const RootStack = () => {
           name={routes.deleteMyAccount()}
           component={MemoizedDeleteMyAccount}
           options={{headerTitle: 'Delete Account'}}></Stack.Screen>
+        <Stack.Screen
+          name={routes.manageBranches()}
+          component={MemoizedManageBranches}
+          options={{headerTitle: 'Manage Branches'}}
+        />
         <Stack.Screen
           name={routes.createRecipe()}
           component={MemoizedCreateRecipe}

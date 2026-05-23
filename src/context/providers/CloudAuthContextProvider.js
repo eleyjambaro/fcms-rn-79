@@ -388,6 +388,9 @@ const CloudAuthContextProvider = ({children}) => {
         await createDefaultSettings();
         await createDefaultInventoryOperations(appVersion);
         await createDefaultTaxes();
+        // Clear the React Query cache so every query re-runs against the new
+        // branch's DB instead of returning stale data from the previous branch.
+        queryClient.clear();
         scheduleSyncSoon(500);
         dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: branch, deviceCompanyInfo});
       },

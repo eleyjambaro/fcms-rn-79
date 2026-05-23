@@ -1169,6 +1169,13 @@ const Account = props => {
             }}
           />
           <Drawer.Item
+            icon="source-branch"
+            label="Manage Branches"
+            onPress={() => {
+              navigation.navigate(routes.manageBranches());
+            }}
+          />
+          <Drawer.Item
             icon="delete-forever-outline"
             label="Delete Account"
             onPress={() => {

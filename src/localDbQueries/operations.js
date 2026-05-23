@@ -156,19 +156,27 @@ export const createInventoryOperation = async ({operation}) => {
 };
 
 export const createDefaultInventoryOperations = async (version = '0.0.0') => {
-  let hasDefaultInventoryOperations = false;
   const companyId = getActiveCompanyId() ?? 'nocompany';
   const branchId = getActiveBranchId() ?? 'nobranch';
   const key = `hasDefaultInventoryOperations${appStorageKeySeperator}${version}_${companyId}_${branchId}`;
 
   try {
-    hasDefaultInventoryOperations = await AsyncStorage.getItem(key);
+    const hasFlag = await AsyncStorage.getItem(key);
 
-    if (hasDefaultInventoryOperations === 'true') {
-      console.log(
-        `Default Inventory Operations (${version}) has been already initialized.`,
+    if (hasFlag === 'true') {
+      // Verify operations actually exist in DB — the flag can be set but the DB
+      // emptied by a migration, reinstall, or branch switch to a fresh DB.
+      const db = await getDBConnection();
+      const countResult = await db.executeSql(
+        `SELECT COUNT(*) as cnt FROM operations WHERE is_app_default = 1`,
       );
-      return;
+      const count = countResult?.[0]?.rows?.item(0)?.cnt ?? 0;
+      if (count > 0) {
+        return;
+      }
+      console.log(
+        '[createDefaultInventoryOperations] flag set but DB is empty, reseeding',
+      );
     }
 
     const results = await Promise.all(
@@ -230,22 +238,22 @@ export const deletePreviousAppVersionDefaultOperations = async (
 };
 
 export const getInventoryOperations = async ({queryKey, pageParam = 1}) => {
-  const [_key, {filter}] = queryKey;
+  const [_key, params] = queryKey;
+  const filter = params?.filter ? {...params.filter} : {};
   const limit = 1000000000;
-  const orderBy = 'type';
-  let queryFilter = '';
+  const orderBy = 'list_item_order';
+  const conditions = [];
 
-  if (filter && Object.keys(filter).length > 0) {
-    for (let key in filter) {
-      if (filter[key] === '') {
-        delete filter[key];
-      } else {
-        let value =
-          typeof filter[key] === 'string' ? `'${filter[key]}'` : filter[key];
-        queryFilter += `WHERE ${key} = ${value}; `;
-      }
+  for (const key in filter) {
+    if (filter[key] !== '') {
+      const value =
+        typeof filter[key] === 'string' ? `'${filter[key]}'` : filter[key];
+      conditions.push(`${key} = ${value}`);
     }
   }
+
+  const queryFilter =
+    conditions.length > 0 ? `WHERE ${conditions.join(' AND ')} ` : '';
 
   try {
     const db = await getDBConnection();
@@ -253,7 +261,7 @@ export const getInventoryOperations = async ({queryKey, pageParam = 1}) => {
     const offset = (pageParam - 1) * limit;
     const selectAllQuery = `SELECT * `;
     const countAllQuery = `SELECT COUNT(*) `;
-    const query = `FROM operations ${queryFilter} ORDER BY ${orderBy} ASC LIMIT ${limit} OFFSET ${offset}`;
+    const query = `FROM operations ${queryFilter}ORDER BY ${orderBy} ASC LIMIT ${limit} OFFSET ${offset}`;
 
     const results = await db.executeSql(selectAllQuery + query);
     const totalCountResult = await db.executeSql(countAllQuery + query);

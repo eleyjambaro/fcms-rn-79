@@ -43,3 +43,10 @@ export const updateBranch = async ({id, ...values}) => {
   });
   return data;
 };
+
+export const deleteBranch = async id => {
+  const {data} = await cloudApiV2.delete(`/api/v2/branches/${id}`, {
+    headers: await getAuthHeaders(),
+  });
+  return data;
+};

@@ -119,6 +119,7 @@ export const routes = {
   cloudV2SubAccountSignIn: () => 'CloudV2SubAccountSignIn',
   cloudV2TeamAssignment: () => 'CloudV2TeamAssignment',
   cloudRoles: () => 'CloudRoles',
+  manageBranches: () => 'ManageBranches',
 };
 
 export default routes;

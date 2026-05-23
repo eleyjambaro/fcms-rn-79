@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   StyleSheet,
   Text,
@@ -31,6 +31,21 @@ import TestModeLimitModal from '../components/modals/TestModeLimitModal';
 import {getItem, deleteItem} from '../localDbQueries/items';
 import {addInventoryLog} from '../localDbQueries/inventoryLogs';
 
+// Resets the active tab to Add (index 0) whenever the screen gains focus,
+// unless the screen was opened from ending inventory (which always uses Add).
+// Must live inside TabsProvider to access useTabNavigation context.
+const TabsFocusResetter = ({fromEndingInventory}) => {
+  const goTo = useTabNavigation();
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!fromEndingInventory) {
+        goTo(0);
+      }
+    }, [goTo, fromEndingInventory]),
+  );
+  return null;
+};
+
 const ManageStock = props => {
   const {navigation} = props;
   const route = useRoute();
@@ -45,21 +60,6 @@ const ManageStock = props => {
   const {status, data} = useQuery(['item', {id: itemId}], getItem);
   const [showItemStockDetails, setShowItemStockDetails] = useState(false);
   const [limitReachedMessage, setLimitReachedMessage] = useState('');
-  const [currentTabIndex, setCurrentTabIndex] = useState(0);
-
-  // Reset to Add tab when screen comes into focus (skip first mount)
-  const isMounted = useRef(false);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      if (isMounted.current) {
-        // Only reset if not first mount
-        setCurrentTabIndex(0);
-      } else {
-        isMounted.current = true;
-      }
-    }, []),
-  );
 
   const addInventoryLogMutation = useMutation(addInventoryLog, {
     onSuccess: () => {
@@ -101,7 +101,6 @@ const ManageStock = props => {
     if (fromEndingInventory && newIndex === 1) {
       return;
     }
-    setCurrentTabIndex(newIndex);
   };
 
   if (!itemId) return null;
@@ -140,7 +139,8 @@ const ManageStock = props => {
         showItemOptionsButton={false}
         containerStyle={{marginBottom: 10}}
       />
-      <TabsProvider defaultIndex={currentTabIndex}>
+      <TabsProvider defaultIndex={0}>
+        <TabsFocusResetter fromEndingInventory={fromEndingInventory} />
         <Tabs
           uppercase={false}
           style={{
