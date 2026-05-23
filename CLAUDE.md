@@ -68,7 +68,7 @@ Units are stored in AsyncStorage under a company+branch-scoped key (`units_<comp
 
 ### Delta Sync (Cloud Sync)
 
-All Company DB tables participate in delta sync **except**: `app_versions`, `operations`, `taxes`, `saved_printers`, `settings`, and `sync_metadata`. Account DB tables are never synced.
+All Company DB tables participate in delta sync **except**: `app_versions`, `operations`, `saved_printers`, `settings`, and `sync_metadata`. Account DB tables are never synced.
 
 Delta sync tables receive four extra columns added via `alterTables()` in `/src/localDb/index.js`:
 
@@ -77,7 +77,7 @@ Delta sync tables receive four extra columns added via `alterTables()` in `/src/
 - `synced_at` — stamped by the sync service after a successful push
 - `is_deleted` — soft-delete flag (`1` = deleted); **never use `DELETE FROM` on these tables**
 
-**Soft-delete rule**: all deletions on delta sync tables must use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` instead of `DELETE FROM`. Hard deletes are only allowed on excluded tables (`app_versions`, `operations`, `taxes`, `saved_printers`, `settings`, `monthly_expenses`, and Account DB tables).
+**Soft-delete rule**: all deletions on delta sync tables must use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` instead of `DELETE FROM`. Hard deletes are only allowed on excluded tables (`app_versions`, `operations`, `saved_printers`, `settings`, `monthly_expenses`, and Account DB tables).
 
 **Active views**: `createViews()` in `/src/localDb/index.js` creates an `active_<table>` SQLite view for every delta sync table (e.g. `active_items`, `active_inventory_logs`). Each view is defined as `SELECT * FROM <table> WHERE is_deleted != 1`. **All SELECT queries in `/src/localDbQueries/` must use these views instead of the base tables** so soft-deleted records are automatically excluded. Use an alias matching the original table name to keep column references working:
 
@@ -92,6 +92,7 @@ Delta sync tables (defined in `DELTA_SYNC_TABLES` constant in `/src/localDb/inde
 
 | Table                       | File                                |
 | --------------------------- | ----------------------------------- |
+| `taxes`                     | `localDbQueries/taxes.js`           |
 | `categories`                | `localDbQueries/categories.js`      |
 | `items`                     | `localDbQueries/items.js`           |
 | `modifiers`                 | `localDbQueries/modifiers.js`       |
