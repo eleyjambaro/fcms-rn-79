@@ -4,7 +4,7 @@ export const defaultSettings = [
   // Logo settings
   {
     name: 'logo_display_company_name',
-    value: '0',
+    value: '1',
     setting_group: 'Logo',
     setting_sub_group: '',
   },
@@ -142,7 +142,9 @@ export const updateSettings = async ({values, onSuccess, onError}) => {
 export const createDefaultSettings = async () => {
   try {
     const db = await getDBConnection();
-    const results = await db.executeSql(`SELECT COUNT(*) as count FROM settings`);
+    const results = await db.executeSql(
+      `SELECT COUNT(*) as count FROM settings`,
+    );
     const count = results[0]?.rows?.item(0)?.count ?? 0;
 
     if (count > 0) {

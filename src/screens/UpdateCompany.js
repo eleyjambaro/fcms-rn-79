@@ -17,6 +17,7 @@ import {
 } from '../serverDbQueries/v2/companies';
 import {updateBranch} from '../serverDbQueries/v2/branches';
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
+import {updateSettings} from '../localDbQueries/settings';
 
 const UpdateCompany = () => {
   const {colors} = useTheme();
@@ -67,6 +68,16 @@ const UpdateCompany = () => {
         logo_display_name: values.logo_display_company_name === '1',
         logo_display_branch: values.logo_display_branch === '1',
       });
+
+      // Keep local SQLite settings in sync so WatermarkAppIcon reflects
+      // the same values without waiting for a full re-auth or sync cycle.
+      await updateSettings({
+        values: [
+          {name: 'logo_display_company_name', value: values.logo_display_company_name},
+          {name: 'logo_display_branch', value: values.logo_display_branch},
+        ],
+      });
+      queryClient.invalidateQueries(['settings']);
 
       if (designatedBranch?.id) {
         await updateBranchMutation.mutateAsync({
