@@ -185,7 +185,9 @@ const UpdateCompany = () => {
           <CompanyForm
             initialValues={{
               company_name: company.name || '',
-              company_display_name: company.display_name || '',
+              company_display_name:
+                company.display_name ||
+                (company.name ? company.name.trim().substring(0, 20) : ''),
               company_address: company.address || '',
               company_mobile_number: company.phone || '',
               company_email: company.email || '',
