@@ -34,3 +34,29 @@ export const getMasterItems = async ({pageParam = 1, queryKey}) => {
   });
   return data;
 };
+
+/**
+ * Root-only. Updates SKU and/or description on a master item by id.
+ * Server returns 403 for non-root, 409 on SKU collision.
+ */
+export const updateMasterItem = async ({id, sku, description}) => {
+  const body = {};
+  if (sku !== undefined) body.sku = sku;
+  if (description !== undefined) body.description = description;
+  const {data} = await cloudApiV2.put(`/api/v2/master-items/${id}`, body, {
+    headers: await getAuthHeaders(),
+  });
+  return data;
+};
+
+/**
+ * Root-only soft-delete. Server returns 403 for non-root and 409 if any
+ * non-deleted branch item still references the SKU (referencing_count in
+ * the error body).
+ */
+export const deleteMasterItem = async id => {
+  const {data} = await cloudApiV2.delete(`/api/v2/master-items/${id}`, {
+    headers: await getAuthHeaders(),
+  });
+  return data;
+};
