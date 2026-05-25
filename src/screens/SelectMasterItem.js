@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {StyleSheet, View, FlatList} from 'react-native';
+import {StyleSheet, View, FlatList, RefreshControl} from 'react-native';
 import {
   Searchbar,
   List,
@@ -8,16 +8,19 @@ import {
   ActivityIndicator,
   useTheme,
 } from 'react-native-paper';
-import {useInfiniteQuery} from '@tanstack/react-query';
+import {useInfiniteQuery, useQueryClient} from '@tanstack/react-query';
 
 import routes from '../constants/routes';
 import {getLocalMastersAvailableForBranch} from '../localDbQueries/masterItems';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
+import {runSync} from '../services/syncService';
 
 const SelectMasterItem = ({navigation, route}) => {
   const {colors} = useTheme();
+  const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchInput.trim()), 300);
@@ -32,6 +35,7 @@ const SelectMasterItem = ({navigation, route}) => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    refetch,
   } = useInfiniteQuery(
     ['masterItems_localAvailable', {q: debouncedQuery, perPage: 20}],
     getLocalMastersAvailableForBranch,
@@ -43,6 +47,59 @@ const SelectMasterItem = ({navigation, route}) => {
       },
     },
   );
+
+  // Pull the latest master_items down from the server before showing the
+  // picker. This covers the case where the user just switched branches and
+  // the previous branch's master_items haven't propagated to this branch's
+  // local DB yet (or a different branch on the same device created masters
+  // that need to be re-pulled into this branch's SQLite file).
+  //
+  // runSync() returns immediately when another sync is already in flight
+  // (the 15s interval from useAppLifecycle, or the branch-switch sync from
+  // setDesignatedBranch). In that case our refetch would race the in-flight
+  // sync's apply phase and return stale data. To handle that we poll a few
+  // times — between polls the in-flight sync has a chance to land its writes
+  // before we re-query the local DB.
+  const syncAndRefetch = React.useCallback(async () => {
+    setIsSyncing(true);
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    try {
+      const result = await runSync();
+      const wasSkipped = (result?.errors ?? []).some(e =>
+        String(e).includes('Sync already in progress'),
+      );
+      if (wasSkipped) {
+        // Give the in-flight sync up to ~6s to finish, polling every 1s and
+        // refetching after each poll. The picker reads from local SQLite, so
+        // as soon as the in-flight sync applies its records the next refetch
+        // will surface them.
+        for (let i = 0; i < 6; i++) {
+          await sleep(1000);
+          await queryClient.invalidateQueries(['masterItems_localAvailable']);
+          const r = await refetch();
+          const pages = r?.data?.pages ?? [];
+          const total = pages.reduce((n, p) => n + (p?.data?.length ?? 0), 0);
+          if (total > 0) break;
+        }
+      } else {
+        await queryClient.invalidateQueries(['masterItems_localAvailable']);
+        await refetch();
+      }
+    } catch (e) {
+      // Sync errors are non-fatal here — the picker still shows whatever the
+      // local DB has. The user can pull-to-refresh to retry.
+      console.debug('[SelectMasterItem] sync error:', e?.message ?? e);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [queryClient, refetch]);
+
+  useEffect(() => {
+    syncAndRefetch();
+    // Intentionally only on mount — debouncedQuery refetches are handled by
+    // useInfiniteQuery's queryKey change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const items = useMemo(() => {
     if (!data?.pages) return [];
@@ -80,19 +137,19 @@ const SelectMasterItem = ({navigation, route}) => {
         style={styles.searchbar}
       />
 
-      {isLoading ? (
+      {isLoading && items.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator animating color={colors.primary} />
-        </View>
-      ) : items.length === 0 ? (
-        <View style={styles.center}>
-          <Text variant="titleMedium" style={{color: colors.neutralTint3}}>
-            {debouncedQuery
-              ? 'No master items match your search.'
-              : 'No new master items available for this branch. Tap back and choose "Register new item" instead, or sync to pull the latest catalog.'}
-          </Text>
+          {isSyncing ? (
+            <Text variant="bodySmall" style={styles.syncingText}>
+              Syncing master items…
+            </Text>
+          ) : null}
         </View>
       ) : (
+        // Always render the FlatList — even when empty — so the user can
+        // pull-to-refresh to trigger a sync. ListEmptyComponent fills the
+        // viewport when items.length === 0.
         <FlatList
           data={items}
           keyExtractor={mi => mi.sync_id ?? String(mi.id)}
@@ -111,6 +168,23 @@ const SelectMasterItem = ({navigation, route}) => {
             if (hasNextPage && !isFetchingNextPage) fetchNextPage();
           }}
           onEndReachedThreshold={0.4}
+          contentContainerStyle={items.length === 0 ? styles.emptyContent : undefined}
+          refreshControl={
+            <RefreshControl
+              refreshing={isSyncing}
+              onRefresh={syncAndRefetch}
+              colors={[colors.primary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.center}>
+              <Text variant="titleMedium" style={{color: colors.neutralTint3, textAlign: 'center'}}>
+                {debouncedQuery
+                  ? 'No master items match your search.'
+                  : 'No new master items available for this branch. Pull down to sync the latest catalog, or tap back and choose "Register new item" instead.'}
+              </Text>
+            </View>
+          }
           ListFooterComponent={
             isFetchingNextPage ? (
               <View style={{padding: 16}}>
@@ -143,5 +217,13 @@ const styles = StyleSheet.create({
   skuText: {
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  syncingText: {
+    marginTop: 8,
+    opacity: 0.7,
+  },
+  emptyContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
 });
