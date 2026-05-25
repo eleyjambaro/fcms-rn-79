@@ -14,7 +14,7 @@ import {createDefaultSettings} from '../../localDbQueries/settings';
 import {createDefaultInventoryOperations} from '../../localDbQueries/operations';
 import {createDefaultTaxes} from '../../localDbQueries/taxes';
 import {appVersion} from '../../constants/appConfig';
-import {scheduleSyncSoon} from '../../services/syncService';
+import {runSync, scheduleSyncSoon} from '../../services/syncService';
 import {getCloudCompany} from '../../serverDbQueries/v2/companies';
 import {getDeviceCompanyInfo} from '../../serverDbQueries/v2/devices';
 
@@ -129,6 +129,17 @@ const reducer = (prevState, action) => {
         ...prevState,
         designatedBranch: action.designatedBranch,
         deviceCompanyInfo: action.deviceCompanyInfo ?? prevState.deviceCompanyInfo,
+        isSwitchingBranch: false,
+      };
+    case 'BEGIN_SWITCH_BRANCH':
+      return {
+        ...prevState,
+        isSwitchingBranch: true,
+      };
+    case 'END_SWITCH_BRANCH':
+      return {
+        ...prevState,
+        isSwitchingBranch: false,
       };
     case 'REFRESH_COMPANY':
       return {
@@ -154,6 +165,10 @@ const initialState = {
   deviceToken: null,
   designatedBranch: null,
   deviceCompanyInfo: null,
+  // True while setDesignatedBranch is preparing the new branch DB and running
+  // its initial pull. App.js shows Splash for the duration so the user never
+  // sees an empty Items / Recipes screen mid-switch.
+  isSwitchingBranch: false,
 };
 
 const CloudAuthContextProvider = ({children}) => {
@@ -369,30 +384,62 @@ const CloudAuthContextProvider = ({children}) => {
       },
 
       setDesignatedBranch: async branch => {
-        // Snapshot company display info so it survives sign-out and is visible
-        // on the sign-in screen for team members picking up the device.
-        const currentUser = await loadItem(cloudV2AuthUser, true);
-        const deviceCompanyInfo = currentUser?.company
-          ? {
-              name: currentUser.company.name ?? null,
-              display_name: currentUser.company.display_name ?? null,
-              logo_url: currentUser.company.logo_url ?? null,
-            }
-          : null;
-        await saveItem(cloudV2DeviceCompanyInfo, deviceCompanyInfo);
-        await saveItem(cloudV2DesignatedBranch, branch);
-        invalidateCloudSyncParamsCache();
-        // Switch to the company+branch-scoped DB and ensure it is initialised.
-        await setActiveCompanyDb(getActiveCompanyId(), branch?.id ?? null);
-        await setDefaultUnits();
-        await createDefaultSettings();
-        await createDefaultInventoryOperations(appVersion);
-        await createDefaultTaxes();
-        // Clear the React Query cache so every query re-runs against the new
-        // branch's DB instead of returning stale data from the previous branch.
-        queryClient.clear();
-        scheduleSyncSoon(500);
-        dispatch({type: 'SET_DESIGNATED_BRANCH', designatedBranch: branch, deviceCompanyInfo});
+        // Flag a switch-in-progress so App.js holds on Splash until we finish.
+        // Without this the user briefly sees the previous branch's stale UI
+        // (queries from queryClient.clear() are mid-flight) and then an empty
+        // Items / Recipes screen until the first pull lands — looks like
+        // "data missing" even though sync is just behind.
+        dispatch({type: 'BEGIN_SWITCH_BRANCH'});
+        try {
+          // Snapshot company display info so it survives sign-out and is
+          // visible on the sign-in screen for team members picking up the
+          // device.
+          const currentUser = await loadItem(cloudV2AuthUser, true);
+          const deviceCompanyInfo = currentUser?.company
+            ? {
+                name: currentUser.company.name ?? null,
+                display_name: currentUser.company.display_name ?? null,
+                logo_url: currentUser.company.logo_url ?? null,
+              }
+            : null;
+          await saveItem(cloudV2DeviceCompanyInfo, deviceCompanyInfo);
+          await saveItem(cloudV2DesignatedBranch, branch);
+          invalidateCloudSyncParamsCache();
+          // Switch to the company+branch-scoped DB and ensure it is initialised.
+          await setActiveCompanyDb(getActiveCompanyId(), branch?.id ?? null);
+          await setDefaultUnits();
+          await createDefaultSettings();
+          await createDefaultInventoryOperations(appVersion);
+          await createDefaultTaxes();
+          // Clear the React Query cache so every query re-runs against the new
+          // branch's DB instead of returning stale data from the previous
+          // branch.
+          queryClient.clear();
+          // Run the first pull synchronously instead of via scheduleSyncSoon —
+          // returning before the data lands is exactly what made fresh
+          // installs and branch switches look "empty". Wrapped in try/catch
+          // so an offline switch still completes the UI transition.
+          try {
+            await runSync();
+          } catch (syncErr) {
+            console.debug(
+              '[CloudAuthContextProvider] initial sync after branch switch failed:',
+              syncErr,
+            );
+          }
+          // Subsequent pulls run on the 15s interval (useAppLifecycle); this
+          // soon-call covers the case where the server data was created
+          // between our pull starting and ending.
+          scheduleSyncSoon(2000);
+          dispatch({
+            type: 'SET_DESIGNATED_BRANCH',
+            designatedBranch: branch,
+            deviceCompanyInfo,
+          });
+        } catch (err) {
+          dispatch({type: 'END_SWITCH_BRANCH'});
+          throw err;
+        }
       },
 
       refreshCloudAuthCompany: async () => {

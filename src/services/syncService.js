@@ -14,7 +14,12 @@
  *   6. Update sync_metadata watermarks per entity
  */
 
-import {getDBConnection, getCloudSyncParams} from '../localDb/index';
+import {
+  getDBConnection,
+  getCloudSyncParams,
+  getActiveCompanyId,
+  getActiveBranchId,
+} from '../localDb/index';
 import {pushDelta, pullDelta} from '../serverDbQueries/v2/sync';
 import {queryClient} from '../queryClient';
 import uuid from 'react-native-uuid';
@@ -273,20 +278,71 @@ const updateSyncMetadata = async (
  * Uses sync_id as the upsert key. Only updates fields present in the record.
  * If is_deleted = 1, sets a tombstone marker (soft-delete handled per-table).
  */
+// Cache of {tableName: Set<columnName>} so we only run PRAGMA once per table.
+// Reset whenever the active DB changes — we tie this to runSync() which calls
+// resetTableColumnCache() at the top.
+let _tableColumnCache = {};
+const resetTableColumnCache = () => {
+  _tableColumnCache = {};
+};
+
+const getTableColumns = async (db, tableName) => {
+  if (_tableColumnCache[tableName]) return _tableColumnCache[tableName];
+  const cols = new Set();
+  const result = await db.executeSql(`PRAGMA table_info(${tableName})`);
+  for (let i = 0; i < result[0].rows.length; i++) {
+    cols.add(result[0].rows.item(i).name);
+  }
+  _tableColumnCache[tableName] = cols;
+  return cols;
+};
+
 const applyPulledRecord = async (db, tableName, record) => {
-  // created_at is returned by the server but is not a column in any local SQLite
-  // table — strip it before building INSERT/UPDATE to prevent "no such column" errors.
+  // Strip sync_id (added back below as id+sync_id explicitly), created_at
+  // (not a column on any local table), and id (would collide with the
+  // explicit id=sync_id we INSERT — Eloquent occasionally serializes the
+  // primary key even when not selected, which would produce a "duplicate
+  // column name: id" error and INSERT OR IGNORE used to swallow it).
   // eslint-disable-next-line no-unused-vars
-  const {sync_id, created_at, ...rawFields} = record;
+  const {sync_id, created_at, id: _serverId, ...rawFields} = record;
   if (!sync_id) return;
 
   // Remap server-side *_sync_id FK columns to local *_id column names.
   // Server uses _sync_id suffix (e.g. category_sync_id); local SQLite tables
   // use the older _id suffix (e.g. category_id). Values are interchangeable
   // because local id === sync_id (same client-generated UUID).
-  const fields = {};
+  const remapped = {};
   for (const [key, value] of Object.entries(rawFields)) {
-    fields[key.replace(/_sync_id$/, '_id')] = value;
+    remapped[key.replace(/_sync_id$/, '_id')] = value;
+  }
+
+  // Older server rows may have is_deleted = NULL. The local active_<table>
+  // views use IFNULL but the base table receives the raw value, so coerce
+  // here as well so downstream code never has to second-guess this column.
+  if (remapped.is_deleted === null || remapped.is_deleted === undefined) {
+    remapped.is_deleted = 0;
+  }
+
+  // Drop any column the server sends that the local table does not have.
+  // Without this, a single unknown column (e.g. a server-only meta field, or a
+  // column not yet added by an alterTables migration) makes INSERT OR IGNORE
+  // silently drop the entire row — which is exactly the "items pulled but
+  // invisible" symptom that survived the earlier fixes.
+  const tableCols = await getTableColumns(db, tableName);
+  const fields = {};
+  const droppedKeys = [];
+  for (const [k, v] of Object.entries(remapped)) {
+    if (tableCols.has(k)) {
+      fields[k] = v;
+    } else {
+      droppedKeys.push(k);
+    }
+  }
+  if (droppedKeys.length) {
+    console.debug(
+      `[sync] ${tableName} dropping unknown columns from server payload:`,
+      droppedKeys,
+    );
   }
 
   const [existing] = await db.executeSql(
@@ -295,22 +351,19 @@ const applyPulledRecord = async (db, tableName, record) => {
   );
 
   if (existing.rows.length === 0) {
-    // Insert new record from server.
-    // Local tables use `id TEXT PRIMARY KEY NOT NULL` where id === sync_id
-    // (both are the same client-generated UUID). We must supply `id` explicitly
-    // or SQLite silently drops the row (INSERT OR IGNORE absorbs NOT NULL failures).
+    // Insert new record from server. Plain INSERT (not INSERT OR IGNORE) so
+    // schema errors actually surface in logs instead of silently dropping
+    // every pulled row. The existence check above already protects against
+    // sync_id duplicates.
     const columns = ['id', 'sync_id', 'synced_at', ...Object.keys(fields)].join(
       ', ',
     );
     const placeholders = Array(Object.keys(fields).length + 3)
       .fill('?')
       .join(', ');
-    console.debug(
-      `[sync] INSERT ${tableName} sync_id=${sync_id} cols=[${columns}]`,
-    );
     try {
       await db.executeSql(
-        `INSERT OR IGNORE INTO ${tableName} (${columns}) VALUES (${placeholders})`,
+        `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`,
         [sync_id, sync_id, fields.updated_at ?? null, ...Object.values(fields)],
       );
     } catch (insertErr) {
@@ -319,6 +372,8 @@ const applyPulledRecord = async (db, tableName, record) => {
         insertErr?.message ?? insertErr,
         '| columns:',
         columns,
+        '| values:',
+        JSON.stringify(Object.values(fields)),
       );
       throw insertErr;
     }
@@ -394,6 +449,21 @@ export const runSync = async () => {
       return result;
     }
 
+    // The 15-second interval started by useAppLifecycle can fire before
+    // CloudAuthContextProvider.restore() finishes calling setActiveCompanyDb.
+    // In that window getDBConnection would open the unauth FCMS.db fallback
+    // and the pulled rows would land in the wrong file — making it look like
+    // data disappeared on the next branch switch. Skip if the active DB does
+    // not match the credentials we are about to sync.
+    const activeBranchId = getActiveBranchId();
+    const activeCompanyId = getActiveCompanyId();
+    if (!activeCompanyId || activeBranchId !== branchId) {
+      result.errors.push(
+        `Active DB (company=${activeCompanyId}, branch=${activeBranchId}) does not match sync credentials (branch=${branchId}) — skipping sync.`,
+      );
+      return result;
+    }
+
     let db;
     try {
       db = await getDBConnection();
@@ -401,6 +471,21 @@ export const runSync = async () => {
       result.errors.push(`DB connection failed: ${err.message}`);
       return result;
     }
+
+    // FKs default to OFF in SQLite, but the UUID migration explicitly enables
+    // them at the end. With FKs on, child INSERTs whose parent hasn't arrived
+    // yet error out. Disable for the duration of this sync — entities arrive
+    // out of dependency order and we still want every row visible.
+    try {
+      await db.executeSql('PRAGMA foreign_keys=OFF;');
+    } catch (e) {
+      // non-fatal; continue with whatever the connection had
+    }
+
+    // The PRAGMA table_info cache is keyed by table name only, so it must be
+    // cleared whenever we may have switched DB files (different branches have
+    // separate files and conceivably different alter-state). Cheap to rebuild.
+    resetTableColumnCache();
 
     const pushedAt = new Date().toISOString();
 

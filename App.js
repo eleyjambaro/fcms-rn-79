@@ -48,8 +48,15 @@ const App = () => {
       return <FilesAndMediaReadAndWritePermissionNeeded />;
     }
 
-    // Wait for permissions, app init, AND cloud auth restore to finish
-    if (isCheckingPermission || isInitializing || cloudAuthState.isLoading) {
+    // Wait for permissions, app init, AND cloud auth restore to finish.
+    // Also hold on Splash while a branch switch is in progress so we don't
+    // briefly render the empty new-branch DB before its initial pull lands.
+    if (
+      isCheckingPermission ||
+      isInitializing ||
+      cloudAuthState.isLoading ||
+      cloudAuthState.isSwitchingBranch
+    ) {
       return <Splash />;
     }
 

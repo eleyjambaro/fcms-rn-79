@@ -5,6 +5,7 @@ import {
 } from 'react-native-sqlite-storage';
 import SecureStorage from 'react-native-fast-secure-storage';
 import RNFS from 'react-native-fs';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {appDefaults} from '../constants/appDefaults';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
@@ -105,6 +106,11 @@ export const getDBConnection = async () => {
 // Uses moveFile (atomic rename) so no orphan is left behind. If the new file
 // already exists the old one is simply deleted. Safe to call on every startup —
 // once the old file is gone the RNFS.exists checks exit immediately.
+//
+// Also migrates the units_<companyId> AsyncStorage key to
+// units_<companyId>_<branchId> in the same window: units written during the
+// brief "signed in but no branch yet" phase would otherwise be orphaned and
+// the user would see only default UoMs on the new branch.
 const migrateCompanyDbToBranchScopedDb = async (companyId, branchId) => {
   try {
     const parts = RNFS.DocumentDirectoryPath.split('/');
@@ -124,6 +130,26 @@ const migrateCompanyDbToBranchScopedDb = async (companyId, branchId) => {
       await RNFS.moveFile(oldPath, newPath);
     } else if (newExists && oldExists) {
       await RNFS.unlink(oldPath);
+    }
+
+    // Migrate the AsyncStorage units key alongside the DB file. Only copy when
+    // the branch-scoped key does not yet exist so we never clobber an
+    // intentional newer set.
+    try {
+      const oldUnitsKey = `units_${companyId}`;
+      const newUnitsKey = `units_${companyId}_${branchId}`;
+      const [legacyUnits, scopedUnits] = await Promise.all([
+        AsyncStorage.getItem(oldUnitsKey),
+        AsyncStorage.getItem(newUnitsKey),
+      ]);
+      if (legacyUnits && !scopedUnits) {
+        await AsyncStorage.setItem(newUnitsKey, legacyUnits);
+      }
+      if (legacyUnits) {
+        await AsyncStorage.removeItem(oldUnitsKey);
+      }
+    } catch (unitsErr) {
+      console.debug('[localDb] units key migration error:', unitsErr);
     }
   } catch (e) {
     console.debug('[localDb] migrateCompanyDbToBranchScopedDb error:', e);
@@ -1141,8 +1167,13 @@ const DELTA_SYNC_TABLES = [
 export const createViews = async () => {
   const db = await getDBConnection();
   for (const table of DELTA_SYNC_TABLES) {
+    // DROP + CREATE so view-definition updates propagate to existing DBs.
+    // NULL-safe: pulled records may carry is_deleted = NULL when the server
+    // column was added after the row was created; without IFNULL these rows
+    // would silently disappear from every screen using active_<table>.
+    await db.executeSql(`DROP VIEW IF EXISTS active_${table}`);
     await db.executeSql(
-      `CREATE VIEW IF NOT EXISTS active_${table} AS SELECT * FROM ${table} WHERE is_deleted != 1`,
+      `CREATE VIEW active_${table} AS SELECT * FROM ${table} WHERE IFNULL(is_deleted, 0) != 1`,
     );
   }
 };
