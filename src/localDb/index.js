@@ -1131,10 +1131,31 @@ const createSettingsTableQuery = `CREATE TABLE IF NOT EXISTS settings (
   app_version VARCHAR
 );`;
 
+// Local mirror of the centralized company-wide master item catalog. Each row
+// represents a canonical product within the company; branch items (in the
+// `items` table) link to a master entry via `master_item_sync_id` and
+// denormalize the SKU into `items.sku` for offline display.
+const createMasterItemsTableQuery = `
+  CREATE TABLE IF NOT EXISTS master_items (
+    id TEXT PRIMARY KEY NOT NULL,
+    sku VARCHAR NOT NULL,
+    description VARCHAR,
+    registered_by_account_id VARCHAR,
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
+    sync_id VARCHAR(36) DEFAULT NULL,
+    updated_at DATETIME DEFAULT NULL,
+    synced_at DATETIME DEFAULT NULL,
+    is_deleted INTEGER DEFAULT 0
+  );
+`;
+
 const DELTA_SYNC_TABLES = [
   'taxes',
   'categories',
   'items',
+  'master_items',
   'modifiers',
   'modifier_options',
   'vendors',
@@ -1194,6 +1215,7 @@ export const createTables = async () => {
     await db.executeSql(createVendorsTableQuery);
     await db.executeSql(createVendorContactPersonsTableQuery);
     await db.executeSql(createItemsTableQuery);
+    await db.executeSql(createMasterItemsTableQuery);
     await db.executeSql(createBatchPurchaseGroupsTableQuery);
     await db.executeSql(createBatchPurchaseEntriesTableQuery);
     await db.executeSql(createBatchStockUsageGroupsTableQuery);
@@ -1815,6 +1837,31 @@ export const alterTables = async currentAppVersion => {
     }
 
     /**
+     * Master Item List columns on items.
+     * - `sku` denormalizes the master_items.sku for offline display.
+     * - `master_item_sync_id` is the stable join key to the company-wide
+     *   master_items row; surviving SKU rewrites that may happen server-side
+     *   when two branches register colliding SKUs offline.
+     */
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'items',
+        'sku',
+        `ALTER TABLE items ADD COLUMN sku VARCHAR DEFAULT NULL;`,
+      );
+
+      await executeSqlIfColumnNotExist(
+        db,
+        'items',
+        'master_item_sync_id',
+        `ALTER TABLE items ADD COLUMN master_item_sync_id VARCHAR(36) DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug('[alterTables] Error adding items.sku columns:', error);
+    }
+
+    /**
      * New columns for JSON delta sync
      */
     try {
@@ -1822,6 +1869,7 @@ export const alterTables = async currentAppVersion => {
         'taxes',
         'categories',
         'items',
+        'master_items',
         'modifiers',
         'modifier_options',
         'vendors',
@@ -2213,6 +2261,7 @@ export const migrateIntegerIdsToUUID = async () => {
     await db.executeSql(createRecipeKindsTableQuery);
     await db.executeSql(createRecipesTableQuery);
     await db.executeSql(createItemsTableQuery);
+    await db.executeSql(createMasterItemsTableQuery);
     await db.executeSql(createModifiersTableQuery);
     await db.executeSql(createModifierOptionsTableQuery);
     await db.executeSql(createSellingMenusTableQuery);

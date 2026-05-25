@@ -1,5 +1,6 @@
 import uuid from 'react-native-uuid';
 import convert from 'convert-units';
+import SecureStorage from 'react-native-fast-secure-storage';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {
   createQueryFilter,
@@ -8,7 +9,24 @@ import {
 } from '../utils/localDbQueryHelpers';
 import getAppConfig from '../constants/appConfig';
 import {appDefaultsTypeRefs} from '../constants/appDefaults';
+import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 import {scheduleSyncSoon} from '../services/syncService';
+import {generateMasterItemSku} from '../utils/generateMasterItemSku';
+
+// Read the current cloud account once per registerItem call so we can stamp
+// audit fields (e.g. master_items.registered_by_account_id). Returns null
+// when not signed in — caller treats the audit field as nullable.
+const loadCurrentAccountId = async () => {
+  try {
+    const has = await SecureStorage.hasItem(rnStorageKeys.cloudV2AuthUser);
+    if (!has) return null;
+    const raw = await SecureStorage.getItem(rnStorageKeys.cloudV2AuthUser);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed?.account?.id ?? null;
+  } catch {
+    return null;
+  }
+};
 
 export const getItems = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter}] = queryKey;
@@ -337,6 +355,18 @@ export const registerItem = async ({
      */
     const {deviceId, branchId} = await getCloudSyncParams();
     const newItemId = uuid.v4();
+
+    // Master Item List link — generated up-front so the items row can carry
+    // both the denormalized SKU and the stable sync_id join key. Server may
+    // regenerate the SKU on push if it collides with another offline-created
+    // entry in the same company; the sku_updates ack patches both rows.
+    const providedSku = String(item?.sku ?? '')
+      .trim()
+      .toUpperCase();
+    const masterItemSku = providedSku || generateMasterItemSku(item.name);
+    const newMasterItemSyncId = uuid.v4();
+    const skuSqlLiteral = masterItemSku.replace(/'/g, "''");
+
     const insertItemQuery = `INSERT INTO items (
       id,
       category_id,
@@ -356,6 +386,8 @@ export const registerItem = async ({
       barcode,
       low_stock_level,
       packaging_type,
+      sku,
+      master_item_sync_id,
       device_id,
       branch_id,
       sync_id,
@@ -381,6 +413,8 @@ export const registerItem = async ({
       '${item.barcode || ''}',
       ${parseFloat(item.low_stock_level)},
       '${item.packaging_type ? item.packaging_type.replace(/\'/g, "''") : ''}',
+      '${skuSqlLiteral}',
+      '${newMasterItemSyncId}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
       '${newItemId}',
@@ -415,6 +449,46 @@ export const registerItem = async ({
       insertItemResult[0]?.rowsAffected > 0
     ) {
       itemId = newItemId;
+
+      // Mirror this newly-registered item into the company-wide Master Item
+      // List. Each branch registration creates its own master entry for MVP;
+      // root can merge duplicates from the Master Item List screen. The local
+      // row will sync up on the next push (GROUP_A_ENTITIES includes
+      // master_items) and the server reconciles SKU collisions if any.
+      try {
+        const registeredByAccountId = await loadCurrentAccountId();
+        const description = String(item.name ?? '')
+          .trim()
+          .toUpperCase()
+          .replace(/'/g, "''");
+        const insertMasterItemQuery = `INSERT INTO master_items (
+          id,
+          sku,
+          description,
+          registered_by_account_id,
+          device_id,
+          branch_id,
+          sync_id,
+          updated_at
+        ) VALUES (
+          '${newMasterItemSyncId}',
+          '${skuSqlLiteral}',
+          '${description}',
+          ${registeredByAccountId ? `'${registeredByAccountId}'` : 'NULL'},
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${newMasterItemSyncId}',
+          CURRENT_TIMESTAMP
+        );`;
+        await db.executeSql(insertMasterItemQuery);
+      } catch (masterErr) {
+        // Non-fatal: the items row already exists, so we don't want to roll
+        // back. Log and continue — the master entry can be backfilled later.
+        console.debug(
+          '[registerItem] Failed to insert master_items row:',
+          masterErr?.message ?? masterErr,
+        );
+      }
     }
 
     if (isFinishedProduct && recipeRegisteredFinishedProduct) {

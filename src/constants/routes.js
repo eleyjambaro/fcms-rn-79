@@ -120,6 +120,7 @@ export const routes = {
   cloudV2TeamAssignment: () => 'CloudV2TeamAssignment',
   cloudRoles: () => 'CloudRoles',
   manageBranches: () => 'ManageBranches',
+  masterItemList: () => 'MasterItemList',
 };
 
 export default routes;

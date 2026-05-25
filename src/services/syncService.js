@@ -41,6 +41,9 @@ import uuid from 'react-native-uuid';
 const GROUP_A_ENTITIES = [
   // Catalog / master data
   {key: 'categories', table: 'categories'},
+  // Company-wide Master Item List (shared across all branches in the company).
+  // Server scopes pull by company_id (not branch_id) for this entity.
+  {key: 'master_items', table: 'master_items'},
   {key: 'vendors', table: 'vendors'},
   {
     key: 'vendor_contact_persons',
@@ -529,7 +532,11 @@ export const runSync = async () => {
           delta,
         });
 
-        const {accepted = {}, synced_at} = pushResponse?.data ?? {};
+        const {
+          accepted = {},
+          sku_updates: skuUpdates = [],
+          synced_at,
+        } = pushResponse?.data ?? {};
         result.pushed = accepted;
 
         // Mark pushed records as synced
@@ -544,6 +551,32 @@ export const runSync = async () => {
             } catch (err) {
               result.errors.push(
                 `Mark synced failed for ${table}: ${err.message}`,
+              );
+            }
+          }
+        }
+
+        // Apply server-corrected master item SKUs. Happens when two branches
+        // register colliding SKUs offline; the server regenerates the 4-char
+        // suffix and echoes the corrected SKU back here. We patch the local
+        // master_items row and any items rows that join via master_item_sync_id
+        // — no updated_at bump, since this is a sync ack rather than a user
+        // mutation, and we don't want to retrigger a push.
+        if (Array.isArray(skuUpdates) && skuUpdates.length > 0) {
+          for (const {sync_id, sku} of skuUpdates) {
+            if (!sync_id || !sku) continue;
+            try {
+              await db.executeSql(
+                `UPDATE master_items SET sku = ? WHERE sync_id = ?`,
+                [sku, sync_id],
+              );
+              await db.executeSql(
+                `UPDATE items SET sku = ? WHERE master_item_sync_id = ?`,
+                [sku, sync_id],
+              );
+            } catch (err) {
+              result.errors.push(
+                `Apply sku_update failed for ${sync_id}: ${err.message}`,
               );
             }
           }

@@ -82,6 +82,11 @@ const ItemValidationSchema = Yup.object({
   }),
   selling_size_options: Yup.array(),
   packaging_type: Yup.string().notRequired(),
+  sku: Yup.string()
+    .trim()
+    .max(64, 'Too long')
+    .matches(/^[A-Z0-9-]*$/i, 'Letters, digits, and dashes only')
+    .nullable(),
 });
 
 // ---------------------------------------------------------------------------
@@ -115,6 +120,7 @@ const getDefaultInitialValues = item => ({
   adjustment_qty: '',
   remarks: '',
   packaging_type: '',
+  sku: '',
 });
 
 // ---------------------------------------------------------------------------
@@ -1212,6 +1218,7 @@ const ItemForm = props => {
       vendor_id: initialValues.vendor_id?.toString() || '',
       name: initialValues.name || '',
       barcode: initialValues.barcode || '',
+      sku: initialValues.sku || '',
       uom_id: initialValues.uom_id?.toString() || '',
       uom_abbrev: initialValues.uom_abbrev || '',
       unit_cost: initialStockUnitCost,
@@ -1596,6 +1603,24 @@ const ItemForm = props => {
           style={{position: 'absolute', top: 18, right: 15}}
         />
       </View>
+      {!editMode && (
+        <>
+          <TextInput
+            label="Master Item SKU (Optional)"
+            onChangeText={handleChange('sku')}
+            onBlur={handleBlur('sku')}
+            value={values.sku}
+            autoCapitalize="characters"
+            style={styles.textInput}
+            error={!!(errors.sku && touched.sku)}
+          />
+          <HelperText type={errors.sku && touched.sku ? 'error' : 'info'}>
+            {errors.sku && touched.sku
+              ? errors.sku
+              : 'Leave blank to auto-generate (e.g. AKA-7K2P).'}
+          </HelperText>
+        </>
+      )}
       <MoreSelectionButton
         containerStyle={{marginTop: -2}}
         placeholder="Select Unit"

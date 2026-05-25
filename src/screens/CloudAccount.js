@@ -1,16 +1,19 @@
 import {StyleSheet, Text, View, Pressable} from 'react-native';
 import {Button, useTheme} from 'react-native-paper';
 import React from 'react';
+import {useNavigation} from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import DefaultBranch from '../components/cloudAccount/DefaultBranch';
 import UploadHistoryList from '../components/cloudAccount/UploadHistoryList';
 import appDefaults from '../constants/appDefaults';
+import routes from '../constants/routes';
 
 const CloudAccount = () => {
   const [_authState, {signIn, signUp, signOut}] = useCloudAuthContext();
   const {colors} = useTheme();
+  const navigation = useNavigation();
   return (
     <View style={[styles.container]}>
       <View
@@ -39,6 +42,39 @@ const CloudAccount = () => {
       </View>
 
       <DefaultBranch />
+
+      <Pressable
+        onPress={() => navigation.navigate(routes.masterItemList())}
+        style={({pressed}) => ({
+          backgroundColor: pressed ? colors.neutralTint5 : colors.surface,
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: 15,
+          marginTop: 10,
+          borderTopWidth: 1,
+          borderBottomWidth: 1,
+          borderColor: colors.neutralTint5,
+        })}>
+        <MaterialCommunityIcons
+          name="format-list-bulleted"
+          size={22}
+          color={colors.dark}
+        />
+        <Text
+          style={{
+            fontWeight: '500',
+            marginLeft: 10,
+            color: colors.dark,
+            flex: 1,
+          }}>
+          Master Item List
+        </Text>
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={22}
+          color={colors.dark}
+        />
+      </Pressable>
 
       <View style={{flex: 1, backgroundColor: colors.surface}}>
         <View
