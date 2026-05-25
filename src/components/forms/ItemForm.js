@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo} from 'react';
 import {View, StyleSheet, Modal} from 'react-native';
 import {
   TextInput,
@@ -193,11 +193,34 @@ const PACKAGING_TYPE_OPTIONS = [
 const ItemForm = props => {
   const {
     item,
-    initialValues = getDefaultInitialValues(item),
+    initialValues: rawInitialValues,
     onSubmit,
     editMode = false,
     resetSectionedFieldsOnToggle = true,
+    masterItem = null,
   } = props;
+
+  // When the form is opened from the master-item picker (add mode) or for an
+  // existing branch item that is already linked to a master (edit mode), the
+  // name + SKU are locked to the master's values. Variant identity lives on
+  // the master; only the Master Item List edit screen (root-only) can change
+  // it.
+  const isMasterLocked =
+    !!masterItem || (editMode && !!item?.master_item_sync_id);
+
+  // Merge master overrides on top of whatever initialValues the caller passed
+  // (or the form-wide defaults if none). Falsy `initialValues` means the
+  // caller relies on defaults — keep that path unchanged.
+  const initialValues = useMemo(() => {
+    const fromCaller = rawInitialValues || getDefaultInitialValues(item);
+    if (!masterItem) return fromCaller;
+    return {
+      ...fromCaller,
+      name: masterItem.description,
+      sku: masterItem.sku,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawInitialValues, masterItem, item]);
 
   const {colors} = useTheme();
   const navigation = useNavigation();
@@ -1587,7 +1610,13 @@ const ItemForm = props => {
         value={values.name}
         error={!!(errors.name && touched.name)}
         autoCapitalize="words"
+        editable={!isMasterLocked}
       />
+      {isMasterLocked ? (
+        <HelperText type="info">
+          From Master Item List — edit on the Master Item List screen.
+        </HelperText>
+      ) : null}
       <View style={{flexDirection: 'row'}}>
         <TextInput
           label="Item Barcode (Optional)"
@@ -1603,20 +1632,25 @@ const ItemForm = props => {
           style={{position: 'absolute', top: 18, right: 15}}
         />
       </View>
-      {!editMode && (
+      {(!editMode || isMasterLocked) && (
         <>
           <TextInput
-            label="Master Item SKU (Optional)"
+            label={
+              isMasterLocked ? 'Master Item SKU' : 'Master Item SKU (Optional)'
+            }
             onChangeText={handleChange('sku')}
             onBlur={handleBlur('sku')}
             value={values.sku}
             autoCapitalize="characters"
             style={styles.textInput}
             error={!!(errors.sku && touched.sku)}
+            editable={!isMasterLocked}
           />
           <HelperText type={errors.sku && touched.sku ? 'error' : 'info'}>
             {errors.sku && touched.sku
               ? errors.sku
+              : isMasterLocked
+              ? 'From Master Item List — edit on the Master Item List screen.'
               : 'Leave blank to auto-generate (e.g. AKA-7K2P).'}
           </HelperText>
         </>

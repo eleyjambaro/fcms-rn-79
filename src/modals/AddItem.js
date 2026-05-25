@@ -23,11 +23,14 @@ const AddItem = () => {
   const [successDialogVisible, setSuccessDialogVisible] = useState(false);
   const [regiteredItemId, setRegiteredItemId] = useState(null);
 
+  const masterItem = route.params?.masterItem ?? null;
+
   const handleSubmit = async (values, actions) => {
     console.log(values);
     try {
       await registerItemMutation.mutateAsync({
         item: values,
+        masterItem,
         onInsertLimitReached: ({message}) => {
           setLimitReachedMessage(() => message);
         },
@@ -90,6 +93,7 @@ const AddItem = () => {
       />
       <ItemForm
         onSubmit={handleSubmit}
+        masterItem={masterItem}
         initialValues={
           route.params?.category_id && {
             category_id: route.params.category_id?.toString(),

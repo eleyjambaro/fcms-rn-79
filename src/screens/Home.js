@@ -606,7 +606,7 @@ const Home = props => {
                 label: 'Register Item',
                 color: colors.dark,
                 labelTextColor: colors.dark,
-                onPress: () => navigation.navigate(routes.addItem()),
+                onPress: () => navigation.navigate(routes.selectAddItemMode()),
                 small: false,
               },
             ]}

@@ -80,6 +80,8 @@ import LocalUserAccounts from '../screens/LocalUserAccounts';
 import CloudRoles from '../screens/CloudRoles';
 import ManageBranches from '../screens/ManageBranches';
 import MasterItemList from '../screens/MasterItemList';
+import SelectAddItemMode from '../screens/SelectAddItemMode';
+import SelectMasterItem from '../screens/SelectMasterItem';
 import UnauthorizedAccount from '../screens/UnauthorizedAccount';
 import ProduceFinishedProductStock from '../modals/ProduceFinishedProductStock';
 import Counter from '../screens/Counter';
@@ -114,6 +116,8 @@ const MemoizedLocalUserAccounts = React.memo(LocalUserAccounts);
 const MemoizedCloudRoles = React.memo(CloudRoles);
 const MemoizedManageBranches = React.memo(ManageBranches);
 const MemoizedMasterItemList = React.memo(MasterItemList);
+const MemoizedSelectAddItemMode = React.memo(SelectAddItemMode);
+const MemoizedSelectMasterItem = React.memo(SelectMasterItem);
 const MemoizedDeleteMyAccount = React.memo(DeleteMyAccount);
 const MemoizedCreateRecipe = React.memo(CreateRecipe);
 const MemoizedEditRecipe = React.memo(EditRecipe);
@@ -331,6 +335,16 @@ const RootStack = () => {
           )}
         </Stack.Screen>
 
+        <Stack.Screen
+          name={routes.selectAddItemMode()}
+          component={MemoizedSelectAddItemMode}
+          options={{headerTitle: 'Register Item'}}
+        />
+        <Stack.Screen
+          name={routes.selectMasterItem()}
+          component={MemoizedSelectMasterItem}
+          options={{headerTitle: 'Select from Master Item List'}}
+        />
         <Stack.Screen
           name={routes.addItem()}
           component={MemoizedAddItem}

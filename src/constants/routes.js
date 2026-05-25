@@ -121,6 +121,8 @@ export const routes = {
   cloudRoles: () => 'CloudRoles',
   manageBranches: () => 'ManageBranches',
   masterItemList: () => 'MasterItemList',
+  selectAddItemMode: () => 'SelectAddItemMode',
+  selectMasterItem: () => 'SelectMasterItem',
 };
 
 export default routes;

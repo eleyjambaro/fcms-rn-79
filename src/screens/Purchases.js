@@ -98,7 +98,7 @@ const AllItems = props => {
   };
 
   const handleFabPress = () => {
-    navigation.navigate('AddItem');
+    navigation.navigate(routes.selectAddItemMode());
   };
 
   return (

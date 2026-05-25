@@ -82,6 +82,10 @@ const MasterItemList = () => {
   const updateMutation = useMutation(updateMasterItem, {
     onSuccess: () => {
       queryClient.invalidateQueries(['masterItems']);
+      // The server mirrors SKU + description onto every linked items row in
+      // the company; the local items list / item views need to refetch once
+      // the next pull lands so the renamed branch items show through.
+      queryClient.invalidateQueries(['items']);
       setEditing(null);
     },
     onError: err => {

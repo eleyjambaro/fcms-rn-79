@@ -34,7 +34,7 @@ const SalesCounterItems = props => {
   };
 
   const handlePressCreateNew = () => {
-    navigation.navigate('AddItem');
+    navigation.navigate(routes.selectAddItemMode());
   };
 
   const renderScanBarcodeButton = () => {
