@@ -1017,6 +1017,20 @@ const Account = props => {
     return <LocalUserAccountProfile account={account} />;
   };
 
+  const renderCompanyDataSection = () => {
+    return (
+      <Drawer.Section title="Company Data">
+        <Drawer.Item
+          icon="format-list-bulleted"
+          label="Master Item List"
+          onPress={() => {
+            navigation.navigate(routes.masterItemList());
+          }}
+        />
+      </Drawer.Section>
+    );
+  };
+
   const renderDataSyncAndBackupSection = () => {
     const Component = (
       <Drawer.Section title="Data Sync & Backup">
@@ -2173,6 +2187,7 @@ const Account = props => {
           {renderUserAccountProfile()}
           {renderTeamMemberCard()}
 
+          {renderCompanyDataSection()}
           {renderDataSyncAndBackupSection()}
           {renderInventoryDataTemplateSection()}
           {renderUsersSection()}
