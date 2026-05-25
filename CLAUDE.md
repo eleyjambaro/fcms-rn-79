@@ -79,7 +79,7 @@ Delta sync tables receive four extra columns added via `alterTables()` in `/src/
 
 **Soft-delete rule**: all deletions on delta sync tables must use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` instead of `DELETE FROM`. Hard deletes are only allowed on excluded tables (`app_versions`, `operations`, `saved_printers`, `settings`, `monthly_expenses`, and Account DB tables).
 
-**Active views**: `createViews()` in `/src/localDb/index.js` creates an `active_<table>` SQLite view for every delta sync table (e.g. `active_items`, `active_inventory_logs`). Each view is defined as `SELECT * FROM <table> WHERE is_deleted != 1`. **All SELECT queries in `/src/localDbQueries/` must use these views instead of the base tables** so soft-deleted records are automatically excluded. Use an alias matching the original table name to keep column references working:
+**Active views**: `createViews()` in `/src/localDb/index.js` creates an `active_<table>` SQLite view for every delta sync table (e.g. `active_items`, `active_inventory_logs`). Each view is defined as `SELECT * FROM <table> WHERE IFNULL(is_deleted, 0) != 1` — **the `IFNULL` is required** because pulled records can have `is_deleted = NULL` and `NULL != 1` evaluates to NULL (falsy) in SQLite, which would silently hide every such row. **All SELECT queries in `/src/localDbQueries/` must use these views instead of the base tables** so soft-deleted records are automatically excluded. Use an alias matching the original table name to keep column references working:
 
 ```sql
 FROM active_items items
@@ -122,6 +122,32 @@ Delta sync tables (defined in `DELTA_SYNC_TABLES` constant in `/src/localDb/inde
 | `expenses`                  | `localDbQueries/expenses.js`        |
 | `revenue_deductions`        | `localDbQueries/expenses.js`        |
 | `revenue_categories`        | `localDbQueries/revenues.js`        |
+
+#### Sync Invariants (read before touching sync code)
+
+These rules exist because each was learned the hard way — every violation in the past caused silent data loss (rows pulled but invisible, columns dropped, entities never returned). Treat them as load-bearing.
+
+1. **Schema parity, server ↔ client.** Every column listed in a server-side `GROUP_A` entry's `allowedFields` (`fcms-api/src/app/Http/Controllers/SyncController.php`) must exist as a column in the matching client table (created in `createTables()` or added by an `alterTables` migration in `/src/localDb/index.js`). Adding a server column without the matching client `ALTER TABLE … ADD COLUMN …` causes `applyPulledRecord` to drop it; in dev that throws (see rule 6), in prod it just logs and drops.
+
+2. **Entity parity.** Every entity in the server's `SyncController::GROUP_A` must appear in the client's `GROUP_A_ENTITIES` (`/src/services/syncService.js`) with the correct `pushFieldMap`. An entity present on one side and missing on the other is silently never synced.
+
+3. **Soft-delete views are NULL-safe.** Always `WHERE IFNULL(is_deleted, 0) != 1`. Never bare `is_deleted != 1` — `NULL != 1` is NULL/falsy in SQLite and hides the row. `createViews()` is the single source; if you write any other view that filters soft-deletes, use the same pattern.
+
+4. **Soft-delete writes set `updated_at`.** Every delete on a delta-sync table is `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP`. Hard `DELETE FROM` is allowed only on excluded tables (see top of this section). A soft-delete without `updated_at` won't sync to other devices because push collects only rows where `updated_at > synced_at`.
+
+5. **Pull queries tolerate NULL `updated_at`.** Server-side pull uses `COALESCE(updated_at, created_at, '1970-01-01 00:00:00') > ?` (not bare `updated_at > ?`). Legacy rows or rows from a client that forgot to set `updated_at` would otherwise be excluded from every pull, forever.
+
+6. **Never use `INSERT OR IGNORE` in sync.** Use an explicit existence check then plain `INSERT`. `INSERT OR IGNORE` swallows NOT NULL, FK, and duplicate-column errors silently — which is exactly how "items pulled but invisible" stayed a mystery for so long. `applyPulledRecord` filters the payload against `PRAGMA table_info` so a stale schema produces a loud `__DEV__` throw, not a silent drop.
+
+7. **FKs are OFF during sync.** `runSync()` issues `PRAGMA foreign_keys=OFF` before inserting because entities arrive out of dependency order (e.g. an `ingredients` row can land before its parent `recipes` row). The UUID migration turns FKs on at the end, so this PRAGMA is required on each sync.
+
+8. **`runSync()` requires the active company DB.** It bails if `getActiveBranchId()` does not match the branch read from secure storage — otherwise the foreground sync started by `useAppLifecycle` can land on the unauth `FCMS.db` fallback before `CloudAuthContextProvider.restore()` has called `setActiveCompanyDb`.
+
+9. **Branch switches await the first pull.** `setDesignatedBranch()` calls `runSync()` synchronously and only dispatches `SET_DESIGNATED_BRANCH` once the initial pull lands. `App.js` holds on `Splash` while `isSwitchingBranch` is true. Fire-and-forget syncs (`scheduleSyncSoon`) are fine for incremental updates but never for the first pull after a branch change — the user would see the empty new-branch DB.
+
+10. **`device_id` is preserved in echo suppression, except on initial pull.** When `since === '1970-01-01T00:00:00Z'` (sync_metadata empty) the client omits the `X-Device-Id` header so the server does NOT filter out the requesting device's own historical rows. Without this, reinstalls and branch switches with locally-originated rows would pull nothing.
+
+11. **Migrations are idempotent and run on every `setActiveCompanyDb`.** `createTables`, `alterTables`, and `createViews` all use `IF NOT EXISTS` (or `DROP + CREATE` for views, so view definitions update on existing DBs). Never write a non-idempotent migration here — it runs on every sign-in, restore, and branch switch.
 
 ### Navigation Structure
 
