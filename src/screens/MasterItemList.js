@@ -11,33 +11,34 @@ import {
   Dialog,
   Portal,
   Paragraph,
-  TextInput,
   HelperText,
   useTheme,
 } from 'react-native-paper';
+import {useNavigation} from '@react-navigation/native';
 import {useInfiniteQuery, useMutation, useQueryClient} from '@tanstack/react-query';
-import {useFormik} from 'formik';
-import * as Yup from 'yup';
 
 import {
   getMasterItems,
-  updateMasterItem,
   deleteMasterItem,
 } from '../serverDbQueries/v2/masterItems';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
 import useCurrentUser from '../hooks/useCurrentUser';
+import routes from '../constants/routes';
 
-const EditSchema = Yup.object({
-  sku: Yup.string()
-    .trim()
-    .required('Required')
-    .max(64, 'Too long')
-    .matches(/^[A-Z0-9-]+$/i, 'Letters, digits, and dashes only'),
-  description: Yup.string().nullable().max(500, 'Too long'),
-});
+const formatVariantSummary = mi => {
+  if (!mi) return '';
+  const parts = [];
+  if (mi.uom_abbrev) parts.push(mi.uom_abbrev);
+  if (mi.qty_per_piece != null && mi.qty_per_piece !== '' && mi.uom_abbrev_per_piece) {
+    parts.push(`${mi.qty_per_piece} ${mi.uom_abbrev_per_piece}`);
+  }
+  if (mi.packaging_type) parts.push(mi.packaging_type);
+  return parts.join(' · ');
+};
 
 const MasterItemList = () => {
   const {colors} = useTheme();
+  const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [{authUser}] = useCurrentUser();
   const isRoot = !!authUser?.is_root_account;
@@ -53,7 +54,6 @@ const MasterItemList = () => {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [actionError, setActionError] = useState('');
 
@@ -78,26 +78,6 @@ const MasterItemList = () => {
       },
     },
   );
-
-  const updateMutation = useMutation(updateMasterItem, {
-    onSuccess: () => {
-      queryClient.invalidateQueries(['masterItems']);
-      // The server mirrors SKU + description onto every linked items row in
-      // the company; the local items list / item views need to refetch once
-      // the next pull lands so the renamed branch items show through.
-      queryClient.invalidateQueries(['items']);
-      setEditing(null);
-    },
-    onError: err => {
-      const status = err?.response?.status;
-      const message =
-        err?.response?.data?.message ??
-        (status === 409
-          ? 'That SKU is already used by another master item.'
-          : 'Failed to update master item.');
-      setActionError(message);
-    },
-  });
 
   const deleteMutation = useMutation(deleteMasterItem, {
     onSuccess: () => {
@@ -155,7 +135,7 @@ const MasterItemList = () => {
               isRoot={isRoot}
               onEdit={() => {
                 setActionError('');
-                setEditing(mi);
+                navigation.navigate(routes.editMasterItem(), {master: mi});
               }}
               onDelete={() => {
                 setActionError('');
@@ -186,29 +166,6 @@ const MasterItemList = () => {
       )}
 
       <Portal>
-        <Dialog visible={!!editing} onDismiss={() => setEditing(null)}>
-          <Dialog.Title>Edit Master Item</Dialog.Title>
-          {editing && (
-            <EditMasterItemDialogContent
-              key={editing.id}
-              masterItem={editing}
-              isSubmitting={updateMutation.isLoading}
-              actionError={actionError}
-              onCancel={() => setEditing(null)}
-              onSubmit={values => {
-                setActionError('');
-                updateMutation.mutate({
-                  id: editing.id,
-                  sku: values.sku.trim().toUpperCase(),
-                  description: values.description ?? '',
-                });
-              }}
-            />
-          )}
-        </Dialog>
-      </Portal>
-
-      <Portal>
         <Dialog visible={!!deleting} onDismiss={() => setDeleting(null)}>
           <Dialog.Title>Delete Master Item</Dialog.Title>
           <Dialog.Content>
@@ -236,72 +193,10 @@ const MasterItemList = () => {
   );
 };
 
-const EditMasterItemDialogContent = ({
-  masterItem,
-  isSubmitting,
-  actionError,
-  onCancel,
-  onSubmit,
-}) => {
-  const formik = useFormik({
-    initialValues: {
-      sku: masterItem?.sku ?? '',
-      description: masterItem?.description ?? '',
-    },
-    validationSchema: EditSchema,
-    onSubmit,
-  });
-
-  return (
-    <>
-      <Dialog.Content>
-        <TextInput
-          label="SKU"
-          value={formik.values.sku}
-          onChangeText={formik.handleChange('sku')}
-          onBlur={formik.handleBlur('sku')}
-          autoCapitalize="characters"
-          error={!!(formik.touched.sku && formik.errors.sku)}
-          style={styles.input}
-        />
-        <HelperText
-          type={formik.touched.sku && formik.errors.sku ? 'error' : 'info'}
-          visible>
-          {formik.touched.sku && formik.errors.sku
-            ? formik.errors.sku
-            : 'Unique within this company.'}
-        </HelperText>
-        <TextInput
-          label="Description"
-          value={formik.values.description}
-          onChangeText={formik.handleChange('description')}
-          onBlur={formik.handleBlur('description')}
-          multiline
-          error={!!(formik.touched.description && formik.errors.description)}
-          style={styles.input}
-        />
-        {actionError ? (
-          <HelperText type="error" visible>
-            {actionError}
-          </HelperText>
-        ) : null}
-      </Dialog.Content>
-      <Dialog.Actions>
-        <Button onPress={onCancel}>Cancel</Button>
-        <Button
-          loading={isSubmitting}
-          onPress={formik.handleSubmit}
-          disabled={isSubmitting}>
-          Save
-        </Button>
-      </Dialog.Actions>
-    </>
-  );
-};
-
 const MasterItemAccordion = ({masterItem, isRoot, onEdit, onDelete}) => {
   const {colors} = useTheme();
   const branchItems = masterItem?.branch_items ?? [];
+  const variantSummary = formatVariantSummary(masterItem);
 
   return (
     <List.Accordion
@@ -311,6 +206,11 @@ const MasterItemAccordion = ({masterItem, isRoot, onEdit, onDelete}) => {
           <Text style={styles.descriptionText} numberOfLines={2}>
             {masterItem.description ?? ''}
           </Text>
+          {variantSummary ? (
+            <Text style={styles.variantText} numberOfLines={1}>
+              {variantSummary}
+            </Text>
+          ) : null}
         </View>
       }
       titleStyle={{color: colors.dark}}
@@ -379,12 +279,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  variantText: {
+    fontSize: 12,
+    marginTop: 2,
+    fontStyle: 'italic',
+    opacity: 0.7,
+  },
   rootActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingHorizontal: 8,
-  },
-  input: {
-    marginBottom: 4,
   },
 });

@@ -372,6 +372,31 @@ export const registerItem = async ({
       : uuid.v4();
     const skuSqlLiteral = masterItemSku.replace(/'/g, "''");
 
+    // Variant-defining values — when the user picked an existing master via
+    // SelectMasterItem, take the canonical values from masterItem so the
+    // branch items row matches every other branch joined to this master.
+    // When registering a brand-new master, fall back to the form values.
+    const variantName = String(
+      (masterItem ? masterItem.description : item.name) ?? '',
+    );
+    const variantBarcode = String(
+      (masterItem ? masterItem.barcode : item.barcode) ?? '',
+    );
+    const variantUomAbbrev = String(
+      (masterItem ? masterItem.uom_abbrev : item.uom_abbrev) ?? '',
+    );
+    const variantUomAbbrevPerPiece = String(
+      (masterItem ? masterItem.uom_abbrev_per_piece : item.uom_abbrev_per_piece) ?? '',
+    );
+    const variantQtyPerPieceRaw = masterItem
+      ? masterItem.qty_per_piece
+      : item.qty_per_piece;
+    const variantQtyPerPiece = parseFloat(variantQtyPerPieceRaw || 0);
+    const variantPackagingType = String(
+      (masterItem ? masterItem.packaging_type : item.packaging_type) ?? '',
+    );
+    const escapeSql = s => String(s ?? '').replace(/'/g, "''");
+
     const insertItemQuery = `INSERT INTO items (
       id,
       category_id,
@@ -409,15 +434,15 @@ export const registerItem = async ({
       '${yieldRefId || ''}',
       ${initStockTaxId},
       ${initStockVendorId},
-      '${item.name?.replace(/\'/g, "''")}',
-      '${item.uom_abbrev}',
+      '${escapeSql(variantName)}',
+      '${escapeSql(variantUomAbbrev)}',
       ${unitCost},
       ${parseFloat(item.unit_selling_price || 0)},
-      '${item.uom_abbrev_per_piece}',
-      ${parseFloat(item.qty_per_piece || 0)},
-      '${item.barcode || ''}',
+      '${escapeSql(variantUomAbbrevPerPiece)}',
+      ${variantQtyPerPiece},
+      '${escapeSql(variantBarcode)}',
       ${parseFloat(item.low_stock_level)},
-      '${item.packaging_type ? item.packaging_type.replace(/\'/g, "''") : ''}',
+      '${escapeSql(variantPackagingType)}',
       '${skuSqlLiteral}',
       '${newMasterItemSyncId}',
       ${deviceId ? `'${deviceId}'` : 'NULL'},
@@ -465,14 +490,29 @@ export const registerItem = async ({
       if (!masterItem) {
         try {
           const registeredByAccountId = await loadCurrentAccountId();
-          const description = String(item.name ?? '')
-            .trim()
-            .toUpperCase()
-            .replace(/'/g, "''");
+          const description = escapeSql(
+            String(item.name ?? '').trim().toUpperCase(),
+          );
+          // Variant fields on the master entry — same values that just went
+          // onto the items row, so any future branch that picks this master
+          // gets an exact variant match.
+          const masterBarcode = escapeSql(variantBarcode);
+          const masterUomAbbrev = escapeSql(variantUomAbbrev);
+          const masterUomAbbrevPerPiece = escapeSql(variantUomAbbrevPerPiece);
+          const masterPackagingType = escapeSql(variantPackagingType);
+          // Numeric: write NULL when no per-piece measurement, so the master
+          // doesn't claim a "0 per piece" variant identity.
+          const masterQtyPerPieceSql =
+            variantQtyPerPiece > 0 ? String(variantQtyPerPiece) : 'NULL';
           const insertMasterItemQuery = `INSERT INTO master_items (
             id,
             sku,
             description,
+            barcode,
+            uom_abbrev,
+            uom_abbrev_per_piece,
+            qty_per_piece,
+            packaging_type,
             registered_by_account_id,
             device_id,
             branch_id,
@@ -482,6 +522,11 @@ export const registerItem = async ({
             '${newMasterItemSyncId}',
             '${skuSqlLiteral}',
             '${description}',
+            '${masterBarcode}',
+            '${masterUomAbbrev}',
+            '${masterUomAbbrevPerPiece}',
+            ${masterQtyPerPieceSql},
+            '${masterPackagingType}',
             ${registeredByAccountId ? `'${registeredByAccountId}'` : 'NULL'},
             ${deviceId ? `'${deviceId}'` : 'NULL'},
             ${branchId ? `'${branchId}'` : 'NULL'},

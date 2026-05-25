@@ -36,13 +36,31 @@ export const getMasterItems = async ({pageParam = 1, queryKey}) => {
 };
 
 /**
- * Root-only. Updates SKU and/or description on a master item by id.
+ * Root-only. Updates editable fields on a master item by id. Changing sku,
+ * description, or any of the 5 variant-defining fields (barcode, uom_abbrev,
+ * uom_abbrev_per_piece, qty_per_piece, packaging_type) mirrors the new value
+ * to every linked items row in the company via the server's update mirror.
  * Server returns 403 for non-root, 409 on SKU collision.
  */
-export const updateMasterItem = async ({id, sku, description}) => {
+export const updateMasterItem = async ({
+  id,
+  sku,
+  description,
+  barcode,
+  uom_abbrev,
+  uom_abbrev_per_piece,
+  qty_per_piece,
+  packaging_type,
+}) => {
   const body = {};
   if (sku !== undefined) body.sku = sku;
   if (description !== undefined) body.description = description;
+  if (barcode !== undefined) body.barcode = barcode;
+  if (uom_abbrev !== undefined) body.uom_abbrev = uom_abbrev;
+  if (uom_abbrev_per_piece !== undefined)
+    body.uom_abbrev_per_piece = uom_abbrev_per_piece;
+  if (qty_per_piece !== undefined) body.qty_per_piece = qty_per_piece;
+  if (packaging_type !== undefined) body.packaging_type = packaging_type;
   const {data} = await cloudApiV2.put(`/api/v2/master-items/${id}`, body, {
     headers: await getAuthHeaders(),
   });

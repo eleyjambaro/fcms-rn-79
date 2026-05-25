@@ -58,6 +58,11 @@ const SelectMasterItem = ({navigation, route}) => {
         sync_id: mi.sync_id,
         sku: mi.sku,
         description: mi.description,
+        barcode: mi.barcode,
+        uom_abbrev: mi.uom_abbrev,
+        uom_abbrev_per_piece: mi.uom_abbrev_per_piece,
+        qty_per_piece: mi.qty_per_piece,
+        packaging_type: mi.packaging_type,
       },
     });
   };

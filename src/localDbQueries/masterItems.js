@@ -43,7 +43,9 @@ export const getLocalMastersAvailableForBranch = async ({
   const totalPages = totalItems === 0 ? 1 : Math.ceil(totalItems / limit);
 
   const rowsResult = await db.executeSql(
-    `SELECT mi.id, mi.sync_id, mi.sku, mi.description, mi.updated_at
+    `SELECT mi.id, mi.sync_id, mi.sku, mi.description,
+            mi.barcode, mi.uom_abbrev, mi.uom_abbrev_per_piece,
+            mi.qty_per_piece, mi.packaging_type, mi.updated_at
      FROM active_master_items mi
      ${whereSql}
      ORDER BY mi.description COLLATE NOCASE ASC, mi.sku COLLATE NOCASE ASC

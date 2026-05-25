@@ -123,6 +123,7 @@ export const routes = {
   masterItemList: () => 'MasterItemList',
   selectAddItemMode: () => 'SelectAddItemMode',
   selectMasterItem: () => 'SelectMasterItem',
+  editMasterItem: () => 'EditMasterItem',
 };
 
 export default routes;

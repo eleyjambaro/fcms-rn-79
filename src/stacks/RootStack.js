@@ -82,6 +82,7 @@ import ManageBranches from '../screens/ManageBranches';
 import MasterItemList from '../screens/MasterItemList';
 import SelectAddItemMode from '../screens/SelectAddItemMode';
 import SelectMasterItem from '../screens/SelectMasterItem';
+import EditMasterItem from '../screens/EditMasterItem';
 import UnauthorizedAccount from '../screens/UnauthorizedAccount';
 import ProduceFinishedProductStock from '../modals/ProduceFinishedProductStock';
 import Counter from '../screens/Counter';
@@ -118,6 +119,7 @@ const MemoizedManageBranches = React.memo(ManageBranches);
 const MemoizedMasterItemList = React.memo(MasterItemList);
 const MemoizedSelectAddItemMode = React.memo(SelectAddItemMode);
 const MemoizedSelectMasterItem = React.memo(SelectMasterItem);
+const MemoizedEditMasterItem = React.memo(EditMasterItem);
 const MemoizedDeleteMyAccount = React.memo(DeleteMyAccount);
 const MemoizedCreateRecipe = React.memo(CreateRecipe);
 const MemoizedEditRecipe = React.memo(EditRecipe);
@@ -344,6 +346,11 @@ const RootStack = () => {
           name={routes.selectMasterItem()}
           component={MemoizedSelectMasterItem}
           options={{headerTitle: 'Select from Master Item List'}}
+        />
+        <Stack.Screen
+          name={routes.editMasterItem()}
+          component={MemoizedEditMasterItem}
+          options={{headerTitle: 'Edit Master Item'}}
         />
         <Stack.Screen
           name={routes.addItem()}

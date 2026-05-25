@@ -46,6 +46,7 @@ import PressableSectionHeading from '../headings/PressableSectionHeading';
 import {Dropdown} from 'react-native-paper-dropdown';
 import PreventGoBack from '../utils/PreventGoBack';
 import UnitOrTotalCostRadioButtonWrapper from './UnitOrTotalCostRadioButtonWrapper';
+import {PACKAGING_TYPE_OPTIONS} from '../../constants/itemForm';
 
 // ---------------------------------------------------------------------------
 // Validation schema
@@ -169,27 +170,6 @@ const ActivityLoader = ({colors}) => (
 // Constants
 // ---------------------------------------------------------------------------
 
-const PACKAGING_TYPE_OPTIONS = [
-  {label: 'None', value: ''},
-  {label: 'Bag', value: 'bag'},
-  {label: 'Bottle', value: 'bottle'},
-  {label: 'Box', value: 'box'},
-  {label: 'Bundle', value: 'bundle'},
-  {label: 'Can', value: 'can'},
-  {label: 'Carton', value: 'carton'},
-  {label: 'Crate', value: 'crate'},
-  {label: 'Drum', value: 'drum'},
-  {label: 'Jar', value: 'jar'},
-  {label: 'Loaf', value: 'loaf'},
-  {label: 'Pack', value: 'pack'},
-  {label: 'Pail', value: 'pail'},
-  {label: 'Pouch', value: 'pouch'},
-  {label: 'Sack', value: 'sack'},
-  {label: 'Tray', value: 'tray'},
-  {label: 'Tub', value: 'tub'},
-  {label: 'Tube', value: 'tube'},
-];
-
 const ItemForm = props => {
   const {
     item,
@@ -218,6 +198,17 @@ const ItemForm = props => {
       ...fromCaller,
       name: masterItem.description,
       sku: masterItem.sku,
+      barcode: masterItem.barcode ?? '',
+      uom_abbrev: masterItem.uom_abbrev ?? '',
+      uom_abbrev_per_piece: masterItem.uom_abbrev_per_piece ?? '',
+      qty_per_piece:
+        masterItem.qty_per_piece != null && masterItem.qty_per_piece !== ''
+          ? String(masterItem.qty_per_piece)
+          : '',
+      packaging_type: masterItem.packaging_type ?? '',
+      // Pre-enable the per-piece section so its fields render with the
+      // pre-filled (and locked) values when the master defines them.
+      add_measurement_per_piece: !!masterItem.uom_abbrev_per_piece,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawInitialValues, masterItem, item]);
@@ -458,6 +449,17 @@ const ItemForm = props => {
     const {add_measurement_per_piece, set_uom_to_uom_per_piece, uom_abbrev} =
       values;
 
+    // Master-locked add mode: the master decides per-piece via its own
+    // uom_abbrev_per_piece + qty_per_piece. Show the per-piece block whenever
+    // the master defines both — regardless of uom_abbrev.
+    if (
+      !editMode &&
+      masterItem &&
+      masterItem.uom_abbrev_per_piece &&
+      masterItem.qty_per_piece
+    )
+      return true;
+
     if (!editMode && uom_abbrev === 'ea' && add_measurement_per_piece)
       return true;
     if (
@@ -516,7 +518,7 @@ const ItemForm = props => {
         placeholder="Select Unit"
         label="UOM Per Piece (Per Package)"
         required
-        disabled={readOnly}
+        disabled={readOnly || isMasterLocked}
         renderValueCurrentValue={values.uom_abbrev_per_piece}
         renderValue={(_value, renderingValueProps) =>
           renderUOMValue(values.uom_abbrev_per_piece, renderingValueProps)
@@ -542,6 +544,10 @@ const ItemForm = props => {
 
     const showQtyPerPiece =
       (!editMode &&
+        masterItem &&
+        masterItem.uom_abbrev_per_piece &&
+        masterItem.qty_per_piece) ||
+      (!editMode &&
         values.uom_abbrev === 'ea' &&
         values.add_measurement_per_piece) ||
       (editMode &&
@@ -554,7 +560,13 @@ const ItemForm = props => {
         values.set_uom_to_uom_per_piece) ||
       (editMode && item.uom_abbrev === 'ea' && item.uom_abbrev_per_piece);
 
-    const disabled = editMode; // isReadOnly is always false per original
+    const disabled = editMode || isMasterLocked;
+    // Disable the packaging dropdown when master-locked. The Dropdown
+    // component swallows showDropDown calls when its `visible` prop never
+    // flips, so no-op the trigger.
+    const packagingShowDropDown = isMasterLocked
+      ? () => {}
+      : () => setShowPackagingDropDown(true);
 
     return (
       <>
@@ -589,7 +601,7 @@ const ItemForm = props => {
               label="Packaging Type (Optional)"
               mode="flat"
               visible={showPackagingDropDown}
-              showDropDown={() => setShowPackagingDropDown(true)}
+              showDropDown={packagingShowDropDown}
               onDismiss={() => setShowPackagingDropDown(false)}
               value={values.packaging_type}
               hideMenuHeader
@@ -597,7 +609,14 @@ const ItemForm = props => {
               options={PACKAGING_TYPE_OPTIONS}
               activeColor={colors.accent}
               dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
+              disabled={isMasterLocked}
             />
+            {isMasterLocked ? (
+              <HelperText type="info">
+                Variant fields locked to Master Item List — edit on the Master
+                Item List screen.
+              </HelperText>
+            ) : null}
           </>
         )}
       </>
@@ -606,6 +625,10 @@ const ItemForm = props => {
 
   const renderAddMeasurementPerPieceCheckbox = formikProps => {
     const {setFieldValue, values, setFieldTouched, setFieldError} = formikProps;
+
+    // When master-locked, the master owns the per-piece decision — hide the
+    // toggle so the user can't disable a master-defined per-piece variant.
+    if (isMasterLocked) return null;
 
     const show =
       (editMode &&
@@ -1624,6 +1647,7 @@ const ItemForm = props => {
           onBlur={handleBlur('barcode')}
           value={values.barcode}
           style={[styles.textInput, {flex: 1}]}
+          editable={!isMasterLocked}
         />
         <MaterialCommunityIcons
           name="barcode-scan"
@@ -1659,7 +1683,7 @@ const ItemForm = props => {
         containerStyle={{marginTop: -2}}
         placeholder="Select Unit"
         label="Unit of Measurement"
-        disabled={editMode}
+        disabled={editMode || isMasterLocked}
         required
         renderValueCurrentValue={values.uom_abbrev}
         renderValue={(_value, renderingValueProps) =>

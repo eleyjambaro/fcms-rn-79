@@ -1140,6 +1140,11 @@ const createMasterItemsTableQuery = `
     id TEXT PRIMARY KEY NOT NULL,
     sku VARCHAR NOT NULL,
     description VARCHAR,
+    barcode VARCHAR,
+    uom_abbrev VARCHAR,
+    uom_abbrev_per_piece VARCHAR,
+    qty_per_piece REAL,
+    packaging_type VARCHAR,
     registered_by_account_id VARCHAR,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
     device_id VARCHAR DEFAULT NULL,
@@ -1859,6 +1864,51 @@ export const alterTables = async currentAppVersion => {
       );
     } catch (error) {
       console.debug('[alterTables] Error adding items.sku columns:', error);
+    }
+
+    /**
+     * Master Item List variant-defining columns (Part 2C). These live
+     * canonically on master_items and are mirrored onto every linked items
+     * row via the server's MasterItemController::update endpoint. Schema
+     * parity invariant: server migration 2024_01_01_000019 adds the same
+     * columns.
+     */
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'master_items',
+        'barcode',
+        `ALTER TABLE master_items ADD COLUMN barcode VARCHAR DEFAULT NULL;`,
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'master_items',
+        'uom_abbrev',
+        `ALTER TABLE master_items ADD COLUMN uom_abbrev VARCHAR DEFAULT NULL;`,
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'master_items',
+        'uom_abbrev_per_piece',
+        `ALTER TABLE master_items ADD COLUMN uom_abbrev_per_piece VARCHAR DEFAULT NULL;`,
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'master_items',
+        'qty_per_piece',
+        `ALTER TABLE master_items ADD COLUMN qty_per_piece REAL DEFAULT NULL;`,
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'master_items',
+        'packaging_type',
+        `ALTER TABLE master_items ADD COLUMN packaging_type VARCHAR DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding master_items variant columns:',
+        error,
+      );
     }
 
     /**
