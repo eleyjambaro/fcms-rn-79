@@ -361,6 +361,7 @@ const LogView = props => {
   }
 
   const log = data?.result;
+  const idtImport = data?.idtImport ?? null;
   const yieldStockLog = getYieldStockLogData?.result;
 
   if (!log) return null;
@@ -434,6 +435,7 @@ const LogView = props => {
         {log && (
           <ItemLogDetails
             log={log}
+            idtImport={idtImport}
             containerStyle={{marginBottom: 0}}
             onPressItemOptions={openOptionsBottomSheet}
             onPressEditRemarks={showUpdateLogRemarksModal}

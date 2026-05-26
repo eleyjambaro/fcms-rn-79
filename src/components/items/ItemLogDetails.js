@@ -30,7 +30,8 @@ import {formatUOMAbbrev} from '../../utils/stringHelpers';
 import DashedDivider from '../dividers/DashedDivider';
 
 const ItemLogDetails = props => {
-  const {log, containerStyle, onPressItemOptions, onPressEditRemarks} = props;
+  const {log, idtImport, containerStyle, onPressItemOptions, onPressEditRemarks} =
+    props;
   const navigation = useNavigation();
   const {colors} = useTheme();
   const currencySymbol = useCurrencySymbol();
@@ -168,6 +169,96 @@ const ItemLogDetails = props => {
         numberOfLines={1}>
         {date}
       </Text>
+    );
+  };
+
+  const renderImportDetails = () => {
+    if (!idtImport) return null;
+
+    const importedAt = idtImport.imported_at
+      ? moment(idtImport.imported_at).format('MMM DD, YYYY hh:mm A')
+      : '—';
+
+    return (
+      <>
+        <Divider style={{marginTop: 15}} />
+
+        <View style={styles.detailsContainer}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: 4,
+              marginBottom: 10,
+            }}>
+            <MaterialCommunityIcons
+              name="file-import-outline"
+              size={25}
+              color={log.voided === 1 ? colors.notification : colors.dark}
+            />
+            <Subheading
+              style={[
+                {marginLeft: 5, fontWeight: 'bold'},
+                log.voided === 1 && {color: colors.notification},
+              ]}>
+              {'Import Details'}
+            </Subheading>
+          </View>
+          <View style={[styles.detailsListItem]}>
+            <Text style={{fontWeight: 'bold'}}>{`Import ID:`}</Text>
+            <Text
+              numberOfLines={1}
+              style={{
+                flex: 1,
+                marginLeft: 7,
+                fontWeight: 'bold',
+                fontSize: 11,
+                color: colors.dark,
+              }}>
+              {idtImport.sync_id || idtImport.id}
+            </Text>
+          </View>
+          <View style={[styles.detailsListItem]}>
+            <Text style={{fontWeight: 'bold'}}>{`Imported At:`}</Text>
+            <Text
+              numberOfLines={1}
+              style={{
+                flex: 1,
+                marginLeft: 7,
+                fontWeight: 'bold',
+                color: colors.dark,
+              }}>
+              {importedAt}
+            </Text>
+          </View>
+          <View style={[styles.detailsListItem]}>
+            <Text style={{fontWeight: 'bold'}}>{`Imported By:`}</Text>
+            <Text
+              numberOfLines={1}
+              style={{
+                flex: 1,
+                marginLeft: 7,
+                fontWeight: 'bold',
+                fontSize: 11,
+                color: colors.dark,
+              }}>
+              {idtImport.imported_by_account_id || '—'}
+            </Text>
+          </View>
+        </View>
+      </>
+    );
+  };
+
+  const renderIdtImportQtySubtext = () => {
+    if (!log.idt_import_id) return null;
+    return (
+      <Text
+        style={{
+          fontStyle: 'italic',
+          marginLeft: 6,
+          fontSize: 14,
+        }}>{` (import via IDT)`}</Text>
     );
   };
 
@@ -340,6 +431,7 @@ const ItemLogDetails = props => {
               }}>
               {`${commaNumber(log.adjustment_qty?.toFixed(2))} ${unit}`}
               {renderRemovedStockQtySubtext()}
+              {renderIdtImportQtySubtext()}
             </Subheading>
           </View>
 
@@ -533,6 +625,8 @@ const ItemLogDetails = props => {
         </View>
 
         {renderYieldDetails()}
+
+        {renderImportDetails()}
       </View>
 
       <View

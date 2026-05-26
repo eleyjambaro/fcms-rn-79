@@ -1160,6 +1160,23 @@ const createMasterItemsTableQuery = `
   );
 `;
 
+// Audit record for each Import Inventory Data Template (IDT) action. One row
+// is created per import call; every inventory_logs row produced by that
+// import references this id via inventory_logs.idt_import_id.
+const createInventoryDataTemplateImportsTableQuery = `
+  CREATE TABLE IF NOT EXISTS inventory_data_template_imports (
+    id TEXT PRIMARY KEY NOT NULL,
+    imported_by_account_id VARCHAR,
+    imported_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
+    sync_id VARCHAR(36) DEFAULT NULL,
+    updated_at DATETIME DEFAULT NULL,
+    synced_at DATETIME DEFAULT NULL,
+    is_deleted INTEGER DEFAULT 0
+  );
+`;
+
 const DELTA_SYNC_TABLES = [
   'taxes',
   'categories',
@@ -1175,6 +1192,7 @@ const DELTA_SYNC_TABLES = [
   'selling_menus',
   'selling_menu_items',
   'inventory_logs',
+  'inventory_data_template_imports',
   'batch_purchase_groups',
   'batch_purchase_entries',
   'batch_stock_usage_groups',
@@ -1225,6 +1243,7 @@ export const createTables = async () => {
     await db.executeSql(createVendorContactPersonsTableQuery);
     await db.executeSql(createItemsTableQuery);
     await db.executeSql(createMasterItemsTableQuery);
+    await db.executeSql(createInventoryDataTemplateImportsTableQuery);
     await db.executeSql(createBatchPurchaseGroupsTableQuery);
     await db.executeSql(createBatchPurchaseEntriesTableQuery);
     await db.executeSql(createBatchStockUsageGroupsTableQuery);
@@ -1965,6 +1984,28 @@ export const alterTables = async currentAppVersion => {
     }
 
     /**
+     * IDT import audit. Links each inventory_logs row to its originating
+     * Import Inventory Data Template event via idt_import_id; the parent
+     * row lives in inventory_data_template_imports (created idempotently
+     * in createTables()). Nullable — historical rows and non-IDT logs
+     * have NULL. Schema parity invariant: server migration
+     * 2024_01_01_000022 adds idt_import_sync_id to inventory_logs.
+     */
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'inventory_logs',
+        'idt_import_id',
+        `ALTER TABLE inventory_logs ADD COLUMN idt_import_id VARCHAR DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding inventory_logs.idt_import_id:',
+        error,
+      );
+    }
+
+    /**
      * New columns for JSON delta sync
      */
     try {
@@ -1983,6 +2024,7 @@ export const alterTables = async currentAppVersion => {
         'selling_menus',
         'selling_menu_items',
         'inventory_logs',
+        'inventory_data_template_imports',
         'batch_purchase_groups',
         'batch_purchase_entries',
         'batch_stock_usage_groups',
@@ -2365,6 +2407,7 @@ export const migrateIntegerIdsToUUID = async () => {
     await db.executeSql(createRecipesTableQuery);
     await db.executeSql(createItemsTableQuery);
     await db.executeSql(createMasterItemsTableQuery);
+    await db.executeSql(createInventoryDataTemplateImportsTableQuery);
     await db.executeSql(createModifiersTableQuery);
     await db.executeSql(createModifierOptionsTableQuery);
     await db.executeSql(createSellingMenusTableQuery);

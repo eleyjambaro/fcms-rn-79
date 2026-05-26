@@ -220,6 +220,8 @@ export const insertTemplateDataToDb = async ({
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
+    const importedByAccountId = await loadCurrentAccountId();
+    const idtImportId = uuid.v4();
     const appConfig = await getAppConfig();
     const {insertLimit, insertCategoryLimit, insertItemLimitPerCategory} =
       appConfig;
@@ -1436,6 +1438,32 @@ export const insertTemplateDataToDb = async ({
 
     if (notExistingItems.length > 0) {
       /**
+       * Insert audit row for this IDT import event. Every inventory_logs row
+       * below stamps the same idt_import_id so the UI can group logs by the
+       * import that produced them and surface importer + date provenance.
+       */
+      const insertIdtImportQuery = `
+        INSERT INTO inventory_data_template_imports (
+          id,
+          imported_by_account_id,
+          imported_at,
+          device_id,
+          branch_id,
+          sync_id,
+          updated_at
+        ) VALUES (
+          '${idtImportId}',
+          ${importedByAccountId ? `'${importedByAccountId}'` : 'NULL'},
+          CURRENT_TIMESTAMP,
+          ${deviceId ? `'${deviceId}'` : 'NULL'},
+          ${branchId ? `'${branchId}'` : 'NULL'},
+          '${idtImportId}',
+          CURRENT_TIMESTAMP
+        );
+      `;
+      await db.executeSql(insertIdtImportQuery);
+
+      /**
        * Insert inventory logs for imported items
        * - operation_id initial_stock UUID - when no purchase date
        * - operation_id new_purchase UUID - when purchase date is provided
@@ -1459,6 +1487,7 @@ export const insertTemplateDataToDb = async ({
           adjustment_date,
           beginning_inventory_date,
           remarks,
+          idt_import_id,
           device_id,
           branch_id,
           sync_id,
@@ -1582,6 +1611,7 @@ export const insertTemplateDataToDb = async ({
           ${adjustmentDateValue},
           ${beginningInventoryDateValue},
           ${remarks},
+          '${idtImportId}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
           '${newInvLogId}',

@@ -63,6 +63,19 @@ const ItemLogListItem = props => {
     }
   };
 
+  const renderIdtImportIcon = () => {
+    if (item.idt_import_id) {
+      return (
+        <MaterialCommunityIcons
+          style={{marginLeft: 8}}
+          name="file-import-outline"
+          size={18}
+          color={colors.primary}
+        />
+      );
+    }
+  };
+
   const renderVoidedIcon = () => {
     if (item.voided === 1) {
       return (
@@ -228,6 +241,7 @@ const ItemLogListItem = props => {
                 : item.operation_name}
             </Text>
             {renderRemarksIcon()}
+            {renderIdtImportIcon()}
             {renderVoidedIcon()}
           </View>
           <Text

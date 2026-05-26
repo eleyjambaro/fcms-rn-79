@@ -44,6 +44,12 @@ const GROUP_A_ENTITIES = [
   // Company-wide Master Item List (shared across all branches in the company).
   // Server scopes pull by company_id (not branch_id) for this entity.
   {key: 'master_items', table: 'master_items'},
+  // Audit trail for IDT (Import Inventory Data Template) events. Branch-scoped.
+  // No FK remapping needed — imported_by_account_id is a raw account id, not a sync_id.
+  {
+    key: 'inventory_data_template_imports',
+    table: 'inventory_data_template_imports',
+  },
   {key: 'vendors', table: 'vendors'},
   {
     key: 'vendor_contact_persons',
@@ -190,6 +196,7 @@ const GROUP_A_ENTITIES = [
       recipe_id: 'recipe_sync_id',
       batch_purchase_group_id: 'batch_purchase_group_sync_id',
       invoice_id: 'invoice_sync_id',
+      idt_import_id: 'idt_import_sync_id',
     },
   },
 ];

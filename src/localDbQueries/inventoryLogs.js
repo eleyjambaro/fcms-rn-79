@@ -141,10 +141,11 @@ export const getInventoryLog = async ({queryKey}) => {
     inventory_logs.operation_id AS operation_id,
     inventory_logs.recipe_id,
     inventory_logs.yield_ref_id,
+    inventory_logs.idt_import_id,
     operations.type AS operation_type,
     operations.name AS operation_name,
     operations.code AS operation_code,
-    
+
     items.category_id AS item_category_id,
     categories.name AS item_category_name,
     items.name AS item_name,
@@ -154,7 +155,7 @@ export const getInventoryLog = async ({queryKey}) => {
     items.qty_per_piece AS item_qty_per_piece,
     items.initial_stock_qty AS item_initial_stock_qty,
     items.current_stock_qty AS item_current_stock_qty,
-    
+
     voided,
     item_id,
     ref_tax_id,
@@ -185,9 +186,22 @@ export const getInventoryLog = async ({queryKey}) => {
   try {
     const db = await getDBConnection();
     const result = await db.executeSql(query);
+    const log = result[0].rows.item(0);
+
+    let idtImport = null;
+    if (log?.idt_import_id) {
+      const idtImportResult = await db.executeSql(
+        `SELECT id, sync_id, imported_by_account_id, imported_at
+         FROM active_inventory_data_template_imports
+         WHERE id = '${log.idt_import_id}'
+         LIMIT 1;`,
+      );
+      idtImport = idtImportResult?.[0]?.rows?.item(0) ?? null;
+    }
 
     return {
-      result: result[0].rows.item(0),
+      result: log,
+      idtImport,
     };
   } catch (error) {
     console.debug(error);
