@@ -883,6 +883,7 @@ export const insertTemplateDataToDb = async ({
 
       let insertNotExistingVendorsNameToDbQuery = `
         INSERT INTO vendors (
+          id,
           vendor_display_name,
           device_id,
           branch_id,
@@ -897,11 +898,13 @@ export const insertTemplateDataToDb = async ({
         let notExistingVendorName = notExistingVendorsName[index];
         insertedVendorsName.push(notExistingVendorName);
 
+        const newVendorId = uuid.v4();
         insertNotExistingVendorsNameToDbQuery += `(
+          '${newVendorId}',
           '${notExistingVendorName.replace(/\'/g, "''")}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newVendorId}',
           CURRENT_TIMESTAMP
         )`;
 
