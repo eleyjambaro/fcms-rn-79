@@ -391,6 +391,8 @@ const createItemsTableQuery = `
     low_stock_level REAL,
     unit_selling_price REAL,
     packaging_type VARCHAR,
+    sku VARCHAR DEFAULT NULL,
+    master_item_sync_id VARCHAR(36) DEFAULT NULL,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
     device_id VARCHAR DEFAULT NULL,
     branch_id VARCHAR DEFAULT NULL,

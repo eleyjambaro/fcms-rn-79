@@ -185,8 +185,16 @@ const ItemForm = props => {
   // name + SKU are locked to the master's values. Variant identity lives on
   // the master; only the Master Item List edit screen (root-only) can change
   // it.
+  //
+  // In edit mode we check BOTH master_item_sync_id and sku. master_item_sync_id
+  // is the canonical join key, but sku alone is also a reliable signal: every
+  // items row registered since Part 1 has had a SKU (auto-generated or
+  // user-supplied) tied to a master_items entry. Falling back to sku covers
+  // any edge case where master_item_sync_id wasn't set (e.g. legacy rows from
+  // a partial-migration window where the column was added late).
   const isMasterLocked =
-    !!masterItem || (editMode && !!item?.master_item_sync_id);
+    !!masterItem ||
+    (editMode && (!!item?.master_item_sync_id || !!item?.sku));
 
   // Merge master overrides on top of whatever initialValues the caller passed
   // (or the form-wide defaults if none). Falsy `initialValues` means the

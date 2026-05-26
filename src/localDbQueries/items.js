@@ -845,6 +845,8 @@ export const getItem = async ({queryKey}) => {
     items.id AS id,
     items.name AS name,
     items.category_id AS category_id,
+    items.sku AS sku,
+    items.master_item_sync_id AS master_item_sync_id,
     categories.name AS category_name,
     (SELECT beginning_inventory_date FROM inventory_logs WHERE voided != 1 AND item_id = '${id}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')) AS beginning_inventory_date,
 
