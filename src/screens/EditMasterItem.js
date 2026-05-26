@@ -76,8 +76,17 @@ const EditMasterItem = ({navigation, route}) => {
           ? String(master.qty_per_piece)
           : '',
       packaging_type: master?.packaging_type ?? '',
-      // Pre-toggle the per-piece block on if the master already has it set.
-      add_measurement_per_piece: !!master?.uom_abbrev_per_piece,
+      // Pre-toggle the per-piece block on if ANY of the per-piece fields are
+      // already set on the master — not just uom_abbrev_per_piece. An offline
+      // registration that lands a partial master row (e.g. qty_per_piece +
+      // packaging_type but uom_abbrev_per_piece NULL) would otherwise render
+      // with the checkbox unchecked and the block hidden, and saving in that
+      // state would null out the existing qty / packaging values.
+      add_measurement_per_piece: !!(
+        master?.uom_abbrev_per_piece ||
+        (master?.qty_per_piece != null && master?.qty_per_piece !== '') ||
+        master?.packaging_type
+      ),
     },
     validationSchema: EditMasterItemSchema,
     onSubmit: values => {

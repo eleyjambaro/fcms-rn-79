@@ -216,7 +216,15 @@ const ItemForm = props => {
       packaging_type: masterItem.packaging_type ?? '',
       // Pre-enable the per-piece section so its fields render with the
       // pre-filled (and locked) values when the master defines them.
-      add_measurement_per_piece: !!masterItem.uom_abbrev_per_piece,
+      // Check all three per-piece fields, not just uom_abbrev_per_piece, so
+      // a partially-populated master (e.g. has qty + packaging but null
+      // uom_per_piece) still opens the block instead of silently hiding the
+      // values from the user.
+      add_measurement_per_piece: !!(
+        masterItem.uom_abbrev_per_piece ||
+        (masterItem.qty_per_piece != null && masterItem.qty_per_piece !== '') ||
+        masterItem.packaging_type
+      ),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawInitialValues, masterItem, item]);
