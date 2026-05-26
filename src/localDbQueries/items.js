@@ -12,6 +12,7 @@ import {appDefaultsTypeRefs} from '../constants/appDefaults';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 import {scheduleSyncSoon} from '../services/syncService';
 import {generateMasterItemSku} from '../utils/generateMasterItemSku';
+import {generateMasterItemDescription} from '../utils/generateMasterItemDescription';
 
 // Read the current cloud account once per registerItem call so we can stamp
 // audit fields (e.g. master_items.registered_by_account_id). Returns null
@@ -490,8 +491,19 @@ export const registerItem = async ({
       if (!masterItem) {
         try {
           const registeredByAccountId = await loadCurrentAccountId();
+          // Compose the canonical master description from the variant fields
+          // — strips redundant tokens from the user-typed name (packaging
+          // words, "260G" patterns) and re-emits them in a consistent shape
+          // so the same product registered from different branches lands on
+          // the same description.
           const description = escapeSql(
-            String(item.name ?? '').trim().toUpperCase(),
+            generateMasterItemDescription({
+              name: item.name,
+              uom_abbrev: variantUomAbbrev,
+              uom_abbrev_per_piece: variantUomAbbrevPerPiece,
+              qty_per_piece: variantQtyPerPiece,
+              packaging_type: variantPackagingType,
+            }),
           );
           // Variant fields on the master entry — same values that just went
           // onto the items row, so any future branch that picks this master
