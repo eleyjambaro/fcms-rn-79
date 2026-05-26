@@ -1324,9 +1324,27 @@ const Account = props => {
   };
 
   const renderSuccessMessage = () => {
-    if (successMessage) {
-      return <Paragraph style={{marginTop: 10}}>{successMessage}</Paragraph>;
-    }
+    if (!successMessage) return null;
+
+    // Split on "Found N item(s)" and "Inserted N new item(s)" so we can
+    // emphasize the imported count in the dialog. Split includes the capture
+    // group, so matched segments land on odd indices.
+    const boldRegex = /(Found \d+ items?|Inserted \d+ new items?)/g;
+    const parts = successMessage.split(boldRegex);
+
+    return (
+      <Paragraph style={{marginTop: 10}}>
+        {parts.map((part, idx) =>
+          idx % 2 === 1 ? (
+            <Text key={idx} style={{fontWeight: 'bold'}}>
+              {part}
+            </Text>
+          ) : (
+            part
+          ),
+        )}
+      </Paragraph>
+    );
   };
 
   const renderAppSuggestionsModalContent = () => {
