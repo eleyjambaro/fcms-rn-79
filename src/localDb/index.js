@@ -1846,6 +1846,26 @@ export const alterTables = async currentAppVersion => {
     }
 
     /**
+     * Reclassify `initial_stock` as `add_stock`. Originally seeded under
+     * `remove_stock` by mistake — Initial Stock is the user's opening
+     * inventory balance, which adds to the ledger. Every IDT import (which
+     * uses this operation when no purchase_date / transfer_in_date is given)
+     * was previously subtracting initial qty from current_stock_qty,
+     * producing negative totals. Idempotent: only flips rows still on the
+     * old value.
+     */
+    try {
+      await db.executeSql(
+        `UPDATE operations SET type = 'add_stock' WHERE code = 'initial_stock' AND type = 'remove_stock';`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error reclassifying initial_stock type:',
+        error,
+      );
+    }
+
+    /**
      * Master Item List columns on items.
      * - `sku` denormalizes the master_items.sku for offline display.
      * - `master_item_sync_id` is the stable join key to the company-wide

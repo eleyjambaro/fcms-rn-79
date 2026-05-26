@@ -59,16 +59,21 @@ export const inventoryDefaultOperations = [
     is_app_default: 1,
     order: 3,
   },
-
-  // remove stock
   {
     id: 5,
     code: OPERATION_CODES.INITIAL_STOCK,
-    type: 'remove_stock',
+    // "Initial Stock" is the user's opening inventory balance — an addition
+    // to the stock ledger, not a removal. Was previously mis-classified as
+    // remove_stock, which caused IDT-imported initial stock to subtract
+    // from current_stock_qty. The alterTables() migration in localDb/index.js
+    // backfills this fix on existing DBs.
+    type: 'add_stock',
     name: 'Initial Stock',
     is_app_default: 1,
-    order: 0,
+    order: 4,
   },
+
+  // remove stock
   {
     id: 6,
     code: OPERATION_CODES.STOCK_USAGE,

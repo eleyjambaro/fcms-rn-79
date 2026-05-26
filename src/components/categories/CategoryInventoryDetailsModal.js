@@ -119,7 +119,7 @@ const CategoryInventoryDetailsModal = props => {
         );
       }
 
-      if (operation.type === 'remove_stock' && operation.code !== OPERATION_CODES.INITIAL_STOCK) {
+      if (operation.type === 'remove_stock') {
         removed.push(
           <DataTable.Row key={operation.id}>
             <DataTable.Cell>{`${operation.name}`}</DataTable.Cell>
