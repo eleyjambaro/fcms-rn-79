@@ -39,6 +39,8 @@ import useIngredientsValidator from './hooks/useIngredientsValidator';
 import YieldCostCalculation from './components/YieldCostCalculation';
 import FinishedProductDetails from './components/FinishedProductDetails';
 import RecipeRequiredIngredientsModal from './modals/RecipeRequiredIngredientsModal';
+import {Dropdown} from 'react-native-paper-dropdown';
+import {PACKAGING_TYPE_OPTIONS} from '../../constants/itemForm';
 
 const ItemValidationSchema = Yup.object().shape({
   edit_mode: Yup.boolean(),
@@ -75,6 +77,7 @@ const ItemValidationSchema = Yup.object().shape({
     then: () => Yup.string().required(),
     otherwise: () => Yup.string().notRequired(),
   }),
+  packaging_type: Yup.string().notRequired(),
 });
 
 const FinishedProductForm = props => {
@@ -100,6 +103,7 @@ const FinishedProductForm = props => {
       set_uom_to_uom_per_piece: false,
       uom_abbrev_per_piece: '',
       qty_per_piece: '',
+      packaging_type: '',
       initial_stock_qty: '',
       low_stock_level: '',
       yield_date: '',
@@ -141,6 +145,7 @@ const FinishedProductForm = props => {
   const [dateTimePickerMode, setDateTimePickerMode] = useState('date');
   const [showCalendar, setShowCalendar] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showPackagingDropDown, setShowPackagingDropDown] = useState(false);
 
   useEffect(() => {
     setDatetimeString(currentDatetimeString => {
@@ -172,6 +177,7 @@ const FinishedProductForm = props => {
       set_uom_to_uom_per_piece: false,
       uom_abbrev_per_piece: initialValues.uom_abbrev_per_piece || '',
       qty_per_piece: initialValues.qty_per_piece?.toString() || '',
+      packaging_type: initialValues.packaging_type || '',
       initial_stock_unit_cost: initialValues.unit_cost?.toString() || '0',
       initial_stock_qty: initialValues.initial_stock_qty?.toString() || '0',
       low_stock_level: initialValues.low_stock_level?.toString() || '0',
@@ -320,33 +326,48 @@ const FinishedProductForm = props => {
       const isReadOnly = false;
 
       return (
-        <View style={{flexDirection: 'row'}}>
-          <TextInput
-            label={
-              <TextInputLabel
-                label="Qty. Per Piece / Yield Net Wt."
-                required
-                disabled={isReadOnly}
-                error={
-                  errors.qty_per_piece && touched.qty_per_piece ? true : false
-                }
-              />
-            }
-            disabled={isReadOnly}
-            onChangeText={handleChange('qty_per_piece')}
-            onBlur={handleBlur('qty_per_piece')}
-            value={values.qty_per_piece}
-            style={[styles.textInput, {flex: 1}]}
-            keyboardType="numeric"
-            error={errors.qty_per_piece && touched.qty_per_piece ? true : false}
+        <>
+          <View style={{flexDirection: 'row'}}>
+            <TextInput
+              label={
+                <TextInputLabel
+                  label="Qty. Per Piece / Yield Net Wt."
+                  required
+                  disabled={isReadOnly}
+                  error={
+                    errors.qty_per_piece && touched.qty_per_piece ? true : false
+                  }
+                />
+              }
+              disabled={isReadOnly}
+              onChangeText={handleChange('qty_per_piece')}
+              onBlur={handleBlur('qty_per_piece')}
+              value={values.qty_per_piece}
+              style={[styles.textInput, {flex: 1}]}
+              keyboardType="numeric"
+              error={errors.qty_per_piece && touched.qty_per_piece ? true : false}
+            />
+            <QuantityUOMText
+              textStyle={isReadOnly ? {color: colors.disabled} : {}}
+              uomAbbrev={values.uom_abbrev_per_piece}
+              quantity={values.qty_per_piece}
+              concatText={' each'}
+            />
+          </View>
+          <Dropdown
+            label="Packaging Type (Optional)"
+            mode="flat"
+            visible={showPackagingDropDown}
+            showDropDown={() => setShowPackagingDropDown(true)}
+            onDismiss={() => setShowPackagingDropDown(false)}
+            value={values.packaging_type}
+            hideMenuHeader
+            onSelect={value => setFieldValue('packaging_type', value ?? '')}
+            options={PACKAGING_TYPE_OPTIONS}
+            activeColor={colors.accent}
+            dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
           />
-          <QuantityUOMText
-            textStyle={isReadOnly ? {color: colors.disabled} : {}}
-            uomAbbrev={values.uom_abbrev_per_piece}
-            quantity={values.qty_per_piece}
-            concatText={' each'}
-          />
-        </View>
+        </>
       );
     }
   };
@@ -384,7 +405,9 @@ const FinishedProductForm = props => {
             onPress={() => {
               if (values.add_measurement_per_piece === true) {
                 /**
-                 * Reset measurement per piece field values
+                 * Reset measurement per piece field values — including
+                 * packaging_type so the user's "no per-piece variant" intent
+                 * fully reflects in the submitted values.
                  */
                 setFieldValue('uom_abbrev_per_piece', '');
                 setFieldTouched('uom_abbrev_per_piece', false);
@@ -394,11 +417,16 @@ const FinishedProductForm = props => {
                 setFieldTouched('qty_per_piece', false);
                 setFieldError('qty_per_piece', null);
 
+                setFieldValue('packaging_type', '');
+                setFieldTouched('packaging_type', false);
+                setFieldError('packaging_type', null);
+
                 setFieldTouched('add_measurement_per_piece', true);
                 setFieldValue('add_measurement_per_piece', false);
               } else {
                 setFieldValue('uom_abbrev_per_piece', '');
                 setFieldValue('qty_per_piece', '');
+                setFieldValue('packaging_type', '');
 
                 setFieldTouched('add_measurement_per_piece', true);
                 setFieldValue('add_measurement_per_piece', true);
@@ -453,7 +481,8 @@ const FinishedProductForm = props => {
             onPress={() => {
               if (values.set_uom_to_uom_per_piece === true) {
                 /**
-                 * Reset measurement per piece field values
+                 * Reset measurement per piece field values — including
+                 * packaging_type so the three per-piece fields stay in sync.
                  */
                 setFieldValue('uom_abbrev_per_piece', '');
                 setFieldTouched('uom_abbrev_per_piece', false);
@@ -463,6 +492,10 @@ const FinishedProductForm = props => {
                 setFieldTouched('qty_per_piece', false);
                 setFieldError('qty_per_piece', null);
 
+                setFieldValue('packaging_type', '');
+                setFieldTouched('packaging_type', false);
+                setFieldError('packaging_type', null);
+
                 setFieldTouched('set_uom_to_uom_per_piece', true);
                 setFieldValue('set_uom_to_uom_per_piece', false);
               } else {
@@ -471,6 +504,7 @@ const FinishedProductForm = props => {
                 setFieldValue('uom_abbrev_per_piece', item.uom_abbrev);
 
                 setFieldValue('qty_per_piece', '');
+                setFieldValue('packaging_type', '');
 
                 setFieldTouched('set_uom_to_uom_per_piece', true);
                 setFieldValue('set_uom_to_uom_per_piece', true);

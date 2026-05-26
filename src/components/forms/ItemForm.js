@@ -657,17 +657,25 @@ const ItemForm = props => {
 
     const handleToggle = () => {
       if (values.add_measurement_per_piece) {
+        // Toggling OFF: clear all three per-piece fields together so the
+        // user's "no per-piece variant" intent is fully reflected. Leaving
+        // packaging_type populated here is what produced the offline-only
+        // "checkbox unchecked but packaging set" state in the master row.
         setFieldValue('uom_abbrev_per_piece', '');
         setFieldTouched('uom_abbrev_per_piece', false);
         setFieldError('uom_abbrev_per_piece', null);
         setFieldValue('qty_per_piece', '');
         setFieldTouched('qty_per_piece', false);
         setFieldError('qty_per_piece', null);
+        setFieldValue('packaging_type', '');
+        setFieldTouched('packaging_type', false);
+        setFieldError('packaging_type', null);
         setFieldTouched('add_measurement_per_piece', true);
         setFieldValue('add_measurement_per_piece', false);
       } else {
         setFieldValue('uom_abbrev_per_piece', '');
         setFieldValue('qty_per_piece', '');
+        setFieldValue('packaging_type', '');
         setFieldTouched('add_measurement_per_piece', true);
         setFieldValue('add_measurement_per_piece', true);
         setFieldValue('cost_input_mode', 'total_cost');
@@ -706,12 +714,16 @@ const ItemForm = props => {
         setFieldValue('qty_per_piece', '');
         setFieldTouched('qty_per_piece', false);
         setFieldError('qty_per_piece', null);
+        setFieldValue('packaging_type', '');
+        setFieldTouched('packaging_type', false);
+        setFieldError('packaging_type', null);
         setFieldTouched('set_uom_to_uom_per_piece', true);
         setFieldValue('set_uom_to_uom_per_piece', false);
       } else {
         setFieldValue('uom_abbrev', 'ea');
         setFieldValue('uom_abbrev_per_piece', item.uom_abbrev);
         setFieldValue('qty_per_piece', '');
+        setFieldValue('packaging_type', '');
         setFieldTouched('set_uom_to_uom_per_piece', true);
         setFieldValue('set_uom_to_uom_per_piece', true);
       }
