@@ -18,6 +18,7 @@ import QuantityUOMText from '../components/forms/QuantityUOMText';
 import useItemFormContext from '../hooks/useItemFormContext';
 import {updateMasterItem} from '../serverDbQueries/v2/masterItems';
 import {PACKAGING_TYPE_OPTIONS} from '../constants/itemForm';
+import {generateMasterItemDescription} from '../utils/generateMasterItemDescription';
 
 const EditMasterItemSchema = Yup.object({
   sku: Yup.string()
@@ -31,8 +32,16 @@ const EditMasterItemSchema = Yup.object({
   uom_abbrev_per_piece: Yup.string().nullable().max(64),
   qty_per_piece: Yup.string()
     .nullable()
-    .test('numeric', 'Must be a number', v => v == null || v === '' || !isNaN(Number(v)))
-    .test('non-negative', 'Cannot be negative', v => v == null || v === '' || Number(v) >= 0),
+    .test(
+      'numeric',
+      'Must be a number',
+      v => v == null || v === '' || !isNaN(Number(v)),
+    )
+    .test(
+      'non-negative',
+      'Cannot be negative',
+      v => v == null || v === '' || Number(v) >= 0,
+    ),
   packaging_type: Yup.string().nullable().max(64),
 });
 
@@ -173,12 +182,52 @@ const EditMasterItem = ({navigation, route}) => {
           style={styles.input}
         />
         <HelperText
-          type={formik.touched.description && formik.errors.description ? 'error' : 'info'}
+          type={
+            formik.touched.description && formik.errors.description
+              ? 'error'
+              : 'info'
+          }
           visible>
           {formik.touched.description && formik.errors.description
             ? formik.errors.description
             : 'Canonical product name. Mirrors to every linked branch item on save.'}
         </HelperText>
+        <View style={styles.regenerateRow}>
+          <Button
+            icon="autorenew"
+            mode="text"
+            compact
+            onPress={() => {
+              // Feed the current description back in as the "name" — the
+              // generator strips redundant tokens (packaging words, "260G"
+              // patterns) and recomposes from the current variant fields, so
+              // the user can hand-edit the description and re-trigger.
+              // If the user cleared the input, fall back to the master's
+              // original description so Regenerate doesn't emit a name-less
+              // " PACK 50G" string.
+              const sourceName =
+                (formik.values.description?.trim()
+                  ? formik.values.description
+                  : master?.description) ?? '';
+              const next = generateMasterItemDescription({
+                name: sourceName,
+                uom_abbrev: formik.values.uom_abbrev,
+                uom_abbrev_per_piece: formik.values.add_measurement_per_piece
+                  ? formik.values.uom_abbrev_per_piece
+                  : '',
+                qty_per_piece: formik.values.add_measurement_per_piece
+                  ? formik.values.qty_per_piece
+                  : '',
+                packaging_type: formik.values.add_measurement_per_piece
+                  ? formik.values.packaging_type
+                  : '',
+              });
+              formik.setFieldValue('description', next);
+              formik.setFieldTouched('description', true);
+            }}>
+            Regenerate Description
+          </Button>
+        </View>
 
         <TextInput
           label="Barcode (Optional)"
@@ -238,7 +287,11 @@ const EditMasterItem = ({navigation, route}) => {
                 onChangeText={formik.handleChange('qty_per_piece')}
                 onBlur={formik.handleBlur('qty_per_piece')}
                 keyboardType="numeric"
-                error={!!(formik.touched.qty_per_piece && formik.errors.qty_per_piece)}
+                error={
+                  !!(
+                    formik.touched.qty_per_piece && formik.errors.qty_per_piece
+                  )
+                }
                 style={[styles.input, {flex: 1}]}
               />
               <QuantityUOMText
@@ -305,6 +358,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   input: {
+    marginBottom: 4,
+  },
+  regenerateRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: -8,
     marginBottom: 4,
   },
   perPieceToggle: {
