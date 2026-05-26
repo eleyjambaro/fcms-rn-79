@@ -2,6 +2,7 @@ import convert from 'convert-units';
 import * as RNFS from 'react-native-fs';
 import XLSX from 'xlsx';
 import uuid from 'react-native-uuid';
+import SecureStorage from 'react-native-fast-secure-storage';
 
 import {getDBConnection, getCloudSyncParams, OPERATION_DEFAULT_UUIDS} from '../localDb';
 import {
@@ -12,6 +13,23 @@ import {getAppConfig} from '../constants/appConfig';
 import RNFetchBlob from 'rn-fetch-blob';
 import {extractNumber} from '../utils/stringHelpers';
 import appDefaults from '../constants/appDefaults';
+import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
+import {generateMasterItemSku} from '../utils/generateMasterItemSku';
+import {generateMasterItemDescription} from '../utils/generateMasterItemDescription';
+
+// Mirrors registerItem's loadCurrentAccountId — stamps audit field
+// master_items.registered_by_account_id when the user is signed in.
+const loadCurrentAccountId = async () => {
+  try {
+    const has = await SecureStorage.hasItem(rnStorageKeys.cloudV2AuthUser);
+    if (!has) return null;
+    const raw = await SecureStorage.getItem(rnStorageKeys.cloudV2AuthUser);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed?.account?.id ?? null;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Parse date values from Excel/CSV into JavaScript Date objects.
@@ -1059,6 +1077,10 @@ export const insertTemplateDataToDb = async ({
      * }
      */
     let insertingItemsByNameMap = {};
+    // Mirror of items rows we're about to insert — written into master_items
+    // immediately after the items INSERT so each imported item has a canonical
+    // company-wide catalog entry, the same shape registerItem produces.
+    const masterItemRowsToInsert = [];
 
     if (notExistingItems.length > 0) {
       let insertNotExistingItemsToDbQuery = `
@@ -1072,6 +1094,10 @@ export const insertTemplateDataToDb = async ({
           unit_cost,
           uom_abbrev_per_piece,
           qty_per_piece,
+          barcode,
+          packaging_type,
+          sku,
+          master_item_sync_id,
           device_id,
           branch_id,
           sync_id,
@@ -1162,6 +1188,21 @@ export const insertTemplateDataToDb = async ({
           qtyPerPiece = 'null';
         }
 
+        // Variant-defining values for both items + master_items. Trim and
+        // lowercase to match registerItem's normalization so two branches that
+        // pick the same master see consistent data.
+        const packagingTypeRaw = String(item.packaging_type ?? '').trim().toLowerCase();
+        const barcodeRaw = String(item.barcode ?? '').trim();
+        const packagingTypeSql = packagingTypeRaw.replace(/'/g, "''");
+        const barcodeSql = barcodeRaw.replace(/'/g, "''");
+
+        // Master Item List link — every IDT row creates its own master entry,
+        // matching registerItem's no-picker path. Server reconciles SKU
+        // collisions across branches on push via the sku_updates envelope.
+        const generatedSku = generateMasterItemSku(item.item_name);
+        const newMasterItemSyncId = uuid.v4();
+        const skuSqlLiteral = generatedSku.replace(/'/g, "''");
+
         const newItemId = uuid.v4();
         insertNotExistingItemsToDbQuery += `(
           '${newItemId}',
@@ -1173,11 +1214,35 @@ export const insertTemplateDataToDb = async ({
           ${unitCost},
           '${uomAbbrevPerPiece.toLowerCase()}',
           ${qtyPerPiece},
+          '${barcodeSql}',
+          '${packagingTypeSql}',
+          '${skuSqlLiteral}',
+          '${newMasterItemSyncId}',
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
           '${newItemId}',
           CURRENT_TIMESTAMP
         )`;
+
+        // Stash a parallel master_items row. Numeric qty for description
+        // generation; SQL literal ('NULL' when no per-piece) for INSERT so the
+        // master doesn't claim a "0 per piece" variant.
+        const qtyPerPieceNumber = parseFloat(extractNumber(item.qty_per_piece));
+        const hasQtyPerPiece =
+          !isNaN(qtyPerPieceNumber) &&
+          qtyPerPieceNumber > 0 &&
+          item.qty_per_piece !== '-';
+        masterItemRowsToInsert.push({
+          syncId: newMasterItemSyncId,
+          sku: generatedSku,
+          itemName: item.item_name,
+          uomAbbrev: uomAbbrev.toLowerCase(),
+          uomAbbrevPerPiece: uomAbbrevPerPiece.toLowerCase(),
+          qtyPerPieceNumber: hasQtyPerPiece ? qtyPerPieceNumber : null,
+          qtyPerPieceSql: hasQtyPerPiece ? String(qtyPerPieceNumber) : 'NULL',
+          packagingType: packagingTypeRaw,
+          barcode: barcodeRaw,
+        });
 
         if (notExistingItems.length - 1 !== index) {
           insertNotExistingItemsToDbQuery += `,
@@ -1192,6 +1257,78 @@ export const insertTemplateDataToDb = async ({
       }
 
       await db.executeSql(insertNotExistingItemsToDbQuery);
+
+      // Mirror every newly-inserted items row into master_items, the same way
+      // registerItem's no-picker path does. Non-fatal — if the master INSERT
+      // fails for any reason, the items rows are already saved; the masters
+      // can be backfilled later by `php artisan masteritems:backfill`.
+      if (masterItemRowsToInsert.length > 0) {
+        try {
+          const registeredByAccountId = await loadCurrentAccountId();
+          const escapeSql = s => String(s ?? '').replace(/'/g, "''");
+          let insertMasterItemsQuery = `INSERT INTO master_items (
+            id,
+            sku,
+            description,
+            barcode,
+            uom_abbrev,
+            uom_abbrev_per_piece,
+            qty_per_piece,
+            packaging_type,
+            registered_by_account_id,
+            device_id,
+            branch_id,
+            sync_id,
+            updated_at
+          ) VALUES `;
+
+          masterItemRowsToInsert.forEach((row, idx) => {
+            // Strip+recompose so an IDT row like "Argentina Corned Beef Can 260g"
+            // with packaging=can and qty=260g doesn't end up with duplicated
+            // tokens in the canonical description.
+            const description = escapeSql(
+              generateMasterItemDescription({
+                name: row.itemName,
+                uom_abbrev: row.uomAbbrev,
+                uom_abbrev_per_piece: row.uomAbbrevPerPiece,
+                qty_per_piece: row.qtyPerPieceNumber,
+                packaging_type: row.packagingType,
+              }),
+            );
+            const skuSql = escapeSql(row.sku);
+            const barcodeSql = escapeSql(row.barcode);
+            const uomAbbrevSql = escapeSql(row.uomAbbrev);
+            const uomAbbrevPerPieceSql = escapeSql(row.uomAbbrevPerPiece);
+            const packagingTypeSql = escapeSql(row.packagingType);
+
+            insertMasterItemsQuery += `(
+              '${row.syncId}',
+              '${skuSql}',
+              '${description}',
+              '${barcodeSql}',
+              '${uomAbbrevSql}',
+              '${uomAbbrevPerPieceSql}',
+              ${row.qtyPerPieceSql},
+              '${packagingTypeSql}',
+              ${registeredByAccountId ? `'${registeredByAccountId}'` : 'NULL'},
+              ${deviceId ? `'${deviceId}'` : 'NULL'},
+              ${branchId ? `'${branchId}'` : 'NULL'},
+              '${row.syncId}',
+              CURRENT_TIMESTAMP
+            )`;
+
+            insertMasterItemsQuery +=
+              idx === masterItemRowsToInsert.length - 1 ? ';' : ',';
+          });
+
+          await db.executeSql(insertMasterItemsQuery);
+        } catch (masterErr) {
+          console.debug(
+            '[insertTemplateDataToDb] Failed to insert master_items rows:',
+            masterErr?.message ?? masterErr,
+          );
+        }
+      }
     }
 
     /**

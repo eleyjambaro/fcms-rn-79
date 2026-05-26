@@ -426,6 +426,8 @@ const Account = props => {
         'Remarks',
         'Purchase Date (If new purchase)',
         'Transfer In Date (If new transfer)',
+        'Packaging Type',
+        'Barcode',
       ], // table columns
       ['1'],
       ['2'],
@@ -450,7 +452,9 @@ const Account = props => {
       {wch: 20}, // Stock OR Number
       {wch: 30}, // Remarks
       {wch: 35}, // Purchase Date
-      {wch: 35}, // Transfer In Date  ← NEW
+      {wch: 35}, // Transfer In Date
+      {wch: 18}, // Packaging Type
+      {wch: 20}, // Barcode
     ];
 
     /**
@@ -603,6 +607,8 @@ const Account = props => {
           'remarks',
           'purchase_date',
           'transfer_in_date',
+          'packaging_type',
+          'barcode',
         ],
       })
         .fromString(itemsCSV)
