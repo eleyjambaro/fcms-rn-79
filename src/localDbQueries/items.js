@@ -13,6 +13,7 @@ import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 import {scheduleSyncSoon} from '../services/syncService';
 import {generateMasterItemSku} from '../utils/generateMasterItemSku';
 import {generateMasterItemDescription} from '../utils/generateMasterItemDescription';
+import {generateMasterItemDedupKey} from '../utils/generateMasterItemDedupKey';
 
 // Read the current cloud account once per registerItem call so we can stamp
 // audit fields (e.g. master_items.registered_by_account_id). Returns null
@@ -360,16 +361,55 @@ export const registerItem = async ({
 
     // Master Item List link — when the user picked an existing master via
     // the SelectMasterItem screen, reuse its sync_id and SKU verbatim so the
-    // branch items row attaches to the same master across branches. When the
-    // user is registering a brand-new item (no masterItem), generate a fresh
-    // SKU + sync_id and let the master_items INSERT below create the new
-    // master entry locally; server reconciles SKU collisions on push.
+    // branch items row attaches to the same master across branches.
+    //
+    // When registering a brand-new item, first probe local master_items for a
+    // matching dedup_key — same product registered earlier from another
+    // branch (and pulled via sync) reuses that master's sync_id + sku, so we
+    // collapse onto the canonical row instead of creating yet another
+    // duplicate. The server reconfirms this check on push as a race-safety
+    // net for concurrent branch registrations.
+    let dedupMatchedMaster = null;
+    if (!masterItem) {
+      const probeDedupKey = generateMasterItemDedupKey({
+        name: item.name,
+        uom_abbrev: item.uom_abbrev,
+        uom_abbrev_per_piece: item.uom_abbrev_per_piece,
+        qty_per_piece: item.qty_per_piece,
+        packaging_type: item.packaging_type,
+        barcode: item.barcode,
+      });
+      if (probeDedupKey) {
+        try {
+          const [probeRes] = await db.executeSql(
+            `SELECT sync_id, sku FROM active_master_items WHERE dedup_key = ? LIMIT 1`,
+            [probeDedupKey],
+          );
+          if (probeRes.rows.length > 0) {
+            const row = probeRes.rows.item(0);
+            dedupMatchedMaster = {sync_id: row.sync_id, sku: row.sku};
+          }
+        } catch (probeErr) {
+          // Non-fatal: pre-dedup-migration DBs won't have the column yet.
+          // Fall through and treat as no-match.
+          console.debug(
+            '[registerItem] dedup_key probe failed (likely pre-migration DB):',
+            probeErr?.message ?? probeErr,
+          );
+        }
+      }
+    }
+
     const masterItemSku = masterItem
       ? String(masterItem.sku ?? '').trim().toUpperCase()
+      : dedupMatchedMaster
+      ? String(dedupMatchedMaster.sku ?? '').trim().toUpperCase()
       : (String(item?.sku ?? '').trim().toUpperCase() ||
          generateMasterItemSku(item.name));
     const newMasterItemSyncId = masterItem
       ? String(masterItem.sync_id)
+      : dedupMatchedMaster
+      ? String(dedupMatchedMaster.sync_id)
       : uuid.v4();
     const skuSqlLiteral = masterItemSku.replace(/'/g, "''");
 
@@ -482,13 +522,11 @@ export const registerItem = async ({
       itemId = newItemId;
 
       // Mirror this newly-registered item into the company-wide Master Item
-      // List. Each branch registration creates its own master entry for MVP;
-      // root can merge duplicates from the Master Item List screen. The local
-      // row will sync up on the next push (GROUP_A_ENTITIES includes
-      // master_items) and the server reconciles SKU collisions if any.
-      // Skipped when the user picked an existing master via the picker — the
-      // master row already exists locally and on the server.
-      if (!masterItem) {
+      // List, unless we matched an existing master via the picker or the
+      // local dedup probe — in both cases the master row already exists and
+      // we're just linking the new branch items row to it via SKU /
+      // master_item_sync_id.
+      if (!masterItem && !dedupMatchedMaster) {
         try {
           const registeredByAccountId = await loadCurrentAccountId();
           // Compose the canonical master description from the variant fields
@@ -516,15 +554,31 @@ export const registerItem = async ({
           // doesn't claim a "0 per piece" variant identity.
           const masterQtyPerPieceSql =
             variantQtyPerPiece > 0 ? String(variantQtyPerPiece) : 'NULL';
+          // Canonical base name on the master (separate from description so
+          // the dedup key stays stable against description-generator tweaks)
+          // + dedup key matching the server's MasterItemDedupKey shape.
+          const masterName = escapeSql(item.name);
+          const masterDedupKey = escapeSql(
+            generateMasterItemDedupKey({
+              name: item.name,
+              uom_abbrev: variantUomAbbrev,
+              uom_abbrev_per_piece: variantUomAbbrevPerPiece,
+              qty_per_piece: variantQtyPerPiece,
+              packaging_type: variantPackagingType,
+              barcode: variantBarcode,
+            }),
+          );
           const insertMasterItemQuery = `INSERT INTO master_items (
             id,
             sku,
+            name,
             description,
             barcode,
             uom_abbrev,
             uom_abbrev_per_piece,
             qty_per_piece,
             packaging_type,
+            dedup_key,
             registered_by_account_id,
             device_id,
             branch_id,
@@ -533,12 +587,14 @@ export const registerItem = async ({
           ) VALUES (
             '${newMasterItemSyncId}',
             '${skuSqlLiteral}',
+            '${masterName}',
             '${description}',
             '${masterBarcode}',
             '${masterUomAbbrev}',
             '${masterUomAbbrevPerPiece}',
             ${masterQtyPerPieceSql},
             '${masterPackagingType}',
+            '${masterDedupKey}',
             ${registeredByAccountId ? `'${registeredByAccountId}'` : 'NULL'},
             ${deviceId ? `'${deviceId}'` : 'NULL'},
             ${branchId ? `'${branchId}'` : 'NULL'},

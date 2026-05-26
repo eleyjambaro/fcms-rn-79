@@ -16,6 +16,7 @@ import appDefaults from '../constants/appDefaults';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 import {generateMasterItemSku} from '../utils/generateMasterItemSku';
 import {generateMasterItemDescription} from '../utils/generateMasterItemDescription';
+import {generateMasterItemDedupKey} from '../utils/generateMasterItemDedupKey';
 
 // Mirrors registerItem's loadCurrentAccountId — stamps audit field
 // master_items.registered_by_account_id when the user is signed in.
@@ -1085,6 +1086,38 @@ export const insertTemplateDataToDb = async ({
     // company-wide catalog entry, the same shape registerItem produces.
     const masterItemRowsToInsert = [];
 
+    // Cross-branch dedup: probe the local active_master_items view for any
+    // canonical master that already covers the variant tuple we're about to
+    // import. Branches typically pull the company's master catalog via sync
+    // before importing — so when Branch B imports the same IDT Branch A
+    // already imported, every row in this map skips the master INSERT and
+    // links to Branch A's master via the same sync_id + sku. The server
+    // re-checks on push as a race-safety net for concurrent imports.
+    //
+    // Tolerated when the column doesn't exist (pre-migration DBs): falls
+    // through with an empty map and behaves like the old code path.
+    const existingMastersByDedupKey = new Map();
+    try {
+      const [mastersRes] = await db.executeSql(
+        `SELECT sync_id, sku, dedup_key FROM active_master_items WHERE dedup_key IS NOT NULL AND dedup_key != ''`,
+      );
+      for (let i = 0; i < mastersRes.rows.length; i++) {
+        const row = mastersRes.rows.item(i);
+        if (!existingMastersByDedupKey.has(row.dedup_key)) {
+          existingMastersByDedupKey.set(row.dedup_key, {
+            sync_id: row.sync_id,
+            sku: row.sku,
+          });
+        }
+      }
+    } catch (probeErr) {
+      console.debug(
+        '[insertTemplateDataToDb] master_items dedup probe failed (likely pre-migration DB):',
+        probeErr?.message ?? probeErr,
+      );
+    }
+    let mergedMasterCount = 0;
+
     if (notExistingItems.length > 0) {
       let insertNotExistingItemsToDbQuery = `
         INSERT INTO items (
@@ -1199,11 +1232,40 @@ export const insertTemplateDataToDb = async ({
         const packagingTypeSql = packagingTypeRaw.replace(/'/g, "''");
         const barcodeSql = barcodeRaw.replace(/'/g, "''");
 
-        // Master Item List link — every IDT row creates its own master entry,
-        // matching registerItem's no-picker path. Server reconciles SKU
-        // collisions across branches on push via the sku_updates envelope.
-        const generatedSku = generateMasterItemSku(item.item_name);
-        const newMasterItemSyncId = uuid.v4();
+        // Computed up front because dedup key depends on it. NULL for the
+        // master qty column means "no per-piece variant" — distinct from
+        // qty=0, which would imply a zero-quantity per-piece identity.
+        const qtyPerPieceNumber = parseFloat(extractNumber(item.qty_per_piece));
+        const hasQtyPerPiece =
+          !isNaN(qtyPerPieceNumber) &&
+          qtyPerPieceNumber > 0 &&
+          item.qty_per_piece !== '-';
+
+        // Master Item List link. First try the existing-masters map (seeded
+        // from active_master_items above, plus any master we created earlier
+        // in this same IDT pass). On match we reuse the canonical sync_id +
+        // sku — the items row attaches to the same master as every other
+        // branch that imported this product. On miss, generate fresh ones
+        // and seed the map so a downstream row in this same IDT with an
+        // identical dedup tuple still collapses to one master.
+        const rowDedupKey = generateMasterItemDedupKey({
+          name: item.item_name,
+          uom_abbrev: uomAbbrev.toLowerCase(),
+          uom_abbrev_per_piece: uomAbbrevPerPiece.toLowerCase(),
+          qty_per_piece: hasQtyPerPiece ? qtyPerPieceNumber : null,
+          packaging_type: packagingTypeRaw,
+          barcode: barcodeRaw,
+        });
+        const matchedMaster = rowDedupKey
+          ? existingMastersByDedupKey.get(rowDedupKey)
+          : null;
+
+        const generatedSku = matchedMaster
+          ? String(matchedMaster.sku ?? '')
+          : generateMasterItemSku(item.item_name);
+        const newMasterItemSyncId = matchedMaster
+          ? String(matchedMaster.sync_id)
+          : uuid.v4();
         const skuSqlLiteral = generatedSku.replace(/'/g, "''");
 
         const newItemId = uuid.v4();
@@ -1227,25 +1289,35 @@ export const insertTemplateDataToDb = async ({
           CURRENT_TIMESTAMP
         )`;
 
-        // Stash a parallel master_items row. Numeric qty for description
-        // generation; SQL literal ('NULL' when no per-piece) for INSERT so the
-        // master doesn't claim a "0 per piece" variant.
-        const qtyPerPieceNumber = parseFloat(extractNumber(item.qty_per_piece));
-        const hasQtyPerPiece =
-          !isNaN(qtyPerPieceNumber) &&
-          qtyPerPieceNumber > 0 &&
-          item.qty_per_piece !== '-';
-        masterItemRowsToInsert.push({
-          syncId: newMasterItemSyncId,
-          sku: generatedSku,
-          itemName: item.item_name,
-          uomAbbrev: uomAbbrev.toLowerCase(),
-          uomAbbrevPerPiece: uomAbbrevPerPiece.toLowerCase(),
-          qtyPerPieceNumber: hasQtyPerPiece ? qtyPerPieceNumber : null,
-          qtyPerPieceSql: hasQtyPerPiece ? String(qtyPerPieceNumber) : 'NULL',
-          packagingType: packagingTypeRaw,
-          barcode: barcodeRaw,
-        });
+        // Stash a parallel master_items row — but only when we're creating a
+        // brand-new master. When matchedMaster is set, the items row above
+        // already links to an existing canonical master via the reused
+        // sync_id + sku, so emitting another master_items row would just
+        // recreate the duplicate we're trying to prevent.
+        if (matchedMaster) {
+          mergedMasterCount++;
+        } else {
+          masterItemRowsToInsert.push({
+            syncId: newMasterItemSyncId,
+            sku: generatedSku,
+            itemName: item.item_name,
+            uomAbbrev: uomAbbrev.toLowerCase(),
+            uomAbbrevPerPiece: uomAbbrevPerPiece.toLowerCase(),
+            qtyPerPieceNumber: hasQtyPerPiece ? qtyPerPieceNumber : null,
+            qtyPerPieceSql: hasQtyPerPiece ? String(qtyPerPieceNumber) : 'NULL',
+            packagingType: packagingTypeRaw,
+            barcode: barcodeRaw,
+            dedupKey: rowDedupKey,
+          });
+          // Seed the lookup so a later row in this same IDT with the same
+          // dedup tuple collapses onto the master we just generated.
+          if (rowDedupKey) {
+            existingMastersByDedupKey.set(rowDedupKey, {
+              sync_id: newMasterItemSyncId,
+              sku: generatedSku,
+            });
+          }
+        }
 
         if (notExistingItems.length - 1 !== index) {
           insertNotExistingItemsToDbQuery += `,
@@ -1272,12 +1344,14 @@ export const insertTemplateDataToDb = async ({
           let insertMasterItemsQuery = `INSERT INTO master_items (
             id,
             sku,
+            name,
             description,
             barcode,
             uom_abbrev,
             uom_abbrev_per_piece,
             qty_per_piece,
             packaging_type,
+            dedup_key,
             registered_by_account_id,
             device_id,
             branch_id,
@@ -1299,20 +1373,24 @@ export const insertTemplateDataToDb = async ({
               }),
             );
             const skuSql = escapeSql(row.sku);
+            const nameSql = escapeSql(row.itemName);
             const barcodeSql = escapeSql(row.barcode);
             const uomAbbrevSql = escapeSql(row.uomAbbrev);
             const uomAbbrevPerPieceSql = escapeSql(row.uomAbbrevPerPiece);
             const packagingTypeSql = escapeSql(row.packagingType);
+            const dedupKeySql = escapeSql(row.dedupKey);
 
             insertMasterItemsQuery += `(
               '${row.syncId}',
               '${skuSql}',
+              '${nameSql}',
               '${description}',
               '${barcodeSql}',
               '${uomAbbrevSql}',
               '${uomAbbrevPerPieceSql}',
               ${row.qtyPerPieceSql},
               '${packagingTypeSql}',
+              '${dedupKeySql}',
               ${registeredByAccountId ? `'${registeredByAccountId}'` : 'NULL'},
               ${deviceId ? `'${deviceId}'` : 'NULL'},
               ${branchId ? `'${branchId}'` : 'NULL'},
@@ -1522,6 +1600,16 @@ export const insertTemplateDataToDb = async ({
     }
 
     const itemsTotal = notExistingItems.length + alreadyExistingItems.length;
+    // Sentence about master-list dedup is appended only when something
+    // actually got merged so unrelated imports stay quiet.
+    const mergedSentence =
+      mergedMasterCount > 0
+        ? ` ${mergedMasterCount} new item${
+            mergedMasterCount > 1 ? 's were' : ' was'
+          } linked to existing item${
+            mergedMasterCount > 1 ? 's' : ''
+          } in the company-wide Master Item List (no duplicate was created).`
+        : '';
 
     onSuccess &&
       onSuccess({
@@ -1533,7 +1621,7 @@ export const insertTemplateDataToDb = async ({
           alreadyExistingItems.length
         } out of ${itemsTotal} item${itemsTotal > 1 ? 's' : ''} already exist${
           alreadyExistingItems.length > 1 ? '' : 's'
-        }.`,
+        }.${mergedSentence}`,
       });
   } catch (error) {
     console.debug(error);

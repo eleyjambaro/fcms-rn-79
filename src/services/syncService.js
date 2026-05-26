@@ -535,6 +535,7 @@ export const runSync = async () => {
         const {
           accepted = {},
           sku_updates: skuUpdates = [],
+          sync_id_remaps: syncIdRemaps = [],
           synced_at,
         } = pushResponse?.data ?? {};
         result.pushed = accepted;
@@ -577,6 +578,34 @@ export const runSync = async () => {
             } catch (err) {
               result.errors.push(
                 `Apply sku_update failed for ${sync_id}: ${err.message}`,
+              );
+            }
+          }
+        }
+
+        // Apply server-side cross-branch master_items dedup remaps. Fired
+        // when the same logical product was pushed from a second branch
+        // (typical case: the same IDT file imported on Branch A then B);
+        // the server detects the dedup_key collision, keeps the canonical
+        // row, and tells us to repoint our local items onto it. The local
+        // orphan master row is hard-deleted — it was never accepted by the
+        // server, so no other device knows about it; soft-deleting would
+        // incorrectly re-push the row on the next sync.
+        if (Array.isArray(syncIdRemaps) && syncIdRemaps.length > 0) {
+          for (const {from, to, sku} of syncIdRemaps) {
+            if (!from || !to) continue;
+            try {
+              await db.executeSql(
+                `UPDATE items SET master_item_sync_id = ?, sku = ? WHERE master_item_sync_id = ?`,
+                [to, sku ?? '', from],
+              );
+              await db.executeSql(
+                `DELETE FROM master_items WHERE sync_id = ? AND (synced_at IS NULL)`,
+                [from],
+              );
+            } catch (err) {
+              result.errors.push(
+                `Apply sync_id_remap failed for ${from}→${to}: ${err.message}`,
               );
             }
           }

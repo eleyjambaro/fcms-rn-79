@@ -1141,12 +1141,14 @@ const createMasterItemsTableQuery = `
   CREATE TABLE IF NOT EXISTS master_items (
     id TEXT PRIMARY KEY NOT NULL,
     sku VARCHAR NOT NULL,
+    name VARCHAR,
     description VARCHAR,
     barcode VARCHAR,
     uom_abbrev VARCHAR,
     uom_abbrev_per_piece VARCHAR,
     qty_per_piece REAL,
     packaging_type VARCHAR,
+    dedup_key TEXT,
     registered_by_account_id VARCHAR,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
     device_id VARCHAR DEFAULT NULL,
@@ -1909,6 +1911,35 @@ export const alterTables = async currentAppVersion => {
     } catch (error) {
       console.debug(
         '[alterTables] Error adding master_items variant columns:',
+        error,
+      );
+    }
+
+    /**
+     * Cross-branch dedup columns on master_items. `name` is the canonical
+     * base product name (stored separately from `description` so the dedup
+     * key stays stable against future description-generator tweaks).
+     * `dedup_key` is the pipe-joined normalized variant tuple computed by
+     * generateMasterItemDedupKey — same shape as the server's
+     * App\Support\MasterItemDedupKey. Schema parity invariant: server
+     * migration 2024_01_01_000020 adds the same columns.
+     */
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'master_items',
+        'name',
+        `ALTER TABLE master_items ADD COLUMN name VARCHAR DEFAULT NULL;`,
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'master_items',
+        'dedup_key',
+        `ALTER TABLE master_items ADD COLUMN dedup_key TEXT DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding master_items dedup columns:',
         error,
       );
     }
