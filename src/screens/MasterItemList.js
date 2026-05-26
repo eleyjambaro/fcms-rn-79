@@ -15,7 +15,11 @@ import {
   useTheme,
 } from 'react-native-paper';
 import {useNavigation} from '@react-navigation/native';
-import {useInfiniteQuery, useMutation, useQueryClient} from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
 
 import {
   getMasterItems,
@@ -25,12 +29,34 @@ import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen
 import useCurrentUser from '../hooks/useCurrentUser';
 import routes from '../constants/routes';
 
+// Some users are unfamiliar with "EA" and recognize "PC" (piece) instead;
+// render it as "EA (PC)" wherever a UoM abbreviation is displayed here.
+const renderUomAbbrev = uom => {
+  if (!uom) return '';
+  const upper = String(uom).toUpperCase();
+  if (upper === 'EA') return 'EA (PC)';
+  return upper;
+};
+
+const formatQty = qty => {
+  const n = Number(qty);
+  return Number.isFinite(n) ? n.toFixed(2) : String(qty);
+};
+
 const formatVariantSummary = mi => {
   if (!mi) return '';
   const parts = [];
-  if (mi.uom_abbrev) parts.push(mi.uom_abbrev);
-  if (mi.qty_per_piece != null && mi.qty_per_piece !== '' && mi.uom_abbrev_per_piece) {
-    parts.push(`${mi.qty_per_piece} ${mi.uom_abbrev_per_piece}`);
+  if (mi.uom_abbrev) parts.push(renderUomAbbrev(mi.uom_abbrev));
+  if (
+    mi.qty_per_piece != null &&
+    mi.qty_per_piece !== '' &&
+    mi.uom_abbrev_per_piece
+  ) {
+    parts.push(
+      `${formatQty(mi.qty_per_piece)} ${renderUomAbbrev(
+        mi.uom_abbrev_per_piece,
+      )}`,
+    );
   }
   if (mi.packaging_type) parts.push(mi.packaging_type);
   return parts.join(' · ');
@@ -170,7 +196,9 @@ const MasterItemList = () => {
           <Dialog.Title>Delete Master Item</Dialog.Title>
           <Dialog.Content>
             <Paragraph>
-              {`Delete master item ${deleting?.sku ?? ''}? This is a soft-delete and the entry will disappear from this list. Branch items that reference this SKU must be removed or reassigned first.`}
+              {`Delete master item ${
+                deleting?.sku ?? ''
+              }? This is a soft-delete and the entry will disappear from this list. Branch items that reference this SKU must be removed or reassigned first.`}
             </Paragraph>
             {actionError ? (
               <HelperText type="error" visible>
@@ -202,10 +230,23 @@ const MasterItemAccordion = ({masterItem, isRoot, onEdit, onDelete}) => {
     <List.Accordion
       title={
         <View>
-          <Text style={styles.skuText}>{`SKU: ${masterItem.sku ?? ''}`}</Text>
           <Text style={styles.descriptionText} numberOfLines={2}>
             {masterItem.description ?? ''}
           </Text>
+          <View style={styles.skuRow}>
+            <View
+              style={[
+                styles.skuBadge,
+                {
+                  backgroundColor: colors.neutralTint5,
+                  borderColor: colors.neutralTint4,
+                },
+              ]}>
+              <Text style={[styles.skuBadgeText, {color: colors.neutral}]}>
+                {`SKU: ${masterItem.sku ?? ''}`}
+              </Text>
+            </View>
+          </View>
           {variantSummary ? (
             <Text style={styles.variantText} numberOfLines={1}>
               {variantSummary}
@@ -217,6 +258,11 @@ const MasterItemAccordion = ({masterItem, isRoot, onEdit, onDelete}) => {
       style={{backgroundColor: colors.surface}}>
       {isRoot ? (
         <View style={styles.rootActions}>
+          <List.Icon
+            icon="subdirectory-arrow-right"
+            color={colors.neutralTint2}
+            style={styles.rootActionsStem}
+          />
           <IconButton
             icon="pencil-outline"
             size={20}
@@ -271,23 +317,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 32,
   },
-  skuText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
   descriptionText: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  skuRow: {
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  skuBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignSelf: 'flex-start',
+  },
+  skuBadgeText: {
+    fontWeight: 'bold',
+    fontSize: 12,
   },
   variantText: {
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 4,
     fontStyle: 'italic',
     opacity: 0.7,
   },
   rootActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: 8,
+  },
+  rootActionsStem: {
+    marginLeft: 0,
+    marginRight: -8,
   },
 });
