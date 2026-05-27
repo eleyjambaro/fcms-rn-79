@@ -1,25 +1,20 @@
 /**
  * Batch Transfer — cross-branch stateful transfer between two branches of
- * the same company. Simplified single-step flow:
+ * the same company. See plans/help-me-plan-to-federated-book.md for the
+ * full design. State machine:
  *
- *   draft → requested → received (created with inventory_logs on Accept)
- *                  ↘ rejected
- *                  ↘ cancelled (only while requested)
+ *   draft → requested → accepted → transferring → received
+ *                  ↘ rejected     ↘ cancelled
  *
- * The dest's Accept action is the final step: it stamps received_qty =
- * accepted_qty, writes dest's stock_transfer_in inventory_logs, and flips
- * status to `received`. Source's matching stock_transfer_out rows are
- * created lazily on source's next sync via materializeReceivedTransferLogs
- * (per-branch isolation: dest's device can't write rows with branch_id =
- * source's branch).
+ * Inventory impact happens ONLY on `received`, and uses each entry's
+ * `received_qty` (not requested/accepted/adjusted). Each branch writes its
+ * own inventory_logs row locally (per-branch isolation requires this):
+ *   - Dest writes its stock_transfer_in row at confirmTransferReceived().
+ *   - Source's row is created lazily by materializeReceivedTransferLogs(),
+ *     called from the post-pull hook in syncService.
  *
  * The cross-branch sync filter lives in SyncController::pull() (server).
  * Both branches see the same group/entries via their shared sync_id.
- *
- * Legacy multi-step (accepted → transferring → received) functions —
- * `confirmTransferOut`, `confirmTransferReceived`, `updateEntrySourceAdjustment`,
- * `updateEntryReceivedQty` — are retained for any rows from before the
- * flow change, but the UI no longer invokes them.
  */
 
 import uuid from 'react-native-uuid';
@@ -335,30 +330,12 @@ export const updateEntryDestReview = async ({
   scheduleSyncSoon();
 };
 
-/**
- * Dest presses Accept. In the simplified flow this is the FINAL action:
- *   - Default any un-reviewed entry's accepted_qty to its requested_qty.
- *   - Copy accepted_qty → received_qty on every accepted entry.
- *   - Write dest's stock_transfer_in inventory_logs (auto-creating the
- *     local item via master_item_sync_id if it doesn't exist on dest yet).
- *   - Flip status straight to RECEIVED (stamping date_accepted AND
- *     date_received together).
- *
- * Source's stock_transfer_out rows are written lazily by
- * materializeReceivedTransferLogs() on source's next sync — see top-of-file
- * note on per-branch isolation.
- */
-export const acceptBatchTransferRequest = async ({
-  groupId,
-  initiatorAccountUid = null,
-}) => {
+export const acceptBatchTransferRequest = async ({groupId}) => {
   const db = await getDBConnection();
   await assertGroupStatus(db, groupId, [STATUS.REQUESTED]);
 
-  const {deviceId, branchId} = await getCloudSyncParams();
-  if (!branchId) throw new Error('No active branch.');
-
-  // Default any unreviewed entries to accepted_qty = requested_qty.
+  // Default any unreviewed entries to accepted_qty = requested_qty so the
+  // source side has a complete picture even if the dest user skipped them.
   await db.executeSql(
     `UPDATE batch_transfer_entries
        SET accepted_qty = requested_qty,
@@ -382,119 +359,15 @@ export const acceptBatchTransferRequest = async ({
     );
   }
 
-  // Lock in the dest-side final qty.
-  await db.executeSql(
-    `UPDATE batch_transfer_entries
-       SET received_qty = accepted_qty,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE batch_transfer_group_id = ${sqlStr(groupId)}
-         AND IFNULL(is_deleted, 0) != 1
-         AND IFNULL(accepted_qty, 0) > 0`,
-  );
-
-  await writeDestInventoryLogsForGroup({
-    db,
-    groupId,
-    deviceId,
-    branchId,
-    initiatorAccountUid,
-  });
-
   await db.executeSql(
     `UPDATE batch_transfer_groups
-       SET status = ${sqlStr(STATUS.RECEIVED)},
+       SET status = ${sqlStr(STATUS.ACCEPTED)},
            date_accepted = CURRENT_TIMESTAMP,
-           date_received = CURRENT_TIMESTAMP,
            last_viewed_by_dest_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ${sqlStr(groupId)}`,
   );
   scheduleSyncSoon();
-};
-
-/**
- * Write the destination branch's stock_transfer_in inventory_logs for every
- * entry on the given group that has received_qty > 0. Resolves dest's local
- * item via master_item_sync_id; auto-creates it if missing so dest's stock
- * picker can find it later. Stamps dest_item_id back on the entry for
- * future drill-down.
- *
- * Idempotent? No — caller must guarantee the group's status hasn't yet been
- * flipped (so we never write twice). Both `acceptBatchTransferRequest` and
- * the legacy `confirmTransferReceived` rely on this.
- */
-const writeDestInventoryLogsForGroup = async ({
-  db,
-  groupId,
-  deviceId,
-  branchId,
-  initiatorAccountUid,
-}) => {
-  const entries = allRows(
-    await db.executeSql(
-      `SELECT * FROM active_batch_transfer_entries
-       WHERE batch_transfer_group_id = ${sqlStr(groupId)}
-         AND IFNULL(received_qty, 0) > 0`,
-    ),
-  );
-
-  for (const entry of entries) {
-    let destItemId = entry.dest_item_id;
-
-    if (!destItemId && entry.master_item_id) {
-      const localItem = firstRow(
-        await db.executeSql(
-          `SELECT id FROM active_items
-           WHERE master_item_sync_id = ${sqlStr(entry.master_item_id)}
-           LIMIT 1`,
-        ),
-      );
-      destItemId = localItem?.id ?? null;
-    }
-
-    if (!destItemId) {
-      destItemId = await autoCreateLocalItemForTransfer({
-        db,
-        entry,
-        deviceId,
-        branchId,
-      });
-    }
-
-    await db.executeSql(
-      `UPDATE batch_transfer_entries
-         SET dest_item_id = ${sqlStr(destItemId)},
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = ${sqlStr(entry.id)}`,
-    );
-
-    const logId = uuid.v4();
-    const unitCost = parseFloat(entry.unit_cost_snapshot || 0);
-    const qty = parseFloat(entry.received_qty);
-    const remarks = buildTransferLogRemark(entry, 'in');
-    await db.executeSql(
-      `INSERT INTO inventory_logs (
-         id, sync_id,
-         operation_id, item_id,
-         adjustment_unit_cost, adjustment_unit_cost_net,
-         adjustment_qty, adjustment_date,
-         batch_transfer_group_id,
-         adjusted_by_account_uid,
-         remarks,
-         device_id, branch_id, updated_at
-       ) VALUES (
-         ${sqlStr(logId)}, ${sqlStr(logId)},
-         ${sqlStr(OPERATION_DEFAULT_UUIDS.stock_transfer_in)},
-         ${sqlStr(destItemId)},
-         ${unitCost}, ${unitCost},
-         ${qty}, CURRENT_TIMESTAMP,
-         ${sqlStr(groupId)},
-         ${sqlStr(initiatorAccountUid)},
-         ${sqlStr(remarks)},
-         ${sqlStr(deviceId)}, ${sqlStr(branchId)}, CURRENT_TIMESTAMP
-       )`,
-    );
-  }
 };
 
 export const rejectBatchTransferRequest = async ({groupId, reason = null}) => {
@@ -619,10 +492,12 @@ export const updateEntryReceivedQty = async ({entryId, receivedQty}) => {
 };
 
 /**
- * Legacy multi-step path: dest presses "Transfer Received" after source has
- * confirmed Transfer Out. Retained so any rows that were already mid-flight
- * (status=transferring) when we switched to single-step Accept can still be
- * completed. New flow uses acceptBatchTransferRequest directly.
+ * Press "Transfer Received" on the destination side. Flips status to
+ * RECEIVED, materializes destination's inventory_logs rows, and auto-
+ * creates any missing local items linked by master_item_id.
+ *
+ * Source's matching inventory_logs rows are NOT written here — they're
+ * created lazily by materializeReceivedTransferLogs() on source's next sync.
  */
 export const confirmTransferReceived = async ({
   groupId,
@@ -644,13 +519,74 @@ export const confirmTransferReceived = async ({
          AND received_qty IS NULL`,
   );
 
-  await writeDestInventoryLogsForGroup({
-    db,
-    groupId,
-    deviceId,
-    branchId,
-    initiatorAccountUid,
-  });
+  const entries = allRows(
+    await db.executeSql(
+      `SELECT * FROM active_batch_transfer_entries
+       WHERE batch_transfer_group_id = ${sqlStr(groupId)}
+         AND IFNULL(received_qty, 0) > 0`,
+    ),
+  );
+
+  for (const entry of entries) {
+    let destItemId = entry.dest_item_id;
+
+    // Resolve dest's local item via master_item_id; auto-create if missing.
+    if (!destItemId && entry.master_item_id) {
+      // items.master_item_sync_id is the canonical company-wide bridge.
+      const localItem = firstRow(
+        await db.executeSql(
+          `SELECT id FROM active_items
+           WHERE master_item_sync_id = ${sqlStr(entry.master_item_id)}
+           LIMIT 1`,
+        ),
+      );
+      destItemId = localItem?.id ?? null;
+    }
+
+    if (!destItemId) {
+      destItemId = await autoCreateLocalItemForTransfer({
+        db,
+        entry,
+        deviceId,
+        branchId,
+      });
+    }
+
+    // Stamp dest_item_id on the entry so source's drill-down can join later.
+    await db.executeSql(
+      `UPDATE batch_transfer_entries
+         SET dest_item_id = ${sqlStr(destItemId)},
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ${sqlStr(entry.id)}`,
+    );
+
+    const logId = uuid.v4();
+    const unitCost = parseFloat(entry.unit_cost_snapshot || 0);
+    const qty = parseFloat(entry.received_qty);
+    const remarks = buildTransferLogRemark(entry, 'in');
+    await db.executeSql(
+      `INSERT INTO inventory_logs (
+         id, sync_id,
+         operation_id, item_id,
+         adjustment_unit_cost, adjustment_unit_cost_net,
+         adjustment_qty, adjustment_date,
+         batch_transfer_group_id,
+         adjusted_by_account_uid,
+         remarks,
+         device_id, branch_id, updated_at
+       ) VALUES (
+         ${sqlStr(logId)}, ${sqlStr(logId)},
+         ${sqlStr(OPERATION_DEFAULT_UUIDS.stock_transfer_in)},
+         ${sqlStr(destItemId)},
+         ${unitCost}, ${unitCost},
+         ${qty}, CURRENT_TIMESTAMP,
+         ${sqlStr(groupId)},
+         ${sqlStr(initiatorAccountUid)},
+         ${sqlStr(remarks)},
+         ${sqlStr(deviceId)}, ${sqlStr(branchId)}, CURRENT_TIMESTAMP
+       )`,
+    );
+  }
 
   await db.executeSql(
     `UPDATE batch_transfer_groups

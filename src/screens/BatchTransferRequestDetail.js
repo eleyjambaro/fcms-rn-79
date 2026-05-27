@@ -393,20 +393,8 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           key="accept"
           mode="contained"
           loading={acceptMut.isLoading}
-          onPress={() =>
-            Alert.alert(
-              'Accept & receive transfer?',
-              'This will add the accepted quantities to your branch’s inventory and notify the source branch. This cannot be undone.',
-              [
-                {text: 'Cancel'},
-                {
-                  text: 'Accept & Receive',
-                  onPress: () => acceptMut.mutate({groupId}),
-                },
-              ],
-            )
-          }>
-          Accept &amp; Receive
+          onPress={() => acceptMut.mutate({groupId})}>
+          Accept Transfer In Request
         </Button>,
       );
     } else if (status === STATUS.ACCEPTED && isSource) {
