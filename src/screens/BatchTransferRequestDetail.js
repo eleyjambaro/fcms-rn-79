@@ -543,6 +543,22 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
         </View>
 
         {/* Status-contextual note card */}
+        {group.status === STATUS.REQUESTED ? (
+          <View style={[styles.noteCard, {backgroundColor: '#FFF3E0'}]}>
+            <MaterialCommunityIcons
+              name="clock-outline"
+              size={16}
+              color="#E65100"
+              style={{marginTop: 1}}
+            />
+            <Text style={[styles.noteCardText, {color: '#BF360C'}]}>
+              {isDest
+                ? `${sourceBranch?.display_name || sourceBranch?.name || 'A branch'} has sent you a Batch Transfer Request. Review the items below and tap "Accept" to proceed or "Reject" to decline.`
+                : `Your Batch Transfer Request has been sent to ${destBranch?.display_name || destBranch?.name || 'the destination branch'}. You'll be notified once they accept or reject it.`}
+            </Text>
+          </View>
+        ) : null}
+
         {group.status === STATUS.ACCEPTED ? (
           <View style={styles.noteCard}>
             <MaterialCommunityIcons
