@@ -23,6 +23,7 @@ import {
 import {pushDelta, pullDelta} from '../serverDbQueries/v2/sync';
 import {queryClient} from '../queryClient';
 import uuid from 'react-native-uuid';
+import {materializeReceivedTransferLogs} from '../localDbQueries/batchTransfer';
 
 // ---------------------------------------------------------------------------
 // Entity configuration
@@ -120,6 +121,21 @@ const GROUP_A_ENTITIES = [
       item_id: 'item_sync_id',
     },
   },
+  // Cross-branch Batch Transfer. The server's pull() carve-out makes these
+  // entities visible to BOTH source and destination branches; the FK columns
+  // here (source_branch_id, destination_branch_id) reference branches.id
+  // directly (branches don't carry a sync_id) so no remap is needed for them.
+  {key: 'batch_transfer_groups', table: 'batch_transfer_groups'},
+  {
+    key: 'batch_transfer_entries',
+    table: 'batch_transfer_entries',
+    pushFieldMap: {
+      batch_transfer_group_id: 'batch_transfer_group_sync_id',
+      master_item_id: 'master_item_sync_id',
+      source_item_id: 'source_item_sync_id',
+      dest_item_id: 'dest_item_sync_id',
+    },
+  },
   {key: 'revenue_groups', table: 'revenue_groups'},
   {
     key: 'revenues',
@@ -195,6 +211,7 @@ const GROUP_A_ENTITIES = [
       item_id: 'item_sync_id',
       recipe_id: 'recipe_sync_id',
       batch_purchase_group_id: 'batch_purchase_group_sync_id',
+      batch_transfer_group_id: 'batch_transfer_group_sync_id',
       invoice_id: 'invoice_sync_id',
       idt_import_id: 'idt_import_sync_id',
     },
@@ -683,6 +700,19 @@ export const runSync = async () => {
             );
           }
         }
+      }
+
+      // Materialize source-side stock_transfer_out inventory_logs for any
+      // batch_transfer_group we are the source of that just flipped to
+      // 'received' on the destination side. Idempotent; safe on every pull.
+      // Runs BEFORE the React Query invalidation so the new logs are visible
+      // immediately on the item drill-down.
+      try {
+        await materializeReceivedTransferLogs();
+      } catch (err) {
+        result.errors.push(
+          `materializeReceivedTransferLogs failed: ${err.message}`,
+        );
       }
 
       // If any records were pulled into SQLite, invalidate all React Query caches

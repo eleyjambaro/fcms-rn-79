@@ -103,6 +103,12 @@ import SelectSellingMenuItems from '../screens/SelectSellingMenuItems';
 import SellingMenuView from '../screens/SellingMenuView';
 import {screenTransitionConfig} from '../utils/ScreenOptimization';
 import EditSellingMenu from '../screens/EditSellingMenu';
+import BatchTransferTypePicker from '../screens/BatchTransferTypePicker';
+import BatchTransferRequestList from '../screens/BatchTransferRequestList';
+import BatchTransferRequestForm from '../screens/BatchTransferRequestForm';
+import BatchTransferItemSelection from '../screens/BatchTransferItemSelection';
+import BatchTransferRequestDetail from '../screens/BatchTransferRequestDetail';
+import BatchTransferReceive from '../screens/BatchTransferReceive';
 
 const Stack = createStackNavigator();
 
@@ -150,6 +156,16 @@ const MemoizedConfirmPurchases = React.memo(ConfirmPurchases);
 const MemoizedPurchaseEntryList = React.memo(PurchaseEntryList);
 const MemoizedStockUsageEntryList = React.memo(StockUsageEntryList);
 const MemoizedEndingInventory = React.memo(EndingInventory);
+const MemoizedBatchTransferTypePicker = React.memo(BatchTransferTypePicker);
+const MemoizedBatchTransferRequestList = React.memo(BatchTransferRequestList);
+const MemoizedBatchTransferRequestForm = React.memo(BatchTransferRequestForm);
+const MemoizedBatchTransferItemSelection = React.memo(
+  BatchTransferItemSelection,
+);
+const MemoizedBatchTransferRequestDetail = React.memo(
+  BatchTransferRequestDetail,
+);
+const MemoizedBatchTransferReceive = React.memo(BatchTransferReceive);
 const MemoizedSalesCounterItemsTab = React.memo(SalesCounterItemsTab);
 const MemoizedConfirmSales = React.memo(ConfirmSales);
 const MemoizedPaymentMethod = React.memo(PaymentMethod);
@@ -512,6 +528,36 @@ const RootStack = () => {
               );
             },
           }}
+        />
+        <Stack.Screen
+          name={routes.batchTransferTypePicker()}
+          component={MemoizedBatchTransferTypePicker}
+          options={{headerTitle: 'Batch Transfer'}}
+        />
+        <Stack.Screen
+          name={routes.batchTransferRequestList()}
+          component={MemoizedBatchTransferRequestList}
+          options={{headerTitle: 'Batch Transfer Requests'}}
+        />
+        <Stack.Screen
+          name={routes.batchTransferRequestForm()}
+          component={MemoizedBatchTransferRequestForm}
+          options={{headerTitle: 'New Batch Transfer'}}
+        />
+        <Stack.Screen
+          name={routes.batchTransferItemSelection()}
+          component={MemoizedBatchTransferItemSelection}
+          options={{headerTitle: 'Select Items to Transfer'}}
+        />
+        <Stack.Screen
+          name={routes.batchTransferRequestDetail()}
+          component={MemoizedBatchTransferRequestDetail}
+          options={{headerTitle: 'Batch Transfer Request'}}
+        />
+        <Stack.Screen
+          name={routes.batchTransferReceive()}
+          component={MemoizedBatchTransferReceive}
+          options={{headerTitle: 'Receive Transfer'}}
         />
         <Stack.Screen
           name={routes.counter()}

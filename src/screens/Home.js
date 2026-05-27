@@ -34,6 +34,7 @@ import routes from '../constants/routes';
 import {env} from '../constants/appConfig';
 import {getBatchPurchaseEntriesCount} from '../localDbQueries/batchPurchase';
 import {getBatchStockUsageEntriesCount} from '../localDbQueries/batchStockUsage';
+import {getBatchTransferUnreadCount} from '../localDbQueries/batchTransfer';
 import useCurrentUser from '../hooks/useCurrentUser';
 import {getLicenseStatus} from '../localDbQueries/license';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
@@ -68,6 +69,12 @@ const Home = props => {
   } = useQuery(
     ['batchStockUsageEntriesCount', {}],
     getBatchStockUsageEntriesCount,
+  );
+  const {
+    data: batchTransferUnreadCountData,
+  } = useQuery(
+    ['batchTransferUnreadCount'],
+    getBatchTransferUnreadCount,
   );
   const {
     status: getLicenseStatusReqStatus,
@@ -106,6 +113,15 @@ const Home = props => {
       );
   };
 
+  const renderBatchTransferButtonBadge = () => {
+    if (!batchTransferUnreadCountData || batchTransferUnreadCountData <= 0) {
+      return null;
+    }
+    return (
+      <Badge style={styles.buttonBadge}>{batchTransferUnreadCountData}</Badge>
+    );
+  };
+
   if (getLicenseStatusReqStatus === 'loading') {
     return (
       <DefaultLoadingScreen
@@ -127,7 +143,7 @@ const Home = props => {
   const {licenseKey, metadata, isLicenseExpired, appConfigFromLicense} =
     licenseStatus;
 
-  const highlightedFirstRowButtons = ['batchPurchase', 'endingInventory']; // batch entry highlighted row
+  const highlightedFirstRowButtons = ['batchPurchase', 'batchTransfer', 'endingInventory']; // batch entry highlighted row
   const mainFirstRowButtons = ['recipes', 'revenues', 'inventory'];
   const mainSecondRowButtons = ['logs', 'vendors', 'spoilage'];
   const mainThirdRowButtons = ['salesLog', 'counter', 'salesOrders'];
@@ -194,6 +210,32 @@ const Home = props => {
         />
         <Text numberOfLines={3} style={styles.buttonText}>
           Batch Purchase
+        </Text>
+      </Pressable>
+    ),
+    batchTransfer: (
+      <Pressable
+        key={routes.batchTransferTypePicker()}
+        style={[
+          styles.button,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.surface,
+            height: buttonHeight,
+            width: buttonWidth,
+          },
+        ]}
+        onPress={() => {
+          navigation.navigate(routes.batchTransferTypePicker());
+        }}>
+        {renderBatchTransferButtonBadge()}
+        <MaterialCommunityIcons
+          name="swap-horizontal-bold"
+          size={37}
+          color={colors.dark}
+        />
+        <Text numberOfLines={3} style={styles.buttonText}>
+          Batch Transfer
         </Text>
       </Pressable>
     ),

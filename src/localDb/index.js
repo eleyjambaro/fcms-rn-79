@@ -560,6 +560,75 @@ const createBatchStockUsageEntriesTableQuery = `
   );
 `;
 
+// Cross-branch stateful transfer between two branches of the same company.
+// Group rows are visible to BOTH source and destination branches; the
+// SyncController's pull filter is overridden for this table to use
+// (source_branch_id = $branchId OR destination_branch_id = $branchId).
+// Drafts stay invisible to dest (status != 'draft' OR source_branch_id = me).
+const createBatchTransferGroupsTableQuery = `
+  CREATE TABLE IF NOT EXISTS batch_transfer_groups (
+    id TEXT PRIMARY KEY NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'branch_to_branch',
+    source_branch_id TEXT NOT NULL,
+    destination_branch_id TEXT,
+    status TEXT NOT NULL DEFAULT 'draft',
+    source_remarks VARCHAR(500),
+    dest_remarks VARCHAR(500),
+    initiator_account_uid VARCHAR,
+    date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_requested DATETIME,
+    date_accepted DATETIME,
+    date_transferring DATETIME,
+    date_received DATETIME,
+    date_cancelled DATETIME,
+    date_rejected DATETIME,
+    last_viewed_by_source_at DATETIME,
+    last_viewed_by_dest_at DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
+    sync_id VARCHAR(36) DEFAULT NULL,
+    updated_at DATETIME DEFAULT NULL,
+    synced_at DATETIME DEFAULT NULL,
+    is_deleted INTEGER DEFAULT 0
+  );
+`;
+
+// One row per item per transfer request. master_item_id is the cross-branch
+// bridge (since each branch has its own items table). source_item_id and
+// dest_item_id are each branch's local item; dest_item_id is resolved
+// (and the local item auto-created if missing) when the dest presses
+// "Transfer Received".
+const createBatchTransferEntriesTableQuery = `
+  CREATE TABLE IF NOT EXISTS batch_transfer_entries (
+    id TEXT PRIMARY KEY NOT NULL,
+    batch_transfer_group_id TEXT NOT NULL,
+    master_item_id TEXT,
+    source_item_id TEXT,
+    dest_item_id TEXT,
+    item_display_name VARCHAR,
+    item_display_sku VARCHAR,
+    item_uom_abbrev VARCHAR,
+    unit_cost_snapshot REAL DEFAULT 0,
+    requested_qty REAL NOT NULL DEFAULT 0,
+    accepted_qty REAL,
+    adjusted_qty REAL,
+    received_qty REAL,
+    entry_status TEXT DEFAULT 'pending',
+    source_remarks VARCHAR(500),
+    dest_remarks VARCHAR(500),
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
+    sync_id VARCHAR(36) DEFAULT NULL,
+    updated_at DATETIME DEFAULT NULL,
+    synced_at DATETIME DEFAULT NULL,
+    is_deleted INTEGER DEFAULT 0,
+
+    CONSTRAINT fk_batch_transfer_group
+    FOREIGN KEY (batch_transfer_group_id)
+    REFERENCES batch_transfer_groups(id)
+  );
+`;
+
 /**
  * type VARCHAR: 'add_stock' | 'remove_stock'
  * name VARCHAR: e.g. 'New Purchase', 'Stock Transfer In', 'Stock Transfer Out'
@@ -1197,6 +1266,8 @@ const DELTA_SYNC_TABLES = [
   'batch_purchase_entries',
   'batch_stock_usage_groups',
   'batch_stock_usage_entries',
+  'batch_transfer_groups',
+  'batch_transfer_entries',
   'invoices',
   'sale_logs',
   'sales_order_groups',
@@ -1248,6 +1319,8 @@ export const createTables = async () => {
     await db.executeSql(createBatchPurchaseEntriesTableQuery);
     await db.executeSql(createBatchStockUsageGroupsTableQuery);
     await db.executeSql(createBatchStockUsageEntriesTableQuery);
+    await db.executeSql(createBatchTransferGroupsTableQuery);
+    await db.executeSql(createBatchTransferEntriesTableQuery);
     await db.executeSql(createOperationsTableQuery);
     await db.executeSql(createInventoryLogsTableQuery);
     await db.executeSql(createRecipeKindsTableQuery);
@@ -2005,6 +2078,25 @@ export const alterTables = async currentAppVersion => {
       );
     }
 
+    // Cross-branch Batch Transfer linkage. Inventory log rows created by a
+    // received batch transfer (operation_id stock_transfer_in/out) carry the
+    // group id so the item-history drill-down can show "from Transfer #X".
+    // Server-side: the matching column on the cloud inventory_logs table is
+    // batch_transfer_group_sync_id; ensure server migration adds it.
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'inventory_logs',
+        'batch_transfer_group_id',
+        `ALTER TABLE inventory_logs ADD COLUMN batch_transfer_group_id TEXT DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding inventory_logs.batch_transfer_group_id:',
+        error,
+      );
+    }
+
     /**
      * New columns for JSON delta sync
      */
@@ -2029,6 +2121,8 @@ export const alterTables = async currentAppVersion => {
         'batch_purchase_entries',
         'batch_stock_usage_groups',
         'batch_stock_usage_entries',
+        'batch_transfer_groups',
+        'batch_transfer_entries',
         'invoices',
         'sale_logs',
         'sales_order_groups',

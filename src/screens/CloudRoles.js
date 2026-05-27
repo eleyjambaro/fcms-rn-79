@@ -252,6 +252,9 @@ const CloudRoles = () => {
                   <HelperText style={styles.hint}>
                     {`Example: {"enable":["*"],"disable":["revenues","reports"]}`}
                   </HelperText>
+                  <HelperText style={styles.hint}>
+                    {`Batch Transfer keys: transfer.create, transfer.review, transfer.transfer_out, transfer.receive`}
+                  </HelperText>
 
                   {serverError ? (
                     <HelperText type="error">{serverError}</HelperText>
