@@ -73,9 +73,29 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
       inventory_logs_added_and_removed_totals.total_added_stock_cost - inventory_logs_added_and_removed_totals.total_removed_stock_cost AS current_stock_cost,
       inventory_logs_added_and_removed_totals.total_added_stock_cost_net - inventory_logs_added_and_removed_totals.total_removed_stock_cost_net AS current_stock_cost_net,
       inventory_logs_added_and_removed_totals.total_added_stock_cost_tax - inventory_logs_added_and_removed_totals.total_removed_stock_cost_tax AS current_stock_cost_tax,
-      ((inventory_logs_added_and_removed_totals.total_added_stock_cost - inventory_logs_added_and_removed_totals.total_removed_stock_cost) / (inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty)) AS avg_unit_cost,
-      ((inventory_logs_added_and_removed_totals.total_added_stock_cost_net - inventory_logs_added_and_removed_totals.total_removed_stock_cost_net) / (inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty)) AS avg_unit_cost_net,
-      ((inventory_logs_added_and_removed_totals.total_added_stock_cost_tax - inventory_logs_added_and_removed_totals.total_removed_stock_cost_tax) / (inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty)) AS avg_unit_cost_tax
+      /*
+       * Moving weighted average from inventory history. NULLIF guards
+       * division-by-zero (added_qty == removed_qty — happens for items with
+       * no logs yet or fully consumed stock). COALESCE falls back to the
+       * static items.unit_cost, VAT-stripped via items.tax_id → taxes, so
+       * callers always get a usable number instead of NULL. Net = gross /
+       * (1 + rate/100); tax = gross - net.
+       */
+      COALESCE(
+        (inventory_logs_added_and_removed_totals.total_added_stock_cost - inventory_logs_added_and_removed_totals.total_removed_stock_cost)
+          / NULLIF(inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty, 0),
+        items.unit_cost
+      ) AS avg_unit_cost,
+      COALESCE(
+        (inventory_logs_added_and_removed_totals.total_added_stock_cost_net - inventory_logs_added_and_removed_totals.total_removed_stock_cost_net)
+          / NULLIF(inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty, 0),
+        items.unit_cost / (IFNULL(taxes.rate_percentage, 0) / 100.0 + 1)
+      ) AS avg_unit_cost_net,
+      COALESCE(
+        (inventory_logs_added_and_removed_totals.total_added_stock_cost_tax - inventory_logs_added_and_removed_totals.total_removed_stock_cost_tax)
+          / NULLIF(inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty, 0),
+        items.unit_cost - items.unit_cost / (IFNULL(taxes.rate_percentage, 0) / 100.0 + 1)
+      ) AS avg_unit_cost_tax
     `;
     const query = `
       FROM active_items items
@@ -401,11 +421,16 @@ export const registerItem = async ({
     }
 
     const masterItemSku = masterItem
-      ? String(masterItem.sku ?? '').trim().toUpperCase()
+      ? String(masterItem.sku ?? '')
+          .trim()
+          .toUpperCase()
       : dedupMatchedMaster
-      ? String(dedupMatchedMaster.sku ?? '').trim().toUpperCase()
-      : (String(item?.sku ?? '').trim().toUpperCase() ||
-         generateMasterItemSku(item.name));
+      ? String(dedupMatchedMaster.sku ?? '')
+          .trim()
+          .toUpperCase()
+      : String(item?.sku ?? '')
+          .trim()
+          .toUpperCase() || generateMasterItemSku(item.name);
     const newMasterItemSyncId = masterItem
       ? String(masterItem.sync_id)
       : dedupMatchedMaster
@@ -427,7 +452,9 @@ export const registerItem = async ({
       (masterItem ? masterItem.uom_abbrev : item.uom_abbrev) ?? '',
     );
     const variantUomAbbrevPerPiece = String(
-      (masterItem ? masterItem.uom_abbrev_per_piece : item.uom_abbrev_per_piece) ?? '',
+      (masterItem
+        ? masterItem.uom_abbrev_per_piece
+        : item.uom_abbrev_per_piece) ?? '',
     );
     const variantQtyPerPieceRaw = masterItem
       ? masterItem.qty_per_piece
@@ -936,9 +963,22 @@ export const getItem = async ({queryKey}) => {
     inventory_logs_added_and_removed_totals.total_added_stock_cost - inventory_logs_added_and_removed_totals.total_removed_stock_cost AS current_stock_cost,
     inventory_logs_added_and_removed_totals.total_added_stock_cost_net - inventory_logs_added_and_removed_totals.total_removed_stock_cost_net AS current_stock_cost_net,
     inventory_logs_added_and_removed_totals.total_added_stock_cost_tax - inventory_logs_added_and_removed_totals.total_removed_stock_cost_tax AS current_stock_cost_tax,
-    ((inventory_logs_added_and_removed_totals.total_added_stock_cost - inventory_logs_added_and_removed_totals.total_removed_stock_cost) / (inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty)) AS avg_unit_cost,
-    ((inventory_logs_added_and_removed_totals.total_added_stock_cost_net - inventory_logs_added_and_removed_totals.total_removed_stock_cost_net) / (inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty)) AS avg_unit_cost_net,
-    ((inventory_logs_added_and_removed_totals.total_added_stock_cost_tax - inventory_logs_added_and_removed_totals.total_removed_stock_cost_tax) / (inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty)) AS avg_unit_cost_tax
+    /* See getItems for the rationale on NULLIF + COALESCE fallback. */
+    COALESCE(
+      (inventory_logs_added_and_removed_totals.total_added_stock_cost - inventory_logs_added_and_removed_totals.total_removed_stock_cost)
+        / NULLIF(inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty, 0),
+      items.unit_cost
+    ) AS avg_unit_cost,
+    COALESCE(
+      (inventory_logs_added_and_removed_totals.total_added_stock_cost_net - inventory_logs_added_and_removed_totals.total_removed_stock_cost_net)
+        / NULLIF(inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty, 0),
+      items.unit_cost / (IFNULL(taxes.rate_percentage, 0) / 100.0 + 1)
+    ) AS avg_unit_cost_net,
+    COALESCE(
+      (inventory_logs_added_and_removed_totals.total_added_stock_cost_tax - inventory_logs_added_and_removed_totals.total_removed_stock_cost_tax)
+        / NULLIF(inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty, 0),
+      items.unit_cost - items.unit_cost / (IFNULL(taxes.rate_percentage, 0) / 100.0 + 1)
+    ) AS avg_unit_cost_tax
     FROM items
     LEFT JOIN (
       SELECT inventory_logs_added_and_removed.item_id AS item_id,
@@ -973,6 +1013,7 @@ export const getItem = async ({queryKey}) => {
     ) AS inventory_logs_added_and_removed_totals
     ON inventory_logs_added_and_removed_totals.item_id = items.id
     LEFT JOIN categories ON categories.id = items.category_id
+    LEFT JOIN taxes ON taxes.id = items.tax_id
     LEFT JOIN revenue_categories ON revenue_categories.id = items.category_id
     LEFT JOIN revenue_groups ON revenue_groups.id = revenue_categories.revenue_group_id
     WHERE items.id = '${id}'

@@ -157,10 +157,17 @@ export const getOrCreateDraftBatchTransferGroup = async ({
  * render the entry even if the underlying item doesn't exist in its branch.
  *
  * `values`: { groupId, item, qty, remarks?, direction? }
- * - `item` is the full row from active_items (must include id,
- *   master_item_sync_id, name, sku, uom_abbrev, unit_cost). Note: the items
- *   table uses `master_item_sync_id` for the cross-branch master link, even
- *   though we store it as `master_item_id` on batch_transfer_entries.
+ * - `item` is the full row from getItems (must include id,
+ *   master_item_sync_id, name, sku, uom_abbrev, avg_unit_cost_net). Note:
+ *   the items table uses `master_item_sync_id` for the cross-branch master
+ *   link, even though we store it as `master_item_id` on
+ *   batch_transfer_entries.
+ *
+ * Unit cost snapshot uses `avg_unit_cost_net` (VAT-stripped moving weighted
+ * average from inventory logs) — branch-to-branch transfer is non-VAT, so
+ * the net cost is the actual basis to inherit; gross would double-count
+ * VAT downstream. getItems COALESCEs this with a VAT-stripped unit_cost
+ * fallback so the column is always populated.
  * - `direction`:
  *     'out' (default): the picked item is the source's local item — written
  *                      to source_item_id; remark stored in source_remarks.
@@ -229,6 +236,14 @@ export const createBatchTransferEntry = async ({values}) => {
   const parsedQty = parseFloat(qty);
   const hasQty = Number.isFinite(parsedQty) && parsedQty > 0;
 
+  // Non-VAT transfer: snapshot avg_unit_cost_net (VAT-stripped moving
+  // weighted average from inventory logs). Net — not gross — because the
+  // transfer itself doesn't add VAT, so a gross snapshot would double-count
+  // VAT downstream. getItems now COALESCEs avg_unit_cost_net with a
+  // VAT-stripped unit_cost when there's no inventory history, so this is
+  // always defined for an item coming from getItems.
+  const snapshotUnitCost = item.avg_unit_cost_net;
+
   // For In-mode the initiator's remark belongs in dest_remarks (initiator is
   // the dest); for Out-mode the initiator's remark belongs in source_remarks
   // (initiator is the source). The other column stays NULL until the
@@ -255,7 +270,7 @@ export const createBatchTransferEntry = async ({values}) => {
          ${sqlStr(item.name)}, ${sqlStr(item.sku)},
          ${sqlStr(item.uom_abbrev)},
          ${sqlStr(categoryName)},
-         ${sqlNum(item.unit_cost)},
+         ${sqlNum(snapshotUnitCost)},
          ${parsedQty}, ${sqlStr(ENTRY_STATUS.PENDING)}, ${sqlStr(remarks)},
          ${sqlStr(deviceId)}, ${sqlStr(branchId)}, CURRENT_TIMESTAMP
        )`,
@@ -284,7 +299,7 @@ export const createBatchTransferEntry = async ({values}) => {
            item_display_sku = ${sqlStr(item.sku)},
            item_uom_abbrev = ${sqlStr(item.uom_abbrev)},
            item_category_name = ${sqlStr(categoryName)},
-           unit_cost_snapshot = ${sqlNum(item.unit_cost)},
+           unit_cost_snapshot = ${sqlNum(snapshotUnitCost)},
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ${sqlStr(existing.id)}`,
   );

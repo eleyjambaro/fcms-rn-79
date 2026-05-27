@@ -149,6 +149,20 @@ These rules exist because each was learned the hard way — every violation in t
 
 11. **Migrations are idempotent and run on every `setActiveCompanyDb`.** `createTables`, `alterTables`, and `createViews` all use `IF NOT EXISTS` (or `DROP + CREATE` for views, so view definitions update on existing DBs). Never write a non-idempotent migration here — it runs on every sign-in, restore, and branch switch.
 
+### Batch Transfer (Branch-to-Branch)
+
+Branch-to-branch batch transfer is a **non-VAT** operation — the receiving branch records stock at the source branch's cost basis, not at a freshly invoiced price.
+
+When snapshotting an item's unit cost onto `batch_transfer_entries.unit_cost_snapshot` (in `/src/localDbQueries/batchTransfer.js`), use `item.avg_unit_cost_net` from `getItems` — the VAT-stripped moving weighted average from inventory logs. Do NOT use the static `item.unit_cost` (gross/VAT-inclusive) and do NOT use `item.avg_unit_cost` (also gross).
+
+Why net, not gross: transfer itself does not add VAT. If the snapshot were gross/VAT-inclusive, VAT would be double-counted downstream when the destination later sells with VAT. This matches the existing `remove_stock` convention in `inventoryLogs.js` where `unitCost = avg_unit_cost_net` and `unitCostTax = 0`.
+
+Why avg, not the static `unit_cost`: `unit_cost` is the configured/initial price and can be stale relative to actual purchase history. `avg_unit_cost_net` reflects what the source branch actually paid (net of VAT) for the stock being moved, which is what the destination should inherit as its cost basis.
+
+`avg_unit_cost_net` is always populated by `getItems` / `getItem` — the SQL formula `(added_cost_net - removed_cost_net) / NULLIF(added_qty - removed_qty, 0)` is wrapped in `COALESCE(..., items.unit_cost / (IFNULL(taxes.rate_percentage, 0) / 100.0 + 1))`. This means even items with no inventory history (initial_stock_qty = 0, no purchases) or items where added_qty == removed_qty return a VAT-stripped fallback derived from the static `unit_cost` and the linked tax rate, instead of NULL. The same COALESCE pattern applies to `avg_unit_cost` (fallback = `items.unit_cost`) and `avg_unit_cost_tax` (fallback = `unit_cost - net`) for consistency.
+
+The snapshot is captured once at entry creation in `createBatchTransferEntry` and then flows into the destination's `inventory_logs.adjustment_unit_cost` (`confirmTransferReceived`), the source's `inventory_logs.adjustment_unit_cost` (`materializeReceivedTransferLogs`), and any auto-created destination item's `unit_cost` (`autoCreateLocalItemForTransfer`). All three downstream sites already read from `entry.unit_cost_snapshot`, so the rule only needs to be enforced at the capture site.
+
 ### Navigation Structure
 
 Five navigation stacks in `/src/stacks/`:
