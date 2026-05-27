@@ -58,6 +58,13 @@ const formatDate = iso => {
   }
 };
 
+/** Display UOM in uppercase; 'ea' gets a friendly alias. */
+const formatUOM = uom => {
+  if (!uom) return '';
+  if (uom.toLowerCase() === 'ea') return 'ea (pc)';
+  return uom.toUpperCase();
+};
+
 const EntryRow = ({entry, group, isSource, isDest, onEdit, onRemove}) => {
   const {colors} = useTheme();
   const status = group?.status;
@@ -87,7 +94,7 @@ const EntryRow = ({entry, group, isSource, isDest, onEdit, onRemove}) => {
           ) : null}
         </View>
         <Text style={styles.entryQty}>
-          {primaryQty != null ? `${parseFloat(primaryQty)} ${entry.item_uom_abbrev || ''}` : '—'}
+          {primaryQty != null ? `${parseFloat(primaryQty)} ${formatUOM(entry.item_uom_abbrev)}` : '—'}
         </Text>
         {editable ? (
           <Pressable onPress={() => onEdit(entry)} style={styles.editBtn}>
@@ -105,25 +112,25 @@ const EntryRow = ({entry, group, isSource, isDest, onEdit, onRemove}) => {
         {entry.requested_qty != null && status !== STATUS.DRAFT ? (
           <Text style={styles.detailLine}>
             Requested: {parseFloat(entry.requested_qty)}{' '}
-            {entry.item_uom_abbrev || ''}
+            {formatUOM(entry.item_uom_abbrev)}
           </Text>
         ) : null}
         {entry.accepted_qty != null ? (
           <Text style={styles.detailLine}>
             Accepted: {parseFloat(entry.accepted_qty)}{' '}
-            {entry.item_uom_abbrev || ''}
+            {formatUOM(entry.item_uom_abbrev)}
           </Text>
         ) : null}
         {entry.adjusted_qty != null ? (
           <Text style={styles.detailLine}>
-            Adjusted: {parseFloat(entry.adjusted_qty)}{' '}
-            {entry.item_uom_abbrev || ''}
+            Transferring: {parseFloat(entry.adjusted_qty)}{' '}
+            {formatUOM(entry.item_uom_abbrev)}
           </Text>
         ) : null}
         {entry.received_qty != null && status === STATUS.RECEIVED ? (
           <Text style={[styles.detailLine, {color: '#43A047'}]}>
             Received: {parseFloat(entry.received_qty)}{' '}
-            {entry.item_uom_abbrev || ''}
+            {formatUOM(entry.item_uom_abbrev)}
           </Text>
         ) : null}
       </View>
@@ -467,6 +474,9 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               <Text style={styles.branchName} numberOfLines={2}>
                 {sourceBranch?.display_name || sourceBranch?.name || '—'}
               </Text>
+              {group.source_branch_id === currentBranchId ? (
+                <Text style={styles.yourBranchLabel}>(Your branch)</Text>
+              ) : null}
             </View>
             <MaterialCommunityIcons
               name="arrow-right-bold"
@@ -483,6 +493,9 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               <Text style={styles.branchName} numberOfLines={2}>
                 {destBranch?.display_name || destBranch?.name || '—'}
               </Text>
+              {group.destination_branch_id === currentBranchId ? (
+                <Text style={styles.yourBranchLabel}>(Your branch)</Text>
+              ) : null}
             </View>
           </View>
 
@@ -529,6 +542,39 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           ) : null}
         </View>
 
+        {/* Status-contextual note card */}
+        {group.status === STATUS.ACCEPTED ? (
+          <View style={styles.noteCard}>
+            <MaterialCommunityIcons
+              name="information-outline"
+              size={16}
+              color="#1E88E5"
+              style={{marginTop: 1}}
+            />
+            <Text style={[styles.noteCardText, {color: '#1565C0'}]}>
+              {isDest
+                ? `You accepted the Batch Transfer Request from ${sourceBranch?.display_name || sourceBranch?.name || 'the source branch'}. You'll be notified once they start transferring your items.`
+                : `${destBranch?.display_name || destBranch?.name || 'The destination branch'} accepted your Batch Transfer Request. You can now start transferring the items by tapping Transfer. You'll be notified once they receive your items.`}
+            </Text>
+          </View>
+        ) : null}
+
+        {group.status === STATUS.TRANSFERRING ? (
+          <View style={[styles.noteCard, {backgroundColor: '#F3E5F5'}]}>
+            <MaterialCommunityIcons
+              name="truck-delivery-outline"
+              size={16}
+              color="#6A1B9A"
+              style={{marginTop: 1}}
+            />
+            <Text style={[styles.noteCardText, {color: '#4A148C'}]}>
+              {isDest
+                ? `${sourceBranch?.display_name || sourceBranch?.name || 'The source branch'} has started transferring your items. Tap "Mark Transfer Received" once you receive them.`
+                : `You've dispatched the items to ${destBranch?.display_name || destBranch?.name || 'the destination branch'}. You'll be notified once they confirm receipt.`}
+            </Text>
+          </View>
+        ) : null}
+
         <Text style={styles.sectionHeading}>
           Items ({entries.length})
         </Text>
@@ -572,13 +618,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           <Dialog.Content>
             <Text style={{marginBottom: 8, opacity: 0.7}}>
               {group.status === STATUS.REQUESTED && isDest
-                ? `Set the qty you can accept (0 = decline this item). Requested: ${parseFloat(editEntry?.requested_qty || 0)} ${editEntry?.item_uom_abbrev || ''}`
+                ? `Set the qty you can accept (0 = decline this item). Requested: ${parseFloat(editEntry?.requested_qty || 0)} ${formatUOM(editEntry?.item_uom_abbrev)}`
                 : group.status === STATUS.ACCEPTED && isSource
-                ? `Adjust the qty you'll actually send. Accepted: ${parseFloat(editEntry?.accepted_qty || 0)} ${editEntry?.item_uom_abbrev || ''}`
+                ? `Adjust the qty you'll actually send. Accepted: ${parseFloat(editEntry?.accepted_qty || 0)} ${formatUOM(editEntry?.item_uom_abbrev)}`
                 : ''}
             </Text>
             <TextInput
-              label={`Qty (${editEntry?.item_uom_abbrev || ''})`}
+              label={`Qty (${formatUOM(editEntry?.item_uom_abbrev)})`}
               value={editValues.qty}
               onChangeText={v =>
                 setEditValues(s => ({...s, qty: v}))
@@ -669,6 +715,27 @@ const styles = StyleSheet.create({
   branchCol: {flex: 1, alignItems: 'center'},
   branchLabel: {fontSize: 11, opacity: 0.65, marginTop: 2},
   branchName: {fontSize: 13, fontWeight: '600', textAlign: 'center'},
+  yourBranchLabel: {
+    fontSize: 10,
+    color: '#1E88E5',
+    fontStyle: 'italic',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  noteCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  noteCardText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   timestamp: {fontSize: 11, opacity: 0.7, marginTop: 2},
   remarkLine: {
     fontSize: 12,

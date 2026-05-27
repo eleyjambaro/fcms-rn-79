@@ -42,8 +42,7 @@ const RequestRow = ({item, branchById, currentBranchId, onPress}) => {
   const counterBranch = branchById?.[counterBranchId];
   const counterName =
     counterBranch?.display_name || counterBranch?.name || '—';
-  const directionLabel =
-    item.perspective === 'out' ? `To: ${counterName}` : `From: ${counterName}`;
+  const directionPrefix = item.perspective === 'out' ? 'To:' : 'From:';
 
   return (
     <Pressable
@@ -55,7 +54,8 @@ const RequestRow = ({item, branchById, currentBranchId, onPress}) => {
       <View style={styles.rowMain}>
         <View style={styles.rowTitleLine}>
           <Text style={styles.rowTitle} numberOfLines={1}>
-            {directionLabel}
+            <Text style={{fontWeight: 'bold'}}>{directionPrefix}</Text>
+            {' '}{counterName}
           </Text>
           {item.is_unread ? (
             <View

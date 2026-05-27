@@ -14,10 +14,10 @@ const STATUS_COLORS = {
 
 const STATUS_LABELS = {
   draft: 'Draft',
-  requested: 'Requested',
-  accepted: 'Accepted',
-  transferring: 'Transferring',
-  received: 'Received',
+  requested: 'Transfer Requested',
+  accepted: 'Request Accepted',
+  transferring: 'Item(s) Transferring',
+  received: 'Item(s) Received',
   cancelled: 'Cancelled',
   rejected: 'Rejected',
 };
