@@ -1094,8 +1094,12 @@ export const getBatchTransferUnreadCount = async () => {
 /**
  * Mark the group as viewed by the current branch's role. Updates only the
  * field for the perspective from which the user is viewing (source or dest).
- * Does NOT bump `updated_at` — viewing is local-only and should not push to
- * the counterpart branch as if state changed.
+ *
+ * Does NOT bump `updated_at` — viewing is intentionally a local-only event so
+ * the list (which sorts by `updated_at DESC`) doesn't visibly re-order every
+ * time the user drills in and out of a request. The trade-off: the viewed
+ * state won't push to other devices on the same branch until some real state
+ * change bumps `updated_at`, at which point this column rides along.
  */
 export const markBatchTransferViewed = async ({groupId}) => {
   const db = await getDBConnection();
@@ -1115,12 +1119,9 @@ export const markBatchTransferViewed = async ({groupId}) => {
       ? 'last_viewed_by_dest_at'
       : null;
   if (!column) return;
-  // Bump updated_at so the viewed-state still syncs across the current
-  // branch's own devices, but not on the counterpart-branch column.
   await db.executeSql(
     `UPDATE batch_transfer_groups
-       SET ${column} = CURRENT_TIMESTAMP,
-           updated_at = CURRENT_TIMESTAMP
+       SET ${column} = CURRENT_TIMESTAMP
        WHERE id = ${sqlStr(groupId)}`,
   );
 };

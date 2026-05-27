@@ -53,12 +53,20 @@ const STATUS = {
   REJECTED: 'rejected',
 };
 
-const formatDate = iso => {
-  if (!iso) return '';
+// SQLite's CURRENT_TIMESTAMP returns 'YYYY-MM-DD HH:MM:SS' in UTC. JS's Date
+// parses that space-separated form as LOCAL time on most engines, which makes
+// the rendered time wrong by the local timezone offset. Force-ISO it with a
+// 'T' and a trailing 'Z' so the conversion to local for display is correct.
+const formatDate = raw => {
+  if (!raw) return '';
   try {
+    const str = String(raw);
+    const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(str)
+      ? str.replace(' ', 'T') + 'Z'
+      : str;
     return new Date(iso).toLocaleString();
   } catch {
-    return String(iso);
+    return String(raw);
   }
 };
 
@@ -399,6 +407,20 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     }
   };
 
+  const confirmCancelRequest = () =>
+    Alert.alert(
+      'Cancel this request?',
+      'The other branch will be notified that the request was cancelled. No inventory will change.',
+      [
+        {text: 'Keep Request'},
+        {
+          text: 'Cancel Request',
+          style: 'destructive',
+          onPress: () => cancelMut.mutate({groupId}),
+        },
+      ],
+    );
+
   // Footer action buttons per (status, role).
   //   - Draft / Submit / Discard belong to the initiator.
   //   - Accept / Reject belong to the counterparty (dest for Out, source for In).
@@ -462,7 +484,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           mode="outlined"
           color={colors.error}
           loading={cancelMut.isLoading}
-          onPress={() => cancelMut.mutate({groupId})}>
+          onPress={confirmCancelRequest}>
           Cancel Request
         </Button>,
       );
@@ -493,8 +515,8 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             mode="outlined"
             color={colors.error}
             loading={cancelMut.isLoading}
-            onPress={() => cancelMut.mutate({groupId})}>
-            Cancel
+            onPress={confirmCancelRequest}>
+            Cancel Request
           </Button>,
         );
       }
@@ -585,11 +607,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
                 (Your branch)
               </Text>
             </View>
-            <MaterialCommunityIcons
-              name="arrow-right-bold"
-              size={20}
-              color={colors.disabled}
-            />
+            <View style={styles.arrowBetween}>
+              <MaterialCommunityIcons
+                name="arrow-right-bold"
+                size={28}
+                color={colors.primary}
+              />
+            </View>
             <View style={styles.branchCol}>
               <MaterialCommunityIcons
                 name="map-marker"
@@ -751,7 +775,9 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
       <Portal>
         <Dialog
           visible={!!editEntry}
-          onDismiss={() => setEditEntry(null)}>
+          onDismiss={() => setEditEntry(null)}
+          // Keep the dialog above the keyboard so multiline remarks stays visible.
+          style={styles.keyboardAwareDialog}>
           <Dialog.Title numberOfLines={1}>
             {editEntry?.item_display_name}
           </Dialog.Title>
@@ -808,7 +834,8 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
 
         <Dialog
           visible={rejectVisible}
-          onDismiss={() => setRejectVisible(false)}>
+          onDismiss={() => setRejectVisible(false)}
+          style={styles.keyboardAwareDialog}>
           <Dialog.Title>Reject this request?</Dialog.Title>
           <Dialog.Content>
             <Text style={{marginBottom: 8, opacity: 0.7}}>
@@ -880,6 +907,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   branchCol: {flex: 1, alignItems: 'center'},
+  arrowBetween: {
+    paddingHorizontal: 4,
+  },
   branchLabel: {fontSize: 11, opacity: 0.65, marginTop: 2},
   branchName: {fontSize: 13, fontWeight: '600', textAlign: 'center'},
   yourBranchLabel: {
@@ -935,6 +965,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     justifyContent: 'flex-end',
+  },
+  // Shift the dialog upward so its multiline TextInput (remarks) is never
+  // hidden behind the soft keyboard. Paper's Dialog is flex-centered, so a
+  // bottom margin moves the whole dialog up by half its value.
+  keyboardAwareDialog: {
+    marginBottom: 260,
   },
 });
 

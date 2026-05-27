@@ -220,13 +220,21 @@ const BatchTransferRequestForm = ({navigation}) => {
             {directionBadgeLabel}
           </Badge>
         </View>
-      </View>
 
-      <Text style={styles.helperText}>
-        {isOut
-          ? "You'll pick items and quantities in the next step. The destination branch will review your request and confirm before any stock changes."
-          : "You'll pick the items you want to request in the next step. The source branch will review your request and confirm before any stock changes."}
-      </Text>
+        <View style={styles.noteCard}>
+          <MaterialCommunityIcons
+            name="information-outline"
+            size={16}
+            color="#1E88E5"
+            style={{marginTop: 1}}
+          />
+          <Text style={styles.noteCardText}>
+            {isOut
+              ? "You'll pick items and quantities in the next step. The destination branch will review your request and confirm before any stock changes."
+              : "You'll pick the items you want to request in the next step. The source branch will review your request and confirm before any stock changes."}
+          </Text>
+        </View>
+      </View>
 
       <Button
         mode="contained"
@@ -242,6 +250,7 @@ const BatchTransferRequestForm = ({navigation}) => {
         onDismiss={() => setShowPicker(false)}
         onSelect={branch => setCounterparty(branch)}
         excludeBranchId={currentBranchId}
+        title={isOut ? 'Select destination branch' : 'Select source branch'}
       />
     </View>
   );
@@ -267,13 +276,27 @@ const styles = StyleSheet.create({
   },
   input: {backgroundColor: 'transparent', marginBottom: 4},
   swapBtn: {padding: 8, marginLeft: 4},
-  badgeRow: {flexDirection: 'row', marginTop: 8},
+  badgeRow: {flexDirection: 'row', justifyContent: 'center', marginTop: 8},
   directionBadge: {
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
     paddingHorizontal: 10,
     fontSize: 12,
   },
-  helperText: {fontSize: 12, opacity: 0.7, marginBottom: 24},
+  noteCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+  },
+  noteCardText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#1565C0',
+  },
   nextBtn: {marginTop: 'auto'},
 });
 

@@ -24,12 +24,20 @@ import TransferStatusBadge from '../components/batchTransfer/TransferStatusBadge
 
 const TopTab = createMaterialTopTabNavigator();
 
-const formatDate = iso => {
-  if (!iso) return '';
+// SQLite's CURRENT_TIMESTAMP returns 'YYYY-MM-DD HH:MM:SS' in UTC. JS's Date
+// parses that space-separated form as LOCAL time on most engines, which makes
+// the rendered time wrong by the local timezone offset. Force-ISO it with a
+// 'T' and a trailing 'Z' so the conversion to local for display is correct.
+const formatDate = raw => {
+  if (!raw) return '';
   try {
+    const str = String(raw);
+    const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(str)
+      ? str.replace(' ', 'T') + 'Z'
+      : str;
     return new Date(iso).toLocaleString();
   } catch {
-    return String(iso);
+    return String(raw);
   }
 };
 
