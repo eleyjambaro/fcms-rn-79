@@ -169,6 +169,21 @@ export const createBatchTransferEntry = async ({values}) => {
     ),
   );
 
+  // Denormalize source category name so the destination can resolve (or
+  // create) a matching category when auto-creating a local item. Without
+  // this, the auto-created item has NULL category_id and its inventory_logs
+  // rows are hidden by the INNER JOIN on active_categories.
+  let categoryName = sourceItem.category_name ?? null;
+  if (!categoryName && sourceItem.category_id) {
+    const cat = firstRow(
+      await db.executeSql(
+        `SELECT name FROM active_categories
+         WHERE id = ${sqlStr(sourceItem.category_id)} LIMIT 1`,
+      ),
+    );
+    categoryName = cat?.name ?? null;
+  }
+
   const parsedQty = parseFloat(qty);
   const hasQty = Number.isFinite(parsedQty) && parsedQty > 0;
 
@@ -180,6 +195,7 @@ export const createBatchTransferEntry = async ({values}) => {
          id, sync_id, batch_transfer_group_id,
          master_item_id, source_item_id,
          item_display_name, item_display_sku, item_uom_abbrev,
+         item_category_name,
          unit_cost_snapshot,
          requested_qty, entry_status, source_remarks,
          device_id, branch_id, updated_at
@@ -188,6 +204,7 @@ export const createBatchTransferEntry = async ({values}) => {
          ${sqlStr(masterItemId)}, ${sqlStr(sourceItem.id)},
          ${sqlStr(sourceItem.name)}, ${sqlStr(sourceItem.sku)},
          ${sqlStr(sourceItem.uom_abbrev)},
+         ${sqlStr(categoryName)},
          ${sqlNum(sourceItem.unit_cost)},
          ${parsedQty}, ${sqlStr(ENTRY_STATUS.PENDING)}, ${sqlStr(sourceRemarks)},
          ${sqlStr(deviceId)}, ${sqlStr(branchId)}, CURRENT_TIMESTAMP
@@ -216,6 +233,7 @@ export const createBatchTransferEntry = async ({values}) => {
            item_display_name = ${sqlStr(sourceItem.name)},
            item_display_sku = ${sqlStr(sourceItem.sku)},
            item_uom_abbrev = ${sqlStr(sourceItem.uom_abbrev)},
+           item_category_name = ${sqlStr(categoryName)},
            unit_cost_snapshot = ${sqlNum(sourceItem.unit_cost)},
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ${sqlStr(existing.id)}`,
@@ -605,17 +623,29 @@ const autoCreateLocalItemForTransfer = async ({
   deviceId,
   branchId,
 }) => {
+  // Resolve a category_id on the destination side. Without one, the new
+  // item's inventory_logs rows are filtered out by the INNER JOIN on
+  // active_categories in getInventoryLogs / getInventoryLog (transfer-in
+  // logs would silently disappear from the destination's history).
+  const categoryId = await resolveDestCategoryId({
+    db,
+    categoryName: entry.item_category_name,
+    deviceId,
+    branchId,
+  });
+
   const newItemId = uuid.v4();
   await db.executeSql(
     `INSERT INTO items (
        id, sync_id,
-       master_item_sync_id, sku, name, uom_abbrev,
+       master_item_sync_id, category_id, sku, name, uom_abbrev,
        unit_cost, current_stock_qty, initial_stock_qty,
        is_archived, is_finished_product,
        device_id, branch_id, updated_at
      ) VALUES (
        ${sqlStr(newItemId)}, ${sqlStr(newItemId)},
        ${sqlStr(entry.master_item_id)},
+       ${sqlStr(categoryId)},
        ${sqlStr(entry.item_display_sku)},
        ${sqlStr(entry.item_display_name)},
        ${sqlStr(entry.item_uom_abbrev)},
@@ -625,6 +655,47 @@ const autoCreateLocalItemForTransfer = async ({
      )`,
   );
   return newItemId;
+};
+
+/**
+ * Find (or create) a category on the destination branch matching the
+ * denormalized source category name. Falls back to the first active category
+ * on the branch when no name is available, and returns null only when the
+ * branch has no categories at all — in which case the caller leaves the
+ * item's category_id NULL and the LEFT JOIN in inventory-log views keeps
+ * its rows visible regardless.
+ */
+const resolveDestCategoryId = async ({db, categoryName, deviceId, branchId}) => {
+  const name = (categoryName ?? '').trim();
+  if (name) {
+    const existing = firstRow(
+      await db.executeSql(
+        `SELECT id FROM active_categories
+         WHERE LOWER(name) = LOWER(${sqlStr(name)}) LIMIT 1`,
+      ),
+    );
+    if (existing?.id) return existing.id;
+    const newCategoryId = uuid.v4();
+    await db.executeSql(
+      `INSERT INTO categories (
+         id, sync_id, name, is_active,
+         device_id, branch_id, updated_at
+       ) VALUES (
+         ${sqlStr(newCategoryId)}, ${sqlStr(newCategoryId)}, ${sqlStr(name)}, 1,
+         ${sqlStr(deviceId)}, ${sqlStr(branchId)}, CURRENT_TIMESTAMP
+       )`,
+    );
+    return newCategoryId;
+  }
+  // No source category name to match — use the destination's first active
+  // category as a non-NULL fallback (keeps the item visible in
+  // category-scoped views).
+  const fallback = firstRow(
+    await db.executeSql(
+      `SELECT id FROM active_categories ORDER BY name ASC LIMIT 1`,
+    ),
+  );
+  return fallback?.id ?? null;
 };
 
 const buildTransferLogRemark = (entry, direction) => {

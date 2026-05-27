@@ -103,7 +103,7 @@ export const getInventoryLogs = async ({queryKey, pageParam = 1}) => {
       FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
       INNER JOIN active_items items ON items.id = inventory_logs.item_id
-      INNER JOIN active_categories categories ON categories.id = items.category_id
+      LEFT JOIN active_categories categories ON categories.id = items.category_id
 
       ${queryFilter}
 
@@ -179,7 +179,7 @@ export const getInventoryLog = async ({queryKey}) => {
     FROM inventory_logs
     INNER JOIN operations ON operations.id = inventory_logs.operation_id
     INNER JOIN items ON items.id = inventory_logs.item_id
-    INNER JOIN categories ON categories.id = items.category_id
+    LEFT JOIN categories ON categories.id = items.category_id
     WHERE inventory_logs.id = '${id}'
   `;
 
@@ -254,7 +254,7 @@ export const getYieldStockInventoryLogByYieldRefId = async ({queryKey}) => {
     FROM inventory_logs
     INNER JOIN operations ON operations.id = inventory_logs.operation_id
     INNER JOIN items ON items.id = inventory_logs.item_id
-    INNER JOIN categories ON categories.id = items.category_id
+    LEFT JOIN categories ON categories.id = items.category_id
     WHERE inventory_logs.yield_ref_id = '${yieldRefId}' AND operations.id = 11
   `;
 
@@ -564,7 +564,7 @@ export const getInventoryLogsTotals = async ({queryKey, pageParam = 1}) => {
       FROM active_inventory_logs inventory_logs
       INNER JOIN operations ON operations.id = inventory_logs.operation_id
       INNER JOIN active_items items ON items.id = inventory_logs.item_id
-      INNER JOIN active_categories categories ON categories.id = items.category_id
+      LEFT JOIN active_categories categories ON categories.id = items.category_id
 
       ${queryFilter}
 

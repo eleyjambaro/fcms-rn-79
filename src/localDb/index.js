@@ -608,6 +608,7 @@ const createBatchTransferEntriesTableQuery = `
     item_display_name VARCHAR,
     item_display_sku VARCHAR,
     item_uom_abbrev VARCHAR,
+    item_category_name VARCHAR,
     unit_cost_snapshot REAL DEFAULT 0,
     requested_qty REAL NOT NULL DEFAULT 0,
     accepted_qty REAL,
@@ -2093,6 +2094,26 @@ export const alterTables = async currentAppVersion => {
     } catch (error) {
       console.debug(
         '[alterTables] Error adding inventory_logs.batch_transfer_group_id:',
+        error,
+      );
+    }
+
+    // Denormalized source category name on a batch transfer entry. When the
+    // destination branch receives a transfer for an item it doesn't yet have,
+    // we auto-create the local item; without a category_id the item's
+    // inventory_logs are filtered out by the INNER JOIN on active_categories.
+    // The destination resolves (or creates) a matching category by this name
+    // before auto-creating the item — see autoCreateLocalItemForTransfer.
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'batch_transfer_entries',
+        'item_category_name',
+        `ALTER TABLE batch_transfer_entries ADD COLUMN item_category_name VARCHAR DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding batch_transfer_entries.item_category_name:',
         error,
       );
     }
