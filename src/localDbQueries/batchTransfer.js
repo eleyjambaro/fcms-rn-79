@@ -887,12 +887,50 @@ export const materializeReceivedTransferLogs = async () => {
         await db.executeSql(
           `SELECT * FROM active_batch_transfer_entries
            WHERE batch_transfer_group_id = ${sqlStr(group.id)}
-             AND IFNULL(received_qty, 0) > 0
-             AND source_item_id IS NOT NULL`,
+             AND IFNULL(received_qty, 0) > 0`,
         ),
       );
 
       for (const entry of entries) {
+        let sourceItemId = entry.source_item_id;
+
+        // In-mode entries arrive with source_item_id = NULL because the
+        // destination/initiator could not see the source's items. The
+        // resolveMissingSourceItemIdsForGroup pass at request-open time may
+        // also have failed to find a match (items were created independently
+        // on each branch so master_item_sync_id doesn't line up). Retry the
+        // master lookup here, then fall back to auto-creating a local item
+        // on the source branch so the stock_transfer_out log can still be
+        // written. Without this fallback the source's inventory_logs are
+        // silently missed.
+        if (!sourceItemId && entry.master_item_id) {
+          const localItem = firstRow(
+            await db.executeSql(
+              `SELECT id FROM active_items
+               WHERE master_item_sync_id = ${sqlStr(entry.master_item_id)}
+               LIMIT 1`,
+            ),
+          );
+          sourceItemId = localItem?.id ?? null;
+        }
+        if (!sourceItemId) {
+          sourceItemId = await autoCreateLocalItemForTransfer({
+            db,
+            entry,
+            deviceId,
+            branchId,
+          });
+        }
+
+        if (entry.source_item_id !== sourceItemId) {
+          await db.executeSql(
+            `UPDATE batch_transfer_entries
+               SET source_item_id = ${sqlStr(sourceItemId)},
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE id = ${sqlStr(entry.id)}`,
+          );
+        }
+
         const logId = uuid.v4();
         const unitCost = parseFloat(entry.unit_cost_snapshot || 0);
         const qty = parseFloat(entry.received_qty);
@@ -912,7 +950,7 @@ export const materializeReceivedTransferLogs = async () => {
            ) VALUES (
              ${sqlStr(logId)}, ${sqlStr(logId)},
              ${sqlStr(OPERATION_DEFAULT_UUIDS.stock_transfer_out)},
-             ${sqlStr(entry.source_item_id)},
+             ${sqlStr(sourceItemId)},
              ${unitCost}, ${unitCost},
              ${qty}, ${adjustmentDate},
              ${sqlStr(group.id)},
