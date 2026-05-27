@@ -33,6 +33,9 @@ const formatDate = iso => {
   }
 };
 
+const OUT_BADGE_COLOR = '#E53935';
+const IN_BADGE_COLOR = '#1E88E5';
+
 const RequestRow = ({item, branchById, currentBranchId, onPress}) => {
   const {colors} = useTheme();
   const counterBranchId =
@@ -42,7 +45,11 @@ const RequestRow = ({item, branchById, currentBranchId, onPress}) => {
   const counterBranch = branchById?.[counterBranchId];
   const counterName =
     counterBranch?.display_name || counterBranch?.name || '—';
-  const directionPrefix = item.perspective === 'out' ? 'To:' : 'From:';
+  // 'out' means inventory leaves my branch (current = source);
+  // 'in' means it comes to me (current = destination). This is the
+  // existing "perspective" field from the query.
+  const isOut = item.perspective === 'out';
+  const directionPrefix = isOut ? 'To:' : 'From:';
 
   return (
     <Pressable
@@ -53,6 +60,15 @@ const RequestRow = ({item, branchById, currentBranchId, onPress}) => {
       ]}>
       <View style={styles.rowMain}>
         <View style={styles.rowTitleLine}>
+          <View
+            style={[
+              styles.directionChip,
+              {backgroundColor: isOut ? OUT_BADGE_COLOR : IN_BADGE_COLOR},
+            ]}>
+            <Text style={styles.directionChipText}>
+              {isOut ? 'OUT' : 'IN'}
+            </Text>
+          </View>
           <Text style={styles.rowTitle} numberOfLines={1}>
             <Text style={{fontWeight: 'bold'}}>{directionPrefix}</Text>
             {' '}{counterName}
@@ -227,6 +243,18 @@ const styles = StyleSheet.create({
   rowTitleLine: {flexDirection: 'row', alignItems: 'center'},
   rowTitle: {fontSize: 15, fontWeight: '500', flex: 1},
   rowSubtitle: {fontSize: 12, opacity: 0.65, marginTop: 4},
+  directionChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  directionChipText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
   unreadDot: {
     width: 8,
     height: 8,

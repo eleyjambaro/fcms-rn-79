@@ -78,29 +78,49 @@ const allRows = result => {
 // ============================================================================
 
 /**
- * Returns the open draft group for (currentBranch → destinationBranchId),
- * creating one if none exists. Mirrors getCurrentBatchPurchaseGroupId() but
- * keyed by destination so a user can have parallel drafts to different
- * branches.
+ * Returns the open draft group for the current branch and counterparty in the
+ * given direction, creating one if none exists. Mirrors the Batch Purchase
+ * pattern but keyed by (initiator_branch_id, source, destination) so the same
+ * user can have an Out draft and an In draft to the same counterparty in
+ * parallel.
+ *
+ * `direction`:
+ *   - 'out' (default): current branch is the source — sending items out to
+ *     counterparty. initiator = source = current.
+ *   - 'in':            current branch is the destination — asking counterparty
+ *     to send items. initiator = destination = current.
+ *
+ * `destinationBranchId` is accepted as a deprecated alias for
+ * `counterpartyBranchId` to avoid breaking callers that haven't been updated.
  */
 export const getOrCreateDraftBatchTransferGroup = async ({
-  destinationBranchId,
+  direction = 'out',
+  counterpartyBranchId,
+  destinationBranchId, // deprecated alias
   initiatorAccountUid = null,
 }) => {
-  if (!destinationBranchId) {
-    throw new Error('destinationBranchId is required');
+  const counterparty = counterpartyBranchId ?? destinationBranchId;
+  if (!counterparty) {
+    throw new Error('counterpartyBranchId is required');
+  }
+  if (direction !== 'out' && direction !== 'in') {
+    throw new Error(`Invalid direction "${direction}". Expected "out" or "in".`);
   }
 
   const db = await getDBConnection();
   const {deviceId, branchId} = await getCloudSyncParams();
   if (!branchId) throw new Error('No active branch.');
 
+  const sourceBranchId = direction === 'out' ? branchId : counterparty;
+  const destBranchId = direction === 'out' ? counterparty : branchId;
+
   const existing = firstRow(
     await db.executeSql(
       `SELECT * FROM active_batch_transfer_groups
        WHERE status = ${sqlStr(STATUS.DRAFT)}
-         AND source_branch_id = ${sqlStr(branchId)}
-         AND destination_branch_id = ${sqlStr(destinationBranchId)}
+         AND initiator_branch_id = ${sqlStr(branchId)}
+         AND source_branch_id = ${sqlStr(sourceBranchId)}
+         AND destination_branch_id = ${sqlStr(destBranchId)}
        ORDER BY date_created DESC
        LIMIT 1`,
     ),
@@ -110,12 +130,13 @@ export const getOrCreateDraftBatchTransferGroup = async ({
   const id = uuid.v4();
   await db.executeSql(
     `INSERT INTO batch_transfer_groups (
-       id, sync_id, mode, source_branch_id, destination_branch_id,
+       id, sync_id, mode,
+       source_branch_id, destination_branch_id, initiator_branch_id,
        status, initiator_account_uid,
        device_id, branch_id, updated_at
      ) VALUES (
        ${sqlStr(id)}, ${sqlStr(id)}, ${sqlStr('branch_to_branch')},
-       ${sqlStr(branchId)}, ${sqlStr(destinationBranchId)},
+       ${sqlStr(sourceBranchId)}, ${sqlStr(destBranchId)}, ${sqlStr(branchId)},
        ${sqlStr(STATUS.DRAFT)}, ${sqlStr(initiatorAccountUid)},
        ${sqlStr(deviceId)}, ${sqlStr(branchId)}, CURRENT_TIMESTAMP
      )`,
@@ -132,32 +153,53 @@ export const getOrCreateDraftBatchTransferGroup = async ({
 
 /**
  * Upsert an entry on the draft. If qty=0 and entry exists, soft-deletes it.
- * Denormalizes item display fields and unit cost so the destination can
+ * Denormalizes item display fields and unit cost so the counterparty can
  * render the entry even if the underlying item doesn't exist in its branch.
  *
- * `values`: { groupId, sourceItem, qty, sourceRemarks? }
- * where sourceItem is the full row from active_items (must include id,
- * master_item_sync_id, name, sku, uom_abbrev, unit_cost). Note: the items
- * table uses `master_item_sync_id` for the cross-branch master link, even
- * though we store it as `master_item_id` on batch_transfer_entries.
+ * `values`: { groupId, item, qty, remarks?, direction? }
+ * - `item` is the full row from active_items (must include id,
+ *   master_item_sync_id, name, sku, uom_abbrev, unit_cost). Note: the items
+ *   table uses `master_item_sync_id` for the cross-branch master link, even
+ *   though we store it as `master_item_id` on batch_transfer_entries.
+ * - `direction`:
+ *     'out' (default): the picked item is the source's local item — written
+ *                      to source_item_id; remark stored in source_remarks.
+ *     'in':            the picked item is the dest's local item — written
+ *                      to dest_item_id; remark stored in dest_remarks.
+ *                      source_item_id is left NULL and resolved later by the
+ *                      source counterparty via master_item_id.
+ *
+ * Legacy callers may pass `sourceItem` / `sourceRemarks`; we honor those as
+ * aliases for `item` / `remarks` when `direction` is 'out' (or omitted).
  */
 export const createBatchTransferEntry = async ({values}) => {
   const {
     groupId,
+    direction = 'out',
+    item: itemArg,
     sourceItem,
     qty,
-    sourceRemarks = null,
+    remarks: remarksArg,
+    sourceRemarks,
   } = values;
-  if (!groupId || !sourceItem) {
-    throw new Error('groupId and sourceItem are required');
+  const item = itemArg ?? sourceItem;
+  const remarks = remarksArg ?? sourceRemarks ?? null;
+  if (!groupId || !item) {
+    throw new Error('groupId and item are required');
+  }
+  if (direction !== 'out' && direction !== 'in') {
+    throw new Error(`Invalid direction "${direction}". Expected "out" or "in".`);
   }
 
   const db = await getDBConnection();
   const {deviceId, branchId} = await getCloudSyncParams();
-  const masterItemId = sourceItem.master_item_sync_id ?? null;
+  const masterItemId = item.master_item_sync_id ?? null;
+  // For In-mode, the picked item is the dest's local item — match on
+  // dest_item_id if master is unknown. For Out-mode, match on source_item_id.
+  const localItemCol = direction === 'in' ? 'dest_item_id' : 'source_item_id';
   const matchOn = masterItemId
     ? `master_item_id = ${sqlStr(masterItemId)}`
-    : `source_item_id = ${sqlStr(sourceItem.id)}`;
+    : `${localItemCol} = ${sqlStr(item.id)}`;
 
   const existing = firstRow(
     await db.executeSql(
@@ -169,16 +211,16 @@ export const createBatchTransferEntry = async ({values}) => {
     ),
   );
 
-  // Denormalize source category name so the destination can resolve (or
-  // create) a matching category when auto-creating a local item. Without
-  // this, the auto-created item has NULL category_id and its inventory_logs
-  // rows are hidden by the INNER JOIN on active_categories.
-  let categoryName = sourceItem.category_name ?? null;
-  if (!categoryName && sourceItem.category_id) {
+  // Denormalize category name so the counterparty can resolve (or create) a
+  // matching category when auto-creating a local item at receive time.
+  // Without this, the auto-created item has NULL category_id and its
+  // inventory_logs rows are hidden by the INNER JOIN on active_categories.
+  let categoryName = item.category_name ?? null;
+  if (!categoryName && item.category_id) {
     const cat = firstRow(
       await db.executeSql(
         `SELECT name FROM active_categories
-         WHERE id = ${sqlStr(sourceItem.category_id)} LIMIT 1`,
+         WHERE id = ${sqlStr(item.category_id)} LIMIT 1`,
       ),
     );
     categoryName = cat?.name ?? null;
@@ -187,26 +229,34 @@ export const createBatchTransferEntry = async ({values}) => {
   const parsedQty = parseFloat(qty);
   const hasQty = Number.isFinite(parsedQty) && parsedQty > 0;
 
+  // For In-mode the initiator's remark belongs in dest_remarks (initiator is
+  // the dest); for Out-mode the initiator's remark belongs in source_remarks
+  // (initiator is the source). The other column stays NULL until the
+  // counterparty reviews.
+  const remarksCol = direction === 'in' ? 'dest_remarks' : 'source_remarks';
+  const sourceItemValue = direction === 'in' ? null : item.id;
+  const destItemValue = direction === 'in' ? item.id : null;
+
   if (!existing) {
     if (!hasQty) return null;
     const entryId = uuid.v4();
     await db.executeSql(
       `INSERT INTO batch_transfer_entries (
          id, sync_id, batch_transfer_group_id,
-         master_item_id, source_item_id,
+         master_item_id, source_item_id, dest_item_id,
          item_display_name, item_display_sku, item_uom_abbrev,
          item_category_name,
          unit_cost_snapshot,
-         requested_qty, entry_status, source_remarks,
+         requested_qty, entry_status, ${remarksCol},
          device_id, branch_id, updated_at
        ) VALUES (
          ${sqlStr(entryId)}, ${sqlStr(entryId)}, ${sqlStr(groupId)},
-         ${sqlStr(masterItemId)}, ${sqlStr(sourceItem.id)},
-         ${sqlStr(sourceItem.name)}, ${sqlStr(sourceItem.sku)},
-         ${sqlStr(sourceItem.uom_abbrev)},
+         ${sqlStr(masterItemId)}, ${sqlStr(sourceItemValue)}, ${sqlStr(destItemValue)},
+         ${sqlStr(item.name)}, ${sqlStr(item.sku)},
+         ${sqlStr(item.uom_abbrev)},
          ${sqlStr(categoryName)},
-         ${sqlNum(sourceItem.unit_cost)},
-         ${parsedQty}, ${sqlStr(ENTRY_STATUS.PENDING)}, ${sqlStr(sourceRemarks)},
+         ${sqlNum(item.unit_cost)},
+         ${parsedQty}, ${sqlStr(ENTRY_STATUS.PENDING)}, ${sqlStr(remarks)},
          ${sqlStr(deviceId)}, ${sqlStr(branchId)}, CURRENT_TIMESTAMP
        )`,
     );
@@ -229,12 +279,12 @@ export const createBatchTransferEntry = async ({values}) => {
   await db.executeSql(
     `UPDATE batch_transfer_entries
        SET requested_qty = ${parsedQty},
-           source_remarks = ${sqlStr(sourceRemarks)},
-           item_display_name = ${sqlStr(sourceItem.name)},
-           item_display_sku = ${sqlStr(sourceItem.sku)},
-           item_uom_abbrev = ${sqlStr(sourceItem.uom_abbrev)},
+           ${remarksCol} = ${sqlStr(remarks)},
+           item_display_name = ${sqlStr(item.name)},
+           item_display_sku = ${sqlStr(item.sku)},
+           item_uom_abbrev = ${sqlStr(item.uom_abbrev)},
            item_category_name = ${sqlStr(categoryName)},
-           unit_cost_snapshot = ${sqlNum(sourceItem.unit_cost)},
+           unit_cost_snapshot = ${sqlNum(item.unit_cost)},
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ${sqlStr(existing.id)}`,
   );
@@ -276,11 +326,15 @@ export const submitBatchTransferRequest = async ({groupId}) => {
     throw new Error('Add at least one item before submitting.');
   }
 
+  // Initiator is whoever is on this device — for Out the initiator is the
+  // source, for In the initiator is the destination. Stamp the viewed column
+  // accordingly so the badge clears on the initiator's side after submit.
+  const viewedCol = (await getActorViewedColumn(db, groupId)) ?? 'last_viewed_by_source_at';
   await db.executeSql(
     `UPDATE batch_transfer_groups
        SET status = ${sqlStr(STATUS.REQUESTED)},
            date_requested = CURRENT_TIMESTAMP,
-           last_viewed_by_source_at = CURRENT_TIMESTAMP,
+           ${viewedCol} = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ${sqlStr(groupId)}`,
   );
@@ -307,11 +361,28 @@ export const cancelDraftBatchTransfer = async ({groupId}) => {
 // Dest-side review
 // ============================================================================
 
+/**
+ * Counterparty's review of a requested entry: sets accepted_qty and writes
+ * the actor's remarks. For Out-mode the counterparty is the dest, so the
+ * remark goes to dest_remarks (legacy behavior); for In-mode the counterparty
+ * is the source, so the remark goes to source_remarks. accepted_qty and
+ * entry_status are inventory-flow values, not actor-perspective — they're
+ * always written the same way.
+ *
+ * `actorRole`: 'dest' (default, backward-compatible) | 'source'.
+ * `destRemarks` is accepted for backward compat; new callers should pass
+ * `remarks` plus an explicit `actorRole`.
+ */
 export const updateEntryDestReview = async ({
   entryId,
   acceptedQty,
   destRemarks,
+  remarks,
+  actorRole = 'dest',
 }) => {
+  if (actorRole !== 'source' && actorRole !== 'dest') {
+    throw new Error(`Invalid actorRole "${actorRole}". Expected "source" or "dest".`);
+  }
   const db = await getDBConnection();
   const entry = firstRow(
     await db.executeSql(
@@ -336,10 +407,13 @@ export const updateEntryDestReview = async ({
   else if (accepted >= requested) nextStatus = ENTRY_STATUS.ACCEPTED_FULL;
   else nextStatus = ENTRY_STATUS.ACCEPTED_PARTIAL;
 
+  const remarksCol = actorRole === 'source' ? 'source_remarks' : 'dest_remarks';
+  const remarksValue = remarks ?? destRemarks ?? null;
+
   await db.executeSql(
     `UPDATE batch_transfer_entries
        SET accepted_qty = ${accepted},
-           dest_remarks = ${sqlStr(destRemarks ?? null)},
+           ${remarksCol} = ${sqlStr(remarksValue)},
            entry_status = ${sqlStr(nextStatus)},
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ${sqlStr(entryId)}`,
@@ -377,11 +451,14 @@ export const acceptBatchTransferRequest = async ({groupId}) => {
     );
   }
 
+  // Counterparty (dest for Out-mode, source for In-mode) is performing the
+  // accept — stamp their viewed column, not the initiator's.
+  const viewedCol = (await getActorViewedColumn(db, groupId)) ?? 'last_viewed_by_dest_at';
   await db.executeSql(
     `UPDATE batch_transfer_groups
        SET status = ${sqlStr(STATUS.ACCEPTED)},
            date_accepted = CURRENT_TIMESTAMP,
-           last_viewed_by_dest_at = CURRENT_TIMESTAMP,
+           ${viewedCol} = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ${sqlStr(groupId)}`,
   );
@@ -391,12 +468,17 @@ export const acceptBatchTransferRequest = async ({groupId}) => {
 export const rejectBatchTransferRequest = async ({groupId, reason = null}) => {
   const db = await getDBConnection();
   await assertGroupStatus(db, groupId, [STATUS.REQUESTED]);
+  // Counterparty rejects — for Out-mode that's the dest (writes dest_remarks);
+  // for In-mode that's the source (writes source_remarks). Stamp the actor's
+  // viewed column the same way.
+  const viewedCol = (await getActorViewedColumn(db, groupId)) ?? 'last_viewed_by_dest_at';
+  const remarksCol = viewedCol === 'last_viewed_by_source_at' ? 'source_remarks' : 'dest_remarks';
   await db.executeSql(
     `UPDATE batch_transfer_groups
        SET status = ${sqlStr(STATUS.REJECTED)},
            date_rejected = CURRENT_TIMESTAMP,
-           dest_remarks = ${sqlStr(reason)},
-           last_viewed_by_dest_at = CURRENT_TIMESTAMP,
+           ${remarksCol} = ${sqlStr(reason)},
+           ${viewedCol} = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ${sqlStr(groupId)}`,
   );
@@ -467,12 +549,17 @@ export const confirmTransferOut = async ({groupId}) => {
 export const cancelBatchTransferRequest = async ({groupId, reason = null}) => {
   const db = await getDBConnection();
   await assertGroupStatus(db, groupId, [STATUS.REQUESTED, STATUS.ACCEPTED]);
+  // Cancel can be invoked by the initiator (any direction) or by the source
+  // after acceptance. Write the remark into the actor's column and stamp the
+  // actor's viewed column so the badge clears on their side.
+  const viewedCol = (await getActorViewedColumn(db, groupId)) ?? 'last_viewed_by_source_at';
+  const remarksCol = viewedCol === 'last_viewed_by_source_at' ? 'source_remarks' : 'dest_remarks';
   await db.executeSql(
     `UPDATE batch_transfer_groups
        SET status = ${sqlStr(STATUS.CANCELLED)},
            date_cancelled = CURRENT_TIMESTAMP,
-           source_remarks = ${sqlStr(reason)},
-           last_viewed_by_source_at = CURRENT_TIMESTAMP,
+           ${remarksCol} = ${sqlStr(reason)},
+           ${viewedCol} = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ${sqlStr(groupId)}`,
   );
@@ -710,6 +797,52 @@ const buildTransferLogRemark = (entry, direction) => {
 };
 
 // ============================================================================
+// Source-side item resolution (In flow)
+// ============================================================================
+
+/**
+ * For an In-mode request the destination (initiator) creates entries with
+ * `source_item_id = NULL` because it has no view of the source's items table.
+ * When the source's device pulls and opens the request, this helper walks the
+ * entries and tries to resolve each `source_item_id` via the cross-branch
+ * `master_item_id` bridge. Matches go into source_item_id so the existing
+ * source-adjust + materializeReceivedTransferLogs paths can write the
+ * stock_transfer_out log later.
+ *
+ * Entries with no `master_item_id` (the initiator picked a local-only item)
+ * or no matching row in active_items stay NULL — the editor UI locks the qty
+ * input to 0 in that case so the source can't fulfill an unknown line.
+ *
+ * Idempotent. Returns the number of entries that got a resolved id.
+ */
+export const resolveMissingSourceItemIdsForGroup = async ({groupId}) => {
+  if (!groupId) return 0;
+  const db = await getDBConnection();
+  const candidates = allRows(
+    await db.executeSql(
+      `SELECT e.id AS entry_id, i.id AS resolved_id
+       FROM active_batch_transfer_entries e
+       JOIN active_items i ON i.master_item_sync_id = e.master_item_id
+       WHERE e.batch_transfer_group_id = ${sqlStr(groupId)}
+         AND e.source_item_id IS NULL
+         AND e.master_item_id IS NOT NULL`,
+    ),
+  );
+  let count = 0;
+  for (const row of candidates) {
+    await db.executeSql(
+      `UPDATE batch_transfer_entries
+         SET source_item_id = ${sqlStr(row.resolved_id)},
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ${sqlStr(row.entry_id)}`,
+    );
+    count++;
+  }
+  if (count > 0) scheduleSyncSoon();
+  return count;
+};
+
+// ============================================================================
 // Post-sync hook — source-side inventory_logs materialization
 // ============================================================================
 
@@ -817,7 +950,11 @@ export const getBatchTransferRequests = async ({queryKey, pageParam = 1}) => {
 
   let where = `g.source_branch_id = ${sqlStr(branchId)} OR g.destination_branch_id = ${sqlStr(branchId)}`;
   if (tab === 'drafts') {
-    where = `g.status = ${sqlStr(STATUS.DRAFT)} AND g.source_branch_id = ${sqlStr(branchId)}`;
+    // Drafts belong to whoever created them — Out-mode drafts have
+    // initiator_branch_id = source = current; In-mode drafts have
+    // initiator_branch_id = destination = current. COALESCE protects rows
+    // back-filled before the alterTables backfill ran.
+    where = `g.status = ${sqlStr(STATUS.DRAFT)} AND COALESCE(g.initiator_branch_id, g.source_branch_id) = ${sqlStr(branchId)}`;
   } else if (tab === 'incoming') {
     where = `g.destination_branch_id = ${sqlStr(branchId)} AND g.status IN (${sqlStr(STATUS.REQUESTED)}, ${sqlStr(STATUS.ACCEPTED)}, ${sqlStr(STATUS.TRANSFERRING)})`;
   } else if (tab === 'outgoing') {
@@ -953,6 +1090,29 @@ export const markBatchTransferViewed = async ({groupId}) => {
 // ============================================================================
 // Private guards
 // ============================================================================
+
+/**
+ * Returns the `last_viewed_by_*_at` column corresponding to the current
+ * branch's role in the given group: 'last_viewed_by_source_at' if current
+ * branch is the source, 'last_viewed_by_dest_at' if it's the destination,
+ * null otherwise. Used to stamp the viewed column for whichever side is
+ * performing a mutation, instead of hardcoding the Out-mode assumption that
+ * source = initiator.
+ */
+const getActorViewedColumn = async (db, groupId) => {
+  const branchId = getActiveBranchId();
+  if (!branchId || !groupId) return null;
+  const row = firstRow(
+    await db.executeSql(
+      `SELECT source_branch_id, destination_branch_id FROM batch_transfer_groups
+       WHERE id = ${sqlStr(groupId)}`,
+    ),
+  );
+  if (!row) return null;
+  if (row.source_branch_id === branchId) return 'last_viewed_by_source_at';
+  if (row.destination_branch_id === branchId) return 'last_viewed_by_dest_at';
+  return null;
+};
 
 const assertGroupStatus = async (db, groupId, allowed) => {
   const row = firstRow(

@@ -18,21 +18,31 @@ import {getCloudSyncParams} from '../localDb';
 import {getOrCreateDraftBatchTransferGroup} from '../localDbQueries/batchTransfer';
 import BranchPickerSheet from '../components/branchPicker/BranchPickerSheet';
 
+const OUT_BADGE_COLOR = '#E53935';
+const IN_BADGE_COLOR = '#1E88E5';
+
 /**
  * Branch picker UI for creating a new Batch Transfer Request.
  *
- * Origin = current branch (always, in v1). Destination is picked via
- * BranchPickerSheet. The swap icon is reserved for v1.5 (inbound requests,
- * where origin is another branch and dest is current) and is disabled in v1
- * because inbound flows need a different item-selection strategy than the
- * source's local items table.
+ * Two directions:
+ *   - 'out' (default): current branch is the source — Origin is locked to
+ *     current, Destination is picked from the sheet. The current branch will
+ *     dispatch items to the counterparty.
+ *   - 'in': current branch is the destination — Destination is locked to
+ *     current, Origin is picked. The current branch is asking the counterparty
+ *     to send items. Initiator (= dest = current) creates the draft; the
+ *     source counterparty reviews and accepts.
+ *
+ * The swap icon flips direction and keeps the picked counterparty so the user
+ * doesn't have to re-pick the branch after a swap.
  */
 const BatchTransferRequestForm = ({navigation}) => {
   const {colors} = useTheme();
   const queryClient = useQueryClient();
 
   const [currentBranchId, setCurrentBranchId] = useState(null);
-  const [destination, setDestination] = useState(null);
+  const [counterparty, setCounterparty] = useState(null);
+  const [direction, setDirection] = useState('out');
   const [showPicker, setShowPicker] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -61,9 +71,16 @@ const BatchTransferRequestForm = ({navigation}) => {
   const createDraftMutation = useMutation(getOrCreateDraftBatchTransferGroup, {
     onSuccess: group => {
       queryClient.invalidateQueries(['batchTransferRequests']);
+      // Derive direction from the returned group rather than closure state —
+      // if the user swapped after pressing Next, the draft we got back is the
+      // source of truth for which side current branch is on.
+      const isOut = group.source_branch_id === currentBranchId;
       navigation.replace(routes.batchTransferItemSelection(), {
         groupId: group.id,
-        destinationBranchId: group.destination_branch_id,
+        counterpartyBranchId: isOut
+          ? group.destination_branch_id
+          : group.source_branch_id,
+        direction: isOut ? 'out' : 'in',
       });
     },
     onError: err => {
@@ -76,16 +93,16 @@ const BatchTransferRequestForm = ({navigation}) => {
   });
 
   const handleNext = async () => {
-    if (!destination?.id) return;
+    if (!counterparty?.id) return;
     setCreating(true);
-    createDraftMutation.mutate({destinationBranchId: destination.id});
+    createDraftMutation.mutate({
+      direction,
+      counterpartyBranchId: counterparty.id,
+    });
   };
 
   const handleSwap = () => {
-    ToastAndroid.show(
-      'Inbound transfer requests are coming soon. For now, the source (origin) is always your branch.',
-      ToastAndroid.LONG,
-    );
+    setDirection(prev => (prev === 'out' ? 'in' : 'out'));
   };
 
   if (!currentBranchId || branchesStatus === 'loading') {
@@ -96,8 +113,19 @@ const BatchTransferRequestForm = ({navigation}) => {
     );
   }
 
-  const isReady = Boolean(destination?.id);
-  const directionBadgeLabel = 'Batch Transfer Out';
+  const isReady = Boolean(counterparty?.id);
+  const isOut = direction === 'out';
+  const directionBadgeLabel = isOut ? 'Batch Transfer Out' : 'Batch Transfer In';
+  const directionBadgeColor = isOut ? OUT_BADGE_COLOR : IN_BADGE_COLOR;
+  const currentBranchLabel =
+    currentBranch?.display_name ||
+    currentBranch?.name ||
+    'Current branch';
+  const counterpartyLabel =
+    counterparty?.display_name || counterparty?.name || '';
+  const counterpartyPickerLabel = isOut
+    ? 'Destination branch'
+    : 'Origin (source) branch';
 
   return (
     <View style={styles.container}>
@@ -115,63 +143,89 @@ const BatchTransferRequestForm = ({navigation}) => {
             <MaterialCommunityIcons
               name="map-marker"
               size={26}
-              color="#E53935"
+              color={OUT_BADGE_COLOR}
             />
             <View style={styles.dottedLine} />
             <MaterialCommunityIcons
               name="map-marker"
               size={26}
-              color="#1E88E5"
+              color={IN_BADGE_COLOR}
             />
           </View>
 
           <View style={{flex: 1}}>
-            <TextInput
-              label="Origin (your branch)"
-              value={
-                currentBranch?.display_name ||
-                currentBranch?.name ||
-                'Current branch'
-              }
-              editable={false}
-              dense
-              mode="flat"
-              style={styles.input}
-            />
-            <Pressable onPress={() => setShowPicker(true)}>
-              <View pointerEvents="none">
+            {isOut ? (
+              <>
                 <TextInput
-                  label="Destination branch"
-                  value={destination?.display_name || destination?.name || ''}
-                  placeholder="Tap to choose…"
+                  label="Origin (your branch)"
+                  value={currentBranchLabel}
                   editable={false}
                   dense
                   mode="flat"
                   style={styles.input}
                 />
-              </View>
-            </Pressable>
+                <Pressable onPress={() => setShowPicker(true)}>
+                  <View pointerEvents="none">
+                    <TextInput
+                      label={counterpartyPickerLabel}
+                      value={counterpartyLabel}
+                      placeholder="Tap to choose…"
+                      editable={false}
+                      dense
+                      mode="flat"
+                      style={styles.input}
+                    />
+                  </View>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Pressable onPress={() => setShowPicker(true)}>
+                  <View pointerEvents="none">
+                    <TextInput
+                      label={counterpartyPickerLabel}
+                      value={counterpartyLabel}
+                      placeholder="Tap to choose…"
+                      editable={false}
+                      dense
+                      mode="flat"
+                      style={styles.input}
+                    />
+                  </View>
+                </Pressable>
+                <TextInput
+                  label="Destination (your branch)"
+                  value={currentBranchLabel}
+                  editable={false}
+                  dense
+                  mode="flat"
+                  style={styles.input}
+                />
+              </>
+            )}
           </View>
 
           <Pressable onPress={handleSwap} style={styles.swapBtn}>
             <MaterialCommunityIcons
               name="swap-vertical"
               size={26}
-              color={colors.disabled}
+              color={colors.text}
             />
           </Pressable>
         </View>
 
         <View style={styles.badgeRow}>
-          <Badge style={[styles.directionBadge, {backgroundColor: '#E53935'}]}>
+          <Badge
+            style={[styles.directionBadge, {backgroundColor: directionBadgeColor}]}>
             {directionBadgeLabel}
           </Badge>
         </View>
       </View>
 
       <Text style={styles.helperText}>
-        You'll pick items and quantities in the next step. The destination
-        branch will review your request and confirm before any stock changes.
+        {isOut
+          ? "You'll pick items and quantities in the next step. The destination branch will review your request and confirm before any stock changes."
+          : "You'll pick the items you want to request in the next step. The source branch will review your request and confirm before any stock changes."}
       </Text>
 
       <Button
@@ -186,7 +240,7 @@ const BatchTransferRequestForm = ({navigation}) => {
       <BranchPickerSheet
         visible={showPicker}
         onDismiss={() => setShowPicker(false)}
-        onSelect={branch => setDestination(branch)}
+        onSelect={branch => setCounterparty(branch)}
         excludeBranchId={currentBranchId}
       />
     </View>

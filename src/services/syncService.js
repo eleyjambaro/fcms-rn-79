@@ -123,8 +123,9 @@ const GROUP_A_ENTITIES = [
   },
   // Cross-branch Batch Transfer. The server's pull() carve-out makes these
   // entities visible to BOTH source and destination branches; the FK columns
-  // here (source_branch_id, destination_branch_id) reference branches.id
-  // directly (branches don't carry a sync_id) so no remap is needed for them.
+  // here (source_branch_id, destination_branch_id, initiator_branch_id)
+  // reference branches.id directly (branches don't carry a sync_id) so no
+  // remap is needed for them.
   {key: 'batch_transfer_groups', table: 'batch_transfer_groups'},
   {
     key: 'batch_transfer_entries',

@@ -72,6 +72,11 @@ const BatchTransferItemSelection = ({navigation, route}) => {
   const queryClient = useQueryClient();
   const {keyword, setKeyword} = useSearchbarContext();
   const groupId = route.params?.groupId;
+  // 'out' (default): current branch is source, picks its own items into
+  // source_item_id. 'in': current branch is dest, picks its own items into
+  // dest_item_id (source_item_id stays NULL until source resolves via
+  // master_item_id when reviewing).
+  const direction = route.params?.direction === 'in' ? 'in' : 'out';
 
   const [editing, setEditing] = useState(null);
   const [qtyText, setQtyText] = useState('');
@@ -112,11 +117,15 @@ const BatchTransferItemSelection = ({navigation, route}) => {
 
   const entryByItemId = useMemo(() => {
     const map = {};
+    // The current branch's picked items live in source_item_id for Out-mode
+    // and dest_item_id for In-mode. We always look up by whichever side the
+    // current branch owns so the "+ qty already added" badge renders.
+    const idCol = direction === 'in' ? 'dest_item_id' : 'source_item_id';
     for (const e of entries) {
-      if (e.source_item_id) map[e.source_item_id] = e;
+      if (e[idCol]) map[e[idCol]] = e;
     }
     return map;
-  }, [entries]);
+  }, [entries, direction]);
 
   const items = useMemo(() => {
     const pages = data?.pages ?? [];
@@ -138,7 +147,9 @@ const BatchTransferItemSelection = ({navigation, route}) => {
     setEditing(item);
     const existing = entryByItemId[item.id];
     setQtyText(existing ? String(parseFloat(existing.requested_qty)) : '');
-    setRemarksText(existing?.source_remarks || '');
+    // Initiator's remark lives in source_remarks for Out, dest_remarks for In.
+    const remarksCol = direction === 'in' ? 'dest_remarks' : 'source_remarks';
+    setRemarksText(existing?.[remarksCol] || '');
   };
 
   const saveEntry = () => {
@@ -146,9 +157,10 @@ const BatchTransferItemSelection = ({navigation, route}) => {
     saveEntryMutation.mutate({
       values: {
         groupId,
-        sourceItem: editing,
+        direction,
+        item: editing,
         qty: qtyText,
-        sourceRemarks: remarksText || null,
+        remarks: remarksText || null,
       },
     });
   };
@@ -158,9 +170,10 @@ const BatchTransferItemSelection = ({navigation, route}) => {
     saveEntryMutation.mutate({
       values: {
         groupId,
-        sourceItem: editing,
+        direction,
+        item: editing,
         qty: 0,
-        sourceRemarks: null,
+        remarks: null,
       },
     });
   };

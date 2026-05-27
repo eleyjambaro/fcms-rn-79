@@ -564,13 +564,16 @@ const createBatchStockUsageEntriesTableQuery = `
 // Group rows are visible to BOTH source and destination branches; the
 // SyncController's pull filter is overridden for this table to use
 // (source_branch_id = $branchId OR destination_branch_id = $branchId).
-// Drafts stay invisible to dest (status != 'draft' OR source_branch_id = me).
+// Drafts stay invisible to the counterparty (status != 'draft' OR
+// initiator_branch_id = me). initiator_branch_id identifies whoever
+// created the request: source for Out-mode, destination for In-mode.
 const createBatchTransferGroupsTableQuery = `
   CREATE TABLE IF NOT EXISTS batch_transfer_groups (
     id TEXT PRIMARY KEY NOT NULL,
     mode TEXT NOT NULL DEFAULT 'branch_to_branch',
     source_branch_id TEXT NOT NULL,
     destination_branch_id TEXT,
+    initiator_branch_id TEXT,
     status TEXT NOT NULL DEFAULT 'draft',
     source_remarks VARCHAR(500),
     dest_remarks VARCHAR(500),
@@ -2114,6 +2117,34 @@ export const alterTables = async currentAppVersion => {
     } catch (error) {
       console.debug(
         '[alterTables] Error adding batch_transfer_entries.item_category_name:',
+        error,
+      );
+    }
+
+    // Initiator branch id — identifies the branch that created the request,
+    // independent of inventory roles. Required for Batch Transfer In, where
+    // the destination is the initiator (source is the counterparty). Used by
+    // the server's pull filter to hide drafts from the counterparty, and by
+    // the Drafts tab filter on the client. Backfilled to source_branch_id for
+    // existing rows so Out-mode drafts created pre-migration still behave the
+    // same way.
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'batch_transfer_groups',
+        'initiator_branch_id',
+        `ALTER TABLE batch_transfer_groups ADD COLUMN initiator_branch_id TEXT DEFAULT NULL;`,
+      );
+      // Backfill is idempotent — only touches NULL rows, so it's a no-op
+      // after the first run.
+      await db.executeSql(
+        `UPDATE batch_transfer_groups
+           SET initiator_branch_id = source_branch_id
+           WHERE initiator_branch_id IS NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding batch_transfer_groups.initiator_branch_id:',
         error,
       );
     }

@@ -36,8 +36,12 @@ import {
   updateEntrySourceAdjustment,
   markBatchTransferViewed,
   removeBatchTransferEntry,
+  resolveMissingSourceItemIdsForGroup,
 } from '../localDbQueries/batchTransfer';
 import TransferStatusBadge from '../components/batchTransfer/TransferStatusBadge';
+
+const OUT_BADGE_COLOR = '#E53935';
+const IN_BADGE_COLOR = '#1E88E5';
 
 const STATUS = {
   DRAFT: 'draft',
@@ -65,11 +69,22 @@ const formatUOM = uom => {
   return uom.toUpperCase();
 };
 
-const EntryRow = ({entry, group, isSource, isDest, onEdit, onRemove}) => {
+const EntryRow = ({
+  entry,
+  group,
+  isSource,
+  isDest,
+  isInitiator,
+  isCounterparty,
+  onEdit,
+  onRemove,
+}) => {
   const {colors} = useTheme();
   const status = group?.status;
   const isDraft = status === STATUS.DRAFT;
-  const canDestReview = isDest && status === STATUS.REQUESTED;
+  // Counterparty reviews entries at REQUESTED (dest for Out, source for In).
+  const canCounterpartyReview = isCounterparty && status === STATUS.REQUESTED;
+  // Source physically dispatches at ACCEPTED regardless of who initiated.
   const canSourceAdjust = isSource && status === STATUS.ACCEPTED;
 
   const primaryQty = (() => {
@@ -80,7 +95,8 @@ const EntryRow = ({entry, group, isSource, isDest, onEdit, onRemove}) => {
     return entry.requested_qty;
   })();
 
-  const editable = isDraft && isSource || canDestReview || canSourceAdjust;
+  const editable =
+    (isDraft && isInitiator) || canCounterpartyReview || canSourceAdjust;
 
   return (
     <View style={styles.entry}>
@@ -146,7 +162,7 @@ const EntryRow = ({entry, group, isSource, isDest, onEdit, onRemove}) => {
         </Text>
       ) : null}
 
-      {isDraft && isSource && onRemove ? (
+      {isDraft && isInitiator && onRemove ? (
         <Pressable onPress={() => onRemove(entry)} style={styles.removeBtn}>
           <Text style={{color: colors.error, fontSize: 12}}>Remove</Text>
         </Pressable>
@@ -209,8 +225,44 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     }
   }, [groupId, currentBranchId, queryClient]);
 
+  // In-mode: the destination (initiator) created entries without knowing the
+  // source's local item ids. When the source counterparty opens a REQUESTED
+  // group, walk the entries and try to resolve source_item_id via the
+  // master_item_id bridge so the source-adjust + materialize paths can write
+  // the stock_transfer_out log later. Idempotent — entries with no master
+  // match stay NULL and the editor locks qty to 0.
+  useEffect(() => {
+    if (!groupId || !group) return;
+    if (
+      group.status === STATUS.REQUESTED &&
+      group.source_branch_id === currentBranchId &&
+      group.destination_branch_id !== currentBranchId
+    ) {
+      resolveMissingSourceItemIdsForGroup({groupId}).then(count => {
+        if (count > 0) {
+          queryClient.invalidateQueries(['batchTransferEntries', {groupId}]);
+        }
+      });
+    }
+  }, [
+    groupId,
+    group,
+    currentBranchId,
+    queryClient,
+  ]);
+
   const isSource = group?.source_branch_id === currentBranchId;
   const isDest = group?.destination_branch_id === currentBranchId;
+  // Initiator is whoever created the request (Out: source = current;
+  // In: destination = current). Fall back to source_branch_id for any legacy
+  // row that survived the alterTables backfill with a NULL value.
+  const initiatorBranchId =
+    group?.initiator_branch_id ?? group?.source_branch_id;
+  const isInitiator = initiatorBranchId === currentBranchId;
+  const isCounterparty = !!group && !isInitiator;
+  // Direction (In/Out) is from the current branch's perspective: Out if we
+  // dispatch (source), In if we receive (destination).
+  const directionForCurrent = isSource ? 'out' : isDest ? 'in' : null;
 
   const invalidateAll = () => {
     queryClient.invalidateQueries(['batchTransferRequest', {groupId}]);
@@ -290,14 +342,30 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
   const sourceBranch = branchById[group.source_branch_id];
   const destBranch = branchById[group.destination_branch_id];
 
+  // Counterparty's remark column on review: dest_remarks if I'm the dest
+  // (Out-mode), source_remarks if I'm the source (In-mode).
+  const counterpartyRemarksCol = isSource ? 'source_remarks' : 'dest_remarks';
+  const counterpartyActorRole = isSource ? 'source' : 'dest';
+
+  // For In-mode REQUESTED, the source counterparty can't fulfill an entry
+  // whose master_item_id has no match in their local items table (or whose
+  // master_item_id is NULL altogether — local-only item picked by dest). In
+  // that case the editor locks qty to 0.
+  const editEntryIsUnfulfillable =
+    !!editEntry &&
+    group?.status === STATUS.REQUESTED &&
+    isSource &&
+    isCounterparty &&
+    (!editEntry.master_item_id || !editEntry.source_item_id);
+
   const openEditor = entry => {
     setEditEntry(entry);
-    if (group.status === STATUS.REQUESTED && isDest) {
+    if (group.status === STATUS.REQUESTED && isCounterparty) {
       setEditValues({
         qty: entry.accepted_qty != null
           ? String(parseFloat(entry.accepted_qty))
           : String(parseFloat(entry.requested_qty || 0)),
-        remarks: entry.dest_remarks || '',
+        remarks: entry[counterpartyRemarksCol] || '',
       });
     } else if (group.status === STATUS.ACCEPTED && isSource) {
       setEditValues({
@@ -313,11 +381,14 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
 
   const saveEditor = () => {
     if (!editEntry) return;
-    if (group.status === STATUS.REQUESTED && isDest) {
+    if (group.status === STATUS.REQUESTED && isCounterparty) {
+      // Force qty=0 for unfulfillable entries even if user typed something.
+      const qty = editEntryIsUnfulfillable ? '0' : editValues.qty;
       destReviewMut.mutate({
         entryId: editEntry.id,
-        acceptedQty: editValues.qty,
-        destRemarks: editValues.remarks || null,
+        acceptedQty: qty,
+        remarks: editValues.remarks || null,
+        actorRole: counterpartyActorRole,
       });
     } else if (group.status === STATUS.ACCEPTED && isSource) {
       sourceAdjustMut.mutate({
@@ -328,12 +399,18 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     }
   };
 
-  // Footer action buttons per (status, role)
+  // Footer action buttons per (status, role).
+  //   - Draft / Submit / Discard belong to the initiator.
+  //   - Accept / Reject belong to the counterparty (dest for Out, source for In).
+  //   - Transfer (physical dispatch) belongs to source regardless of direction.
+  //   - Receive (physical receipt) belongs to dest regardless of direction.
+  //   - Cancel before TRANSFERRING is allowed for initiator and, once accepted,
+  //     also for source (in case they can't actually fulfill anymore).
   const renderActions = () => {
     const status = group.status;
     const buttons = [];
 
-    if (status === STATUS.DRAFT && isSource) {
+    if (status === STATUS.DRAFT && isInitiator) {
       buttons.push(
         <Button
           key="edit"
@@ -341,7 +418,11 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           onPress={() =>
             navigation.navigate(routes.batchTransferItemSelection(), {
               groupId,
-              destinationBranchId: group.destination_branch_id,
+              counterpartyBranchId:
+                directionForCurrent === 'out'
+                  ? group.destination_branch_id
+                  : group.source_branch_id,
+              direction: directionForCurrent,
             })
           }>
           Edit Items
@@ -374,7 +455,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           Submit Request
         </Button>,
       );
-    } else if (status === STATUS.REQUESTED && isSource) {
+    } else if (status === STATUS.REQUESTED && isInitiator) {
       buttons.push(
         <Button
           key="cancel"
@@ -385,7 +466,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           Cancel Request
         </Button>,
       );
-    } else if (status === STATUS.REQUESTED && isDest) {
+    } else if (status === STATUS.REQUESTED && isCounterparty) {
       buttons.push(
         <Button
           key="reject"
@@ -401,41 +482,45 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           mode="contained"
           loading={acceptMut.isLoading}
           onPress={() => acceptMut.mutate({groupId})}>
-          Accept Transfer In Request
+          Accept Request
         </Button>,
       );
-    } else if (status === STATUS.ACCEPTED && isSource) {
-      buttons.push(
-        <Button
-          key="cancel"
-          mode="outlined"
-          color={colors.error}
-          loading={cancelMut.isLoading}
-          onPress={() => cancelMut.mutate({groupId})}>
-          Cancel
-        </Button>,
-      );
-      buttons.push(
-        <Button
-          key="transfer"
-          mode="contained"
-          loading={transferOutMut.isLoading}
-          onPress={() =>
-            Alert.alert(
-              'Confirm transfer-out',
-              'Mark this request as physically dispatched? The destination will be notified.',
-              [
-                {text: 'Cancel'},
-                {
-                  text: 'Transfer',
-                  onPress: () => transferOutMut.mutate({groupId}),
-                },
-              ],
-            )
-          }>
-          Transfer
-        </Button>,
-      );
+    } else if (status === STATUS.ACCEPTED) {
+      if (isSource || isInitiator) {
+        buttons.push(
+          <Button
+            key="cancel"
+            mode="outlined"
+            color={colors.error}
+            loading={cancelMut.isLoading}
+            onPress={() => cancelMut.mutate({groupId})}>
+            Cancel
+          </Button>,
+        );
+      }
+      if (isSource) {
+        buttons.push(
+          <Button
+            key="transfer"
+            mode="contained"
+            loading={transferOutMut.isLoading}
+            onPress={() =>
+              Alert.alert(
+                'Confirm transfer-out',
+                'Mark this request as physically dispatched? The destination will be notified.',
+                [
+                  {text: 'Cancel'},
+                  {
+                    text: 'Transfer',
+                    onPress: () => transferOutMut.mutate({groupId}),
+                  },
+                ],
+              )
+            }>
+            Transfer
+          </Button>,
+        );
+      }
     } else if (status === STATUS.TRANSFERRING && isDest) {
       buttons.push(
         <Button
@@ -457,7 +542,25 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerCard}>
           <View style={styles.headerRow}>
-            <TransferStatusBadge status={group.status} />
+            <View style={styles.headerBadges}>
+              <TransferStatusBadge status={group.status} />
+              {directionForCurrent ? (
+                <View
+                  style={[
+                    styles.directionChip,
+                    {
+                      backgroundColor:
+                        directionForCurrent === 'out'
+                          ? OUT_BADGE_COLOR
+                          : IN_BADGE_COLOR,
+                    },
+                  ]}>
+                  <Text style={styles.directionChipText}>
+                    {directionForCurrent === 'out' ? 'OUT' : 'IN'}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             <Text style={styles.uuid} numberOfLines={1}>
               #{String(group.id).slice(0, 8)}
             </Text>
@@ -550,7 +653,11 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           ) : null}
         </View>
 
-        {/* Status-contextual note card */}
+        {/* Status-contextual note card.
+            Counterparty sees a prompt to act; initiator sees a waiting state.
+            For Out-mode the counterparty is the dest (receiving an incoming
+            request); for In-mode the counterparty is the source (someone is
+            asking them to send items). */}
         {group.status === STATUS.REQUESTED ? (
           <View style={[styles.noteCard, {backgroundColor: '#FFF3E0'}]}>
             <MaterialCommunityIcons
@@ -560,13 +667,20 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               style={{marginTop: 1}}
             />
             <Text style={[styles.noteCardText, {color: '#BF360C'}]}>
-              {isDest
-                ? `${sourceBranch?.display_name || sourceBranch?.name || 'A branch'} has sent you a Batch Transfer Request. Review the items below and tap "Accept" to proceed or "Reject" to decline.`
-                : `Your Batch Transfer Request has been sent to ${destBranch?.display_name || destBranch?.name || 'the destination branch'}. You'll be notified once they accept or reject it.`}
+              {isCounterparty
+                ? isSource
+                  ? `${destBranch?.display_name || destBranch?.name || 'A branch'} is requesting items from your branch. Review the items below and tap "Accept" to proceed or "Reject" to decline.`
+                  : `${sourceBranch?.display_name || sourceBranch?.name || 'A branch'} has sent you a Batch Transfer Request. Review the items below and tap "Accept" to proceed or "Reject" to decline.`
+                : isInitiator && isSource
+                ? `Your Batch Transfer Request has been sent to ${destBranch?.display_name || destBranch?.name || 'the destination branch'}. You'll be notified once they accept or reject it.`
+                : `Your Batch Transfer Request has been sent to ${sourceBranch?.display_name || sourceBranch?.name || 'the source branch'}. You'll be notified once they accept or reject it.`}
             </Text>
           </View>
         ) : null}
 
+        {/* ACCEPTED / TRANSFERRING messages are keyed on the physical role
+            (source dispatches, dest receives) — that role is what determines
+            the next action regardless of who initiated. */}
         {group.status === STATUS.ACCEPTED ? (
           <View style={styles.noteCard}>
             <MaterialCommunityIcons
@@ -576,9 +690,9 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               style={{marginTop: 1}}
             />
             <Text style={[styles.noteCardText, {color: '#1565C0'}]}>
-              {isDest
-                ? `You accepted the Batch Transfer Request from ${sourceBranch?.display_name || sourceBranch?.name || 'the source branch'}. You'll be notified once they start transferring your items.`
-                : `${destBranch?.display_name || destBranch?.name || 'The destination branch'} accepted your Batch Transfer Request. You can now start transferring the items by tapping Transfer. You'll be notified once they receive your items.`}
+              {isSource
+                ? `This request has been accepted. You can now start transferring the items by tapping Transfer. ${destBranch?.display_name || destBranch?.name || 'The destination branch'} will be notified once they receive them.`
+                : `This request has been accepted. You'll be notified once ${sourceBranch?.display_name || sourceBranch?.name || 'the source branch'} starts transferring the items.`}
             </Text>
           </View>
         ) : null}
@@ -593,7 +707,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             />
             <Text style={[styles.noteCardText, {color: '#4A148C'}]}>
               {isDest
-                ? `${sourceBranch?.display_name || sourceBranch?.name || 'The source branch'} has started transferring your items. Tap "Mark Transfer Received" once you receive them.`
+                ? `${sourceBranch?.display_name || sourceBranch?.name || 'The source branch'} has started transferring the items. Tap "Mark Transfer Received" once they arrive.`
                 : `You've dispatched the items to ${destBranch?.display_name || destBranch?.name || 'the destination branch'}. You'll be notified once they confirm receipt.`}
             </Text>
           </View>
@@ -615,6 +729,8 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               group={group}
               isSource={isSource}
               isDest={isDest}
+              isInitiator={isInitiator}
+              isCounterparty={isCounterparty}
               onEdit={openEditor}
               onRemove={
                 group.status === STATUS.DRAFT
@@ -641,21 +757,32 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           </Dialog.Title>
           <Dialog.Content>
             <Text style={{marginBottom: 8, opacity: 0.7}}>
-              {group.status === STATUS.REQUESTED && isDest
+              {group.status === STATUS.REQUESTED && isCounterparty
                 ? `Set the qty you can accept (0 = decline this item). Requested: ${parseFloat(editEntry?.requested_qty || 0)} ${formatUOM(editEntry?.item_uom_abbrev)}`
                 : group.status === STATUS.ACCEPTED && isSource
                 ? `Adjust the qty you'll actually send. Accepted: ${parseFloat(editEntry?.accepted_qty || 0)} ${formatUOM(editEntry?.item_uom_abbrev)}`
                 : ''}
             </Text>
+            {editEntryIsUnfulfillable ? (
+              <Text
+                style={{
+                  marginBottom: 8,
+                  color: colors.error,
+                  fontSize: 12,
+                }}>
+                Item not in your catalog — you can't fulfill this line. Qty is locked to 0. You can still leave a remark.
+              </Text>
+            ) : null}
             <TextInput
               label={`Qty (${formatUOM(editEntry?.item_uom_abbrev)})`}
-              value={editValues.qty}
+              value={editEntryIsUnfulfillable ? '0' : editValues.qty}
               onChangeText={v =>
                 setEditValues(s => ({...s, qty: v}))
               }
               keyboardType="decimal-pad"
               dense
-              autoFocus
+              autoFocus={!editEntryIsUnfulfillable}
+              disabled={editEntryIsUnfulfillable}
               style={{marginBottom: 8}}
             />
             <TextInput
@@ -685,7 +812,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           <Dialog.Title>Reject this request?</Dialog.Title>
           <Dialog.Content>
             <Text style={{marginBottom: 8, opacity: 0.7}}>
-              The source branch will be notified. No inventory will change.
+              The initiating branch will be notified. No inventory will change.
             </Text>
             <TextInput
               label="Reason (optional)"
@@ -728,6 +855,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  headerBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  directionChip: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  directionChipText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
   uuid: {fontSize: 11, fontWeight: '600', opacity: 0.6, maxWidth: 110},
   branchesRow: {
