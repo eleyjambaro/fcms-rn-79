@@ -474,9 +474,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               <Text style={styles.branchName} numberOfLines={2}>
                 {sourceBranch?.display_name || sourceBranch?.name || '—'}
               </Text>
-              {group.source_branch_id === currentBranchId ? (
-                <Text style={styles.yourBranchLabel}>(Your branch)</Text>
-              ) : null}
+              <Text
+                style={[
+                  styles.yourBranchLabel,
+                  {opacity: group.source_branch_id === currentBranchId ? 1 : 0},
+                ]}>
+                (Your branch)
+              </Text>
             </View>
             <MaterialCommunityIcons
               name="arrow-right-bold"
@@ -493,9 +497,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               <Text style={styles.branchName} numberOfLines={2}>
                 {destBranch?.display_name || destBranch?.name || '—'}
               </Text>
-              {group.destination_branch_id === currentBranchId ? (
-                <Text style={styles.yourBranchLabel}>(Your branch)</Text>
-              ) : null}
+              <Text
+                style={[
+                  styles.yourBranchLabel,
+                  {opacity: group.destination_branch_id === currentBranchId ? 1 : 0},
+                ]}>
+                (Your branch)
+              </Text>
             </View>
           </View>
 
@@ -733,6 +741,7 @@ const styles = StyleSheet.create({
   branchName: {fontSize: 13, fontWeight: '600', textAlign: 'center'},
   yourBranchLabel: {
     fontSize: 10,
+    fontWeight: 'bold',
     color: '#1E88E5',
     fontStyle: 'italic',
     marginTop: 2,
