@@ -1,0 +1,11 @@
+export const licensePublicKeyPem = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvvUAIUMydUsOSTFggwda
+rLiUKFEVzcRX5GlwZX8jfbXQFSzWXjAlTUYpu0JHM70AbS9DIIj5Gm+Bs9I+44V1
+e/SDNXAoQosczkRlgf/N0KtDJmrcIJvTn1kBMECJWXeK+3bhqMk7fSs/D7V8bL9e
+EY0oam2vCpwhjy3R42im/DP9MmH7WaaQdGIRaqrPuo2OjDx+qepi/Z0Ia80l3AE/
+cmpwlQLCJAmCdy4ZNeFbi19BS/AIlf1uYwQUdYrQNBkbsRQOC6rYR8DxcfyQQ+Ck
+gwoGa8T56ro2i2Jq5qCltN0B7KLEMeuAmIaGJIyzON4GEJx6hCg6Yunng7t2VpoW
+mQIDAQAB
+-----END PUBLIC KEY-----`;
+
+export default licensePublicKeyPem;

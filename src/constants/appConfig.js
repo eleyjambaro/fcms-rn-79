@@ -1,11 +1,11 @@
-import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
-import {sign, decode} from 'react-native-pure-jwt';
-import DeviceInfo from 'react-native-device-info';
-import packageJson from '../../package.json';
-import deviceInfo from '../lib/deviceInfo';
+import SecureStorage from 'react-native-fast-secure-storage';
 
-export const env = __DEV__ ? 'dev' : 'prod'; // change to 'prod' manualy to test production environment
-// export const env = 'prod';
+import packageJson from '../../package.json';
+import {rnStorageKeys} from './rnSecureStorageKeys';
+import {verifyLicenseToken} from '../utils/licenseTokenVerifier';
+
+// export const env = __DEV__ ? 'dev' : 'prod'; // change to 'prod' manually to test production environment
+export const env = 'prod';
 export const appVersion = packageJson.version;
 export const localUserDefaultRoleId = 2; // Encoders
 
@@ -41,63 +41,41 @@ const devAppConfig = {
 
 export async function getAppConfig() {
   try {
-    let licenseToken = null;
-
-    const hasLicenseToken = await SecureStorage.hasItem('licenseToken');
-
-    if (hasLicenseToken) {
-      licenseToken = await SecureStorage.getItem('licenseToken');
-    }
-
-    if (!licenseToken) {
-      if (env === 'dev') {
-        return devAppConfig;
-      }
-
-      return defaultAppConfig;
-    }
-
-    const parsedLicenseToken = JSON.parse(licenseToken);
-    const {lt: token, kp: keyPair} = parsedLicenseToken;
-
-    const deviceId = await deviceInfo.getDeviceId();
-    let secretKey = deviceId + keyPair;
-
-    // decode token
-    const {payload} = await decode(
-      token, // the token
-      secretKey, // the secret
-      {
-        skipValidation: false, // to skip signature and exp verification
-      },
+    const hasLicenseToken = await SecureStorage.hasItem(
+      rnStorageKeys.licenseToken,
     );
+    if (!hasLicenseToken) {
+      return env === 'dev' ? devAppConfig : defaultAppConfig;
+    }
 
-    const appConfigFromLicense = payload?.appConfig;
+    const licenseToken = await SecureStorage.getItem(
+      rnStorageKeys.licenseToken,
+    );
+    const {appConfig: appConfigFromLicense} = verifyLicenseToken(licenseToken);
 
-    if (appConfigFromLicense && Object.keys(appConfigFromLicense).length > 0) {
-      // remove all undefined keys inside app config from license
-      Object.keys(appConfigFromLicense).forEach(
-        key =>
-          appConfigFromLicense[key] === undefined &&
-          delete appConfigFromLicense[key],
-      );
-
-      return {
-        ...defaultAppConfig,
-        // override default app config
-        ...appConfigFromLicense,
-      };
-    } else {
+    if (
+      !appConfigFromLicense ||
+      Object.keys(appConfigFromLicense).length === 0
+    ) {
       return defaultAppConfig;
     }
-  } catch (error) {
-    /**
-     * react-native-pure-jwt error codes (v3.0.2):
-     * - error.code === '3': The JWT is expired.
-     * - error.code === '6': Invalid signature (or secret key).
-     */
-    console.debug(error);
 
+    // Strip undefined keys so they don't shadow the defaults.
+    Object.keys(appConfigFromLicense).forEach(key => {
+      if (appConfigFromLicense[key] === undefined) {
+        delete appConfigFromLicense[key];
+      }
+    });
+
+    return {
+      ...defaultAppConfig,
+      ...appConfigFromLicense,
+    };
+  } catch (error) {
+    // verifyLicenseToken throws when the signature/iss/aud/exp are invalid,
+    // and when the token is malformed. In all cases the user is not entitled
+    // to the upgraded config — fall back to the free tier.
+    console.debug(error);
     return defaultAppConfig;
   }
 }

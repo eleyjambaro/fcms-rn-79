@@ -1,10 +1,11 @@
-import {env} from './appConfig';
+// Legacy Firebase endpoints used to live here. The licensing endpoints now
+// live on the FCMS API (Sanctum-authenticated, RS256 JWTs) and the client
+// reaches them via the cloudApiV2 axios instance — see
+// src/serverDbQueries/v2/licenses.js.
+//
+// This file is kept as a placeholder so any straggling imports continue to
+// resolve; it should be deleted once all references are confirmed gone.
 
-export const endpoints = {
-  activateLicense:
-    env === 'dev'
-      ? () => 'http://127.0.0.1:5001/fcms-e7d85/us-central1/activateLicense'
-      : () => 'https://activatelicense-f64subkjaq-uc.a.run.app',
-};
+export const endpoints = {};
 
 export default endpoints;

@@ -12,12 +12,9 @@ import {Formik} from 'formik';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import moment from 'moment';
 
-import useCurrentUser from '../hooks/useCurrentUser';
 import LicenseForm from '../components/forms/LicenseForm';
 import {
   activateLicense,
-  getLicenseKey,
-  getLicenseKeyStatus,
   getLicenseStatus,
 } from '../localDbQueries/license';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
@@ -30,7 +27,6 @@ import {adUnitIds} from '../constants/adUnitIds';
 const ActivateLicense = props => {
   const {navigation} = props;
   const {colors} = useTheme();
-  const [authState, {signIn}] = useCurrentUser();
   const {
     status: getLicenseStatusReqStatus,
     data: getLicenseStatusReqData,
@@ -53,7 +49,6 @@ const ActivateLicense = props => {
     try {
       await activateLicenseMutation.mutateAsync({
         values,
-        authState,
         onError: ({errorMessage}) => {
           console.debug(errorMessage);
         },

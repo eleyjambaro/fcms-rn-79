@@ -43,6 +43,7 @@
     "currency-list": "^1.0.8",
     "deepmerge": "^4.3.1",
     "formik": "^2.4.6",
+    "jsrsasign": "^11.1.0",
     "react": "19.0.0",
     "react-dom": "^19.1.0",
     "react-native": "^0.79.0",
