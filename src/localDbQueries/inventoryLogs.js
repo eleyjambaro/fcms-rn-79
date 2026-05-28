@@ -404,8 +404,8 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
     const updateInventoryLogQuery = `UPDATE inventory_logs
       SET operation_id = '${updatedValues.operation_id}',
       item_id = '${item.id}',
-      ref_tax_id = '${taxId}',
-      ref_vendor_id = '${vendorId}',
+      ref_tax_id = ${taxId},
+      ref_vendor_id = ${vendorId},
       vendor_display_name = ${vendorDisplayName},
       adjustment_unit_cost = ${unitCost},
       adjustment_unit_cost_net = ${unitCostNet},
