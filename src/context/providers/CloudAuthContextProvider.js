@@ -14,7 +14,11 @@ import {createDefaultSettings} from '../../localDbQueries/settings';
 import {createDefaultInventoryOperations} from '../../localDbQueries/operations';
 import {createDefaultTaxes} from '../../localDbQueries/taxes';
 import {appVersion} from '../../constants/appConfig';
-import {runSync, scheduleSyncSoon} from '../../services/syncService';
+import {
+  runSync,
+  scheduleSyncSoon,
+  flushPendingSync,
+} from '../../services/syncService';
 import {getCloudCompany} from '../../serverDbQueries/v2/companies';
 import {getDeviceCompanyInfo} from '../../serverDbQueries/v2/devices';
 
@@ -403,6 +407,21 @@ const CloudAuthContextProvider = ({children}) => {
               }
             : null;
           await saveItem(cloudV2DeviceCompanyInfo, deviceCompanyInfo);
+          // Push any unsynced rows from the CURRENT branch's DB before we
+          // swap the active DB pointer. Without this, debounced or interval
+          // syncs that fire after the swap run against the new branch's DB
+          // and the previous branch's pending mutations sit in its SQLite
+          // file forever (and are lost on a reinstall). Wrapped in try/catch
+          // so an offline switch still proceeds — the rows stay unsynced and
+          // will push on the next online sync attempt on that branch.
+          try {
+            await flushPendingSync();
+          } catch (flushErr) {
+            console.debug(
+              '[CloudAuthContextProvider] flushPendingSync before branch switch failed:',
+              flushErr,
+            );
+          }
           await saveItem(cloudV2DesignatedBranch, branch);
           invalidateCloudSyncParamsCache();
           // Switch to the company+branch-scoped DB and ensure it is initialised.

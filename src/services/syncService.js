@@ -431,6 +431,10 @@ const applyPulledRecord = async (db, tableName, record) => {
 // ---------------------------------------------------------------------------
 
 let syncInProgress = false;
+// Promise tracking the currently-running runSync(). Concurrent callers
+// (notably flushPendingSync at branch switch) await this instead of getting
+// back the no-op "skipped" result.
+let _inFlightSync = null;
 
 // ---------------------------------------------------------------------------
 // Debounced push
@@ -449,6 +453,32 @@ export const scheduleSyncSoon = (delayMs = 2000) => {
   }, delayMs);
 };
 
+/**
+ * Cancel any pending debounced sync and await a fresh push-pull cycle. Used
+ * at branch switch so the current branch's unsynced rows are pushed BEFORE
+ * the active DB pointer moves to the next branch — without this, a debounce
+ * timer or 15s interval that fires after the switch runs against the new
+ * DB and the previous branch's pending rows sit in its SQLite file forever
+ * (and are lost on a reinstall).
+ *
+ * If a sync is already running, awaits it before starting another so any
+ * mutation that landed between scheduleSyncSoon() and now still gets pushed.
+ */
+export const flushPendingSync = async () => {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
+  if (_inFlightSync) {
+    try {
+      await _inFlightSync;
+    } catch (_) {
+      // swallow — caller still wants the flush attempt to run
+    }
+  }
+  return runSync();
+};
+
 // ---------------------------------------------------------------------------
 // Main sync entry point
 // ---------------------------------------------------------------------------
@@ -460,13 +490,19 @@ export const scheduleSyncSoon = (delayMs = 2000) => {
  */
 export const runSync = async () => {
   if (syncInProgress) {
-    return {
-      pushed: {},
-      pulled: {},
-      errors: ['Sync already in progress — skipped.'],
-    };
+    // Return the in-flight promise (if any) so callers like flushPendingSync
+    // actually wait for the running sync to finish, instead of getting back
+    // a no-op result while the real sync is still pushing.
+    return (
+      _inFlightSync ?? {
+        pushed: {},
+        pulled: {},
+        errors: ['Sync already in progress — skipped.'],
+      }
+    );
   }
   syncInProgress = true;
+  _inFlightSync = (async () => {
   const result = {pushed: {}, pulled: {}, errors: []};
 
   try {
@@ -737,4 +773,10 @@ export const runSync = async () => {
     JSON.stringify(result.errors),
   );
   return result;
+  })();
+  try {
+    return await _inFlightSync;
+  } finally {
+    _inFlightSync = null;
+  }
 };
