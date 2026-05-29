@@ -78,9 +78,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "rocks.uxi.fcms"
+    namespace "rocks.uxi.fcmscloud"
     defaultConfig {
-        applicationId "rocks.uxi.fcms"
+        applicationId "rocks.uxi.fcmscloud"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 25

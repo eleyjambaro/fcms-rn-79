@@ -266,7 +266,7 @@ const DefaultBranch = () => {
       /**
        * Locate databases path (where sqlite database file is located)
        *
-       * /data/user/0/rocks.uxi.fcms/databases
+       * /data/user/0/rocks.uxi.fcmscloud/databases
        */
       const paths = RNFS.DocumentDirectoryPath.split('/');
       paths.pop();

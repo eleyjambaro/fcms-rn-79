@@ -32,4 +32,4 @@ export const versionCheckUrl =
 export const iosStoreUrl = Config.IOS_STORE_URL || '';
 export const androidStoreUrl =
   Config.ANDROID_STORE_URL ||
-  'https://play.google.com/store/apps/details?id=rocks.uxi.fcms';
+  'https://play.google.com/store/apps/details?id=rocks.uxi.fcmscloud';
