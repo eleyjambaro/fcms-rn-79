@@ -445,7 +445,7 @@ const Account = props => {
         unitNameColWidth = unit.singular.length;
       }
 
-      let unitAbbrev = unit.abbr === 'ea' ? 'pc' : unit.abbr;
+      let unitAbbrev = (unit.abbr === 'ea' ? 'pc' : unit.abbr).toUpperCase();
       let unitName = unit.singular === 'Each' ? 'Piece' : unit.singular;
 
       unitsSheetTable1.push([unitAbbrev, unitName]);
