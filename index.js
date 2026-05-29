@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import './src/config/env';
 import * as React from 'react';
 import {AppRegistry, useColorScheme} from 'react-native';
 import App from './App';

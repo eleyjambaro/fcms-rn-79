@@ -1,8 +1,9 @@
 import axios from 'axios';
-import Config from 'react-native-config';
+
+import {cloudApiV2BaseUrl} from '../config/env';
 
 const cloudApiV2 = axios.create({
-  baseURL: Config.CLOUD_API_V2_BASE_URL,
+  baseURL: cloudApiV2BaseUrl,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',

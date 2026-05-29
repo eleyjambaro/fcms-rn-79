@@ -3,15 +3,18 @@ import DeviceInfo from 'react-native-device-info';
 import semver from 'semver';
 import axios from 'axios';
 
-// Replace these with your actual store URLs
+import {
+  versionCheckUrl,
+  iosStoreUrl,
+  androidStoreUrl,
+} from '../config/env';
+
 const STORE_URLS = {
-  ios: 'https://apps.apple.com/app/your-app-id',
-  android: 'https://play.google.com/store/apps/details?id=rocks.uxi.fcms',
+  ios: iosStoreUrl,
+  android: androidStoreUrl,
 };
 
-// We can replace this with an API call to our backend
 const getLatestVersion = async () => {
-  // This is a placeholder. In production, we should fetch this from our backend
   let latestVersions = {
     ios: '0.0.0',
     android: '1.0.7',
@@ -19,14 +22,11 @@ const getLatestVersion = async () => {
   };
 
   try {
-    const {data} = await axios.get(
-      'https://uxi-fcms-developers.github.io/app-version/version.json',
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
+    const {data} = await axios.get(versionCheckUrl, {
+      headers: {
+        'Content-Type': 'application/json',
       },
-    );
+    });
 
     if (!data) throw Error('Invalid data response.');
 
@@ -38,7 +38,6 @@ const getLatestVersion = async () => {
       error,
     );
 
-    // Fallback to the hardcoded versions if the API call fails
     return latestVersions;
   }
 };

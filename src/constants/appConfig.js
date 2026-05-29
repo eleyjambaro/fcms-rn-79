@@ -3,9 +3,9 @@ import SecureStorage from 'react-native-fast-secure-storage';
 import packageJson from '../../package.json';
 import {rnStorageKeys} from './rnSecureStorageKeys';
 import {verifyLicenseToken} from '../utils/licenseTokenVerifier';
+import {env} from '../config/env';
 
-export const env = __DEV__ ? 'dev' : 'prod'; // change to 'prod' manually to test production environment
-// export const env = 'prod';
+export {env};
 export const appVersion = packageJson.version;
 export const localUserDefaultRoleId = 2; // Encoders
 
