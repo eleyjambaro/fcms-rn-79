@@ -11,123 +11,119 @@ import {
   Dialog,
   Paragraph,
 } from 'react-native-paper';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
 import RNRestart from 'react-native-restart';
+import SecureStorage from 'react-native-fast-secure-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import RNFS from 'react-native-fs';
 
-import {
-  deleteMyAccount,
-  emergencyChangePassword,
-  getRootAccountUsername,
-  signInAccount,
-} from '../localDbQueries/accounts';
-import BackupDataBeforeAccountDeletionConfirmation from '../components/forms/components/BackupDataBeforeAccountDeletionConfirmation';
+import {deleteMyCloudAccount} from '../serverDbQueries/v2/auth';
+import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
+import {appDefaults} from '../constants/appDefaults';
 import AccountDeletionConfirmation from '../components/forms/components/AccountDeletionConfirmation';
 import ConfirmAccountDeletionUsingPasswordForm from '../components/forms/ConfirmAccountDeletionUsingPasswordForm';
-import LicenseForm from '../components/forms/LicenseForm';
 import RetypeTextToConfirmForm from '../components/forms/RetypeTextToConfirmForm';
+import useCurrentUser from '../hooks/useCurrentUser';
 
 const DeleteMyAccount = () => {
   const {colors} = useTheme();
-  const [enableBackupData, setEnableBackupData] = useState(true);
+  const [{authUser}] = useCurrentUser();
+  const queryClient = useQueryClient();
+
   const [confirmAccountDeletion, setConfirmAccountDeletion] = useState(false);
   const [confirmByPasswordModalVisible, setConfirmByPasswordModalVisible] =
-    useState(false);
-  const [confirmByLicenseKeyModalVisible, setConfirmByLicenseKeyModalVisible] =
     useState(false);
   const [retypeTextModalVisible, setRetypeTextModalVisible] = useState(false);
   const [
     deleteMyAccountSuccessDialogVisible,
     setDeleteMyAccountSuccessDialogVisible,
   ] = useState(false);
-  const queryClient = useQueryClient();
-  const deleteMyAccountMutation = useMutation(deleteMyAccount, {
-    onSuccess: () => {
-      queryClient.clear();
-    },
-  });
-  const [formValues, setFormValues] = useState({password: '', license_key: ''});
+  const [verifiedPassword, setVerifiedPassword] = useState('');
 
-  const handlePressDelete = () => {
-    // show modal to input root user account password
-    setConfirmByPasswordModalVisible(() => true);
-
-    // show modal to input license key
-  };
-
-  const handleSubmit = async (values, actions) => {
-    console.log(values);
-    setFormValues(() => ({...formValues, ...values}));
+  const wipeLocalState = async () => {
+    // SQLite files live in <docs-parent>/databases. We can't enumerate company
+    // IDs the user has signed into historically, so we wipe every file in that
+    // dir whose name starts with the FCMS DB prefix (FCMS, FCMS_<id>,
+    // FCMS_<id>_<branch>, plus the legacy FCMSLocalAccount).
+    try {
+      const parts = RNFS.DocumentDirectoryPath.split('/');
+      parts.pop();
+      parts.push('databases');
+      const databasesDir = parts.join('/');
+      const entries = await RNFS.readDir(databasesDir);
+      await Promise.all(
+        entries
+          .filter(
+            e =>
+              e.name.startsWith(appDefaults.dbName) ||
+              e.name.startsWith(appDefaults.localAccountDbName),
+          )
+          .map(e => RNFS.unlink(e.path).catch(() => {})),
+      );
+    } catch (error) {
+      console.debug('[DeleteMyAccount] DB files cleanup error:', error);
+    }
 
     try {
-      const deleteMyAccountData = await deleteMyAccountMutation.mutateAsync({
-        values: {
-          ...formValues,
-          ...values,
-        },
-        enableBackupData,
-        onError: ({errorMessage}) => {
-          actions.setFieldError('password', errorMessage);
-        },
-        onErrorLicenseKey: ({errorMessage}) => {
-          actions.setFieldError('license_key', errorMessage);
-        },
-        onErrorRetypeText: ({errorMessage}) => {
-          actions.setFieldError('text', errorMessage);
-        },
-        onSuccess: () => {
-          if (confirmByPasswordModalVisible) {
-            setConfirmByPasswordModalVisible(() => false);
-          }
-
-          if (confirmByLicenseKeyModalVisible) {
-            setConfirmByLicenseKeyModalVisible(() => false);
-          }
-
-          if (retypeTextModalVisible) {
-            setRetypeTextModalVisible(() => false);
-          }
-
-          setDeleteMyAccountSuccessDialogVisible(() => true);
-        },
-        onRequireLicenseKey: () => {
-          if (confirmByPasswordModalVisible) {
-            setConfirmByPasswordModalVisible(() => false);
-          }
-
-          setConfirmByLicenseKeyModalVisible(() => true);
-        },
-        onRequireRetypeText: () => {
-          if (confirmByPasswordModalVisible) {
-            setConfirmByPasswordModalVisible(() => false);
-          }
-
-          if (confirmByLicenseKeyModalVisible) {
-            setConfirmByLicenseKeyModalVisible(() => false);
-          }
-
-          setRetypeTextModalVisible(() => true);
-        },
-        // onEmergencyPasswordRecovery: ({username}) => {
-        //   actions.resetForm();
-        //   username && actions.setFieldValue('username', username);
-        //   actions.setFieldTouched('username', false);
-        //   actions.setFieldTouched('password', false);
-
-        //   setRootAccountUsername(() => username);
-        //   setEmergencyChangePasswordMode(() => true);
-        // },
-      });
-
-      if (deleteMyAccountData) {
-        signIn(deleteMyAccountData.result);
+      for (const key of Object.values(rnStorageKeys)) {
+        if (await SecureStorage.hasItem(key)) {
+          await SecureStorage.removeItem(key);
+        }
       }
     } catch (error) {
-      console.debug(error);
-    } finally {
-      /**
-       * TODO: Reset password field only instead of resetting form data
-       */
-      // actions.resetForm();
+      console.debug('[DeleteMyAccount] SecureStorage cleanup error:', error);
+    }
+
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      if (keys?.length) {
+        await AsyncStorage.multiRemove(keys);
+      }
+    } catch (error) {
+      console.debug('[DeleteMyAccount] AsyncStorage cleanup error:', error);
+    }
+
+    queryClient.clear();
+  };
+
+  const deleteMyAccountMutation = useMutation(deleteMyCloudAccount);
+
+  const handlePressDelete = () => {
+    setConfirmByPasswordModalVisible(() => true);
+  };
+
+  const handlePasswordSubmit = async (values, _actions) => {
+    setVerifiedPassword(() => values.password);
+    setConfirmByPasswordModalVisible(() => false);
+    setRetypeTextModalVisible(() => true);
+  };
+
+  const handleRetypeSubmit = async (_values, actions) => {
+    try {
+      await deleteMyAccountMutation.mutateAsync({password: verifiedPassword});
+      await wipeLocalState();
+      setRetypeTextModalVisible(() => false);
+      setDeleteMyAccountSuccessDialogVisible(() => true);
+    } catch (error) {
+      console.debug('[DeleteMyAccount] delete error:', error);
+
+      const status = error?.response?.status;
+      const serverMessage =
+        error?.response?.data?.message ||
+        'Failed to delete your account. Please try again.';
+
+      // 401 → wrong password. Bounce back to the password modal so the user
+      // can re-enter without losing the retype-phrase friction step.
+      if (status === 401) {
+        setRetypeTextModalVisible(() => false);
+        setVerifiedPassword(() => '');
+        setConfirmByPasswordModalVisible(() => true);
+        return;
+      }
+
+      // Any other failure: keep the retype modal open with the server message
+      // surfaced under the field.
+      actions?.setFieldError && actions.setFieldError('text', serverMessage);
     }
   };
 
@@ -142,32 +138,11 @@ const DeleteMyAccount = () => {
             Confirm account deletion
           </Title>
           <Paragraph style={{marginBottom: 20}}>
-            Please re-enter your password (root account password) to confirm
-            your identity.
+            Please re-enter your account password to confirm your identity.
           </Paragraph>
           <ConfirmAccountDeletionUsingPasswordForm
-            onSubmit={handleSubmit}
+            onSubmit={handlePasswordSubmit}
             onCancel={() => setConfirmByPasswordModalVisible(() => false)}
-          />
-        </Modal>
-      </Portal>
-
-      <Portal>
-        <Modal
-          visible={confirmByLicenseKeyModalVisible}
-          onDismiss={() => setConfirmByLicenseKeyModalVisible(() => false)}
-          contentContainerStyle={{backgroundColor: 'white', padding: 20}}>
-          <Title style={{marginBottom: 15, textAlign: 'center'}}>
-            License key is required
-          </Title>
-          <Paragraph style={{marginBottom: 20}}>
-            We've found out that you have an active digital license. Please
-            re-enter your license key to confirm account deletion.
-          </Paragraph>
-          <LicenseForm
-            submitButtonTitle="Submit"
-            onSubmit={handleSubmit}
-            onCancel={() => setConfirmByLicenseKeyModalVisible(() => false)}
           />
         </Modal>
       </Portal>
@@ -181,7 +156,7 @@ const DeleteMyAccount = () => {
             Proceed with account deletion
           </Title>
           <RetypeTextToConfirmForm
-            onSubmit={handleSubmit}
+            onSubmit={handleRetypeSubmit}
             onCancel={() => setRetypeTextModalVisible(() => false)}
           />
         </Modal>
@@ -197,7 +172,7 @@ const DeleteMyAccount = () => {
           <Dialog.Title>Your account has been deleted!</Dialog.Title>
           <Dialog.Content>
             <Paragraph style={{marginBottom: 15}}>
-              {'All data related to this app has been permanently deleted.'}
+              {`Your company and all related data have been permanently deleted from ${appDefaults.appDisplayName} and from this device.`}
             </Paragraph>
             <Paragraph>{'App will restart automatically.'}</Paragraph>
           </Dialog.Content>
@@ -223,7 +198,7 @@ const DeleteMyAccount = () => {
               style={{marginRight: 8}}
             />
             <Text style={[styles.contentSubheading]}>
-              {`Account Deletion Warning`}
+              {'Account Deletion Warning'}
             </Text>
           </View>
 
@@ -236,21 +211,28 @@ const DeleteMyAccount = () => {
               {'.'}
             </Text>
 
-            <Text>
-              {'This action will erase '}
-              <Text style={[styles.em]}>{'all data related to this app'}</Text>
-              {' that is stored on this device, including:'}
+            <Text style={{marginTop: 10}}>
+              {'This action will permanently erase '}
+              <Text style={[styles.em]}>
+                {'your company and all related data'}
+              </Text>
+              {' from '}
+              <Text style={[styles.em]}>{appDefaults.appDisplayName}</Text>
+              {' and from this device, including:'}
             </Text>
           </View>
 
           <Text style={[styles.listItem, styles.em]}>
-            • Your root and local user accounts (Admin, Encoder, etc.)
+            • Company profile, branches, and registered devices
           </Text>
           <Text style={[styles.listItem, styles.em]}>
-            • Company information
+            • All team member accounts and role assignments
           </Text>
           <Text style={[styles.listItem, styles.em]}>
             • Inventory data (items, categories, recipes, etc.)
+          </Text>
+          <Text style={[styles.listItem, styles.em]}>
+            • Sales, purchase, transfer, and stock usage records
           </Text>
           <Text style={[styles.listItem, styles.em]}>
             • Financial records (revenues, expenses, spoilages, etc.)
@@ -258,22 +240,12 @@ const DeleteMyAccount = () => {
 
           <View style={{marginTop: 15, marginBottom: 10}}>
             <Text>
-              {
-                'Once deleted, your root user account, other local user accounts, company information, and financial records '
-              }
+              {'Once deleted, your account and the data above '}
               <Text style={[styles.em]}>{'cannot be recovered'}</Text>
               {
-                ' — except for inventory data, which can be restored if you have backed it up locally on this device.'
+                '. Any other devices currently signed in to this company will lose access on their next sync.'
               }
             </Text>
-
-            <BackupDataBeforeAccountDeletionConfirmation
-              status={enableBackupData}
-              onPressCheckbox={currentStatus => {
-                setEnableBackupData(() => !currentStatus);
-              }}
-              containerStyle={{marginTop: 20}}
-            />
 
             <AccountDeletionConfirmation
               status={confirmAccountDeletion}
@@ -287,7 +259,9 @@ const DeleteMyAccount = () => {
               <Button
                 icon={'delete-outline'}
                 mode="contained"
-                disabled={!confirmAccountDeletion}
+                disabled={
+                  !confirmAccountDeletion || !authUser?.is_root_account
+                }
                 onPress={handlePressDelete}
                 color={colors.notification}>
                 Delete my account
