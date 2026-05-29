@@ -4,8 +4,8 @@ import packageJson from '../../package.json';
 import {rnStorageKeys} from './rnSecureStorageKeys';
 import {verifyLicenseToken} from '../utils/licenseTokenVerifier';
 
-// export const env = __DEV__ ? 'dev' : 'prod'; // change to 'prod' manually to test production environment
-export const env = 'prod';
+export const env = __DEV__ ? 'dev' : 'prod'; // change to 'prod' manually to test production environment
+// export const env = 'prod';
 export const appVersion = packageJson.version;
 export const localUserDefaultRoleId = 2; // Encoders
 
