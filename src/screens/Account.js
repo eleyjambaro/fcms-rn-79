@@ -1038,6 +1038,9 @@ const Account = props => {
   };
 
   const renderDataSyncAndBackupSection = () => {
+    // it will soon be deprecated
+    return null;
+
     const Component = (
       <Drawer.Section title="Data Sync & Backup">
         {/* <Drawer.Item
