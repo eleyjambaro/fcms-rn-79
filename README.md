@@ -82,6 +82,76 @@ You've successfully run and modified your React Native App. :partying_face:
 - If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
 - If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
 
+# Environment Configuration
+
+The app reads its environment variables natively via [`react-native-config`](https://github.com/luggit/react-native-config). There is **no `.env` file in the repo** — only the templates `.env.development.example` and `.env.production.example`. You create the real files locally from those templates.
+
+## First-time setup
+
+1. **Copy the development template** and edit the values:
+
+   ```sh
+   cp .env.development.example .env.development
+   ```
+
+2. **Open `.env.development`** and set `CLOUD_API_V2_BASE_URL` to your local backend's URL. If your backend runs on this machine, you can shortcut this:
+
+   ```sh
+   npm run sync-ip
+   ```
+
+   That rewrites `CLOUD_API_V2_BASE_URL` in `.env.development` to `http://<your-en0-ip>:8080`. Re-run it any time your LAN IP changes.
+
+3. **For production builds**, do the same with the production template (typically only the CI/release engineer needs this):
+
+   ```sh
+   cp .env.production.example .env.production
+   ```
+
+   Set `CLOUD_API_V2_BASE_URL` to the real production API URL.
+
+## Environment variable schema
+
+| Variable                  | Required | Purpose                                                              |
+| ------------------------- | -------- | -------------------------------------------------------------------- |
+| `APP_ENV`                 | Yes      | `dev` or `prod`. Drives feature gates in `src/constants/appConfig.js`. |
+| `CLOUD_API_V2_BASE_URL`   | Yes      | Base URL for the v2 Cloud API (`src/api/cloudApiV2.js`).             |
+| `LEGACY_CLOUD_API_URL`    | No       | Legacy v1 API URL. Defaults to `https://fcms.uxi.rocks`.             |
+| `VERSION_CHECK_URL`       | No       | URL the version-check service polls. Has a sensible default.         |
+| `IOS_STORE_URL`           | No       | iOS App Store URL surfaced in the "update available" modal.          |
+| `ANDROID_STORE_URL`       | No       | Play Store URL surfaced in the "update available" modal.             |
+
+`APP_ENV` and `CLOUD_API_V2_BASE_URL` are validated at app startup in `src/config/env.js`. If either is missing, the JS bundle throws on load and you get a red-screen telling you which variable is missing — so a misconfigured build cannot accidentally hit the wrong API.
+
+## Running each environment
+
+| Command                            | Loads               | Build mode |
+| ---------------------------------- | ------------------- | ---------- |
+| `npm run android`                  | `.env.development`  | debug      |
+| `npm run android:prod`             | `.env.production`   | release    |
+| `npm run ios`                      | `.env.development`  | debug      |
+| `npm run ios:prod`                 | `.env.production`   | release    |
+| `npm run bundle:android:release`   | `.env.production`   | release AAB |
+
+The scripts pass `ENVFILE=<file>` to React Native, which `react-native-config` reads at build time.
+
+## Network security (Android)
+
+- **Debug builds** allow cleartext HTTP (so `npm run android` can reach `http://192.168.x.x:8080`). This is configured in `android/app/src/debug/res/xml/network_security_config.xml` and only applies to debug.
+- **Release builds** deny cleartext entirely. Configured in `android/app/src/main/res/xml/network_security_config.xml`. Your production API must therefore be HTTPS.
+
+# Release Builds & Signing
+
+To produce a signed Google Play release bundle you need an upload keystore. Generate it once per machine, point Gradle at it via `~/.gradle/gradle.properties`, then `npm run bundle:android:release`.
+
+The full step-by-step (including the exact `keytool` command, where to store the keystore, and what to put in `~/.gradle/gradle.properties`) lives in **[`android/SIGNING.md`](android/SIGNING.md)**.
+
+Quick reminders:
+
+- The project's `android/gradle.properties` is tracked and must not contain credentials.
+- `~/.gradle/gradle.properties` (in your **home directory**, not the project) holds the credentials and is per-developer.
+- Lose the keystore = cannot publish updates. Back it up.
+
 # Database & Sync
 
 ## Dual Database
