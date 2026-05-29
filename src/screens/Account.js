@@ -31,7 +31,6 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import RNExitApp from 'react-native-exit-app';
 import RNRestart from 'react-native-restart';
 import ManageExternalStorage from 'react-native-manage-external-storage';
-import csvtojson from 'csvtojson';
 import convert from 'convert-units';
 import {getLocalUserAccount} from '../localDbQueries/accounts';
 import {
@@ -61,6 +60,10 @@ import {insertTemplateDataToDb} from '../localDbQueries/inventoryDataTemplate';
 import InventoryDataTemplateFileExportForm from '../components/forms/InventoryDataTemplateFileExportForm';
 import InventoryDataTemplateFileImportForm from '../components/forms/InventoryDataTemplateFileImportForm';
 import {adUnitIds} from '../constants/adUnitIds';
+import {
+  IDT_COLUMNS,
+  normalizeHeader,
+} from '../constants/inventoryDataTemplate';
 import BannerAdComponent from '../components/ads/BannerAdComponent';
 import ConfirmationCheckbox from '../components/forms/ConfirmationCheckbox';
 import ManageListButton from '../components/buttons/ManageListButton';
@@ -409,26 +412,7 @@ const Account = props => {
      * Items worksheet
      */
     const itemsTable = [
-      [
-        'Count',
-        'Category Name *',
-        'Item Name *',
-        'UOM (Abbrev) *',
-        'Total Stock Qty',
-        'Unit Cost (Gross)',
-        'Total Cost (Gross)',
-        'UOM Per Piece',
-        'Qty Per Piece / Item Net Wt.',
-        'Tax Name',
-        'Tax Rate (%)',
-        'Stock Vendor',
-        'Stock OR Number',
-        'Remarks',
-        'Purchase Date (If new purchase)',
-        'Transfer In Date (If new transfer)',
-        'Packaging Type',
-        'Barcode',
-      ], // table columns
+      IDT_COLUMNS.map(c => c.header),
       ['1'],
       ['2'],
       ['3'],
@@ -436,26 +420,7 @@ const Account = props => {
       ['5'],
     ];
     const itemsWorksheet = XLSX.utils.aoa_to_sheet(itemsTable);
-    itemsWorksheet['!cols'] = [
-      {wch: 7}, // Count
-      {wch: 18}, // Category Name
-      {wch: 30}, // Item Name
-      {wch: 15}, // UOM (Abbrev)
-      {wch: 18}, // Total Stock Qty
-      {wch: 20}, // Unit Cost (Gross)
-      {wch: 20}, // Total Cost (Gross)
-      {wch: 15}, // UOM Per Piece
-      {wch: 30}, // Qty Per Piece / Item Net Wt.
-      {wch: 15}, // Tax Name
-      {wch: 15}, // Tax Rate (%)
-      {wch: 20}, // Stock Vendor
-      {wch: 20}, // Stock OR Number
-      {wch: 30}, // Remarks
-      {wch: 35}, // Purchase Date
-      {wch: 35}, // Transfer In Date
-      {wch: 18}, // Packaging Type
-      {wch: 20}, // Barcode
-    ];
+    itemsWorksheet['!cols'] = IDT_COLUMNS.map(c => ({wch: c.width}));
 
     /**
      * Valid UOM's List sheet
@@ -584,49 +549,56 @@ const Account = props => {
         throw Error(`Something went wrong with your selected worksheet.`);
       }
 
-      const itemsCSV = XLSX.utils.sheet_to_csv(itemsWorksheet);
+      const rows = XLSX.utils.sheet_to_json(itemsWorksheet, {
+        header: 1,
+        raw: false,
+        defval: '',
+      });
+
+      const headerRow = rows[0] || [];
+      const normalizedHeaderRow = headerRow.map(normalizeHeader);
+
+      const fieldToIndex = {};
+      for (const column of IDT_COLUMNS) {
+        const accepted = [
+          normalizeHeader(column.header),
+          ...(column.acceptedNormalized || []),
+        ];
+        const index = normalizedHeaderRow.findIndex(h => accepted.includes(h));
+        if (index !== -1) {
+          fieldToIndex[column.field] = index;
+        }
+      }
+
+      const missingRequiredHeaders = IDT_COLUMNS.filter(
+        c => c.required && !(c.field in fieldToIndex),
+      ).map(c => c.header);
+
+      if (missingRequiredHeaders.length) {
+        const message =
+          `Cannot import. The following required column${
+            missingRequiredHeaders.length > 1 ? 's were' : ' was'
+          } not found in the selected sheet: ` +
+          missingRequiredHeaders.join(', ') +
+          `. Please download the latest empty Inventory Data Template and re-enter your items, or fix the header row.`;
+        setErrorMessage(() => message);
+        throw Error(message);
+      }
 
       const itemsArray = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const obj = {};
+        for (const column of IDT_COLUMNS) {
+          const idx = fieldToIndex[column.field];
+          obj[column.field] = idx === undefined ? '' : String(row[idx] ?? '');
+        }
+        if (obj.item_name) {
+          itemsArray.push(obj);
+        }
+      }
 
-      csvtojson({
-        noheader: false,
-        headers: [
-          'count',
-          'category_name',
-          'item_name',
-          'uom_abbrev',
-          'initial_stock_qty',
-          'unit_cost',
-          'total_cost',
-          'uom_abbrev_per_piece',
-          'qty_per_piece',
-          'tax_name',
-          'tax_rate_percentage',
-          'vendor_name',
-          'official_receipt_number',
-          'remarks',
-          'purchase_date',
-          'transfer_in_date',
-          'packaging_type',
-          'barcode',
-        ],
-      })
-        .fromString(itemsCSV)
-        .subscribe(async jsonObj => {
-          if (jsonObj.item_name) {
-            itemsArray.push(jsonObj);
-          }
-        })
-        .on('done', err => {
-          if (err) console.debug(err);
-
-          if (!err) {
-            prepareInventoryDataTemplateItemList(
-              itemsArray,
-              beginningInventoryDate,
-            );
-          }
-        });
+      prepareInventoryDataTemplateItemList(itemsArray, beginningInventoryDate);
     } catch (error) {
       console.debug(error);
     }

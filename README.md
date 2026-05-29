@@ -180,6 +180,113 @@ All Company DB tables participate in delta sync and receive the following column
 | App-managed / seeded | `app_versions`, `operations`, `taxes`        |
 | Device-local         | `saved_printers`, `sync_metadata`            |
 
+# Inventory Data Template (IDT)
+
+The IDT is the Excel file (`.xlsx`) that lets users bulk-import inventory items. The flow is:
+
+1. **Download empty template** — Account screen → "Download Empty Inventory Data Template". Generates an XLSX with a fixed header row and 5 placeholder rows the user fills in.
+2. **Import populated template** — Account screen → "Import Inventory Data Template". The user picks the file and the importer parses it into rows that flow through `insertTemplateDataToDb`.
+
+## Source of truth: `src/constants/inventoryDataTemplate.js`
+
+Both the export and the import read from one constants file:
+
+```js
+import {IDT_COLUMNS, normalizeHeader} from '../constants/inventoryDataTemplate';
+```
+
+`IDT_COLUMNS` is an array describing every column in order. Each entry:
+
+| Key                  | Required | Purpose                                                                                                  |
+| -------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `field`              | yes      | Internal name used by `insertTemplateDataToDb` (e.g. `item_name`, `barcode`). Do not rename casually.    |
+| `header`             | yes      | Exact human-facing string written to the empty template's header row (e.g. `'Item Name *'`).             |
+| `required`           | yes      | If `true`, the importer aborts when this column is absent from the imported sheet.                       |
+| `width`              | yes      | Column width (`wch`) applied by the export.                                                              |
+| `acceptedNormalized` | no       | Extra normalized header forms accepted by the importer (see below). Default: just the normalized `header`.|
+
+The order of entries determines the column order in the downloaded empty template.
+
+## How the importer finds columns: normalized header matching
+
+The importer does **not** read columns by position. It reads the actual header row of the user's file and matches each cell to a column in `IDT_COLUMNS` by **normalized form**:
+
+```js
+normalizeHeader('Qty Per Piece / Item Net Wt.')
+// -> 'qtyperpieceitemnetwt'
+```
+
+The rule: lowercase, then strip every character that isn't `a-z` or `0-9`. So spaces, slashes, parentheses, asterisks, dots, hyphens, and case are all ignored — the user can lose the `*`, drop the parenthetical hint, change case, or add/remove whitespace and the column still matches.
+
+For each `IDT_COLUMNS` entry, the importer accepts:
+
+- `normalizeHeader(column.header)` (the canonical form — always accepted, no need to list it).
+- Anything in `column.acceptedNormalized` (additional normalized forms).
+
+This means the canonical header is matched automatically. You only add `acceptedNormalized` entries when you want to accept **shorter or alternative** wordings.
+
+### Worked example
+
+```js
+{
+  field: 'qty_per_piece',
+  header: 'Qty Per Piece / Item Net Wt.',
+  required: false,
+  width: 30,
+  acceptedNormalized: ['qtyperpiece', 'itemnetwt'],
+},
+```
+
+| Header cell in the imported sheet     | Normalizes to            | Matches? |
+| ------------------------------------- | ------------------------ | -------- |
+| `Qty Per Piece / Item Net Wt.`        | `qtyperpieceitemnetwt`   | yes (canonical) |
+| `qty per piece / item net wt`         | `qtyperpieceitemnetwt`   | yes (canonical, case-insensitive) |
+| `Qty Per Piece`                       | `qtyperpiece`            | yes (alias) |
+| `Item Net Wt.`                        | `itemnetwt`              | yes (alias) |
+| `Quantity Per Piece`                  | `quantityperpiece`       | no — add `'quantityperpiece'` to `acceptedNormalized` if you want it |
+
+## Behavior when columns are missing or unknown
+
+- **Required column missing** (`required: true` field not found in the header row) — the importer aborts with an error message naming each missing header, e.g. `Cannot import. The following required column was not found in the selected sheet: Item Name *. Please download the latest empty Inventory Data Template…`. No items are imported.
+- **Optional column missing** — silently skipped. Every row's value for that field is treated as empty string `''`.
+- **Unknown column in the imported sheet** (a header the user added that isn't in `IDT_COLUMNS`) — ignored. No error.
+- **Duplicate header cells** — the first matching column index wins.
+
+## How to add a new column
+
+1. Decide the `field` name (must match what `insertTemplateDataToDb` expects), the user-facing `header`, whether it's required, and the column width.
+2. Insert a new entry into `IDT_COLUMNS` at the position where it should appear in the downloaded empty template.
+3. That's it. The export will include the new column in the empty template; the importer will pick it up by header on any future imports.
+
+**Older templates** downloaded before the new column was added will still import correctly — the missing column is treated as empty for every row (assuming it's optional). If you make the new column required, users on older templates must re-download.
+
+## How to rename a header without breaking older templates
+
+When you change a `header` string, every template a user downloaded **before** the rename still has the old header text. To keep those imports working:
+
+1. Add the **old** header's normalized form to that column's `acceptedNormalized`. Run `normalizeHeader('old header text')` mentally — lowercase, drop non-alphanumerics — and add the result.
+2. Update `header` to the new string.
+
+Example — renaming `'Stock OR Number'` → `'Receipt Number'`:
+
+```js
+{
+  field: 'official_receipt_number',
+  header: 'Receipt Number',
+  required: false,
+  width: 20,
+  acceptedNormalized: ['stockornumber'], // accept old template's "Stock OR Number"
+},
+```
+
+## How to reorder columns
+
+Reordering is just rearranging entries in `IDT_COLUMNS`. The export writes the new order; the import does not care about order because it matches by header name. Reordering does **not** break older downloaded templates — they still import correctly under their original order.
+
+## Why this design
+
+The importer used to read columns **by position** with a hardcoded 18-entry list. That meant every reorder, accidental swap, or mid-table insertion silently mis-mapped data into the wrong fields with no error. The current design eliminates that whole class of bug: column order in the spreadsheet is purely cosmetic, and the export and import can never drift because they read from the same `IDT_COLUMNS` constant.
+
 # Troubleshooting
 
 If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.

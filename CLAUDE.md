@@ -163,6 +163,18 @@ Why avg, not the static `unit_cost`: `unit_cost` is the configured/initial price
 
 The snapshot is captured once at entry creation in `createBatchTransferEntry` and then flows into the destination's `inventory_logs.adjustment_unit_cost` (`confirmTransferReceived`), the source's `inventory_logs.adjustment_unit_cost` (`materializeReceivedTransferLogs`), and any auto-created destination item's `unit_cost` (`autoCreateLocalItemForTransfer`). All three downstream sites already read from `entry.unit_cost_snapshot`, so the rule only needs to be enforced at the capture site.
 
+### Inventory Data Template (IDT) Import/Export
+
+The IDT is the Excel file users download to bulk-import inventory items. The full developer guide is in [`README.md`](README.md#inventory-data-template-idt); the rules below are load-bearing — every violation in the past silently mis-mapped column values into the wrong DB fields.
+
+1. **Single source of truth.** Column metadata lives in `/src/constants/inventoryDataTemplate.js` as `IDT_COLUMNS` (ordered array of `{ field, header, required, width, acceptedNormalized? }`). Both `downloadEmptyInventoryDataTemplate` and `importInventoryDataTemplate` in `/src/screens/Account.js` read from it. Adding, renaming, or reordering a column is a one-line edit to this constant — never edit the export header literal or the import column list separately. Export and import drifting apart is exactly the bug this design eliminates.
+
+2. **Importer is header-based, not position-based.** Never reintroduce positional parsing (e.g. `csvtojson({ headers: [...] })` with a hardcoded list, or `row[0]`/`row[1]` indexing). The importer reads the file's actual header row, normalizes each cell with `normalizeHeader` (lowercase + strip non-alphanumeric), and matches against `IDT_COLUMNS`. Column order in the spreadsheet is purely cosmetic — users can reorder, swap, or insert columns and the import still works.
+
+3. **Renaming a header requires `acceptedNormalized`.** Templates the user downloaded before the rename still have the old header text. When you change `header`, add the old header's normalized form to that column's `acceptedNormalized` list **in the same commit** — otherwise older templates silently lose that column (and if the column was required, the import aborts). Only the canonical `header` is matched automatically; aliases must be listed.
+
+4. **Required vs optional missing columns.** A `required: true` column missing from the header row makes the importer abort with a clear user-facing message naming the missing header(s) — no rows are inserted. An optional column missing is treated as empty string `''` for every row and the import proceeds. Unknown extra columns in the user's file are ignored.
+
 ### Navigation Structure
 
 Five navigation stacks in `/src/stacks/`:
