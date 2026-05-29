@@ -8,6 +8,7 @@ const SelectionButtonList = props => {
     containerStyle,
     selectMany = false,
     defaultValue,
+    disabledValues = [],
     onChange,
   } = props;
   const {colors} = useTheme();
@@ -21,6 +22,8 @@ const SelectionButtonList = props => {
   }, [value]);
 
   const handlePress = newValue => {
+    if (disabledValues.includes(newValue)) return;
+
     setValue(currentValue => {
       if (selectMany) {
         if (currentValue.includes(newValue)) {
@@ -55,11 +58,14 @@ const SelectionButtonList = props => {
   return (
     <View style={[styles.container, containerStyle]}>
       {selections.map(selection => {
+        const isDisabled = disabledValues.includes(selection.value);
         return (
           <Chip
             key={selection.label}
             selected={isSelected(selection.value)}
+            disabled={isDisabled}
             onPress={() => {
+              if (isDisabled) return;
               handlePress(selection.value);
               selection.handler && selection.handler();
             }}

@@ -159,6 +159,77 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
   }
 };
 
+export const getAllItemsForExport = async () => {
+  try {
+    const db = await getDBConnection();
+    const items = [];
+    const query = `
+      SELECT
+        items.id AS id,
+        items.name AS name,
+        items.uom_abbrev AS uom_abbrev,
+        items.uom_abbrev_per_piece AS uom_abbrev_per_piece,
+        items.qty_per_piece AS qty_per_piece,
+        items.packaging_type AS packaging_type,
+        items.barcode AS barcode,
+        categories.name AS category_name,
+        taxes.name AS tax_name,
+        taxes.rate_percentage AS tax_rate_percentage,
+        vendors.vendor_display_name AS vendor_name,
+
+        IFNULL(inventory_logs_added_and_removed_totals.total_added_stock_qty, 0)
+          - IFNULL(inventory_logs_added_and_removed_totals.total_removed_stock_qty, 0)
+          AS current_stock_qty,
+        IFNULL(inventory_logs_added_and_removed_totals.total_added_stock_cost, 0)
+          - IFNULL(inventory_logs_added_and_removed_totals.total_removed_stock_cost, 0)
+          AS current_stock_cost,
+        COALESCE(
+          (inventory_logs_added_and_removed_totals.total_added_stock_cost - inventory_logs_added_and_removed_totals.total_removed_stock_cost)
+            / NULLIF(inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty, 0),
+          items.unit_cost
+        ) AS avg_unit_cost
+
+      FROM active_items items
+      LEFT JOIN active_categories categories ON categories.id = items.category_id
+      LEFT JOIN taxes ON taxes.id = items.tax_id
+      LEFT JOIN active_vendors vendors ON vendors.id = items.preferred_vendor_id
+      LEFT JOIN (
+        SELECT inventory_logs_added_and_removed.item_id AS item_id,
+        IFNULL(SUM(CASE WHEN inventory_logs_added_and_removed.operation_type = 'add_stock' THEN inventory_logs_added_and_removed.total_stock_qty END), 0) AS total_added_stock_qty,
+        IFNULL(SUM(CASE WHEN inventory_logs_added_and_removed.operation_type = 'remove_stock' THEN inventory_logs_added_and_removed.total_stock_qty END), 0) AS total_removed_stock_qty,
+        IFNULL(SUM(CASE WHEN inventory_logs_added_and_removed.operation_type = 'add_stock' THEN inventory_logs_added_and_removed.total_stock_cost END), 0) AS total_added_stock_cost,
+        IFNULL(SUM(CASE WHEN inventory_logs_added_and_removed.operation_type = 'remove_stock' THEN inventory_logs_added_and_removed.total_stock_cost END), 0) AS total_removed_stock_cost
+        FROM (
+          SELECT SUM(inventory_logs.adjustment_qty) AS total_stock_qty,
+          SUM(inventory_logs.adjustment_unit_cost * inventory_logs.adjustment_qty) AS total_stock_cost,
+          operations.type AS operation_type,
+          inventory_logs.item_id AS item_id
+          FROM active_inventory_logs inventory_logs
+          LEFT JOIN operations ON operations.id = inventory_logs.operation_id
+          WHERE inventory_logs.voided != 1
+          GROUP BY inventory_logs.item_id, operations.type
+        ) AS inventory_logs_added_and_removed
+        GROUP BY inventory_logs_added_and_removed.item_id
+      ) AS inventory_logs_added_and_removed_totals
+        ON inventory_logs_added_and_removed_totals.item_id = items.id
+
+      ORDER BY categories.name ASC, items.name ASC
+    `;
+    const results = await db.executeSql(query);
+
+    results.forEach(result => {
+      for (let index = 0; index < result.rows.length; index++) {
+        items.push(result.rows.item(index));
+      }
+    });
+
+    return items;
+  } catch (error) {
+    console.debug(error);
+    throw Error('Failed to get items for export.');
+  }
+};
+
 export const registerItem = async ({
   item,
   isFinishedProduct = false,

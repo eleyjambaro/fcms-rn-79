@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React from 'react';
 import {View, StyleSheet} from 'react-native';
 import {
   TextInput,
@@ -12,24 +12,64 @@ import * as Yup from 'yup';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import SelectionButtonList from '../buttons/SelectionButtonList';
+import {IDT_COLUMNS} from '../../constants/inventoryDataTemplate';
 
-const FileExportValidationSchema = Yup.object().shape({
+const PER_LOG_FIELDS = [
+  'official_receipt_number',
+  'remarks',
+  'purchase_date',
+  'transfer_in_date',
+];
+
+const EmptyFileExportValidationSchema = Yup.object().shape({
   fileName: Yup.string().max(100, 'Too Long!').required('Required'),
+});
+
+const PopulatedFileExportValidationSchema = Yup.object().shape({
+  fileName: Yup.string().max(100, 'Too Long!').required('Required'),
+  columns: Yup.array().of(Yup.string()).min(1, 'Select at least one column'),
 });
 
 const InventoryDataTemplateFileExportForm = props => {
   const {
     editMode = false,
-    initialValues = {fileName: '', sheets: ['units']},
+    mode = 'empty',
+    initialValues,
     onSubmit,
     onCancel,
     submitButtonTitle = 'Proceed',
   } = props;
   const {colors} = useTheme();
 
+  const requiredFields = IDT_COLUMNS.filter(c => c.required).map(c => c.field);
+  const exportableColumns = IDT_COLUMNS.filter(
+    c => !PER_LOG_FIELDS.includes(c.field),
+  );
+
+  const resolvedInitialValues =
+    mode === 'populated'
+      ? {
+          fileName: initialValues?.fileName ?? '',
+          columns: initialValues?.columns ?? requiredFields,
+        }
+      : {
+          fileName: initialValues?.fileName ?? '',
+          sheets: initialValues?.sheets ?? ['units'],
+        };
+
+  const validationSchema =
+    mode === 'populated'
+      ? PopulatedFileExportValidationSchema
+      : EmptyFileExportValidationSchema;
+
   const handleSheetsSelectionChange = (value, actions) => {
     value && value.length > 0 && actions.setFieldTouched('sheets', true);
     actions.setFieldValue('sheets', value);
+  };
+
+  const handleColumnsSelectionChange = (value, actions) => {
+    actions.setFieldTouched('columns', true);
+    actions.setFieldValue('columns', value);
   };
 
   const renderSheetsSelection = ({
@@ -76,12 +116,50 @@ const InventoryDataTemplateFileExportForm = props => {
     );
   };
 
+  const renderColumnsSelection = ({
+    errors,
+    touched,
+    setFieldTouched,
+    setFieldValue,
+    values,
+  }) => {
+    const columnSelections = exportableColumns.map(column => ({
+      label: column.header,
+      value: column.field,
+    }));
+
+    return (
+      <>
+        <Subheading style={{marginTop: 20, marginBottom: 15}}>
+          {
+            'Select columns to include in the export (required columns are pre-selected):'
+          }
+        </Subheading>
+        <SelectionButtonList
+          selections={columnSelections}
+          selectMany
+          defaultValue={values.columns}
+          disabledValues={requiredFields}
+          onChange={value => {
+            handleColumnsSelectionChange(value, {
+              setFieldValue,
+              setFieldTouched,
+            });
+          }}
+        />
+        {errors.columns && touched.columns && (
+          <Text style={{color: colors.error, marginTop: 10}}>
+            {errors.columns}
+          </Text>
+        )}
+      </>
+    );
+  };
+
   return (
     <Formik
-      initialValues={{
-        fileName: initialValues.fileName,
-      }}
-      validationSchema={FileExportValidationSchema}
+      initialValues={resolvedInitialValues}
+      validationSchema={validationSchema}
       onSubmit={onSubmit}>
       {props => {
         const {
@@ -108,12 +186,11 @@ const InventoryDataTemplateFileExportForm = props => {
                 onBlur={handleBlur('fileName')}
                 value={values.fileName}
                 error={errors.fileName && touched.fileName ? true : false}
-                // autoFocus={editMode ? true : false}
               />
               {dirty && (
                 <MaterialCommunityIcons
                   onPress={() =>
-                    setFieldValue('fileName', initialValues.fileName)
+                    setFieldValue('fileName', resolvedInitialValues.fileName)
                   }
                   name="refresh"
                   size={25}
@@ -122,16 +199,28 @@ const InventoryDataTemplateFileExportForm = props => {
                 />
               )}
             </View>
-            {renderSheetsSelection({
-              errors,
-              touched,
-              setFieldValue,
-              setFieldTouched,
-            })}
+            {mode === 'populated'
+              ? renderColumnsSelection({
+                  errors,
+                  touched,
+                  setFieldValue,
+                  setFieldTouched,
+                  values,
+                })
+              : renderSheetsSelection({
+                  errors,
+                  touched,
+                  setFieldValue,
+                  setFieldTouched,
+                })}
             <Button
               mode="contained"
               onPress={handleSubmit}
-              disabled={(!editMode && !dirty) || !isValid || isSubmitting}
+              disabled={
+                (!editMode && mode !== 'populated' && !dirty) ||
+                !isValid ||
+                isSubmitting
+              }
               loading={isSubmitting}
               style={{marginTop: 20}}>
               {submitButtonTitle}

@@ -57,6 +57,7 @@ import {ScrollView} from 'react-native-gesture-handler';
 import DisabledFeatureModal from '../components/modals/DisabledFeatureModal';
 import LocalUserAccountProfile from '../components/accounts/LocalUserAccountProfile';
 import {insertTemplateDataToDb} from '../localDbQueries/inventoryDataTemplate';
+import {getAllItemsForExport} from '../localDbQueries/items';
 import InventoryDataTemplateFileExportForm from '../components/forms/InventoryDataTemplateFileExportForm';
 import InventoryDataTemplateFileImportForm from '../components/forms/InventoryDataTemplateFileImportForm';
 import {adUnitIds} from '../constants/adUnitIds';
@@ -153,6 +154,10 @@ const Account = props => {
     useState(false);
   const [exportOptionsModalVisible, setExportOptionsModalVisible] =
     useState(false);
+  const [
+    exportPopulatedOptionsModalVisible,
+    setExportPopulatedOptionsModalVisible,
+  ] = useState(false);
   const [appSuggestionsModalVisible, setAppSuggestionsModalVisible] =
     useState(false);
   const [importSuccessDialogVisible, setImportSuccessDialogVisible] =
@@ -491,6 +496,74 @@ const Account = props => {
     } catch (error) {
       console.debug(error);
       setExportOptionsModalVisible(() => false);
+      setExportFailedDialogVisible(() => true);
+    }
+  };
+
+  const exportInventoryAsIdt = async values => {
+    try {
+      const items = await getAllItemsForExport();
+      const selectedColumns = IDT_COLUMNS.filter(c =>
+        values.columns.includes(c.field),
+      );
+
+      const headerRow = selectedColumns.map(c => c.header);
+
+      const dataRows = items.map((item, idx) =>
+        selectedColumns.map(c => {
+          switch (c.field) {
+            case 'count':
+              return String(idx + 1);
+            case 'category_name':
+              return item.category_name ?? '';
+            case 'item_name':
+              return item.name ?? '';
+            case 'uom_abbrev':
+              return item.uom_abbrev ?? '';
+            case 'initial_stock_qty':
+              return item.current_stock_qty ?? 0;
+            case 'unit_cost':
+              return item.avg_unit_cost ?? 0;
+            case 'total_cost':
+              return item.current_stock_cost ?? 0;
+            case 'uom_abbrev_per_piece':
+              return item.uom_abbrev_per_piece ?? '';
+            case 'qty_per_piece':
+              return item.qty_per_piece ?? '';
+            case 'tax_name':
+              return item.tax_name ?? '';
+            case 'tax_rate_percentage':
+              return item.tax_rate_percentage ?? '';
+            case 'vendor_name':
+              return item.vendor_name ?? '';
+            case 'packaging_type':
+              return item.packaging_type ?? '';
+            case 'barcode':
+              return item.barcode ?? '';
+            default:
+              return '';
+          }
+        }),
+      );
+
+      const workbook = XLSX.utils.book_new();
+      const itemsWorksheet = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
+      itemsWorksheet['!cols'] = selectedColumns.map(c => ({wch: c.width}));
+      XLSX.utils.book_append_sheet(
+        workbook,
+        itemsWorksheet,
+        `${appDefaults.appDisplayName}_Items`,
+      );
+
+      const wbout = XLSX.write(workbook, {type: 'binary', bookType: 'xlsx'});
+      const filepath = RNFS.DownloadDirectoryPath + `/${values.fileName}.xlsx`;
+      await RNFS.writeFile(filepath, wbout, 'ascii');
+
+      setExportPopulatedOptionsModalVisible(() => false);
+      setExportSuccessDialogVisible(() => true);
+    } catch (error) {
+      console.debug(error);
+      setExportPopulatedOptionsModalVisible(() => false);
       setExportFailedDialogVisible(() => true);
     }
   };
@@ -1091,11 +1164,11 @@ const Account = props => {
           label="Import Inventory Data Template"
           onPress={handlePressImportInvDataTemplate}
         />
-        {/* <Drawer.Item
+        <Drawer.Item
           icon="file-export-outline"
-          label="Export Inventory Data Template"
+          label="Export Inventory as IDT"
           onPress={handlePressExportInvDataTemplate}
-        /> */}
+        />
       </Drawer.Section>
     );
 
@@ -1280,6 +1353,29 @@ const Account = props => {
         initialValues={formInitialValues}
         onSubmit={downloadEmptyInventoryDataTemplate}
         onCancel={() => setExportOptionsModalVisible(() => false)}
+      />
+    );
+  };
+
+  const renderExportPopulatedOptionsModalContent = () => {
+    const dateStamp = moment().format('YYYY-MM-DD');
+    const fileName = `${appDefaults.appDisplayName} Inventory ${dateStamp}`;
+    const requiredFields = IDT_COLUMNS.filter(c => c.required).map(
+      c => c.field,
+    );
+
+    const formInitialValues = {
+      fileName,
+      columns: requiredFields,
+    };
+
+    return (
+      <InventoryDataTemplateFileExportForm
+        mode="populated"
+        initialValues={formInitialValues}
+        submitButtonTitle="Download"
+        onSubmit={exportInventoryAsIdt}
+        onCancel={() => setExportPopulatedOptionsModalVisible(() => false)}
       />
     );
   };
@@ -2025,15 +2121,17 @@ const Account = props => {
         <Dialog
           visible={exportInvDataTemplateDialogVisible}
           onDismiss={() => setExportInvDataTemplateDialogVisible(() => false)}>
-          <Dialog.Title>Export Inventory Data Template</Dialog.Title>
+          <Dialog.Title>Export Inventory as IDT</Dialog.Title>
           <Dialog.Content>
             <Text>
-              You're about to export your Inventory Data Template file.
+              You're about to export your inventory as an Inventory Data
+              Template file that can be re-imported to recreate your items.
             </Text>
           </Dialog.Content>
           <Dialog.Actions style={{justifyContent: 'space-around'}}>
             <Button
               onPress={() => {
+                setExportPopulatedOptionsModalVisible(() => true);
                 setExportInvDataTemplateDialogVisible(() => false);
               }}>
               Next
@@ -2117,6 +2215,19 @@ const Account = props => {
             Download the Excel File
           </Title>
           {renderExportOptionsModalContent()}
+        </Modal>
+      </Portal>
+      <Portal>
+        <Modal
+          visible={exportPopulatedOptionsModalVisible}
+          onDismiss={() =>
+            setExportPopulatedOptionsModalVisible(() => false)
+          }
+          contentContainerStyle={{backgroundColor: 'white', padding: 20}}>
+          <Title style={{marginBottom: 15, textAlign: 'center'}}>
+            Export Inventory as IDT
+          </Title>
+          {renderExportPopulatedOptionsModalContent()}
         </Modal>
       </Portal>
       <Portal>
