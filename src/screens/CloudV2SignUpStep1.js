@@ -1,6 +1,12 @@
 import React from 'react';
 import {View, StyleSheet, ScrollView} from 'react-native';
-import {Button, Text, TextInput, useTheme, HelperText} from 'react-native-paper';
+import {
+  Button,
+  Text,
+  TextInput,
+  useTheme,
+  HelperText,
+} from 'react-native-paper';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
 
@@ -35,7 +41,7 @@ const CloudV2SignUpStep1 = ({navigation}) => {
       ]}
       keyboardShouldPersistTaps="handled">
       <CloudAppIcon
-        mainText={`${appDefaults.appDisplayName} Cloud`}
+        mainText={`${appDefaults.appDisplayName}`}
         subText=""
         containerStyle={{marginBottom: 0}}
       />
@@ -45,9 +51,7 @@ const CloudV2SignUpStep1 = ({navigation}) => {
           Step 1 of 2
         </Text>
         <Text style={styles.stepTitle}>Company Details</Text>
-        <Text style={styles.stepSubtitle}>
-          Tell us about your business.
-        </Text>
+        <Text style={styles.stepSubtitle}>Tell us about your business.</Text>
       </View>
 
       <Formik

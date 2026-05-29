@@ -66,7 +66,7 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
           {backgroundColor: colors.surface},
         ]}>
         <CloudAppIcon
-          mainText={`${appDefaults.appDisplayName} Cloud`}
+          mainText={`${appDefaults.appDisplayName}`}
           subText=""
           containerStyle={{marginBottom: 0}}
         />
@@ -78,10 +78,13 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
             style={styles.deviceIcon}
           />
           <Text style={styles.deviceNotReadyTitle}>Device Not Ready</Text>
-          <Text style={[styles.deviceNotReadyMessage, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
-            This device hasn't been set up by an account owner yet. Your
-            manager needs to sign in on this device first to enable team member
-            access.
+          <Text
+            style={[
+              styles.deviceNotReadyMessage,
+              {color: colors.onSurfaceVariant ?? colors.placeholder},
+            ]}>
+            This device hasn't been set up by an account owner yet. Your manager
+            needs to sign in on this device first to enable team member access.
           </Text>
         </View>
         <Button
@@ -97,8 +100,7 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
 
   const companyInfo = cloudAuthState.deviceCompanyInfo;
   const branch = cloudAuthState.designatedBranch;
-  const companyLabel =
-    companyInfo?.display_name || companyInfo?.name || null;
+  const companyLabel = companyInfo?.display_name || companyInfo?.name || null;
 
   return (
     <ScrollView
@@ -124,7 +126,11 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
               <Text style={styles.companyName}>{companyLabel}</Text>
             ) : null}
             {branch ? (
-              <Text style={[styles.branchName, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+              <Text
+                style={[
+                  styles.branchName,
+                  {color: colors.onSurfaceVariant ?? colors.placeholder},
+                ]}>
                 {branch.display_name ?? branch.name}
               </Text>
             ) : null}
@@ -132,7 +138,7 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
         </View>
       ) : (
         <CloudAppIcon
-          mainText={`${appDefaults.appDisplayName} Cloud`}
+          mainText={`${appDefaults.appDisplayName}`}
           subText=""
           containerStyle={{marginBottom: 0}}
         />

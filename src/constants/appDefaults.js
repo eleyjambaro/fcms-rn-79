@@ -1,8 +1,9 @@
 import * as RNFS from 'react-native-fs';
 
-const appDisplayName = 'FCMS';
-const configDirName = `${appDisplayName}_Config`;
-const dataDirName = `${appDisplayName}_Data`;
+const appDisplayName = 'FCMS Cloud';
+const appShortName = 'FCMSCloud';
+const configDirName = `${appShortName}_Config`;
+const dataDirName = `${appShortName}_Data`;
 
 export const appDefaults = {
   appDisplayName,

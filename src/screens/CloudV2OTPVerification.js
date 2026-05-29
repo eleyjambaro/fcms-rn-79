@@ -1,6 +1,18 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {View, StyleSheet, TextInput as RNTextInput, Pressable, AppState} from 'react-native';
-import {Button, Text, useTheme, HelperText, ActivityIndicator} from 'react-native-paper';
+import {
+  View,
+  StyleSheet,
+  TextInput as RNTextInput,
+  Pressable,
+  AppState,
+} from 'react-native';
+import {
+  Button,
+  Text,
+  useTheme,
+  HelperText,
+  ActivityIndicator,
+} from 'react-native-paper';
 import {useMutation} from '@tanstack/react-query';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
@@ -69,7 +81,9 @@ const CloudV2OTPVerification = ({route}) => {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextState => {
       if (nextState === 'active' && cooldownEndRef.current) {
-        const remaining = Math.ceil((cooldownEndRef.current - Date.now()) / 1000);
+        const remaining = Math.ceil(
+          (cooldownEndRef.current - Date.now()) / 1000,
+        );
         if (remaining <= 0) {
           clearInterval(cooldownRef.current);
           setResendCooldown(0);
@@ -117,7 +131,7 @@ const CloudV2OTPVerification = ({route}) => {
   return (
     <View style={[styles.container, {backgroundColor: colors.surface}]}>
       <CloudAppIcon
-        mainText={`${appDefaults.appDisplayName} Cloud`}
+        mainText={`${appDefaults.appDisplayName}`}
         subText=""
         containerStyle={{marginBottom: 0}}
       />
@@ -168,7 +182,11 @@ const CloudV2OTPVerification = ({route}) => {
                     backgroundColor: colors.surface,
                   },
                 ]}>
-                <Text style={[styles.digitText, {color: colors.onSurface ?? colors.text}]}>
+                <Text
+                  style={[
+                    styles.digitText,
+                    {color: colors.onSurface ?? colors.text},
+                  ]}>
                   {digit.trim()}
                 </Text>
               </View>

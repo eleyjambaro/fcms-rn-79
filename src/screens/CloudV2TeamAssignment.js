@@ -74,7 +74,9 @@ const CloudV2TeamAssignment = ({route}) => {
             backgroundColor: isSelected
               ? colors.primaryContainer ?? '#d8f9ff'
               : colors.surface,
-            borderColor: isSelected ? colors.primary : colors.outline ?? '#e0e0e0',
+            borderColor: isSelected
+              ? colors.primary
+              : colors.outline ?? '#e0e0e0',
             opacity: pressed ? 0.8 : 1,
           },
         ]}>
@@ -83,7 +85,11 @@ const CloudV2TeamAssignment = ({route}) => {
             <Text style={styles.accountName}>
               {item.first_name} {item.last_name}
             </Text>
-            <Text style={[styles.accountEmail, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+            <Text
+              style={[
+                styles.accountEmail,
+                {color: colors.onSurfaceVariant ?? colors.placeholder},
+              ]}>
               {item.email}
             </Text>
             {item.role?.name ? (
@@ -105,18 +111,26 @@ const CloudV2TeamAssignment = ({route}) => {
   return (
     <View style={[styles.container, {backgroundColor: colors.surface}]}>
       <CloudAppIcon
-        mainText={`${appDefaults.appDisplayName} Cloud`}
+        mainText={`${appDefaults.appDisplayName}`}
         subText=""
         containerStyle={styles.icon}
       />
 
       <Text style={styles.title}>Assign Team Members</Text>
-      <Text style={[styles.subtitle, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+      <Text
+        style={[
+          styles.subtitle,
+          {color: colors.onSurfaceVariant ?? colors.placeholder},
+        ]}>
         Select which team members can sign in on this device.
       </Text>
 
       {accountsQuery.isLoading ? (
-        <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+        <ActivityIndicator
+          size="large"
+          color={colors.primary}
+          style={styles.loader}
+        />
       ) : accountsQuery.isError ? (
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, {color: colors.error}]}>
@@ -126,7 +140,11 @@ const CloudV2TeamAssignment = ({route}) => {
         </View>
       ) : accounts.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+          <Text
+            style={[
+              styles.emptyText,
+              {color: colors.onSurfaceVariant ?? colors.placeholder},
+            ]}>
             No team members yet. You can add them later in Account Settings.
           </Text>
           <Button
@@ -162,7 +180,9 @@ const CloudV2TeamAssignment = ({route}) => {
             style={styles.continueButton}
             contentStyle={styles.buttonContent}>
             {selectedIds.length > 0
-              ? `Assign ${selectedIds.length} Member${selectedIds.length > 1 ? 's' : ''} & Continue`
+              ? `Assign ${selectedIds.length} Member${
+                  selectedIds.length > 1 ? 's' : ''
+                } & Continue`
               : 'Continue Without Assigning'}
           </Button>
 

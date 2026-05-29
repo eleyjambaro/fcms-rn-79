@@ -65,13 +65,13 @@ const CloudV2SignIn = ({navigation}) => {
       ]}
       keyboardShouldPersistTaps="handled">
       <CloudAppIcon
-        mainText={`${appDefaults.appDisplayName} Cloud`}
+        mainText={`${appDefaults.appDisplayName}`}
         subText=""
         containerStyle={{marginBottom: 0}}
       />
       <Text style={styles.subtitle}>
-        Sign in to your {appDefaults.appDisplayName} Cloud account to connect
-        this device.
+        Sign in to your {appDefaults.appDisplayName} account to connect this
+        device.
       </Text>
 
       <Formik
@@ -170,24 +170,41 @@ const CloudV2SignIn = ({navigation}) => {
                       cloudAuthState.deviceCompanyInfo?.display_name ||
                       cloudAuthState.deviceCompanyInfo?.name ||
                       '?'
-                    ).charAt(0).toUpperCase()}
+                    )
+                      .charAt(0)
+                      .toUpperCase()}
                     size={52}
                     color={colors.onPrimary ?? '#fff'}
                     style={{backgroundColor: colors.primary}}
                   />
                 )}
                 <View style={styles.deviceInfoText}>
-                  {(cloudAuthState.deviceCompanyInfo?.display_name || cloudAuthState.deviceCompanyInfo?.name) ? (
+                  {cloudAuthState.deviceCompanyInfo?.display_name ||
+                  cloudAuthState.deviceCompanyInfo?.name ? (
                     <Text style={styles.deviceCompanyName}>
-                      {cloudAuthState.deviceCompanyInfo.display_name || cloudAuthState.deviceCompanyInfo.name}
+                      {cloudAuthState.deviceCompanyInfo.display_name ||
+                        cloudAuthState.deviceCompanyInfo.name}
                     </Text>
                   ) : null}
-                  <Text style={[styles.deviceBranchName, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
-                    {cloudAuthState.designatedBranch.display_name ?? cloudAuthState.designatedBranch.name}
+                  <Text
+                    style={[
+                      styles.deviceBranchName,
+                      {color: colors.onSurfaceVariant ?? colors.placeholder},
+                    ]}>
+                    {cloudAuthState.designatedBranch.display_name ??
+                      cloudAuthState.designatedBranch.name}
                   </Text>
                 </View>
               </View>
-              <View style={[styles.divider, {backgroundColor: colors.outlineVariant ?? colors.placeholder}]} />
+              <View
+                style={[
+                  styles.divider,
+                  {
+                    backgroundColor:
+                      colors.outlineVariant ?? colors.placeholder,
+                  },
+                ]}
+              />
             </View>
           ) : null}
 
@@ -195,14 +212,20 @@ const CloudV2SignIn = ({navigation}) => {
             <Text style={styles.footerText}>Team member?</Text>
             <Pressable
               style={styles.footerLink}
-              onPress={() => navigation.navigate(routes.cloudV2SubAccountSignIn())}>
+              onPress={() =>
+                navigation.navigate(routes.cloudV2SubAccountSignIn())
+              }>
               <Text style={[styles.footerLinkText, {color: colors.primary}]}>
                 Sign in here
               </Text>
             </Pressable>
           </View>
           {!cloudAuthState.deviceId ? (
-            <Text style={[styles.deviceHint, {color: colors.onSurfaceVariant ?? colors.placeholder}]}>
+            <Text
+              style={[
+                styles.deviceHint,
+                {color: colors.onSurfaceVariant ?? colors.placeholder},
+              ]}>
               Device setup required — sign in as account owner first.
             </Text>
           ) : null}

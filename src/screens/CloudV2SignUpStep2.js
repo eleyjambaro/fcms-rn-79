@@ -1,6 +1,12 @@
 import React, {useState} from 'react';
 import {View, StyleSheet, ScrollView} from 'react-native';
-import {Button, Text, TextInput, useTheme, HelperText} from 'react-native-paper';
+import {
+  Button,
+  Text,
+  TextInput,
+  useTheme,
+  HelperText,
+} from 'react-native-paper';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
 import {useMutation} from '@tanstack/react-query';
@@ -67,7 +73,7 @@ const CloudV2SignUpStep2 = ({navigation, route}) => {
       ]}
       keyboardShouldPersistTaps="handled">
       <CloudAppIcon
-        mainText={`${appDefaults.appDisplayName} Cloud`}
+        mainText={`${appDefaults.appDisplayName}`}
         subText=""
         containerStyle={{marginBottom: 0}}
       />
@@ -78,7 +84,7 @@ const CloudV2SignUpStep2 = ({navigation, route}) => {
         </Text>
         <Text style={styles.stepTitle}>Login Details</Text>
         <Text style={styles.stepSubtitle}>
-          This will be your {appDefaults.appDisplayName} Cloud login.
+          This will be your {appDefaults.appDisplayName} login.
         </Text>
       </View>
 

@@ -115,13 +115,13 @@ const CloudLogin = props => {
 
       <View style={[styles.container, {backgroundColor: colors.surface}]}>
         <CloudAppIcon
-          mainText={`${appDefaults.appDisplayName} Cloud`}
+          mainText={`${appDefaults.appDisplayName}`}
           subText=""
           containerStyle={{marginBottom: 0}}
         />
         <View style={{margin: 20, marginTop: 0, marginBottom: 30}}>
           <Text style={{textAlign: 'center', fontSize: 16}}>
-            {`Connect this device using your ${appDefaults.appDisplayName} Cloud email and password.`}
+            {`Connect this device using your ${appDefaults.appDisplayName} email and password.`}
           </Text>
         </View>
         <CloudLoginForm

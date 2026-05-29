@@ -85,13 +85,13 @@ const CreateCloudAccount = props => {
       />
       <View style={[styles.container, {backgroundColor: colors.surface}]}>
         <CloudAppIcon
-          mainText={`${appDefaults.appDisplayName} Cloud`}
+          mainText={`${appDefaults.appDisplayName}`}
           subText=""
           containerStyle={{marginBottom: 0}}
         />
         <View style={{margin: 20, marginTop: 0, marginBottom: 30}}>
           <Text style={{textAlign: 'center', fontSize: 16}}>
-            {`Create an ${appDefaults.appDisplayName} Cloud account to connect this device and start uploading your data.`}
+            {`Create an ${appDefaults.appDisplayName} account to connect this device and start uploading your data.`}
           </Text>
         </View>
         <CloudAccountForm

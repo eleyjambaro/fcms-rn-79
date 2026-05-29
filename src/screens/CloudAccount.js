@@ -33,7 +33,7 @@ const CloudAccount = () => {
           <MaterialCommunityIcons name="logout" size={20} color={colors.dark} />
 
           <Text style={{fontWeight: '500', marginLeft: 5}}>
-            {`Logout ${appDefaults.appDisplayName} Cloud`}
+            {`Logout ${appDefaults.appDisplayName}`}
           </Text>
         </Pressable>
       </View>

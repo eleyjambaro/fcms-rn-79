@@ -55,7 +55,7 @@ const CloudV2DeviceRegistration = () => {
   return (
     <View style={[styles.container, {backgroundColor: colors.surface}]}>
       <CloudAppIcon
-        mainText={`${appDefaults.appDisplayName} Cloud`}
+        mainText={`${appDefaults.appDisplayName}`}
         subText=""
         containerStyle={{marginBottom: 0}}
       />
@@ -64,7 +64,11 @@ const CloudV2DeviceRegistration = () => {
 
       {mutation.isLoading ? (
         <>
-          <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+          <ActivityIndicator
+            size="large"
+            color={colors.primary}
+            style={styles.loader}
+          />
           <Text style={styles.loadingText}>Registering this device…</Text>
         </>
       ) : error ? (

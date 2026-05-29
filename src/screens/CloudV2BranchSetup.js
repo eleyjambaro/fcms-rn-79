@@ -47,16 +47,21 @@ const CloudV2BranchSetup = ({navigation}) => {
     },
   });
 
-  const assignMutation = useMutation(
-    ({branchId}) =>
-      assignBranch({device_id: deviceId, branch_id: branchId, force_reassign: false}),
+  const assignMutation = useMutation(({branchId}) =>
+    assignBranch({
+      device_id: deviceId,
+      branch_id: branchId,
+      force_reassign: false,
+    }),
   );
 
   const handleAssign = async () => {
     if (!selectedBranchId) return;
     setServerError('');
     try {
-      const data = await assignMutation.mutateAsync({branchId: selectedBranchId});
+      const data = await assignMutation.mutateAsync({
+        branchId: selectedBranchId,
+      });
       if (data?.status === 'success') {
         const branch = branchesQuery.data?.data?.find(
           b => b.id === selectedBranchId,
@@ -68,8 +73,7 @@ const CloudV2BranchSetup = ({navigation}) => {
       }
     } catch (error) {
       setServerError(
-        error?.response?.data?.message ||
-          'Could not assign branch. Try again.',
+        error?.response?.data?.message || 'Could not assign branch. Try again.',
       );
     }
   };
@@ -81,7 +85,10 @@ const CloudV2BranchSetup = ({navigation}) => {
         setCreateModalVisible(false);
         setSelectedBranchId(data.data.id);
       } else {
-        actions.setFieldError('name', data?.message || 'Failed to create branch.');
+        actions.setFieldError(
+          'name',
+          data?.message || 'Failed to create branch.',
+        );
       }
     } catch (error) {
       actions.setFieldError(
@@ -105,7 +112,9 @@ const CloudV2BranchSetup = ({navigation}) => {
               backgroundColor: isSelected
                 ? colors.primaryContainer ?? colors.highlighted ?? '#d8f9ff'
                 : colors.surface,
-              borderColor: isSelected ? colors.primary : colors.outline ?? '#e0e0e0',
+              borderColor: isSelected
+                ? colors.primary
+                : colors.outline ?? '#e0e0e0',
               opacity: pressed ? 0.8 : 1,
             },
           ]}>
@@ -134,7 +143,7 @@ const CloudV2BranchSetup = ({navigation}) => {
   return (
     <View style={[styles.container, {backgroundColor: colors.surface}]}>
       <CloudAppIcon
-        mainText={`${appDefaults.appDisplayName} Cloud`}
+        mainText={`${appDefaults.appDisplayName}`}
         subText=""
         containerStyle={styles.icon}
       />
@@ -182,7 +191,8 @@ const CloudV2BranchSetup = ({navigation}) => {
                       backgroundColor: colors.surface,
                     },
                   ]}>
-                  <Text style={[styles.createBranchText, {color: colors.primary}]}>
+                  <Text
+                    style={[styles.createBranchText, {color: colors.primary}]}>
                     + Create New Branch
                   </Text>
                 </Pressable>

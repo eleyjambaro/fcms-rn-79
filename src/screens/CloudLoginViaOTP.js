@@ -103,7 +103,7 @@ const CloudLoginViaOTP = props => {
     <>
       <View style={[styles.container, {backgroundColor: colors.surface}]}>
         <CloudAppIcon
-          mainText={`${appDefaults.appDisplayName} Cloud`}
+          mainText={`${appDefaults.appDisplayName}`}
           subText=""
           containerStyle={{marginBottom: 0}}
         />
