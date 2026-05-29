@@ -519,7 +519,10 @@ const Account = props => {
             case 'item_name':
               return item.name ?? '';
             case 'uom_abbrev':
-              return item.uom_abbrev === 'ea' ? 'pc' : item.uom_abbrev ?? '';
+              return (item.uom_abbrev === 'ea'
+                ? 'pc'
+                : item.uom_abbrev ?? ''
+              ).toUpperCase();
             case 'initial_stock_qty':
               return item.current_stock_qty ?? 0;
             case 'unit_cost':
@@ -527,9 +530,10 @@ const Account = props => {
             case 'total_cost':
               return item.current_stock_cost ?? 0;
             case 'uom_abbrev_per_piece':
-              return item.uom_abbrev_per_piece === 'ea'
+              return (item.uom_abbrev_per_piece === 'ea'
                 ? 'pc'
-                : item.uom_abbrev_per_piece ?? '';
+                : item.uom_abbrev_per_piece ?? ''
+              ).toUpperCase();
             case 'qty_per_piece':
               return item.qty_per_piece ?? '';
             case 'tax_name':
