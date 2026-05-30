@@ -69,7 +69,6 @@ import {
 import BannerAdComponent from '../components/ads/BannerAdComponent';
 import ConfirmationCheckbox from '../components/forms/ConfirmationCheckbox';
 import ManageListButton from '../components/buttons/ManageListButton';
-import {getCloudRoles} from '../serverDbQueries/v2/roles';
 
 const Account = props => {
   const {navigation} = props;
@@ -87,12 +86,7 @@ const Account = props => {
     },
   });
 
-  const {data: cloudRolesData} = useQuery(['cloudRoles'], getCloudRoles, {
-    enabled: !authUser?.is_root_account && !!authUser?.role_id,
-  });
-  const teamMemberRoleName = cloudRolesData?.data?.find(
-    r => r.id === authUser?.role_id,
-  )?.name;
+  const teamMemberRoleName = authUser?.role_name;
 
   const {can} = useRoleAccess();
   const androidVersion = Platform.constants['Release'];

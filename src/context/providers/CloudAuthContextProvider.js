@@ -21,6 +21,7 @@ import {
 } from '../../services/syncService';
 import {getCloudCompany} from '../../serverDbQueries/v2/companies';
 import {getDeviceCompanyInfo} from '../../serverDbQueries/v2/devices';
+import {getMe} from '../../serverDbQueries/v2/auth';
 import {
   addLicenseBranch,
   getLicenseStatus,
@@ -161,6 +162,11 @@ const reducer = (prevState, action) => {
         ...prevState,
         deviceCompanyInfo: action.deviceCompanyInfo,
       };
+    case 'SET_AUTH_USER':
+      return {
+        ...prevState,
+        authUser: action.authUser,
+      };
   }
 };
 
@@ -228,6 +234,21 @@ const CloudAuthContextProvider = ({children}) => {
                 await saveItem(cloudV2DeviceCompanyInfo, info);
                 dispatch({type: 'SET_DEVICE_COMPANY_INFO', deviceCompanyInfo: info});
               }
+            })
+            .catch(() => {});
+        }
+
+        // Fire-and-forget: refresh the signed-in account via /auth/me so
+        // server-side changes (role name, role_config/permissions, etc.) made
+        // since the last sign-in propagate without requiring a re-login.
+        if (authToken && authUser?.account) {
+          getMe()
+            .then(async response => {
+              const account = response?.data?.account ?? null;
+              if (!account) return;
+              const nextAuthUser = {...authUser, account};
+              await saveItem(cloudV2AuthUser, nextAuthUser);
+              dispatch({type: 'SET_AUTH_USER', authUser: nextAuthUser});
             })
             .catch(() => {});
         }
