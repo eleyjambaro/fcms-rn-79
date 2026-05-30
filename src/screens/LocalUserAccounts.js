@@ -155,7 +155,10 @@ function LocalUserAccounts(props) {
             backgroundColor: 'white',
             padding: 10,
           }}>
-          <Button mode="contained" onPress={showCreateLocalUserAccountModal}>
+          <Button
+            icon="plus"
+            mode="contained"
+            onPress={showCreateLocalUserAccountModal}>
             Create User
           </Button>
         </View>

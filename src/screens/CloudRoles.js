@@ -186,7 +186,7 @@ const CloudRoles = () => {
       />
 
       <View style={styles.footer}>
-        <Button mode="contained" onPress={openCreateModal}>
+        <Button icon="plus" mode="contained" onPress={openCreateModal}>
           Create Role
         </Button>
       </View>

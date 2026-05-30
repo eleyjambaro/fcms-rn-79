@@ -9,7 +9,7 @@ import {
 import {
   Text,
   ActivityIndicator,
-  FAB,
+  Button,
   useTheme,
 } from 'react-native-paper';
 import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
@@ -197,6 +197,7 @@ const TabContent = ({tab, navigation}) => {
 };
 
 const BatchTransferRequestList = ({navigation}) => {
+  const {colors} = useTheme();
   return (
     <View style={{flex: 1}}>
       <TopTab.Navigator
@@ -229,11 +230,18 @@ const BatchTransferRequestList = ({navigation}) => {
         </TopTab.Screen>
       </TopTab.Navigator>
 
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={() => navigation.navigate(routes.batchTransferRequestForm())}
-      />
+      <View
+        style={[
+          styles.bottomBar,
+          {borderTopColor: colors.disabled, backgroundColor: colors.surface},
+        ]}>
+        <Button
+          icon="plus"
+          mode="contained"
+          onPress={() => navigation.navigate(routes.batchTransferRequestForm())}>
+          Request new Batch Transfer
+        </Button>
+      </View>
     </View>
   );
 };
@@ -272,7 +280,10 @@ const styles = StyleSheet.create({
   center: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   empty: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   emptyText: {marginTop: 12, opacity: 0.7},
-  fab: {position: 'absolute', right: 16, bottom: 16},
+  bottomBar: {
+    padding: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
 });
 
 export default BatchTransferRequestList;

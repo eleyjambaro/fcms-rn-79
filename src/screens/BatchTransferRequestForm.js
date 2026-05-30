@@ -25,13 +25,14 @@ const IN_BADGE_COLOR = '#1E88E5';
  * Branch picker UI for creating a new Batch Transfer Request.
  *
  * Two directions:
- *   - 'out' (default): current branch is the source — Origin is locked to
- *     current, Destination is picked from the sheet. The current branch will
- *     dispatch items to the counterparty.
- *   - 'in': current branch is the destination — Destination is locked to
- *     current, Origin is picked. The current branch is asking the counterparty
- *     to send items. Initiator (= dest = current) creates the draft; the
- *     source counterparty reviews and accepts.
+ *   - 'in' (default): current branch is the destination — Destination is locked
+ *     to current, Origin is picked. The current branch is asking the
+ *     counterparty to send items. Initiator (= dest = current) creates the
+ *     draft; the source counterparty reviews and accepts. This is the more
+ *     common case, so it's the default.
+ *   - 'out': current branch is the source — Origin is locked to current,
+ *     Destination is picked from the sheet. The current branch will dispatch
+ *     items to the counterparty.
  *
  * The swap icon flips direction and keeps the picked counterparty so the user
  * doesn't have to re-pick the branch after a swap.
@@ -42,7 +43,7 @@ const BatchTransferRequestForm = ({navigation}) => {
 
   const [currentBranchId, setCurrentBranchId] = useState(null);
   const [counterparty, setCounterparty] = useState(null);
-  const [direction, setDirection] = useState('out');
+  const [direction, setDirection] = useState('in');
   const [showPicker, setShowPicker] = useState(false);
   const [creating, setCreating] = useState(false);
 

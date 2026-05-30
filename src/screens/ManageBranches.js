@@ -262,8 +262,7 @@ const ManageBranches = () => {
           onPress={() => {
             setCreateServerError('');
             setCreateModalVisible(true);
-          }}
-          contentStyle={styles.addButtonContent}>
+          }}>
           Add Branch
         </Button>
       </View>
@@ -452,9 +451,6 @@ const styles = StyleSheet.create({
   addButtonRow: {
     padding: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  addButtonContent: {
-    paddingVertical: 6,
   },
   list: {
     paddingBottom: 40,
