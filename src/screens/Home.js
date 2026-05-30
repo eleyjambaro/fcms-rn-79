@@ -517,6 +517,12 @@ const Home = props => {
     endingInventory: 'endingInventory',
   };
 
+  // The "Inventory Batch Entry" group only contains the highlighted buttons, so
+  // hide the whole (primary-colored) container when none of them are accessible.
+  const hasEnabledHighlightedFirstRowButtons = highlightedFirstRowButtons.some(
+    rowButton => can(highlightedButtonPermission[rowButton] || rowButton),
+  );
+
   const renderHighlightedFirstRowButtons = () => {
     let jsxArrayOfButtons = [];
 
@@ -680,6 +686,7 @@ const Home = props => {
       </Banner>
       <ScrollView style={[styles.container, {backgroundColor: colors.surface}]}>
         <View style={[styles.wrapper, {marginHorizontal: wrapperMargin}]}>
+          {hasEnabledHighlightedFirstRowButtons && (
           <View
             style={[
               styles.group,
@@ -718,6 +725,7 @@ const Home = props => {
             {/* Highlighted first row */}
             <View style={styles.row}>{renderHighlightedFirstRowButtons()}</View>
           </View>
+          )}
 
           <View
             style={[styles.group, {padding: groupPadding, paddingBottom: 150}]}>
