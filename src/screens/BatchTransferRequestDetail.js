@@ -97,9 +97,12 @@ const EntryRow = ({
 
   const primaryQty = (() => {
     if (status === STATUS.RECEIVED) return entry.received_qty;
-    if (status === STATUS.TRANSFERRING) return entry.adjusted_qty ?? entry.accepted_qty;
-    if (status === STATUS.ACCEPTED) return entry.adjusted_qty ?? entry.accepted_qty;
-    if (status === STATUS.REQUESTED) return entry.accepted_qty ?? entry.requested_qty;
+    if (status === STATUS.TRANSFERRING)
+      return entry.adjusted_qty ?? entry.accepted_qty;
+    if (status === STATUS.ACCEPTED)
+      return entry.adjusted_qty ?? entry.accepted_qty;
+    if (status === STATUS.REQUESTED)
+      return entry.accepted_qty ?? entry.requested_qty;
     return entry.requested_qty;
   })();
 
@@ -118,7 +121,9 @@ const EntryRow = ({
           ) : null}
         </View>
         <Text style={styles.entryQty}>
-          {primaryQty != null ? `${parseFloat(primaryQty)} ${formatUOM(entry.item_uom_abbrev)}` : '—'}
+          {primaryQty != null
+            ? `${parseFloat(primaryQty)} ${formatUOM(entry.item_uom_abbrev)}`
+            : '—'}
         </Text>
         {editable ? (
           <Pressable onPress={() => onEdit(entry)} style={styles.editBtn}>
@@ -160,9 +165,7 @@ const EntryRow = ({
       </View>
 
       {entry.source_remarks ? (
-        <Text style={styles.remarkLine}>
-          • Source: {entry.source_remarks}
-        </Text>
+        <Text style={styles.remarkLine}>• Source: {entry.source_remarks}</Text>
       ) : null}
       {entry.dest_remarks ? (
         <Text style={styles.remarkLine}>
@@ -211,9 +214,8 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     getBatchTransferEntries,
     {enabled: !!groupId},
   );
-  const {data: branchesData} = useQuery(
-    ['branches', {per_page: 100}],
-    () => getBranches({per_page: 100}),
+  const {data: branchesData} = useQuery(['branches', {per_page: 100}], () =>
+    getBranches({per_page: 100}),
   );
 
   const branchById = useMemo(() => {
@@ -252,12 +254,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
         }
       });
     }
-  }, [
-    groupId,
-    group,
-    currentBranchId,
-    queryClient,
-  ]);
+  }, [groupId, group, currentBranchId, queryClient]);
 
   const isSource = group?.source_branch_id === currentBranchId;
   const isDest = group?.destination_branch_id === currentBranchId;
@@ -370,16 +367,18 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     setEditEntry(entry);
     if (group.status === STATUS.REQUESTED && isCounterparty) {
       setEditValues({
-        qty: entry.accepted_qty != null
-          ? String(parseFloat(entry.accepted_qty))
-          : String(parseFloat(entry.requested_qty || 0)),
+        qty:
+          entry.accepted_qty != null
+            ? String(parseFloat(entry.accepted_qty))
+            : String(parseFloat(entry.requested_qty || 0)),
         remarks: entry[counterpartyRemarksCol] || '',
       });
     } else if (group.status === STATUS.ACCEPTED && isSource) {
       setEditValues({
-        qty: entry.adjusted_qty != null
-          ? String(parseFloat(entry.adjusted_qty))
-          : String(parseFloat(entry.accepted_qty || 0)),
+        qty:
+          entry.adjusted_qty != null
+            ? String(parseFloat(entry.adjusted_qty))
+            : String(parseFloat(entry.accepted_qty || 0)),
         remarks: entry.source_remarks || '',
       });
     } else {
@@ -435,6 +434,16 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     if (status === STATUS.DRAFT && isInitiator) {
       buttons.push(
         <Button
+          key="submit"
+          mode="contained"
+          loading={submitMut.isLoading}
+          disabled={entries.length === 0 || submitMut.isLoading}
+          onPress={() => submitMut.mutate({groupId})}>
+          Submit Request
+        </Button>,
+      );
+      buttons.push(
+        <Button
           key="edit"
           mode="outlined"
           onPress={() =>
@@ -447,7 +456,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               direction: directionForCurrent,
             })
           }>
-          Edit Items
+          Edit Item Selection
         </Button>,
       );
       buttons.push(
@@ -465,16 +474,6 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             ])
           }>
           Discard
-        </Button>,
-      );
-      buttons.push(
-        <Button
-          key="submit"
-          mode="contained"
-          loading={submitMut.isLoading}
-          disabled={entries.length === 0 || submitMut.isLoading}
-          onPress={() => submitMut.mutate({groupId})}>
-          Submit Request
         </Button>,
       );
     } else if (status === STATUS.REQUESTED && isInitiator) {
@@ -521,6 +520,22 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
         );
       }
       if (isSource) {
+        buttons.unshift(
+          <View
+            key="ready-notice"
+            style={[
+              styles.readyNotice,
+              {backgroundColor: colors.primary + '14'},
+            ]}>
+            <Text style={styles.readyNoticeHint}>
+              Not ready to transfer yet? You can come back here anytime to start
+              the transfer.
+            </Text>
+            <Text style={styles.readyNoticeTitle}>
+              Are all items ready? Tap "Transfer Now".
+            </Text>
+          </View>,
+        );
         buttons.push(
           <Button
             key="transfer"
@@ -533,13 +548,18 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
                 [
                   {text: 'Cancel'},
                   {
-                    text: 'Transfer',
+                    text: 'Transfer Now',
                     onPress: () => transferOutMut.mutate({groupId}),
                   },
                 ],
               )
             }>
-            Transfer
+            Transfer Now
+          </Button>,
+        );
+        buttons.push(
+          <Button key="back" mode="text" onPress={() => navigation.goBack()}>
+            Back
           </Button>,
         );
       }
@@ -627,7 +647,10 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               <Text
                 style={[
                   styles.yourBranchLabel,
-                  {opacity: group.destination_branch_id === currentBranchId ? 1 : 0},
+                  {
+                    opacity:
+                      group.destination_branch_id === currentBranchId ? 1 : 0,
+                  },
                 ]}>
                 (Your branch)
               </Text>
@@ -693,11 +716,25 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             <Text style={[styles.noteCardText, {color: '#BF360C'}]}>
               {isCounterparty
                 ? isSource
-                  ? `${destBranch?.display_name || destBranch?.name || 'A branch'} is requesting items from your branch. Review the items below and tap "Accept" to proceed or "Reject" to decline.`
-                  : `${sourceBranch?.display_name || sourceBranch?.name || 'A branch'} has sent you a Batch Transfer Request. Review the items below and tap "Accept" to proceed or "Reject" to decline.`
+                  ? `${
+                      destBranch?.display_name || destBranch?.name || 'A branch'
+                    } is requesting items from your branch. Review the items below and tap "Accept" to proceed or "Reject" to decline.`
+                  : `${
+                      sourceBranch?.display_name ||
+                      sourceBranch?.name ||
+                      'A branch'
+                    } has sent you a Batch Transfer Request. Review the items below and tap "Accept" to proceed or "Reject" to decline.`
                 : isInitiator && isSource
-                ? `Your Batch Transfer Request has been sent to ${destBranch?.display_name || destBranch?.name || 'the destination branch'}. You'll be notified once they accept or reject it.`
-                : `Your Batch Transfer Request has been sent to ${sourceBranch?.display_name || sourceBranch?.name || 'the source branch'}. You'll be notified once they accept or reject it.`}
+                ? `Your Batch Transfer Request has been sent to ${
+                    destBranch?.display_name ||
+                    destBranch?.name ||
+                    'the destination branch'
+                  }. You'll be notified once they accept or reject it.`
+                : `Your Batch Transfer Request has been sent to ${
+                    sourceBranch?.display_name ||
+                    sourceBranch?.name ||
+                    'the source branch'
+                  }. You'll be notified once they accept or reject it.`}
             </Text>
           </View>
         ) : null}
@@ -715,8 +752,16 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             />
             <Text style={[styles.noteCardText, {color: '#1565C0'}]}>
               {isSource
-                ? `This request has been accepted. You can now start transferring the items by tapping Transfer. ${destBranch?.display_name || destBranch?.name || 'The destination branch'} will be notified once they receive them.`
-                : `This request has been accepted. You'll be notified once ${sourceBranch?.display_name || sourceBranch?.name || 'the source branch'} starts transferring the items.`}
+                ? `You have accepted this request. You can now start transferring the items by tapping Transfer Now. ${
+                    destBranch?.display_name ||
+                    destBranch?.name ||
+                    'The destination branch'
+                  } will be notified once the item transfer begins.`
+                : `This request has been accepted. You'll be notified once ${
+                    sourceBranch?.display_name ||
+                    sourceBranch?.name ||
+                    'the source branch'
+                  } starts transferring the items.`}
             </Text>
           </View>
         ) : null}
@@ -731,15 +776,21 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             />
             <Text style={[styles.noteCardText, {color: '#4A148C'}]}>
               {isDest
-                ? `${sourceBranch?.display_name || sourceBranch?.name || 'The source branch'} has started transferring the items. Tap "Mark Transfer Received" once they arrive.`
-                : `You've dispatched the items to ${destBranch?.display_name || destBranch?.name || 'the destination branch'}. You'll be notified once they confirm receipt.`}
+                ? `${
+                    sourceBranch?.display_name ||
+                    sourceBranch?.name ||
+                    'The source branch'
+                  } has started transferring the items. Tap "Mark Transfer Received" once they arrive.`
+                : `You've dispatched the items to ${
+                    destBranch?.display_name ||
+                    destBranch?.name ||
+                    'the destination branch'
+                  }. You'll be notified once they confirm receipt.`}
             </Text>
           </View>
         ) : null}
 
-        <Text style={styles.sectionHeading}>
-          Items ({entries.length})
-        </Text>
+        <Text style={styles.sectionHeading}>Items ({entries.length})</Text>
 
         {entries.length === 0 ? (
           <View style={styles.empty}>
@@ -784,9 +835,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           <Dialog.Content>
             <Text style={{marginBottom: 8, opacity: 0.7}}>
               {group.status === STATUS.REQUESTED && isCounterparty
-                ? `Set the qty you can accept (0 = decline this item). Requested: ${parseFloat(editEntry?.requested_qty || 0)} ${formatUOM(editEntry?.item_uom_abbrev)}`
+                ? `Set the qty you can accept (0 = decline this item). Requested: ${parseFloat(
+                    editEntry?.requested_qty || 0,
+                  )} ${formatUOM(editEntry?.item_uom_abbrev)}`
                 : group.status === STATUS.ACCEPTED && isSource
-                ? `Adjust the qty you'll actually send. Accepted: ${parseFloat(editEntry?.accepted_qty || 0)} ${formatUOM(editEntry?.item_uom_abbrev)}`
+                ? `Adjust the qty you'll actually send. Accepted: ${parseFloat(
+                    editEntry?.accepted_qty || 0,
+                  )} ${formatUOM(editEntry?.item_uom_abbrev)}`
                 : ''}
             </Text>
             {editEntryIsUnfulfillable ? (
@@ -796,15 +851,14 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
                   color: colors.error,
                   fontSize: 12,
                 }}>
-                Item not in your catalog — you can't fulfill this line. Qty is locked to 0. You can still leave a remark.
+                Item not in your catalog — you can't fulfill this line. Qty is
+                locked to 0. You can still leave a remark.
               </Text>
             ) : null}
             <TextInput
               label={`Qty (${formatUOM(editEntry?.item_uom_abbrev)})`}
               value={editEntryIsUnfulfillable ? '0' : editValues.qty}
-              onChangeText={v =>
-                setEditValues(s => ({...s, qty: v}))
-              }
+              onChangeText={v => setEditValues(s => ({...s, qty: v}))}
               keyboardType="decimal-pad"
               dense
               autoFocus={!editEntryIsUnfulfillable}
@@ -814,9 +868,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             <TextInput
               label="Remarks (optional)"
               value={editValues.remarks}
-              onChangeText={v =>
-                setEditValues(s => ({...s, remarks: v}))
-              }
+              onChangeText={v => setEditValues(s => ({...s, remarks: v}))}
               dense
               multiline
             />
@@ -959,12 +1011,26 @@ const styles = StyleSheet.create({
   removeBtn: {marginTop: 6, alignSelf: 'flex-end'},
   empty: {padding: 20, alignItems: 'center'},
   footerBar: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
+    alignItems: 'stretch',
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    justifyContent: 'flex-end',
+  },
+  readyNotice: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 2,
+  },
+  readyNoticeHint: {
+    fontSize: 11,
+    opacity: 0.7,
+    marginBottom: 4,
+  },
+  readyNoticeTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   // Shift the dialog upward so its multiline TextInput (remarks) is never
   // hidden behind the soft keyboard. Paper's Dialog is flex-centered, so a
