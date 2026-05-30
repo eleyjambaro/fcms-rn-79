@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Pressable,
   ToastAndroid,
-  Alert,
 } from 'react-native';
 import {
   Text,
@@ -191,6 +190,10 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
   const [editValues, setEditValues] = useState({qty: '', remarks: ''});
   const [rejectVisible, setRejectVisible] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  // Generic confirmation dialog (replaces native Alert.alert so confirmations
+  // match the app's Paper dialog styling). Shape:
+  // {title, message, confirmLabel, cancelLabel, destructive, onConfirm}
+  const [confirm, setConfirm] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -451,18 +454,15 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
   };
 
   const confirmCancelRequest = () =>
-    Alert.alert(
-      'Cancel this request?',
-      'The other branch will be notified that the request was cancelled. No inventory will change.',
-      [
-        {text: 'Keep Request'},
-        {
-          text: 'Cancel Request',
-          style: 'destructive',
-          onPress: () => cancelMut.mutate({groupId}),
-        },
-      ],
-    );
+    setConfirm({
+      title: 'Cancel this request?',
+      message:
+        'The other branch will be notified that the request was cancelled. No inventory will change.',
+      confirmLabel: 'Cancel Request',
+      cancelLabel: 'Keep Request',
+      destructive: true,
+      onConfirm: () => cancelMut.mutate({groupId}),
+    });
 
   const confirmSubmitRequest = () => {
     const counterpartyBranch =
@@ -471,17 +471,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
       counterpartyBranch?.display_name ||
       counterpartyBranch?.name ||
       'the other branch';
-    Alert.alert(
-      'Submit this request?',
-      `${counterpartyName} will be notified to review and accept the requested items. You can still cancel it before they accept.`,
-      [
-        {text: 'Keep Editing'},
-        {
-          text: 'Submit Request',
-          onPress: () => submitMut.mutate({groupId}),
-        },
-      ],
-    );
+    setConfirm({
+      title: 'Submit this request?',
+      message: `${counterpartyName} will be notified to review and accept the requested items. You can still cancel it before they accept.`,
+      confirmLabel: 'Submit Request',
+      cancelLabel: 'Keep Editing',
+      onConfirm: () => submitMut.mutate({groupId}),
+    });
   };
 
   // Footer action buttons per (status, role).
@@ -528,14 +524,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           key="discard"
           color={colors.error}
           onPress={() =>
-            Alert.alert('Discard draft?', 'This cannot be undone.', [
-              {text: 'Cancel'},
-              {
-                text: 'Discard',
-                style: 'destructive',
-                onPress: () => cancelDraftMut.mutate({groupId}),
-              },
-            ])
+            setConfirm({
+              title: 'Discard draft?',
+              message: 'This cannot be undone.',
+              confirmLabel: 'Discard',
+              destructive: true,
+              onConfirm: () => cancelDraftMut.mutate({groupId}),
+            })
           }>
           Discard
         </Button>,
@@ -606,17 +601,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             mode="contained"
             loading={transferOutMut.isLoading}
             onPress={() =>
-              Alert.alert(
-                'Confirm transfer-out',
-                'Mark this request as physically dispatched? The destination will be notified.',
-                [
-                  {text: 'Cancel'},
-                  {
-                    text: 'Transfer Now',
-                    onPress: () => transferOutMut.mutate({groupId}),
-                  },
-                ],
-              )
+              setConfirm({
+                title: 'Confirm transfer-out',
+                message:
+                  'Mark this request as physically dispatched? The destination will be notified.',
+                confirmLabel: 'Transfer Now',
+                onConfirm: () => transferOutMut.mutate({groupId}),
+              })
             }>
             Transfer Now
           </Button>,
@@ -893,51 +884,49 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           onDismiss={() => setEditEntry(null)}
           // Keep the dialog above the keyboard so multiline remarks stays visible.
           style={styles.keyboardAwareDialog}>
-          <Dialog.Title numberOfLines={1}>
+          <Dialog.Title numberOfLines={1} style={styles.dialogTitle}>
             {editEntry?.item_display_name}
           </Dialog.Title>
           <Dialog.Content>
-            <Text style={{marginBottom: 8, opacity: 0.7}}>
-              {group.status === STATUS.REQUESTED && isCounterparty
-                ? `Set the qty you can accept (0 = decline this item). Requested: ${parseFloat(
-                    editEntry?.requested_qty || 0,
-                  )} ${formatUOM(editEntry?.item_uom_abbrev)}`
-                : group.status === STATUS.ACCEPTED && isSource
-                ? `Adjust the qty you'll actually send. Accepted: ${parseFloat(
-                    editEntry?.accepted_qty || 0,
-                  )} ${formatUOM(editEntry?.item_uom_abbrev)}`
-                : ''}
-            </Text>
+            {group.status === STATUS.REQUESTED && isCounterparty ? (
+              <Text style={[styles.dialogHelper, {color: colors.neutralTint1}]}>
+                {`Set the qty you can accept (0 = decline this item). Requested: ${parseFloat(
+                  editEntry?.requested_qty || 0,
+                )} ${formatUOM(editEntry?.item_uom_abbrev)}`}
+              </Text>
+            ) : group.status === STATUS.ACCEPTED && isSource ? (
+              <Text style={[styles.dialogHelper, {color: colors.neutralTint1}]}>
+                {`Adjust the qty you'll actually send. Accepted: ${parseFloat(
+                  editEntry?.accepted_qty || 0,
+                )} ${formatUOM(editEntry?.item_uom_abbrev)}`}
+              </Text>
+            ) : null}
             {editEntryIsUnfulfillable ? (
-              <Text
-                style={{
-                  marginBottom: 8,
-                  color: colors.error,
-                  fontSize: 12,
-                }}>
+              <Text style={[styles.dialogHelper, {color: colors.error}]}>
                 Item not in your catalog — you can't fulfill this line. Qty is
                 locked to 0. You can still leave a remark.
               </Text>
             ) : null}
             <TextInput
+              mode="outlined"
               label={`Qty (${formatUOM(editEntry?.item_uom_abbrev)})`}
               value={editEntryIsUnfulfillable ? '0' : editValues.qty}
               onChangeText={v => setEditValues(s => ({...s, qty: v}))}
               keyboardType="decimal-pad"
-              dense
               autoFocus={!editEntryIsUnfulfillable}
               disabled={editEntryIsUnfulfillable}
-              style={{marginBottom: 8}}
+              style={styles.dialogInput}
             />
             <TextInput
+              mode="outlined"
               label="Remarks (optional)"
               value={editValues.remarks}
               onChangeText={v => setEditValues(s => ({...s, remarks: v}))}
-              dense
               multiline
+              style={styles.dialogInput}
             />
           </Dialog.Content>
-          <Dialog.Actions>
+          <Dialog.Actions style={styles.dialogActions}>
             <Button onPress={() => setEditEntry(null)}>Cancel</Button>
             <Button
               mode="contained"
@@ -956,20 +945,23 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           visible={rejectVisible}
           onDismiss={() => setRejectVisible(false)}
           style={styles.keyboardAwareDialog}>
-          <Dialog.Title>Reject this request?</Dialog.Title>
+          <Dialog.Title style={styles.dialogTitle}>
+            Reject this request?
+          </Dialog.Title>
           <Dialog.Content>
-            <Text style={{marginBottom: 8, opacity: 0.7}}>
+            <Text style={[styles.dialogHelper, {color: colors.neutralTint1}]}>
               The initiating branch will be notified. No inventory will change.
             </Text>
             <TextInput
+              mode="outlined"
               label="Reason (optional)"
               value={rejectReason}
               onChangeText={setRejectReason}
-              dense
               multiline
+              style={styles.dialogInput}
             />
           </Dialog.Content>
-          <Dialog.Actions>
+          <Dialog.Actions style={styles.dialogActions}>
             <Button onPress={() => setRejectVisible(false)}>Cancel</Button>
             <Button
               mode="contained"
@@ -979,6 +971,36 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               }
               loading={rejectMut.isLoading}>
               Reject
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Generic confirmation dialog (app-styled replacement for Alert.alert) */}
+        <Dialog
+          visible={!!confirm}
+          onDismiss={() => setConfirm(null)}
+          style={styles.confirmDialog}>
+          <Dialog.Title style={styles.dialogTitle}>
+            {confirm?.title}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text style={[styles.dialogHelper, {color: colors.neutralTint1}]}>
+              {confirm?.message}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions style={styles.dialogActions}>
+            <Button onPress={() => setConfirm(null)}>
+              {confirm?.cancelLabel || 'Cancel'}
+            </Button>
+            <Button
+              mode="contained"
+              color={confirm?.destructive ? colors.error : undefined}
+              onPress={() => {
+                const action = confirm?.onConfirm;
+                setConfirm(null);
+                action && action();
+              }}>
+              {confirm?.confirmLabel || 'Confirm'}
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -1102,10 +1124,18 @@ const styles = StyleSheet.create({
   },
   // Shift the dialog upward so its multiline TextInput (remarks) is never
   // hidden behind the soft keyboard. Paper's Dialog is flex-centered, so a
-  // bottom margin moves the whole dialog up by half its value.
+  // bottom margin moves the whole dialog up by half its value. Rounded corners
+  // and a white surface keep it consistent with the app's card styling.
   keyboardAwareDialog: {
     marginBottom: 260,
+    borderRadius: 12,
+    backgroundColor: 'white',
   },
+  confirmDialog: {borderRadius: 12, backgroundColor: 'white'},
+  dialogTitle: {fontSize: 18},
+  dialogHelper: {marginBottom: 14, fontSize: 13, lineHeight: 18},
+  dialogInput: {marginBottom: 10, backgroundColor: 'white'},
+  dialogActions: {paddingHorizontal: 12, paddingBottom: 8},
 });
 
 export default BatchTransferRequestDetail;

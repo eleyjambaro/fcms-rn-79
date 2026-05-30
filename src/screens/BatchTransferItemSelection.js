@@ -238,34 +238,38 @@ const BatchTransferItemSelection = ({navigation, route}) => {
       <Portal>
         <Dialog
           visible={!!editing}
-          onDismiss={() => setEditing(null)}>
-          <Dialog.Title numberOfLines={1}>{editing?.name}</Dialog.Title>
+          onDismiss={() => setEditing(null)}
+          style={styles.dialog}>
+          <Dialog.Title numberOfLines={1} style={styles.dialogTitle}>
+            {editing?.name}
+          </Dialog.Title>
           <Dialog.Content>
-            <Text style={{marginBottom: 8, opacity: 0.7}}>
+            <Text style={[styles.dialogHelper, {color: colors.neutralTint1}]}>
               Current stock:{' '}
               {Number(editing?.current_stock_qty || 0).toFixed(2)}{' '}
               {formatTransferUOMAbbrev(editing?.uom_abbrev)}
             </Text>
             <TextInput
+              mode="outlined"
               label={`Transfer qty (${formatTransferUOMAbbrev(
                 editing?.uom_abbrev,
               )})`}
               value={qtyText}
               onChangeText={setQtyText}
               keyboardType="decimal-pad"
-              dense
               autoFocus
-              style={{marginBottom: 8}}
+              style={styles.dialogInput}
             />
             <TextInput
+              mode="outlined"
               label="Remarks (optional)"
               value={remarksText}
               onChangeText={setRemarksText}
-              dense
               multiline
+              style={styles.dialogInput}
             />
           </Dialog.Content>
-          <Dialog.Actions style={{justifyContent: 'space-between'}}>
+          <Dialog.Actions style={styles.dialogActions}>
             <Button
               onPress={removeEntry}
               color={colors.error}
@@ -275,7 +279,7 @@ const BatchTransferItemSelection = ({navigation, route}) => {
               }>
               Remove
             </Button>
-            <View style={{flexDirection: 'row'}}>
+            <View style={styles.dialogActionsRight}>
               <Button onPress={() => setEditing(null)}>Cancel</Button>
               <Button
                 mode="contained"
@@ -325,6 +329,16 @@ const styles = StyleSheet.create({
     borderTopColor: '#e0e0e0',
   },
   footerCount: {fontSize: 14, fontWeight: '500'},
+  dialog: {borderRadius: 12, backgroundColor: 'white'},
+  dialogTitle: {fontSize: 18},
+  dialogHelper: {marginBottom: 14, fontSize: 13, lineHeight: 18},
+  dialogInput: {marginBottom: 10, backgroundColor: 'white'},
+  dialogActions: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  dialogActionsRight: {flexDirection: 'row'},
 });
 
 export default BatchTransferItemSelection;
