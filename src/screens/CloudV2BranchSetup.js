@@ -13,6 +13,7 @@ import {
   Divider,
 } from 'react-native-paper';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
 
@@ -30,6 +31,7 @@ const createBranchSchema = Yup.object({
 
 const CloudV2BranchSetup = ({navigation}) => {
   const {colors} = useTheme();
+  const insets = useSafeAreaInsets();
   const [cloudAuthState] = useCloudAuthContext();
   const queryClient = useQueryClient();
 
@@ -141,7 +143,11 @@ const CloudV2BranchSetup = ({navigation}) => {
   const isLoading = branchesQuery.isLoading;
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.surface}]}>
+    <View
+      style={[
+        styles.container,
+        {backgroundColor: colors.surface, paddingTop: insets.top + 24},
+      ]}>
       <CloudAppIcon
         mainText={`${appDefaults.appDisplayName}`}
         subText=""

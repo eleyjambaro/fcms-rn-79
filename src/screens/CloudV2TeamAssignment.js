@@ -10,6 +10,7 @@ import {
   HelperText,
 } from 'react-native-paper';
 import {useQuery, useMutation} from '@tanstack/react-query';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import {getCloudSubAccounts} from '../serverDbQueries/v2/accounts';
@@ -19,6 +20,7 @@ import CloudAppIcon from '../components/icons/CloudAppIcon';
 
 const CloudV2TeamAssignment = ({route}) => {
   const {colors} = useTheme();
+  const insets = useSafeAreaInsets();
   const [cloudAuthState, {setDesignatedBranch}] = useCloudAuthContext();
   const {branch} = route.params;
 
@@ -109,7 +111,11 @@ const CloudV2TeamAssignment = ({route}) => {
   };
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.surface}]}>
+    <View
+      style={[
+        styles.container,
+        {backgroundColor: colors.surface, paddingTop: insets.top + 24},
+      ]}>
       <CloudAppIcon
         mainText={`${appDefaults.appDisplayName}`}
         subText=""

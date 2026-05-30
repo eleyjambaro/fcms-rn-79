@@ -11,7 +11,6 @@ import {
   TextInput,
   HelperText,
   Divider,
-  Chip,
   Menu,
   IconButton,
 } from 'react-native-paper';
@@ -154,12 +153,11 @@ const ManageBranches = () => {
               {branch.name}
             </Text>
             {isActive && (
-              <Chip
-                compact
-                style={[styles.activeChip, {backgroundColor: colors.primary}]}
-                textStyle={{color: colors.surface, fontSize: 11}}>
-                Active
-              </Chip>
+              <View style={[styles.activeBadge, {backgroundColor: colors.primary}]}>
+                <Text style={[styles.activeBadgeText, {color: colors.surface}]}>
+                  Active
+                </Text>
+              </View>
             )}
           </View>
           {branch.address ? (
@@ -251,7 +249,13 @@ const ManageBranches = () => {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={[styles.addButtonRow, {borderBottomColor: colors.disabled}]}>
+      <View style={styles.content}>{renderContent()}</View>
+
+      <View
+        style={[
+          styles.addButtonRow,
+          {borderTopColor: colors.disabled, backgroundColor: colors.surface},
+        ]}>
         <Button
           icon="plus"
           mode="contained"
@@ -259,12 +263,10 @@ const ManageBranches = () => {
             setCreateServerError('');
             setCreateModalVisible(true);
           }}
-          style={styles.addButton}>
+          contentStyle={styles.addButtonContent}>
           Add Branch
         </Button>
       </View>
-
-      {renderContent()}
 
       {/* Add Branch Modal */}
       <Portal>
@@ -444,12 +446,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  content: {
+    flex: 1,
+  },
   addButtonRow: {
     padding: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  addButton: {
-    alignSelf: 'flex-start',
+  addButtonContent: {
+    paddingVertical: 6,
   },
   list: {
     paddingBottom: 40,
@@ -480,8 +485,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  activeChip: {
-    height: 22,
+  activeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 14,
   },
   branchAddress: {
     fontSize: 13,

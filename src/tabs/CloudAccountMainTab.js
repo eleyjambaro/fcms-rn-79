@@ -1,69 +1,26 @@
-import React, {useEffect} from 'react';
-import {Pressable, ToastAndroid, View} from 'react-native';
-import {useTheme} from 'react-native-paper';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {useNavigation} from '@react-navigation/native';
-import {useQuery} from '@tanstack/react-query';
+import React from 'react';
 
-import routes from '../constants/routes';
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import CloudAccountAuthTab from './CloudAccountAuthTab';
 import CloudAccountRootTab from './CloudAccountRootTab';
-import {getLoggedInUser} from '../serverDbQueries/auth';
-import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
-import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
 
 const CloudAccountMainTab = () => {
-  const navigation = useNavigation();
-  const {colors} = useTheme();
-  const {
-    isRefetching: isRefetchingLoggedInUser,
-    status: loggedInUserStatus,
-    data: loggedInUserData,
-    error: loggedInUserError,
-    refetch: refetchLoggedInUser,
-  } = useQuery(['loggedInUser'], getLoggedInUser);
-  const [
-    authState,
-    {signOut, restoreAuth},
-    {expiredAuthTokenDialogVisible},
-    {setExpiredAuthTokenDialogVisible},
-  ] = useCloudAuthContext();
+  const [authState] = useCloudAuthContext();
 
-  useEffect(() => {
-    if (
-      loggedInUserStatus !== 'loading' &&
-      !isRefetchingLoggedInUser &&
-      loggedInUserData
-    ) {
-      const authUser = loggedInUserData?.authUser;
-      const authToken = loggedInUserData?.authToken;
-
-      restoreAuth({authUser, authToken});
-    }
-  }, [loggedInUserStatus, loggedInUserData, isRefetchingLoggedInUser]);
-
-  if (loggedInUserStatus === 'loading' || isRefetchingLoggedInUser) {
-    return (
-      <DefaultLoadingScreen
-        containerStyle={{backgroundColor: colors.surface}}
-      />
-    );
+  // In FCMS Cloud v2 this tab is only ever mounted inside RootStack, which
+  // App.js already gates on a fully authenticated session — so we key the
+  // rendered tab off the v2 auth state directly.
+  //
+  // The legacy `useQuery(['loggedInUser'])` + `restoreAuth` effect that used to
+  // live here were V1 local-auth remnants: `restoreAuth` doesn't exist on the
+  // v2 auth context, and the query's `queryClient.clear()`-triggered refetch
+  // (clear() is called by `signOut`) fought the sign-out flow — which is why
+  // the Logout button needed to be pressed twice.
+  if (!authState.authToken || !authState.authUser) {
+    return <CloudAccountAuthTab />;
   }
 
-  const renderCloudAccountTab = () => {
-    if (
-      !authState.authToken ||
-      !authState.authUser ||
-      loggedInUserStatus === 'error'
-    ) {
-      return <CloudAccountAuthTab />;
-    } else {
-      return <CloudAccountRootTab />;
-    }
-  };
-
-  return <>{renderCloudAccountTab()}</>;
+  return <CloudAccountRootTab />;
 };
 
 export default CloudAccountMainTab;

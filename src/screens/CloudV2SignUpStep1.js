@@ -113,7 +113,8 @@ const CloudV2SignUpStep1 = ({navigation}) => {
               <Button
                 mode="outlined"
                 onPress={() => navigation.goBack()}
-                style={styles.backButton}>
+                style={styles.backButton}
+                contentStyle={styles.buttonContent}>
                 Back
               </Button>
               <Button

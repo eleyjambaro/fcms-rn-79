@@ -23,12 +23,16 @@ const schema = Yup.object({
   password: Yup.string()
     .min(8, 'Password must be at least 8 characters')
     .required('Password is required'),
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref('password')], 'Passwords do not match')
+    .required('Please re-type your password'),
 });
 
 const CloudV2SignUpStep2 = ({navigation, route}) => {
   const {colors} = useTheme();
   const {companyName, companyAddress, companyEmail} = route.params ?? {};
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [serverError, setServerError] = useState('');
 
   const mutation = useMutation(signUp);
@@ -89,7 +93,11 @@ const CloudV2SignUpStep2 = ({navigation, route}) => {
       </View>
 
       <Formik
-        initialValues={{email: companyEmail ?? '', password: ''}}
+        initialValues={{
+          email: companyEmail ?? '',
+          password: '',
+          confirmPassword: '',
+        }}
         validationSchema={schema}
         onSubmit={handleSubmit}>
         {({
@@ -138,6 +146,26 @@ const CloudV2SignUpStep2 = ({navigation, route}) => {
               <HelperText type="error">{errors.password}</HelperText>
             ) : null}
 
+            <TextInput
+              label="Re-type Password *"
+              value={values.confirmPassword}
+              onChangeText={handleChange('confirmPassword')}
+              onBlur={handleBlur('confirmPassword')}
+              secureTextEntry={!confirmPasswordVisible}
+              mode="outlined"
+              error={touched.confirmPassword && !!errors.confirmPassword}
+              style={styles.input}
+              right={
+                <TextInput.Icon
+                  icon={confirmPasswordVisible ? 'eye-off' : 'eye'}
+                  onPress={() => setConfirmPasswordVisible(v => !v)}
+                />
+              }
+            />
+            {touched.confirmPassword && errors.confirmPassword ? (
+              <HelperText type="error">{errors.confirmPassword}</HelperText>
+            ) : null}
+
             {serverError ? (
               <HelperText type="error" style={styles.serverError}>
                 {serverError}
@@ -148,7 +176,8 @@ const CloudV2SignUpStep2 = ({navigation, route}) => {
               <Button
                 mode="outlined"
                 onPress={() => navigation.goBack()}
-                style={styles.backButton}>
+                style={styles.backButton}
+                contentStyle={styles.buttonContent}>
                 Back
               </Button>
               <Button
