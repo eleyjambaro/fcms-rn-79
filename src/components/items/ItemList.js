@@ -34,6 +34,7 @@ import ItemListItem from './ItemListItem';
 import routes from '../../constants/routes';
 import OptionsList from '../buttons/OptionsList';
 import {getItems, deleteItem} from '../../localDbQueries/items';
+import useRoleAccess from '../../hooks/useRoleAccess';
 import ListLoadingFooter from '../../components/stateIndicators/ListLoadingFooter';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
@@ -49,6 +50,7 @@ const ItemList = props => {
   } = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -137,24 +139,32 @@ const ItemList = props => {
     //     closeOptionsBottomSheet();
     //   },
     // },
-    {
-      label: 'Edit',
-      icon: 'pencil-outline',
-      handler: () => {
-        navigation.navigate(routes.editItem(), {item_id: focusedItem.id});
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        showDeleteDialog();
-        closeOptionsBottomSheet();
-      },
-    },
+    ...(can('items.edit')
+      ? [
+          {
+            label: 'Edit',
+            icon: 'pencil-outline',
+            handler: () => {
+              navigation.navigate(routes.editItem(), {item_id: focusedItem.id});
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
+    ...(can('items.delete')
+      ? [
+          {
+            label: 'Delete',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              showDeleteDialog();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
   ];
 
   useEffect(() => {

@@ -36,6 +36,7 @@ import {getBatchPurchaseEntriesCount} from '../localDbQueries/batchPurchase';
 import {getBatchStockUsageEntriesCount} from '../localDbQueries/batchStockUsage';
 import {getBatchTransferUnreadCount} from '../localDbQueries/batchTransfer';
 import useCurrentUser from '../hooks/useCurrentUser';
+import useRoleAccess from '../hooks/useRoleAccess';
 import {getLicenseStatus} from '../localDbQueries/license';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
@@ -49,12 +50,12 @@ const Home = props => {
   const isFocused = useIsFocused();
   const {colors} = useTheme();
   const [
-    {authUser},
+    {},
     {signOut},
     {expiredAuthTokenDialogVisible},
     {},
   ] = useCurrentUser();
-  const userRoleConfig = authUser?.role_config;
+  const {can} = useRoleAccess();
   const {isLandscapeMode, width} = useWindowProperties();
   const {
     status: batchPurchaseEntriesCountStatus,
@@ -508,13 +509,19 @@ const Home = props => {
     ),
   };
 
+  // Highlighted batch buttons map onto granular permission keys. (The transfer
+  // button uses the `transfer.*` key family, so its module key is `transfer`.)
+  const highlightedButtonPermission = {
+    batchPurchase: 'batchPurchase',
+    batchTransfer: 'transfer',
+    endingInventory: 'endingInventory',
+  };
+
   const renderHighlightedFirstRowButtons = () => {
     let jsxArrayOfButtons = [];
 
     for (let rowButton of highlightedFirstRowButtons) {
-      if (authUser.is_root_account) {
-        jsxArrayOfButtons.push(jsxButtons[rowButton]);
-      } else if (userRoleConfig?.enable?.[0] === '*') {
+      if (can(highlightedButtonPermission[rowButton] || rowButton)) {
         jsxArrayOfButtons.push(jsxButtons[rowButton]);
       }
     }
@@ -541,27 +548,9 @@ const Home = props => {
   const renderMainButtons = () => {
     let numberOfRows = 0;
 
-    const enabledButtons = allMainButtons.filter(mainButton => {
-      if (authUser.is_root_account) {
-        return true;
-      } else if (userRoleConfig?.enable?.[0] === '*') {
-        // disable overrides enabled behavior
-        if (userRoleConfig?.disable?.includes(mainButton)) {
-          return false;
-        } else {
-          return true;
-        }
-      } else if (userRoleConfig?.enable?.includes(mainButton)) {
-        // disable overrides enabled behavior
-        if (userRoleConfig?.disable?.includes(mainButton)) {
-          return false;
-        } else {
-          return true;
-        }
-      } else {
-        return false;
-      }
-    });
+    const enabledButtons = allMainButtons.filter(mainButton =>
+      can(mainButton),
+    );
 
     let mainButtonsToSplice = [...allMainButtons];
 

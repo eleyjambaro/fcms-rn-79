@@ -12,6 +12,7 @@ import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadin
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import routes from '../../constants/routes';
+import PermissionGate from '../permissions/PermissionGate';
 
 const RecipeSummary = props => {
   const {recipe, containerStyle, onPressItemOptions} = props;
@@ -225,18 +226,20 @@ const RecipeSummary = props => {
 
       {renderRecipeDetails()}
 
-      <View style={[styles.actionsContainer, {flexDirection: 'row'}]}>
-        <Button
-          style={{flex: 1}}
-          mode="contained"
-          onPress={() => {
-            navigation.navigate(routes.produceFinishedProductStock(), {
-              recipe_id: recipe.id,
-            });
-          }}>
-          Yield Now
-        </Button>
-      </View>
+      <PermissionGate permission="recipes.yield">
+        <View style={[styles.actionsContainer, {flexDirection: 'row'}]}>
+          <Button
+            style={{flex: 1}}
+            mode="contained"
+            onPress={() => {
+              navigation.navigate(routes.produceFinishedProductStock(), {
+                recipe_id: recipe.id,
+              });
+            }}>
+            Yield Now
+          </Button>
+        </View>
+      </PermissionGate>
     </View>
   );
 };

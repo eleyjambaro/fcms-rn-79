@@ -17,7 +17,7 @@ import StockUsageEntryList from '../screens/StockUsageEntryList';
 import HomeHeader from '../components/headers/HomeHeader';
 import Settings from '../screens/Settings';
 import CompanyIcon from '../components/icons/CompanyIcon';
-import useCurrentUser from '../hooks/useCurrentUser';
+import useRoleAccess from '../hooks/useRoleAccess';
 import UnauthorizedAccount from '../screens/UnauthorizedAccount';
 
 const Tab = createBottomTabNavigator();
@@ -35,60 +35,25 @@ const MemoizedUnauthorizedAccount = React.memo(UnauthorizedAccount);
 const MainTab = React.memo(function MainTab(props) {
   const {navigation} = props;
   const {colors} = useTheme();
-  const [{authUser}] = useCurrentUser();
-  const userRoleConfig = authUser?.role_config;
+  const {tabState} = useRoleAccess();
   const tabBarBadgeStyle = {fontSize: 10, top: -8};
 
   const renderReportsTabScreen = () => {
-    const enabledModule = 'reports';
-    let component = MemoizedReports;
+    const state = tabState('reports');
+    if (state === 'hidden') return null;
 
-    if (authUser.is_root_account) {
-      // remain to default values
-    } else if (userRoleConfig?.enable?.[0] === '*') {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        component = MemoizedUnauthorizedAccount;
-      } else {
-        // remain to default values
-      }
-    } else if (userRoleConfig?.enable?.includes(enabledModule)) {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        component = MemoizedUnauthorizedAccount;
-      } else {
-        // remain to default values
-      }
-    } else {
-      return null;
-    }
+    const component =
+      state === 'unauthorized' ? MemoizedUnauthorizedAccount : MemoizedReports;
 
     return <Tab.Screen name={routes.reports()} component={component} />;
   };
 
   const renderSettingsTabScreen = () => {
-    const enabledModule = 'settings';
-    let component = MemoizedSettings;
+    const state = tabState('settings');
+    if (state === 'hidden') return null;
 
-    if (authUser.is_root_account) {
-      // remain to default values
-    } else if (userRoleConfig?.enable?.[0] === '*') {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        component = MemoizedUnauthorizedAccount;
-      } else {
-        // remain to default values
-      }
-    } else if (userRoleConfig?.enable?.includes(enabledModule)) {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        component = MemoizedUnauthorizedAccount;
-      } else {
-        // remain to default values
-      }
-    } else {
-      return null;
-    }
+    const component =
+      state === 'unauthorized' ? MemoizedUnauthorizedAccount : MemoizedSettings;
 
     return <Tab.Screen name={routes.settings()} component={component} />;
   };

@@ -25,6 +25,8 @@ import AddedIngredientList from '../components/recipes/AddedIngredientList';
 import FinishedProductForm from '../components/forms/FinishedProductForm';
 import TestModeLimitModal from '../components/modals/TestModeLimitModal';
 import {registerItem} from '../localDbQueries/items';
+import useRoleAccess from '../hooks/useRoleAccess';
+import UnauthorizedAccount from '../screens/UnauthorizedAccount';
 
 const ProduceFinishedProductStock = props => {
   const {backAction} = props;
@@ -48,6 +50,7 @@ const ProduceFinishedProductStock = props => {
     },
   );
   const navigation = useNavigation();
+  const {can} = useRoleAccess();
   const queryClient = useQueryClient();
   const registerItemMutation = useMutation(registerItem, {
     onSuccess: () => {
@@ -105,6 +108,10 @@ const ProduceFinishedProductStock = props => {
   }
 
   if (!recipeId) return null;
+
+  if (!can('recipes.yield')) {
+    return <UnauthorizedAccount />;
+  }
 
   const recipe = data.result;
 

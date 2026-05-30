@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useMemo} from 'react';
 import {View, FlatList, StyleSheet} from 'react-native';
 import {
   Button,
@@ -26,27 +26,13 @@ import {
   updateCloudRole,
   deleteCloudRole,
 } from '../serverDbQueries/v2/roles';
+import RolePermissionEditor from '../components/roles/RolePermissionEditor';
+import {serializeRoleConfig} from '../permissions/serializeRoleConfig';
 
-const defaultRoleConfig = JSON.stringify(
-  {enable: ['*'], disable: []},
-  null,
-  2,
-);
+const DEFAULT_ROLE_CONFIG = {enable: ['*'], disable: []};
 
 const schema = Yup.object({
   name: Yup.string().required('Role name is required'),
-  role_config_json: Yup.string()
-    .required('Role config is required')
-    .test('valid-json', 'Must be valid JSON with "enable" and "disable" arrays', value => {
-      try {
-        const parsed = JSON.parse(value);
-        return (
-          Array.isArray(parsed.enable) && Array.isArray(parsed.disable)
-        );
-      } catch {
-        return false;
-      }
-    }),
 });
 
 const CloudRoles = () => {
@@ -57,6 +43,21 @@ const CloudRoles = () => {
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [focusedRole, setFocusedRole] = useState(null);
   const [serverError, setServerError] = useState('');
+  // Latest set of checked permission keys reported by the editor, and a seed
+  // that forces the editor to re-initialize each time the modal is opened.
+  const [checkedSet, setCheckedSet] = useState(new Set());
+  const [editorSeed, setEditorSeed] = useState(0);
+
+  const originalConfig = useMemo(() => {
+    if (focusedRole) {
+      try {
+        return JSON.parse(focusedRole.role_config_json);
+      } catch {
+        return DEFAULT_ROLE_CONFIG;
+      }
+    }
+    return DEFAULT_ROLE_CONFIG;
+  }, [focusedRole]);
 
   const {data, status, refetch, isRefetching} = useQuery(
     ['cloudRoles'],
@@ -80,22 +81,30 @@ const CloudRoles = () => {
   const openCreateModal = () => {
     setFocusedRole(null);
     setServerError('');
+    setEditorSeed(seed => seed + 1);
     setFormModalVisible(true);
   };
 
   const openEditModal = role => {
     setFocusedRole(role);
     setServerError('');
+    setEditorSeed(seed => seed + 1);
     setFormModalVisible(true);
   };
 
   const handleFormSubmit = async (values, actions) => {
     setServerError('');
+    const payload = {
+      name: values.name,
+      role_config_json: JSON.stringify(
+        serializeRoleConfig(checkedSet, originalConfig),
+      ),
+    };
     try {
       if (focusedRole) {
-        await updateMutation.mutateAsync({id: focusedRole.id, ...values});
+        await updateMutation.mutateAsync({id: focusedRole.id, ...payload});
       } else {
-        await createMutation.mutateAsync(values);
+        await createMutation.mutateAsync(payload);
       }
       setFormModalVisible(false);
     } catch (error) {
@@ -198,13 +207,6 @@ const CloudRoles = () => {
             <Formik
               initialValues={{
                 name: focusedRole?.name ?? '',
-                role_config_json: focusedRole
-                  ? JSON.stringify(
-                      JSON.parse(focusedRole.role_config_json),
-                      null,
-                      2,
-                    )
-                  : defaultRoleConfig,
               }}
               validationSchema={schema}
               onSubmit={handleFormSubmit}
@@ -232,29 +234,12 @@ const CloudRoles = () => {
                     <HelperText type="error">{errors.name}</HelperText>
                   ) : null}
 
-                  <TextInput
-                    label="Role Config JSON"
-                    value={values.role_config_json}
-                    onChangeText={handleChange('role_config_json')}
-                    onBlur={handleBlur('role_config_json')}
-                    mode="outlined"
-                    multiline
-                    numberOfLines={8}
-                    error={touched.role_config_json && !!errors.role_config_json}
-                    style={[styles.input, styles.jsonInput]}
+                  <Text style={styles.sectionLabel}>Permissions</Text>
+                  <RolePermissionEditor
+                    key={`${focusedRole?.id ?? 'new'}-${editorSeed}`}
+                    initialConfig={originalConfig}
+                    onChange={setCheckedSet}
                   />
-                  {touched.role_config_json && errors.role_config_json ? (
-                    <HelperText type="error">
-                      {errors.role_config_json}
-                    </HelperText>
-                  ) : null}
-
-                  <HelperText style={styles.hint}>
-                    {`Example: {"enable":["*"],"disable":["revenues","reports"]}`}
-                  </HelperText>
-                  <HelperText style={styles.hint}>
-                    {`Batch Transfer keys: transfer.create, transfer.review, transfer.transfer_out, transfer.receive`}
-                  </HelperText>
 
                   {serverError ? (
                     <HelperText type="error">{serverError}</HelperText>
@@ -352,9 +337,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   modal: {
-    margin: 20,
     padding: 20,
-    borderRadius: 8,
     maxHeight: '90%',
   },
   modalTitle: {
@@ -364,12 +347,10 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: 4,
   },
-  jsonInput: {
-    fontFamily: 'monospace',
-  },
-  hint: {
-    fontSize: 11,
-    marginBottom: 8,
+  sectionLabel: {
+    marginTop: 12,
+    marginBottom: 4,
+    fontWeight: 'bold',
   },
   saveButton: {
     marginTop: 12,

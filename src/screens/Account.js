@@ -44,6 +44,7 @@ import * as DocumentPicker from '@react-native-documents/picker';
 import RNFetchBlob from 'rn-fetch-blob';
 
 import useCurrentUser from '../hooks/useCurrentUser';
+import useRoleAccess from '../hooks/useRoleAccess';
 import routes from '../constants/routes';
 import {manualDataRecovery} from '../constants/dataRecovery';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
@@ -93,7 +94,7 @@ const Account = props => {
     r => r.id === authUser?.role_id,
   )?.name;
 
-  const userRoleConfig = authUser?.role_config;
+  const {can} = useRoleAccess();
   const androidVersion = Platform.constants['Release'];
   const sdkVersion = Platform.Version;
 
@@ -1132,27 +1133,7 @@ const Account = props => {
       </Drawer.Section>
     );
 
-    const enabledModule = 'dataSyncAndBackup';
-
-    if (authUser.is_root_account) {
-      // remain to default values
-    } else if (userRoleConfig?.enable?.[0] === '*') {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        return null;
-      } else {
-        // remain to default values
-      }
-    } else if (userRoleConfig?.enable?.includes(enabledModule)) {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        return null;
-      } else {
-        // remain to default values
-      }
-    } else {
-      return null;
-    }
+    if (!can('dataSyncAndBackup')) return null;
 
     return Component;
   };
@@ -1178,55 +1159,14 @@ const Account = props => {
       </Drawer.Section>
     );
 
-    const enabledModule = 'inventoryDataTemplate';
-
-    if (authUser.is_root_account) {
-      // remain to default values
-    } else if (userRoleConfig?.enable?.[0] === '*') {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        return null;
-      } else {
-        // remain to default values
-      }
-    } else if (userRoleConfig?.enable?.includes(enabledModule)) {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        return null;
-      } else {
-        // remain to default values
-      }
-    } else {
-      return null;
-    }
+    if (!can('inventoryDataTemplate')) return null;
 
     return Component;
   };
 
   const renderUsersSection = () => {
-    let Component = (
-      <Drawer.Section title="Security & Privacy">
-        <Drawer.Item
-          icon="account-supervisor-outline"
-          label="Manage Team Members"
-          onPress={() => {
-            navigation.navigate(routes.localUserAccounts());
-          }}
-        />
-        <Drawer.Item
-          icon="shield-account-outline"
-          label="Manage Roles"
-          onPress={() => {
-            navigation.navigate(routes.cloudRoles());
-          }}
-        />
-      </Drawer.Section>
-    );
-
-    const enabledModule = 'userManagement';
-
     if (authUser.is_root_account) {
-      Component = (
+      return (
         <Drawer.Section title="Security & Privacy">
           <Drawer.Item
             icon="account-supervisor-outline"
@@ -1258,25 +1198,28 @@ const Account = props => {
           />
         </Drawer.Section>
       );
-    } else if (userRoleConfig?.enable?.[0] === '*') {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        return null;
-      } else {
-        // remain to default values
-      }
-    } else if (userRoleConfig?.enable?.includes(enabledModule)) {
-      // disable overrides enabled behavior
-      if (userRoleConfig?.disable?.includes(enabledModule)) {
-        return null;
-      } else {
-        // remain to default values
-      }
-    } else {
-      return null;
     }
 
-    return Component;
+    if (!can('userManagement')) return null;
+
+    return (
+      <Drawer.Section title="Security & Privacy">
+        <Drawer.Item
+          icon="account-supervisor-outline"
+          label="Manage Team Members"
+          onPress={() => {
+            navigation.navigate(routes.localUserAccounts());
+          }}
+        />
+        <Drawer.Item
+          icon="shield-account-outline"
+          label="Manage Roles"
+          onPress={() => {
+            navigation.navigate(routes.cloudRoles());
+          }}
+        />
+      </Drawer.Section>
+    );
   };
 
   const renderEditCompanyProfileButton = () => {

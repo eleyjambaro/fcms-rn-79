@@ -6,6 +6,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import routes from '../constants/routes';
 import ItemList from '../components/items/ItemList';
 import useSearchbarContext from '../hooks/useSearchbarContext';
+import PermissionGate from '../components/permissions/PermissionGate';
 
 const Items = props => {
   const {
@@ -80,15 +81,17 @@ const Items = props => {
         />
       </View>
 
-      <View
-        style={{
-          backgroundColor: 'white',
-          padding: 10,
-        }}>
-        <Button mode="contained" icon="plus" onPress={handlePressCreateNew}>
-          Register Item
-        </Button>
-      </View>
+      <PermissionGate permission="items.create">
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 10,
+          }}>
+          <Button mode="contained" icon="plus" onPress={handlePressCreateNew}>
+            Register Item
+          </Button>
+        </View>
+      </PermissionGate>
     </View>
   );
 };
