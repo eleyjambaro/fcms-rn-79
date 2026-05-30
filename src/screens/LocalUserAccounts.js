@@ -15,8 +15,11 @@ import LocalUserAccountForm from '../components/forms/LocalUserAccountForm';
 import useSearchbarContext from '../hooks/useSearchbarContext';
 import {ScrollView} from 'react-native-gesture-handler';
 import {createCloudSubAccount} from '../serverDbQueries/v2/accounts';
+import {createCloudBranchAccountAssignment} from '../serverDbQueries/v2/branchAccountAssignments';
+import {createCloudDeviceAccountAssignment} from '../serverDbQueries/v2/deviceAccountAssignments';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
 import useCurrentUser from '../hooks/useCurrentUser';
+import useCloudAuthContext from '../hooks/useCloudAuthContext';
 
 function LocalUserAccounts(props) {
   const {navigation, viewMode} = props;
@@ -27,6 +30,9 @@ function LocalUserAccounts(props) {
   const {colors} = useTheme();
   const [authState] = useCurrentUser();
   const authUser = authState?.authUser;
+  const [cloudAuthState] = useCloudAuthContext();
+  const currentBranchId = cloudAuthState?.designatedBranch?.id ?? null;
+  const currentDeviceId = cloudAuthState?.deviceId ?? null;
   const queryClient = useQueryClient();
   const createLocalUserAccountMutation = useMutation(createCloudSubAccount, {
     onSuccess: () => {
@@ -54,13 +60,47 @@ function LocalUserAccounts(props) {
   };
 
   const handleSubmit = async (values, actions) => {
+    const {branch_ids = [], device_ids = [], ...accountValues} = values;
+
+    let newAccount;
     try {
-      await createLocalUserAccountMutation.mutateAsync(values);
+      const response = await createLocalUserAccountMutation.mutateAsync(
+        accountValues,
+      );
+      newAccount = response?.data;
     } catch (error) {
       const msg =
         error?.response?.data?.message || 'Failed to create user account.';
       setErrorMessage(() => msg);
       return;
+    }
+
+    // Grant the selected branch and device access to the newly created user.
+    // The account already exists at this point, so on failure we surface the
+    // message and still close — the admin can adjust access from the account
+    // options afterwards.
+    try {
+      if (newAccount?.id) {
+        await Promise.all([
+          ...branch_ids.map(branch_id =>
+            createCloudBranchAccountAssignment({
+              branch_id,
+              account_id: newAccount.id,
+            }),
+          ),
+          ...device_ids.map(device_id =>
+            createCloudDeviceAccountAssignment({
+              device_id,
+              account_id: newAccount.id,
+            }),
+          ),
+        ]);
+      }
+    } catch (error) {
+      const msg =
+        error?.response?.data?.message ||
+        'User created, but assigning some branch or device access failed. You can adjust it from the account options.';
+      setErrorMessage(() => msg);
     }
 
     actions.resetForm();
@@ -80,6 +120,8 @@ function LocalUserAccounts(props) {
           <ScrollView showsVerticalScrollIndicator={false}>
             <LocalUserAccountForm
               authUser={authUser}
+              currentBranchId={currentBranchId}
+              currentDeviceId={currentDeviceId}
               onSubmit={handleSubmit}
               onCancel={handleCancel}
             />

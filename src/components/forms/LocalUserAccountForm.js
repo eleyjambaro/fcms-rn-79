@@ -6,6 +6,7 @@ import {
   Text,
   useTheme,
   HelperText,
+  Divider,
 } from 'react-native-paper';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
@@ -14,7 +15,10 @@ import {useQuery} from '@tanstack/react-query';
 
 import TextInputLabel from './TextInputLabel';
 import FormRequiredFieldHelperText from './FormRequiredFieldsHelperText';
+import AccessCheckboxList from './AccessCheckboxList';
 import {getCloudRoles} from '../../serverDbQueries/v2/roles';
+import {getBranches} from '../../serverDbQueries/v2/branches';
+import {getCloudDevices} from '../../serverDbQueries/v2/devices';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
 
@@ -37,6 +41,8 @@ const LocalUserAccountForm = props => {
     editMode = false,
     authUser,
     userAccountUID,
+    currentBranchId = null,
+    currentDeviceId = null,
     initialValues = {
       first_name: '',
       last_name: '',
@@ -54,6 +60,19 @@ const LocalUserAccountForm = props => {
   const {status: getRolesStatus, data: getRolesData} = useQuery(
     ['cloudRoles'],
     getCloudRoles,
+  );
+  // Branch / device access is only granted while creating a user. In edit mode
+  // it is managed through the dedicated Manage Branch/Device Access modals, so
+  // skip these fetches entirely.
+  const {status: getBranchesStatus, data: getBranchesData} = useQuery(
+    ['cloudBranches'],
+    getBranches,
+    {enabled: !editMode},
+  );
+  const {status: getDevicesStatus, data: getDevicesData} = useQuery(
+    ['cloudDevices'],
+    getCloudDevices,
+    {enabled: !editMode},
   );
   const [roleId, setRoleId] = useState(initialValues.role_id);
 
@@ -116,6 +135,9 @@ const LocalUserAccountForm = props => {
     };
   });
 
+  const branches = getBranchesData?.data ?? [];
+  const devices = getDevicesData?.data ?? [];
+
   return (
     <Formik
       initialValues={{
@@ -125,6 +147,14 @@ const LocalUserAccountForm = props => {
         email: initialValues.email || '',
         password: initialValues.password || '',
         role_id: initialValues.role_id || '',
+        // Default the new user's access to the branch and device currently in
+        // use so creating a user "just works" on this device/branch.
+        branch_ids:
+          initialValues.branch_ids ||
+          (currentBranchId ? [currentBranchId] : []),
+        device_ids:
+          initialValues.device_ids ||
+          (currentDeviceId ? [currentDeviceId] : []),
       }}
       validationSchema={LocalUserAccountValidationSchema}
       onSubmit={onSubmit}>
@@ -133,6 +163,7 @@ const LocalUserAccountForm = props => {
           handleChange,
           handleBlur,
           handleSubmit,
+          setFieldValue,
           values,
           errors,
           touched,
@@ -140,6 +171,16 @@ const LocalUserAccountForm = props => {
           isSubmitting,
           isValid,
         } = props;
+
+        const toggleSelected = (field, id) => {
+          const current = values[field] || [];
+          setFieldValue(
+            field,
+            current.includes(id)
+              ? current.filter(existingId => existingId !== id)
+              : [...current, id],
+          );
+        };
 
         return (
           <>
@@ -230,6 +271,47 @@ const LocalUserAccountForm = props => {
                 isDisabled() ? {color: colors.disabled} : {}
               }
             />
+            {!editMode && (
+              <>
+                <Divider style={styles.sectionDivider} />
+                <Text style={[styles.sectionTitle, {color: colors.dark}]}>
+                  Manage Branch Access
+                </Text>
+                <HelperText style={styles.sectionHint}>
+                  {
+                    'Select the branches this user can access. The current branch is checked by default.'
+                  }
+                </HelperText>
+                <AccessCheckboxList
+                  items={branches}
+                  isLoading={getBranchesStatus === 'loading'}
+                  selectedIds={values.branch_ids}
+                  onToggle={id => toggleSelected('branch_ids', id)}
+                  currentId={currentBranchId}
+                  currentLabel="Current branch"
+                  emptyText="No branches found."
+                />
+
+                <Divider style={styles.sectionDivider} />
+                <Text style={[styles.sectionTitle, {color: colors.dark}]}>
+                  Manage Device Access
+                </Text>
+                <HelperText style={styles.sectionHint}>
+                  {
+                    'Select the devices this user can sign in on. The current device is checked by default.'
+                  }
+                </HelperText>
+                <AccessCheckboxList
+                  items={devices}
+                  isLoading={getDevicesStatus === 'loading'}
+                  selectedIds={values.device_ids}
+                  onToggle={id => toggleSelected('device_ids', id)}
+                  currentId={currentDeviceId}
+                  currentLabel="This device"
+                  emptyText="No registered devices found."
+                />
+              </>
+            )}
             <Button
               mode="contained"
               onPress={handleSubmit}
@@ -248,6 +330,19 @@ const LocalUserAccountForm = props => {
   );
 };
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  sectionDivider: {
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  sectionHint: {
+    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+});
 
 export default LocalUserAccountForm;
