@@ -18,6 +18,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
+import {CommonActions} from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import routes from '../constants/routes';
@@ -36,6 +37,7 @@ import {
   updateEntrySourceAdjustment,
   markBatchTransferViewed,
   removeBatchTransferEntry,
+  updateDraftBatchTransferEntry,
   resolveMissingSourceItemIdsForGroup,
 } from '../localDbQueries/batchTransfer';
 import TransferStatusBadge from '../components/batchTransfer/TransferStatusBadge';
@@ -280,7 +282,27 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     ToastAndroid.show(err?.message || 'Action failed.', ToastAndroid.LONG);
 
   const submitMut = useMutation(submitBatchTransferRequest, {
-    onSuccess: invalidateAll,
+    onSuccess: () => {
+      invalidateAll();
+      // The draft-creation flow stacks ItemSelection ("Select Items to
+      // Transfer") below this Detail screen. Once the request is submitted that
+      // screen is stale, so drop it from the stack — the back gesture should
+      // return to the Batch Transfer Requests list, not the item picker.
+      const navState = navigation.getState();
+      const itemSelectionName = routes.batchTransferItemSelection();
+      const filtered = navState.routes.filter(
+        r => r.name !== itemSelectionName,
+      );
+      if (filtered.length !== navState.routes.length) {
+        navigation.dispatch(
+          CommonActions.reset({
+            ...navState,
+            routes: filtered,
+            index: filtered.length - 1,
+          }),
+        );
+      }
+    },
     onError: handleErr,
   });
   const cancelDraftMut = useMutation(cancelDraftBatchTransfer, {
@@ -326,6 +348,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
   });
   const removeEntryMut = useMutation(removeBatchTransferEntry, {
     onSuccess: invalidateAll,
+    onError: handleErr,
+  });
+  const draftEntryMut = useMutation(updateDraftBatchTransferEntry, {
+    onSuccess: () => {
+      invalidateAll();
+      setEditEntry(null);
+    },
     onError: handleErr,
   });
 
@@ -381,6 +410,17 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             : String(parseFloat(entry.accepted_qty || 0)),
         remarks: entry.source_remarks || '',
       });
+    } else if (group.status === STATUS.DRAFT && isInitiator) {
+      // Initiator's remark lives in source_remarks (Out) or dest_remarks (In).
+      const draftRemarksCol =
+        directionForCurrent === 'in' ? 'dest_remarks' : 'source_remarks';
+      setEditValues({
+        qty:
+          entry.requested_qty != null
+            ? String(parseFloat(entry.requested_qty))
+            : '',
+        remarks: entry[draftRemarksCol] || '',
+      });
     } else {
       setEditValues({qty: '', remarks: ''});
     }
@@ -402,6 +442,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
         entryId: editEntry.id,
         adjustedQty: editValues.qty,
         sourceRemarks: editValues.remarks || null,
+      });
+    } else if (group.status === STATUS.DRAFT && isInitiator) {
+      draftEntryMut.mutate({
+        entryId: editEntry.id,
+        qty: editValues.qty,
+        remarks: editValues.remarks || null,
+        direction: directionForCurrent,
       });
     }
   };
@@ -878,7 +925,11 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             <Button
               mode="contained"
               onPress={saveEditor}
-              loading={destReviewMut.isLoading || sourceAdjustMut.isLoading}>
+              loading={
+                destReviewMut.isLoading ||
+                sourceAdjustMut.isLoading ||
+                draftEntryMut.isLoading
+              }>
               Save
             </Button>
           </Dialog.Actions>

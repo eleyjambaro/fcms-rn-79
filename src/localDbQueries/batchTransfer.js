@@ -327,6 +327,50 @@ export const removeBatchTransferEntry = async ({entryId}) => {
   scheduleSyncSoon();
 };
 
+// Edit a still-draft entry's requested qty and the initiator's remark before
+// the request is submitted. The initiator's remark lives in source_remarks for
+// an Out-mode request (initiator = source) and dest_remarks for an In-mode
+// request (initiator = dest). A qty of 0 (or blank) soft-deletes the entry,
+// mirroring createBatchTransferEntry's "no qty removes the line" behavior.
+export const updateDraftBatchTransferEntry = async ({
+  entryId,
+  qty,
+  remarks = null,
+  direction = 'out',
+}) => {
+  if (!entryId) throw new Error('entryId is required');
+  const db = await getDBConnection();
+  const row = firstRow(
+    await db.executeSql(
+      `SELECT batch_transfer_group_id FROM batch_transfer_entries
+       WHERE id = ${sqlStr(entryId)}`,
+    ),
+  );
+  const remarksCol = direction === 'in' ? 'dest_remarks' : 'source_remarks';
+  const parsedQty = parseFloat(qty);
+  const hasQty = Number.isFinite(parsedQty) && parsedQty > 0;
+
+  if (!hasQty) {
+    await db.executeSql(
+      `UPDATE batch_transfer_entries
+         SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ${sqlStr(entryId)}`,
+    );
+  } else {
+    await db.executeSql(
+      `UPDATE batch_transfer_entries
+         SET requested_qty = ${parsedQty},
+             ${remarksCol} = ${sqlStr(remarks)},
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ${sqlStr(entryId)}`,
+    );
+  }
+  if (row?.batch_transfer_group_id) {
+    await touchGroupUpdatedAt(db, row.batch_transfer_group_id);
+  }
+  scheduleSyncSoon();
+};
+
 export const submitBatchTransferRequest = async ({groupId}) => {
   const db = await getDBConnection();
   await assertGroupStatus(db, groupId, [STATUS.DRAFT]);
