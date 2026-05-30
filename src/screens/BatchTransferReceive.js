@@ -23,6 +23,7 @@ import {
   confirmTransferReceived,
   updateEntryReceivedQty,
 } from '../localDbQueries/batchTransfer';
+import {formatTransferUOMAbbrev} from '../utils/stringHelpers';
 
 const BatchTransferReceive = ({navigation, route}) => {
   const {colors} = useTheme();
@@ -149,11 +150,13 @@ const BatchTransferReceive = ({navigation, route}) => {
               <Text style={styles.meta}>
                 Source agreed:{' '}
                 {parseFloat(entry.adjusted_qty ?? entry.accepted_qty ?? 0)}{' '}
-                {entry.item_uom_abbrev || ''}
+                {formatTransferUOMAbbrev(entry.item_uom_abbrev)}
               </Text>
             </View>
             <TextInput
-              label={`Received (${entry.item_uom_abbrev || ''})`}
+              label={`Received (${formatTransferUOMAbbrev(
+                entry.item_uom_abbrev,
+              )})`}
               value={localQty[entry.id] ?? ''}
               onChangeText={v =>
                 setLocalQty(s => ({...s, [entry.id]: v}))

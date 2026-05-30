@@ -28,6 +28,7 @@ import {
   createBatchTransferEntry,
 } from '../localDbQueries/batchTransfer';
 import useSearchbarContext from '../hooks/useSearchbarContext';
+import {formatTransferUOMAbbrev} from '../utils/stringHelpers';
 
 const ItemRow = ({item, currentQty, onPress}) => {
   const {colors} = useTheme();
@@ -47,13 +48,13 @@ const ItemRow = ({item, currentQty, onPress}) => {
         <Text style={styles.itemMeta} numberOfLines={1}>
           {item.sku ? `SKU ${item.sku} • ` : ''}
           Stock: {Number(item.current_stock_qty || 0).toFixed(2)}{' '}
-          {item.uom_abbrev || ''}
+          {formatTransferUOMAbbrev(item.uom_abbrev)}
         </Text>
       </View>
       <View style={styles.rowRight}>
         {hasQty ? (
           <Text style={styles.qtyBadge}>
-            {parseFloat(currentQty)} {item.uom_abbrev || ''}
+            {parseFloat(currentQty)} {formatTransferUOMAbbrev(item.uom_abbrev)}
           </Text>
         ) : (
           <MaterialCommunityIcons
@@ -243,10 +244,12 @@ const BatchTransferItemSelection = ({navigation, route}) => {
             <Text style={{marginBottom: 8, opacity: 0.7}}>
               Current stock:{' '}
               {Number(editing?.current_stock_qty || 0).toFixed(2)}{' '}
-              {editing?.uom_abbrev || ''}
+              {formatTransferUOMAbbrev(editing?.uom_abbrev)}
             </Text>
             <TextInput
-              label={`Transfer qty (${editing?.uom_abbrev || ''})`}
+              label={`Transfer qty (${formatTransferUOMAbbrev(
+                editing?.uom_abbrev,
+              )})`}
               value={qtyText}
               onChangeText={setQtyText}
               keyboardType="decimal-pad"

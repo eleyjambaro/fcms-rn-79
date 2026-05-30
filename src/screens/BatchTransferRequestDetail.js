@@ -41,6 +41,7 @@ import {
   resolveMissingSourceItemIdsForGroup,
 } from '../localDbQueries/batchTransfer';
 import TransferStatusBadge from '../components/batchTransfer/TransferStatusBadge';
+import {formatTransferUOMAbbrev} from '../utils/stringHelpers';
 
 const OUT_BADGE_COLOR = '#E53935';
 const IN_BADGE_COLOR = '#1E88E5';
@@ -72,12 +73,8 @@ const formatDate = raw => {
   }
 };
 
-/** Display UOM in uppercase; 'ea' gets a friendly alias. */
-const formatUOM = uom => {
-  if (!uom) return '';
-  if (uom.toLowerCase() === 'ea') return 'ea (pc)';
-  return uom.toUpperCase();
-};
+// Batch Transfer UOM display rule lives in stringHelpers (single source).
+const formatUOM = formatTransferUOMAbbrev;
 
 const EntryRow = ({
   entry,

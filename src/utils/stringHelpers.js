@@ -48,6 +48,20 @@ export const formatUOMAbbrev = (
   return formattedUOMAbbrev;
 };
 
+/**
+ * Batch Transfer UOM display rule (single source of truth).
+ *
+ * Every UOM abbreviation shown on a Batch Transfer screen must be uppercased,
+ * except "ea" (Each) which renders as "ea (pc)" — users recognize "pc" (piece)
+ * more readily than "EA". Use this on ALL Batch Transfer screens whenever a UOM
+ * abbreviation is displayed (item rows, qty badges, input labels, etc.).
+ */
+export const formatTransferUOMAbbrev = uomAbbrev => {
+  if (!uomAbbrev) return '';
+  if (String(uomAbbrev).toLowerCase() === 'ea') return 'ea (pc)';
+  return String(uomAbbrev).toUpperCase();
+};
+
 export const formatUOM = (
   uomAbbrev,
   nounForm = 'singular',

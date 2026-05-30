@@ -163,6 +163,10 @@ Why avg, not the static `unit_cost`: `unit_cost` is the configured/initial price
 
 The snapshot is captured once at entry creation in `createBatchTransferEntry` and then flows into the destination's `inventory_logs.adjustment_unit_cost` (`confirmTransferReceived`), the source's `inventory_logs.adjustment_unit_cost` (`materializeReceivedTransferLogs`), and any auto-created destination item's `unit_cost` (`autoCreateLocalItemForTransfer`). All three downstream sites already read from `entry.unit_cost_snapshot`, so the rule only needs to be enforced at the capture site.
 
+#### UOM abbreviation display (all Batch Transfer screens)
+
+Every UOM abbreviation rendered on a Batch Transfer screen — item rows, qty badges, input labels, dialog text — must be displayed **uppercase**, with one exception: `"ea"` (Each) renders as **`"ea (pc)"`** because users recognize "pc" (piece) more readily than "EA". Use the single helper `formatTransferUOMAbbrev(uomAbbrev)` from `/src/utils/stringHelpers.js` — never render a raw `uom_abbrev`/`item_uom_abbrev` string directly on these screens. (Note: this is distinct from the generic `formatUOMAbbrev`, which maps `"ea"` to `"PC"`; Batch Transfer intentionally keeps the `"ea (pc)"` form.)
+
 ### Inventory Data Template (IDT) Import/Export
 
 The IDT is the Excel file users download to bulk-import inventory items. The full developer guide is in [`README.md`](README.md#inventory-data-template-idt); the rules below are load-bearing — every violation in the past silently mis-mapped column values into the wrong DB fields.
