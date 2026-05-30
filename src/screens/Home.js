@@ -32,6 +32,7 @@ import FeatherIcons from 'react-native-vector-icons/Feather';
 
 import routes from '../constants/routes';
 import {env} from '../constants/appConfig';
+import {TRANSFER_PERMISSIONS} from '../constants/transferPermissions';
 import {getBatchPurchaseEntriesCount} from '../localDbQueries/batchPurchase';
 import {getBatchStockUsageEntriesCount} from '../localDbQueries/batchStockUsage';
 import {getBatchTransferUnreadCount} from '../localDbQueries/batchTransfer';
@@ -49,12 +50,7 @@ const Home = props => {
   const {navigation} = props;
   const isFocused = useIsFocused();
   const {colors} = useTheme();
-  const [
-    {},
-    {signOut},
-    {expiredAuthTokenDialogVisible},
-    {},
-  ] = useCurrentUser();
+  const [{}, {signOut}, {expiredAuthTokenDialogVisible}, {}] = useCurrentUser();
   const {can} = useRoleAccess();
   const {isLandscapeMode, width} = useWindowProperties();
   const {
@@ -71,9 +67,7 @@ const Home = props => {
     ['batchStockUsageEntriesCount', {}],
     getBatchStockUsageEntriesCount,
   );
-  const {
-    data: batchTransferUnreadCountData,
-  } = useQuery(
+  const {data: batchTransferUnreadCountData} = useQuery(
     ['batchTransferUnreadCount'],
     getBatchTransferUnreadCount,
   );
@@ -82,7 +76,6 @@ const Home = props => {
     data: getLicenseStatusReqData,
     error,
   } = useQuery(['licenseKeyStatus', {}], getLicenseStatus);
-
 
   const wrapperMargin = 0;
   const groupPadding = 10;
@@ -144,7 +137,11 @@ const Home = props => {
   const {licenseKey, metadata, isLicenseExpired, appConfigFromLicense} =
     licenseStatus;
 
-  const highlightedFirstRowButtons = ['batchPurchase', 'batchTransfer', 'endingInventory']; // batch entry highlighted row
+  const highlightedFirstRowButtons = [
+    'batchPurchase',
+    'batchTransfer',
+    'endingInventory',
+  ]; // batch entry highlighted row
   const mainFirstRowButtons = ['recipes', 'revenues', 'inventory'];
   const mainSecondRowButtons = ['logs', 'vendors', 'spoilage'];
   const mainThirdRowButtons = ['salesLog', 'counter', 'salesOrders'];
@@ -554,9 +551,7 @@ const Home = props => {
   const renderMainButtons = () => {
     let numberOfRows = 0;
 
-    const enabledButtons = allMainButtons.filter(mainButton =>
-      can(mainButton),
-    );
+    const enabledButtons = allMainButtons.filter(mainButton => can(mainButton));
 
     let mainButtonsToSplice = [...allMainButtons];
 
@@ -616,10 +611,45 @@ const Home = props => {
 
   const {open} = state;
 
+  // Speed-dial actions are role-gated: only the creation actions the signed-in
+  // user is permitted to perform appear, and the FAB itself hides when none do.
+  const fabActions = [];
+
+  if (can(TRANSFER_PERMISSIONS.CREATE)) {
+    fabActions.push({
+      icon: 'swap-horizontal-bold',
+      label: 'Request new Batch Transfer',
+      color: colors.dark,
+      labelTextColor: colors.dark,
+      onPress: () => navigation.navigate(routes.batchTransferRequestForm()),
+    });
+  }
+
+  if (can('recipes.create')) {
+    fabActions.push({
+      icon: 'food-turkey',
+      label: 'Create Recipe',
+      color: colors.dark,
+      labelTextColor: colors.dark,
+      onPress: () => navigation.navigate(routes.createRecipe()),
+    });
+  }
+
+  if (can('items.create')) {
+    fabActions.push({
+      icon: 'tag-plus',
+      label: 'Register Item',
+      color: colors.dark,
+      labelTextColor: colors.dark,
+      onPress: () => navigation.navigate(routes.selectAddItemMode()),
+      small: false,
+    });
+  }
+
   return (
     <>
       <StatusBar barStyle={'dark-content'} />
-      {isFocused && !expiredAuthTokenDialogVisible ? (
+      {isFocused && !expiredAuthTokenDialogVisible && fabActions.length > 0 ? (
         <Portal>
           <FAB.Group
             fabStyle={{
@@ -630,23 +660,7 @@ const Home = props => {
             color={colors.dark}
             open={open}
             icon={open ? 'close' : 'plus'}
-            actions={[
-              {
-                icon: 'food-turkey',
-                label: 'Create Recipe',
-                color: colors.dark,
-                labelTextColor: colors.dark,
-                onPress: () => navigation.navigate(routes.createRecipe()),
-              },
-              {
-                icon: 'tag-plus',
-                label: 'Register Item',
-                color: colors.dark,
-                labelTextColor: colors.dark,
-                onPress: () => navigation.navigate(routes.selectAddItemMode()),
-                small: false,
-              },
-            ]}
+            actions={fabActions}
             onStateChange={onStateChange}
             onPress={() => {
               if (open) {
@@ -687,16 +701,16 @@ const Home = props => {
       <ScrollView style={[styles.container, {backgroundColor: colors.surface}]}>
         <View style={[styles.wrapper, {marginHorizontal: wrapperMargin}]}>
           {hasEnabledHighlightedFirstRowButtons && (
-          <View
-            style={[
-              styles.group,
-              {
-                padding: groupPadding,
-                backgroundColor: colors.primary,
-              },
-            ]}>
-            <View style={[styles.groupHeader, {flexDirection: 'row'}]}>
-              {/* <View
+            <View
+              style={[
+                styles.group,
+                {
+                  padding: groupPadding,
+                  backgroundColor: colors.primary,
+                },
+              ]}>
+              <View style={[styles.groupHeader, {flexDirection: 'row'}]}>
+                {/* <View
                 style={{
                   backgroundColor: colors.surface,
                   height: 18,
@@ -712,19 +726,21 @@ const Home = props => {
                   color={colors.primary}
                 />
               </View> */}
-              <Text
-                style={{
-                  marginLeft: 5,
-                  fontSize: 16,
-                  fontWeight: 'bold',
-                  color: colors.surface,
-                }}>
-                {'Inventory Batch Entry'}
-              </Text>
+                <Text
+                  style={{
+                    marginLeft: 5,
+                    fontSize: 16,
+                    fontWeight: 'bold',
+                    color: colors.surface,
+                  }}>
+                  {'Inventory Batch Entry'}
+                </Text>
+              </View>
+              {/* Highlighted first row */}
+              <View style={styles.row}>
+                {renderHighlightedFirstRowButtons()}
+              </View>
             </View>
-            {/* Highlighted first row */}
-            <View style={styles.row}>{renderHighlightedFirstRowButtons()}</View>
-          </View>
           )}
 
           <View
