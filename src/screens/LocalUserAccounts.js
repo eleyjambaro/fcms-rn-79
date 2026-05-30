@@ -15,8 +15,8 @@ import LocalUserAccountForm from '../components/forms/LocalUserAccountForm';
 import useSearchbarContext from '../hooks/useSearchbarContext';
 import {ScrollView} from 'react-native-gesture-handler';
 import {createCloudSubAccount} from '../serverDbQueries/v2/accounts';
-import {createCloudBranchAccountAssignment} from '../serverDbQueries/v2/branchAccountAssignments';
-import {createCloudDeviceAccountAssignment} from '../serverDbQueries/v2/deviceAccountAssignments';
+import {syncCloudBranchAccountAssignments} from '../serverDbQueries/v2/branchAccountAssignments';
+import {syncCloudDeviceAccountAssignments} from '../serverDbQueries/v2/deviceAccountAssignments';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
 import useCurrentUser from '../hooks/useCurrentUser';
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
@@ -82,18 +82,14 @@ function LocalUserAccounts(props) {
     try {
       if (newAccount?.id) {
         await Promise.all([
-          ...branch_ids.map(branch_id =>
-            createCloudBranchAccountAssignment({
-              branch_id,
-              account_id: newAccount.id,
-            }),
-          ),
-          ...device_ids.map(device_id =>
-            createCloudDeviceAccountAssignment({
-              device_id,
-              account_id: newAccount.id,
-            }),
-          ),
+          syncCloudBranchAccountAssignments({
+            account_id: newAccount.id,
+            branch_ids,
+          }),
+          syncCloudDeviceAccountAssignments({
+            account_id: newAccount.id,
+            device_ids,
+          }),
         ]);
       }
     } catch (error) {

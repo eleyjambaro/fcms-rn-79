@@ -45,3 +45,29 @@ export const deleteCloudDeviceAccountAssignment = async id => {
   });
   return data;
 };
+
+/**
+ * Reconcile an account's device assignments to exactly `device_ids`: fetches the
+ * current assignments, creates the ones that are newly selected, and deletes the
+ * ones that were unselected. Works for both newly created accounts (no current
+ * assignments → creates all) and existing accounts (applies the delta).
+ */
+export const syncCloudDeviceAccountAssignments = async ({
+  account_id,
+  device_ids = [],
+}) => {
+  const desired = new Set(device_ids);
+  const response = await getCloudDeviceAccountAssignments({account_id});
+  const current = response?.data ?? [];
+  const currentDeviceIds = new Set(current.map(a => a.device_id));
+
+  const toAdd = [...desired].filter(deviceId => !currentDeviceIds.has(deviceId));
+  const toRemove = current.filter(a => !desired.has(a.device_id));
+
+  await Promise.all([
+    ...toAdd.map(device_id =>
+      createCloudDeviceAccountAssignment({device_id, account_id}),
+    ),
+    ...toRemove.map(a => deleteCloudDeviceAccountAssignment(a.id)),
+  ]);
+};

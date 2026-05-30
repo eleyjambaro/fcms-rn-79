@@ -18,6 +18,7 @@ const AccessCheckboxList = ({
   currentId = null,
   currentLabel = 'Current',
   emptyText = 'No items found.',
+  disabled = false,
 }) => {
   const {colors} = useTheme();
   const selectedSet = new Set(selectedIds);
@@ -41,6 +42,7 @@ const AccessCheckboxList = ({
             <Checkbox.Android
               status={isChecked ? 'checked' : 'unchecked'}
               onPress={() => onToggle(item.id)}
+              disabled={disabled}
               color={colors.primary}
             />
             <Text style={styles.name}>

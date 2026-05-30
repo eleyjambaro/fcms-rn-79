@@ -45,8 +45,11 @@ import {
   updateCloudSubAccount,
   deleteCloudSubAccount,
 } from '../../serverDbQueries/v2/accounts';
+import {syncCloudBranchAccountAssignments} from '../../serverDbQueries/v2/branchAccountAssignments';
+import {syncCloudDeviceAccountAssignments} from '../../serverDbQueries/v2/deviceAccountAssignments';
 import ErrorMessageModal from '../modals/ErrorMessageModal';
 import useCurrentUser from '../../hooks/useCurrentUser';
+import useCloudAuthContext from '../../hooks/useCloudAuthContext';
 
 const LocalUserAccountList = props => {
   const {backAction, viewMode, filter} = props;
@@ -54,6 +57,9 @@ const LocalUserAccountList = props => {
   const {colors} = useTheme();
   const [authState] = useCurrentUser();
   const authUser = authState?.authUser;
+  const [cloudAuthState] = useCloudAuthContext();
+  const currentBranchId = cloudAuthState?.designatedBranch?.id ?? null;
+  const currentDeviceId = cloudAuthState?.deviceId ?? null;
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -104,13 +110,30 @@ const LocalUserAccountList = props => {
   };
 
   const handleSubmit = async (values, actions) => {
+    const accountId = focusedItem?.id;
+    const {branch_ids = [], device_ids = []} = values;
+
     try {
       await updateLocalUserAccountMutation.mutateAsync({
-        id: focusedItem?.id,
+        id: accountId,
         first_name: values.first_name,
         last_name: values.last_name,
         role_id: values.role_id,
       });
+
+      // Reconcile branch/device access to match the selected checkboxes.
+      await Promise.all([
+        syncCloudBranchAccountAssignments({account_id: accountId, branch_ids}),
+        syncCloudDeviceAccountAssignments({account_id: accountId, device_ids}),
+      ]);
+      queryClient.invalidateQueries([
+        'cloudBranchAccountAssignments',
+        {account_id: accountId},
+      ]);
+      queryClient.invalidateQueries([
+        'cloudDeviceAccountAssignments',
+        {account_id: accountId},
+      ]);
     } catch (error) {
       const msg =
         error?.response?.data?.message || 'Failed to update user account.';
@@ -281,13 +304,16 @@ const LocalUserAccountList = props => {
           onDismiss={() => setUpdateLocalUserAccountModalVisible(() => false)}
           contentContainerStyle={{backgroundColor: 'white', padding: 20}}>
           <Title style={{marginBottom: 15, textAlign: 'center'}}>
-            Update Local User Account
+            Edit User
           </Title>
           <ScrollView showsVerticalScrollIndicator={false}>
             <LocalUserAccountForm
               editMode={true}
               userAccountUID={focusedItem?.account_uid}
+              userAccountId={focusedItem?.id}
               authUser={authUser}
+              currentBranchId={currentBranchId}
+              currentDeviceId={currentDeviceId}
               initialValues={{
                 first_name: focusedItem?.first_name || '',
                 last_name: focusedItem?.last_name || '',

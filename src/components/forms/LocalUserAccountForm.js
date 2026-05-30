@@ -19,6 +19,8 @@ import AccessCheckboxList from './AccessCheckboxList';
 import {getCloudRoles} from '../../serverDbQueries/v2/roles';
 import {getBranches} from '../../serverDbQueries/v2/branches';
 import {getCloudDevices} from '../../serverDbQueries/v2/devices';
+import {getCloudBranchAccountAssignments} from '../../serverDbQueries/v2/branchAccountAssignments';
+import {getCloudDeviceAccountAssignments} from '../../serverDbQueries/v2/deviceAccountAssignments';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
 
@@ -34,6 +36,8 @@ const LocalUserAccountValidationSchema = Yup.object().shape({
     then: () => Yup.string().required(),
   }),
   role_id: Yup.string().required(),
+  branch_ids: Yup.array().min(1, 'Assign at least one branch.'),
+  device_ids: Yup.array().min(1, 'Assign at least one device.'),
 });
 
 const LocalUserAccountForm = props => {
@@ -41,6 +45,7 @@ const LocalUserAccountForm = props => {
     editMode = false,
     authUser,
     userAccountUID,
+    userAccountId,
     currentBranchId = null,
     currentDeviceId = null,
     initialValues = {
@@ -61,18 +66,32 @@ const LocalUserAccountForm = props => {
     ['cloudRoles'],
     getCloudRoles,
   );
-  // Branch / device access is only granted while creating a user. In edit mode
-  // it is managed through the dedicated Manage Branch/Device Access modals, so
-  // skip these fetches entirely.
   const {status: getBranchesStatus, data: getBranchesData} = useQuery(
     ['cloudBranches'],
     getBranches,
-    {enabled: !editMode},
   );
   const {status: getDevicesStatus, data: getDevicesData} = useQuery(
     ['cloudDevices'],
     getCloudDevices,
-    {enabled: !editMode},
+  );
+  // In edit mode, pre-check the branches/devices the account is already
+  // assigned to. (Disabled queries report status 'loading' in RQ v4, so the
+  // loading gate below guards these with `editMode && userAccountId`.)
+  const {
+    status: branchAssignmentsStatus,
+    data: branchAssignmentsData,
+  } = useQuery(
+    ['cloudBranchAccountAssignments', {account_id: userAccountId}],
+    () => getCloudBranchAccountAssignments({account_id: userAccountId}),
+    {enabled: editMode && !!userAccountId},
+  );
+  const {
+    status: deviceAssignmentsStatus,
+    data: deviceAssignmentsData,
+  } = useQuery(
+    ['cloudDeviceAccountAssignments', {account_id: userAccountId}],
+    () => getCloudDeviceAccountAssignments({account_id: userAccountId}),
+    {enabled: editMode && !!userAccountId},
   );
   const [roleId, setRoleId] = useState(initialValues.role_id);
 
@@ -114,7 +133,16 @@ const LocalUserAccountForm = props => {
     }
   };
 
-  if (getRolesStatus === 'loading') {
+  const isInitialDataLoading =
+    getRolesStatus === 'loading' ||
+    getBranchesStatus === 'loading' ||
+    getDevicesStatus === 'loading' ||
+    (editMode &&
+      !!userAccountId &&
+      (branchAssignmentsStatus === 'loading' ||
+        deviceAssignmentsStatus === 'loading'));
+
+  if (isInitialDataLoading) {
     return <DefaultLoadingScreen />;
   }
 
@@ -138,6 +166,17 @@ const LocalUserAccountForm = props => {
   const branches = getBranchesData?.data ?? [];
   const devices = getDevicesData?.data ?? [];
 
+  // Pre-check: in edit mode use the account's current assignments; in create
+  // mode default to the branch/device currently in use so it "just works".
+  const branchAssignments = branchAssignmentsData?.data ?? [];
+  const deviceAssignments = deviceAssignmentsData?.data ?? [];
+  const initialBranchIds = editMode
+    ? branchAssignments.map(a => a.branch_id)
+    : initialValues.branch_ids || (currentBranchId ? [currentBranchId] : []);
+  const initialDeviceIds = editMode
+    ? deviceAssignments.map(a => a.device_id)
+    : initialValues.device_ids || (currentDeviceId ? [currentDeviceId] : []);
+
   return (
     <Formik
       initialValues={{
@@ -147,14 +186,8 @@ const LocalUserAccountForm = props => {
         email: initialValues.email || '',
         password: initialValues.password || '',
         role_id: initialValues.role_id || '',
-        // Default the new user's access to the branch and device currently in
-        // use so creating a user "just works" on this device/branch.
-        branch_ids:
-          initialValues.branch_ids ||
-          (currentBranchId ? [currentBranchId] : []),
-        device_ids:
-          initialValues.device_ids ||
-          (currentDeviceId ? [currentDeviceId] : []),
+        branch_ids: initialBranchIds,
+        device_ids: initialDeviceIds,
       }}
       validationSchema={LocalUserAccountValidationSchema}
       onSubmit={onSubmit}>
@@ -271,47 +304,55 @@ const LocalUserAccountForm = props => {
                 isDisabled() ? {color: colors.disabled} : {}
               }
             />
-            {!editMode && (
-              <>
-                <Divider style={styles.sectionDivider} />
-                <Text style={[styles.sectionTitle, {color: colors.dark}]}>
-                  Manage Branch Access
-                </Text>
-                <HelperText style={styles.sectionHint}>
-                  {
-                    'Select the branches this user can access. The current branch is checked by default.'
-                  }
-                </HelperText>
-                <AccessCheckboxList
-                  items={branches}
-                  isLoading={getBranchesStatus === 'loading'}
-                  selectedIds={values.branch_ids}
-                  onToggle={id => toggleSelected('branch_ids', id)}
-                  currentId={currentBranchId}
-                  currentLabel="Current branch"
-                  emptyText="No branches found."
-                />
+            <Divider style={styles.sectionDivider} />
+            <Text style={[styles.sectionTitle, {color: colors.dark}]}>
+              Manage Branch Access
+            </Text>
+            <HelperText style={styles.sectionHint}>
+              {editMode
+                ? 'Select the branches this user can access.'
+                : 'Select the branches this user can access. The current branch is checked by default.'}
+            </HelperText>
+            <AccessCheckboxList
+              items={branches}
+              isLoading={getBranchesStatus === 'loading'}
+              selectedIds={values.branch_ids}
+              onToggle={id => toggleSelected('branch_ids', id)}
+              currentId={currentBranchId}
+              currentLabel="Current branch"
+              emptyText="No branches found."
+              disabled={isDisabled()}
+            />
+            {errors.branch_ids ? (
+              <HelperText type="error" visible={true}>
+                {errors.branch_ids}
+              </HelperText>
+            ) : null}
 
-                <Divider style={styles.sectionDivider} />
-                <Text style={[styles.sectionTitle, {color: colors.dark}]}>
-                  Manage Device Access
-                </Text>
-                <HelperText style={styles.sectionHint}>
-                  {
-                    'Select the devices this user can sign in on. The current device is checked by default.'
-                  }
-                </HelperText>
-                <AccessCheckboxList
-                  items={devices}
-                  isLoading={getDevicesStatus === 'loading'}
-                  selectedIds={values.device_ids}
-                  onToggle={id => toggleSelected('device_ids', id)}
-                  currentId={currentDeviceId}
-                  currentLabel="This device"
-                  emptyText="No registered devices found."
-                />
-              </>
-            )}
+            <Divider style={styles.sectionDivider} />
+            <Text style={[styles.sectionTitle, {color: colors.dark}]}>
+              Manage Device Access
+            </Text>
+            <HelperText style={styles.sectionHint}>
+              {editMode
+                ? 'Select the devices this user can sign in on.'
+                : 'Select the devices this user can sign in on. The current device is checked by default.'}
+            </HelperText>
+            <AccessCheckboxList
+              items={devices}
+              isLoading={getDevicesStatus === 'loading'}
+              selectedIds={values.device_ids}
+              onToggle={id => toggleSelected('device_ids', id)}
+              currentId={currentDeviceId}
+              currentLabel="This device"
+              emptyText="No registered devices found."
+              disabled={isDisabled()}
+            />
+            {errors.device_ids ? (
+              <HelperText type="error" visible={true}>
+                {errors.device_ids}
+              </HelperText>
+            ) : null}
             <Button
               mode="contained"
               onPress={handleSubmit}
