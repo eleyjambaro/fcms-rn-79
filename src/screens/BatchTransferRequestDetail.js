@@ -467,6 +467,26 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
       ],
     );
 
+  const confirmSubmitRequest = () => {
+    const counterpartyBranch =
+      directionForCurrent === 'out' ? destBranch : sourceBranch;
+    const counterpartyName =
+      counterpartyBranch?.display_name ||
+      counterpartyBranch?.name ||
+      'the other branch';
+    Alert.alert(
+      'Submit this request?',
+      `${counterpartyName} will be notified to review and accept the requested items. You can still cancel it before they accept.`,
+      [
+        {text: 'Keep Editing'},
+        {
+          text: 'Submit Request',
+          onPress: () => submitMut.mutate({groupId}),
+        },
+      ],
+    );
+  };
+
   // Footer action buttons per (status, role).
   //   - Draft / Submit / Discard belong to the initiator.
   //   - Accept / Reject belong to the counterparty (dest for Out, source for In).
@@ -485,7 +505,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           mode="contained"
           loading={submitMut.isLoading}
           disabled={entries.length === 0 || submitMut.isLoading}
-          onPress={() => submitMut.mutate({groupId})}>
+          onPress={confirmSubmitRequest}>
           Submit Request
         </Button>,
       );
