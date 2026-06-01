@@ -545,8 +545,15 @@ const CompanyForm = props => {
               mode="contained"
               onPress={handleSubmit}
               disabled={
-                (!editMode && !confirmedPrivacyPolicy) ||
-                !dirty ||
+                // In create mode we require the form to be dirty (and the
+                // privacy policy confirmed) so an untouched form can't be
+                // submitted. In edit mode we intentionally drop the `dirty`
+                // gate: the logo display checkboxes default to checked (server
+                // columns default to true) and the company display name is
+                // pre-filled with a derived fallback, so the form is never
+                // dirty on first visit even though those defaults still need to
+                // be persisted (including the local WatermarkAppIcon settings).
+                (!editMode && (!confirmedPrivacyPolicy || !dirty)) ||
                 !isValid ||
                 isSubmitting
               }
