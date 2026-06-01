@@ -426,6 +426,55 @@ const applyPulledRecord = async (db, tableName, record) => {
   }
 };
 
+/**
+ * Rebuild the local `items.master_item_sync_id` cache from `sku`.
+ *
+ * `master_item_sync_id` is the join key every Master Item List / Batch Transfer
+ * query keys off (e.g. the SelectMasterItem "available for branch" filter and
+ * resolveMissingSourceItemIdsForGroup), but it is a CLIENT-ONLY column — the
+ * server's `items` table has no such field and instead carries the branch
+ * item → master link via `sku` (server migration ..._000018: "without a
+ * separate FK column"). So `sku` survives a push/pull round-trip while
+ * `master_item_sync_id` does not: after a reinstall, items pull back with their
+ * sku intact but `master_item_sync_id = NULL`, which silently breaks both the
+ * "Add from Company Master Item List" dedup filter (every master looks
+ * unattached) and Batch Transfer fulfillment (every line reads "not in your
+ * catalog").
+ *
+ * This re-derives the cache by matching the synced `sku` against the synced
+ * master_items.sku — the canonical company-wide link. It runs after every pull,
+ * is idempotent (touches only NULL/empty rows), and deliberately does NOT bump
+ * `updated_at`: this is a local reconciliation, the server has no column to
+ * receive it, and a bump would re-push every item on the next sync.
+ *
+ * Order-independent: matches on sku, so it self-heals whether the master_items
+ * row arrived before, with, or after the items row across one or many pulls.
+ *
+ * Returns the number of items rows relinked, so the caller can invalidate React
+ * Query caches even on a pull that returned no new records (the case for users
+ * who reinstalled before this fix shipped — their items are already local with
+ * a NULL link and only need the relink, not a fresh pull).
+ */
+const backfillItemMasterLinks = async db => {
+  const [res] = await db.executeSql(
+    `UPDATE items
+     SET master_item_sync_id = (
+       SELECT mi.sync_id
+       FROM master_items mi
+       WHERE mi.sku = items.sku
+       ORDER BY IFNULL(mi.is_deleted, 0) ASC, mi.id ASC
+       LIMIT 1
+     )
+     WHERE (master_item_sync_id IS NULL OR master_item_sync_id = '')
+       AND sku IS NOT NULL
+       AND sku != ''
+       AND EXISTS (
+         SELECT 1 FROM master_items mi WHERE mi.sku = items.sku
+       )`,
+  );
+  return res?.rowsAffected ?? 0;
+};
+
 // ---------------------------------------------------------------------------
 // Main sync entry point
 // ---------------------------------------------------------------------------
@@ -739,6 +788,19 @@ export const runSync = async () => {
         }
       }
 
+      // Rebuild the client-only items.master_item_sync_id cache from the synced
+      // sku. Must run AFTER the pull loop (items + master_items are now local)
+      // and BEFORE materializeReceivedTransferLogs() below, which joins
+      // active_items on master_item_sync_id. Without this, reinstalled items
+      // come back with a NULL link and every Master Item List / Batch Transfer
+      // join misses. See backfillItemMasterLinks() for the full rationale.
+      let relinkedCount = 0;
+      try {
+        relinkedCount = await backfillItemMasterLinks(db);
+      } catch (err) {
+        result.errors.push(`backfillItemMasterLinks failed: ${err.message}`);
+      }
+
       // Materialize source-side stock_transfer_out inventory_logs for any
       // batch_transfer_group we are the source of that just flipped to
       // 'received' on the destination side. Idempotent; safe on every pull.
@@ -753,8 +815,11 @@ export const runSync = async () => {
       }
 
       // If any records were pulled into SQLite, invalidate all React Query caches
-      // so that currently-rendered screens refetch their data and show the new records.
-      if (Object.keys(result.pulled).length > 0) {
+      // so that currently-rendered screens refetch their data and show the new
+      // records. Also invalidate when the master-link backfill relinked rows on
+      // an otherwise-empty pull, so an already-open Master Item List / Batch
+      // Transfer screen reflects the repaired links without a manual refresh.
+      if (Object.keys(result.pulled).length > 0 || relinkedCount > 0) {
         queryClient.invalidateQueries();
       }
     } catch (err) {
