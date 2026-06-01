@@ -580,14 +580,28 @@ export const updateEntrySourceAdjustment = async ({
   scheduleSyncSoon();
 };
 
+/**
+ * Source-side physical dispatch (status → transferring).
+ *
+ * Normally invoked from ACCEPTED. It can also be invoked directly from
+ * REQUESTED as a "Transfer Now" shortcut: when both branches have already
+ * coordinated out-of-band (phone call, text, email), the Out-mode initiator
+ * (the source) may dispatch without waiting for the destination to formally
+ * accept. In that case no accepted_qty was ever set, so the transferring qty
+ * defaults from requested_qty instead. From ACCEPTED, accepted_qty is always
+ * populated (acceptBatchTransferRequest backfills unreviewed entries), so the
+ * COALESCE preserves the existing ACCEPTED behavior exactly.
+ */
 export const confirmTransferOut = async ({groupId}) => {
   const db = await getDBConnection();
-  await assertGroupStatus(db, groupId, [STATUS.ACCEPTED]);
+  await assertGroupStatus(db, groupId, [STATUS.ACCEPTED, STATUS.REQUESTED]);
 
-  // For any entry where source didn't explicitly adjust, default to accepted_qty.
+  // For any entry the source didn't explicitly adjust, default the
+  // transferring qty: accepted_qty when coming from ACCEPTED, or requested_qty
+  // for a REQUESTED "Transfer Now" (no acceptance step ran).
   await db.executeSql(
     `UPDATE batch_transfer_entries
-       SET adjusted_qty = accepted_qty,
+       SET adjusted_qty = COALESCE(accepted_qty, requested_qty),
            updated_at = CURRENT_TIMESTAMP
        WHERE batch_transfer_group_id = ${sqlStr(groupId)}
          AND IFNULL(is_deleted, 0) != 1

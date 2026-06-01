@@ -536,6 +536,53 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
         </Button>,
       );
     } else if (status === STATUS.REQUESTED && isInitiator) {
+      // Out-mode initiator (the source) can skip waiting for the destination
+      // to accept and dispatch right away — useful when both branches have
+      // already coordinated out-of-band (phone, text, email). Only the source
+      // can physically dispatch, so gate on isSource (i.e. the Out direction);
+      // an In-mode initiator (the destination) just waits and only sees Cancel.
+      if (isSource) {
+        buttons.push(
+          <View
+            key="transfer-now-notice"
+            style={[
+              styles.readyNotice,
+              {backgroundColor: colors.primary + '14'},
+            ]}>
+            <Text style={styles.readyNoticeHint}>
+              Already coordinated with{' '}
+              {destBranch?.display_name ||
+                destBranch?.name ||
+                'the destination branch'}{' '}
+              by phone, text, or email?
+            </Text>
+            <Text style={styles.readyNoticeTitle}>
+              Transfer now without waiting for them to accept? Tap "Transfer
+              Now".
+            </Text>
+          </View>,
+        );
+        buttons.push(
+          <Button
+            key="transfer"
+            mode="contained"
+            loading={transferOutMut.isLoading}
+            onPress={() =>
+              setConfirm({
+                title: 'Transfer now?',
+                message: `Transfer to ${
+                  destBranch?.display_name ||
+                  destBranch?.name ||
+                  'the destination branch'
+                } now without waiting for them to accept? They'll be notified that the items are now transferring (in transit).`,
+                confirmLabel: 'Transfer Now',
+                onConfirm: () => transferOutMut.mutate({groupId}),
+              })
+            }>
+            Transfer Now
+          </Button>,
+        );
+      }
       buttons.push(
         <Button
           key="cancel"
