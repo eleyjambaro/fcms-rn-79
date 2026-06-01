@@ -1,5 +1,11 @@
 import React, {useState, useEffect} from 'react';
-import {View, StyleSheet, Pressable, ToastAndroid} from 'react-native';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Pressable,
+  ToastAndroid,
+} from 'react-native';
 import {
   Text,
   Button,
@@ -17,9 +23,11 @@ import {getBranches} from '../serverDbQueries/v2/branches';
 import {getCloudSyncParams} from '../localDb';
 import {getOrCreateDraftBatchTransferGroup} from '../localDbQueries/batchTransfer';
 import BranchPickerSheet from '../components/branchPicker/BranchPickerSheet';
+import TransferRequestGuide from '../components/batchTransfer/TransferRequestGuide';
 
 const OUT_BADGE_COLOR = '#E53935';
 const IN_BADGE_COLOR = '#1E88E5';
+const showAdditionalNote = false;
 
 /**
  * Branch picker UI for creating a new Batch Transfer Request.
@@ -116,12 +124,12 @@ const BatchTransferRequestForm = ({navigation}) => {
 
   const isReady = Boolean(counterparty?.id);
   const isOut = direction === 'out';
-  const directionBadgeLabel = isOut ? 'Batch Transfer Out' : 'Batch Transfer In';
+  const directionBadgeLabel = isOut
+    ? 'Batch Transfer Out'
+    : 'Batch Transfer In';
   const directionBadgeColor = isOut ? OUT_BADGE_COLOR : IN_BADGE_COLOR;
   const currentBranchLabel =
-    currentBranch?.display_name ||
-    currentBranch?.name ||
-    'Current branch';
+    currentBranch?.display_name || currentBranch?.name || 'Current branch';
   const counterpartyLabel =
     counterparty?.display_name || counterparty?.name || '';
   const counterpartyPickerLabel = isOut
@@ -130,133 +138,146 @@ const BatchTransferRequestForm = ({navigation}) => {
 
   return (
     <View style={styles.container}>
-      {/* Company header */}
-      {companyData?.data?.name ? (
-        <Text style={styles.companyName}>
-          {companyData.data.name}
-        </Text>
-      ) : null}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        {/* Company header */}
+        {companyData?.data?.name ? (
+          <Text style={styles.companyName}>{companyData.data.name}</Text>
+        ) : null}
 
-      {/* Origin / Destination card */}
-      <View style={[styles.routeCard, {backgroundColor: colors.surface}]}>
-        <View style={styles.routeRow}>
-          <View style={styles.pins}>
-            <MaterialCommunityIcons
-              name="map-marker"
-              size={26}
-              color={OUT_BADGE_COLOR}
-            />
-            <View style={styles.dottedLine} />
-            <MaterialCommunityIcons
-              name="map-marker"
-              size={26}
-              color={IN_BADGE_COLOR}
-            />
-          </View>
+        {/* Origin / Destination card */}
+        <View style={[styles.routeCard, {backgroundColor: colors.surface}]}>
+          <View style={styles.routeRow}>
+            <View style={styles.pins}>
+              <MaterialCommunityIcons
+                name="map-marker"
+                size={26}
+                color={OUT_BADGE_COLOR}
+              />
+              <View style={styles.dottedLine} />
+              <MaterialCommunityIcons
+                name="map-marker"
+                size={26}
+                color={IN_BADGE_COLOR}
+              />
+            </View>
 
-          <View style={{flex: 1}}>
-            {isOut ? (
-              <>
-                <View style={styles.inputRow}>
-                  <Text style={styles.sideLabel}>From:</Text>
-                  <View style={{flex: 1}}>
-                    <TextInput
-                      label="Origin (your branch)"
-                      value={currentBranchLabel}
-                      editable={false}
-                      dense
-                      mode="flat"
-                      style={styles.input}
-                    />
-                  </View>
-                </View>
-                <View style={styles.inputRow}>
-                  <Text style={styles.sideLabel}>To:</Text>
-                  <Pressable
-                    onPress={() => setShowPicker(true)}
-                    style={{flex: 1}}>
-                    <View pointerEvents="none">
+            <View style={{flex: 1}}>
+              {isOut ? (
+                <>
+                  <View style={styles.inputRow}>
+                    <Text style={styles.sideLabel}>From:</Text>
+                    <View style={{flex: 1}}>
                       <TextInput
-                        label={counterpartyPickerLabel}
-                        value={counterpartyLabel}
-                        placeholder="Tap to choose…"
+                        label="Origin (your branch)"
+                        value={currentBranchLabel}
                         editable={false}
                         dense
                         mode="flat"
                         style={styles.input}
                       />
                     </View>
-                  </Pressable>
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={styles.inputRow}>
-                  <Text style={styles.sideLabel}>From:</Text>
-                  <Pressable
-                    onPress={() => setShowPicker(true)}
-                    style={{flex: 1}}>
-                    <View pointerEvents="none">
+                  </View>
+                  <View style={styles.inputRow}>
+                    <Text style={styles.sideLabel}>To:</Text>
+                    <Pressable
+                      onPress={() => setShowPicker(true)}
+                      style={{flex: 1}}>
+                      <View pointerEvents="none">
+                        <TextInput
+                          label={counterpartyPickerLabel}
+                          value={counterpartyLabel}
+                          placeholder="Tap to choose…"
+                          editable={false}
+                          dense
+                          mode="flat"
+                          style={styles.input}
+                        />
+                      </View>
+                    </Pressable>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.inputRow}>
+                    <Text style={styles.sideLabel}>From:</Text>
+                    <Pressable
+                      onPress={() => setShowPicker(true)}
+                      style={{flex: 1}}>
+                      <View pointerEvents="none">
+                        <TextInput
+                          label={counterpartyPickerLabel}
+                          value={counterpartyLabel}
+                          placeholder="Tap to choose…"
+                          editable={false}
+                          dense
+                          mode="flat"
+                          style={styles.input}
+                        />
+                      </View>
+                    </Pressable>
+                  </View>
+                  <View style={styles.inputRow}>
+                    <Text style={styles.sideLabel}>To:</Text>
+                    <View style={{flex: 1}}>
                       <TextInput
-                        label={counterpartyPickerLabel}
-                        value={counterpartyLabel}
-                        placeholder="Tap to choose…"
+                        label="Destination (your branch)"
+                        value={currentBranchLabel}
                         editable={false}
                         dense
                         mode="flat"
                         style={styles.input}
                       />
                     </View>
-                  </Pressable>
-                </View>
-                <View style={styles.inputRow}>
-                  <Text style={styles.sideLabel}>To:</Text>
-                  <View style={{flex: 1}}>
-                    <TextInput
-                      label="Destination (your branch)"
-                      value={currentBranchLabel}
-                      editable={false}
-                      dense
-                      mode="flat"
-                      style={styles.input}
-                    />
                   </View>
-                </View>
-              </>
-            )}
+                </>
+              )}
+            </View>
+
+            <Pressable onPress={handleSwap} style={styles.swapBtn}>
+              <MaterialCommunityIcons
+                name="swap-vertical"
+                size={26}
+                color={colors.text}
+              />
+            </Pressable>
           </View>
 
-          <Pressable onPress={handleSwap} style={styles.swapBtn}>
+          <View style={styles.badgeRow}>
+            <Badge
+              style={[
+                styles.directionBadge,
+                {backgroundColor: directionBadgeColor},
+              ]}>
+              {directionBadgeLabel}
+            </Badge>
+          </View>
+        </View>
+
+        <View style={[styles.guideCard, {backgroundColor: colors.surface}]}>
+          <TransferRequestGuide isOut={isOut} branchSelected={isReady} />
+        </View>
+
+        {isReady && showAdditionalNote ? (
+          <View style={styles.noteCard}>
             <MaterialCommunityIcons
-              name="swap-vertical"
-              size={26}
-              color={colors.text}
+              name="information-outline"
+              size={16}
+              color="#1E88E5"
+              style={styles.noteIcon}
             />
-          </Pressable>
-        </View>
-
-        <View style={styles.badgeRow}>
-          <Badge
-            style={[styles.directionBadge, {backgroundColor: directionBadgeColor}]}>
-            {directionBadgeLabel}
-          </Badge>
-        </View>
-
-        <View style={styles.noteCard}>
-          <MaterialCommunityIcons
-            name="information-outline"
-            size={16}
-            color="#1E88E5"
-            style={{marginTop: 1}}
-          />
-          <Text style={styles.noteCardText}>
-            {isOut
-              ? "You'll pick items and quantities in the next step. The destination branch will review your request and confirm "
-              : "You'll pick the items you want to request in the next step. The source branch will review your request and confirm "}
-            <Text style={styles.noteCardTextBold}>before any stock changes.</Text>
-          </Text>
-        </View>
-      </View>
+            <Text style={styles.noteCardText}>
+              {isOut
+                ? "You'll pick items and quantities in the next step. The destination branch will review your request and confirm "
+                : "You'll pick the items you want to request in the next step. The source branch will review your request and confirm "}
+              <Text style={styles.noteCardTextBold}>
+                before any stock changes.
+              </Text>
+            </Text>
+          </View>
+        ) : null}
+      </ScrollView>
 
       <Button
         mode="contained"
@@ -280,9 +301,16 @@ const BatchTransferRequestForm = ({navigation}) => {
 
 const styles = StyleSheet.create({
   container: {flex: 1, padding: 16},
+  scrollContent: {paddingBottom: 8},
   center: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   companyName: {fontSize: 14, opacity: 0.7, marginBottom: 12},
   routeCard: {
+    padding: 14,
+    borderRadius: 12,
+    elevation: 2,
+    marginBottom: 14,
+  },
+  guideCard: {
     padding: 14,
     borderRadius: 12,
     elevation: 2,
@@ -318,8 +346,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#E3F2FD',
     borderRadius: 10,
     padding: 12,
-    marginTop: 12,
   },
+  noteIcon: {marginTop: 1},
   noteCardText: {
     flex: 1,
     fontSize: 12,
@@ -330,7 +358,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1565C0',
   },
-  nextBtn: {marginTop: 'auto'},
+  nextBtn: {marginTop: 4},
 });
 
 export default BatchTransferRequestForm;
