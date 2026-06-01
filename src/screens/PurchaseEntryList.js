@@ -43,7 +43,10 @@ const Purchases = props => {
   const [itemListFilters, setItemListFilters] = useState({
     'items.category_id': '',
     'operations.id': '',
-    '%LIKE': {key: 'items.name', value: `'%${keyword}%'`},
+    '%LIKE ANY': {
+      keys: ['items.name', 'items.barcode'],
+      value: `'%${keyword}%'`,
+    },
   });
   const [currentCategory, setCurrentCategory] = useState('');
 
@@ -58,8 +61,20 @@ const Purchases = props => {
     setItemListFilters(currentValues => {
       return {
         ...currentValues,
-        '%LIKE': {key: 'items.name', value: `'%${keyword}%'`},
+        // Match both name and barcode so a scanned barcode finds the item.
+        '%LIKE ANY': {
+          keys: ['items.name', 'items.barcode'],
+          value: `'%${keyword}%'`,
+        },
       };
+    });
+  };
+
+  const handlePressScanBarcode = () => {
+    // Route the scanned value through onChangeSearch so both the searchbar
+    // keyword and the list filter update together.
+    navigation.navigate(routes.scanBarcode(), {
+      onBarCodeRead: onChangeSearch,
     });
   };
 
@@ -161,6 +176,7 @@ const Purchases = props => {
               style={{flex: 1}}
             />
             <Pressable
+              onPress={handlePressScanBarcode}
               style={{
                 justifyContent: 'center',
                 alignItems: 'center',

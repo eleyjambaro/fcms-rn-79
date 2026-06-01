@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useMemo} from 'react';
-import {View, StyleSheet, Modal} from 'react-native';
+import {View, StyleSheet, Modal, Pressable} from 'react-native';
 import {
   TextInput,
   Button,
@@ -1677,12 +1677,27 @@ const ItemForm = props => {
           style={[styles.textInput, {flex: 1}]}
           editable={!isMasterLocked}
         />
-        <MaterialCommunityIcons
-          name="barcode-scan"
-          size={25}
-          color={colors.dark}
-          style={{position: 'absolute', top: 18, right: 15}}
-        />
+        <Pressable
+          onPress={() => {
+            if (isMasterLocked) return;
+            navigation.navigate(routes.scanBarcode(), {
+              onBarCodeRead: value => setFieldValue('barcode', value ?? ''),
+            });
+          }}
+          disabled={isMasterLocked}
+          hitSlop={10}
+          style={{
+            position: 'absolute',
+            top: 18,
+            right: 15,
+            opacity: isMasterLocked ? 0.4 : 1,
+          }}>
+          <MaterialCommunityIcons
+            name="barcode-scan"
+            size={25}
+            color={colors.dark}
+          />
+        </Pressable>
       </View>
       {(!editMode || isMasterLocked) && (
         <>

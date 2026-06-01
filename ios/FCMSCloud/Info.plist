@@ -31,6 +31,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true />
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is required to scan item barcodes.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string />
 	<key>UILaunchStoryboardName</key>

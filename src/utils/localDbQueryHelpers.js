@@ -36,6 +36,21 @@ export const createQueryFilter = (filter = {}, additionalFilter = {}) => {
         queryFilter = queryFilter
           ? (queryFilter += `OR ${operatorKeyAndValue.key} LIKE ${operatorKeyAndValue.value} `)
           : `WHERE ${operatorKeyAndValue.key} LIKE ${operatorKeyAndValue.value} `;
+      } else if (key === '%LIKE ANY') {
+        // Matches a single value against ANY of several columns, e.g. searching
+        // both item name and barcode. The OR-group is wrapped in parentheses so
+        // it stays scoped when combined with other AND filters (e.g. a category
+        // filter) — a bare `... AND name LIKE x OR barcode LIKE y` would leak
+        // rows because AND binds tighter than OR in SQL.
+        let {keys, value} = queryFilterObj['%LIKE ANY'];
+        let orGroup = (keys || [])
+          .map(columnKey => `${columnKey} LIKE ${value}`)
+          .join(' OR ');
+        if (orGroup) {
+          queryFilter = queryFilter
+            ? (queryFilter += `AND (${orGroup}) `)
+            : `WHERE (${orGroup}) `;
+        }
       } else if (key === '%BETWEEN') {
         let operatorKeyAndStartEndValue = queryFilterObj['%BETWEEN'];
         queryFilter = queryFilter

@@ -29,7 +29,7 @@ const Items = props => {
   }, []);
 
   const handlePressScanBarcode = () => {
-    navigation.navigate('ScanBarcode');
+    navigation.navigate(routes.scanBarcode());
   };
 
   const handlePressCreateNew = () => {
@@ -73,8 +73,12 @@ const Items = props => {
         <ItemList
           filter={{
             ...listFilter,
-            '%LIKE': {key: 'items.name', value: `'%${keyword}%'`},
-            // '%OR LIKE': {key: 'items.barcode', value: `'${keyword}'`},
+            // Match the keyword (typed or scanned) against both the item name
+            // and its barcode so scanning a barcode surfaces the right item.
+            '%LIKE ANY': {
+              keys: ['items.name', 'items.barcode'],
+              value: `'%${keyword}%'`,
+            },
           }}
           viewMode={viewMode}
           listItemDisplayMode={listItemDisplayMode}
