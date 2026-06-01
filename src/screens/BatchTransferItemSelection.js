@@ -82,17 +82,27 @@ const BatchTransferItemSelection = ({navigation, route}) => {
   const [editing, setEditing] = useState(null);
   const [qtyText, setQtyText] = useState('');
   const [remarksText, setRemarksText] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState(keyword);
 
   useEffect(() => {
     return () => setKeyword('');
   }, [setKeyword]);
 
+  // Debounce the keyword by 350ms so the query/filter only changes when the
+  // user pauses typing. Driving the filter off every keystroke re-renders the
+  // list mid-type, which steals focus and dismisses the keyboard. The Searchbar
+  // value stays bound to `keyword` so input remains responsive.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedKeyword(keyword), 350);
+    return () => clearTimeout(t);
+  }, [keyword]);
+
   const filter = useMemo(
     () => ({
       'items.is_finished_product': 0,
-      '%LIKE': {key: 'items.name', value: `'%${keyword}%'`},
+      '%LIKE': {key: 'items.name', value: `'%${debouncedKeyword}%'`},
     }),
-    [keyword],
+    [debouncedKeyword],
   );
 
   const {
@@ -205,6 +215,7 @@ const BatchTransferItemSelection = ({navigation, route}) => {
       <FlatList
         data={items}
         keyExtractor={i => i.id}
+        keyboardShouldPersistTaps="handled"
         renderItem={({item}) => (
           <ItemRow
             item={item}
