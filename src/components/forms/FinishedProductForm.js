@@ -345,7 +345,9 @@ const FinishedProductForm = props => {
               value={values.qty_per_piece}
               style={[styles.textInput, {flex: 1}]}
               keyboardType="numeric"
-              error={errors.qty_per_piece && touched.qty_per_piece ? true : false}
+              error={
+                errors.qty_per_piece && touched.qty_per_piece ? true : false
+              }
             />
             <QuantityUOMText
               textStyle={isReadOnly ? {color: colors.disabled} : {}}

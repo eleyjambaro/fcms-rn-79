@@ -435,11 +435,12 @@ export const registerItem = async ({
       : 'null';
 
     if (isFinishedProduct) {
-      unitCost = parseFloat(item.unit_cost || 0);
+      unitCost = parseFloat(item.unit_cost_net || 0); // when producing finished product, unit cost should be the net cost
       unitCostNet = parseFloat(item.unit_cost_net || 0);
-      unitCostTax = parseFloat(item.unit_cost_tax || 0);
+      unitCostTax = parseFloat(0);
+      taxRatePercentage = 0;
       initStockTaxId = 'null';
-      initStockTaxName = `'Yield Taxable Amount'`;
+      initStockTaxName = 'null';
       initStockVendorId = 'null';
       initStockVendorDisplayName = 'null';
     }

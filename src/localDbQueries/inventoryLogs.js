@@ -469,14 +469,15 @@ export const voidInventoryLog = async ({id}) => {
      * If inventory log is New Yield Stock
      * Void all inventory log with the same yield_ref_id.
      */
-    if (inventoryLog.operation_code === OPERATION_CODES.NEW_YIELD_STOCK && inventoryLog.yield_ref_id) {
+    if (
+      inventoryLog.operation_code === OPERATION_CODES.NEW_YIELD_STOCK &&
+      inventoryLog.yield_ref_id
+    ) {
       const voidAllDeductedYieldIngredientsInInventoryLogsQuery = `
         UPDATE inventory_logs
         SET voided = 1,
         updated_at = CURRENT_TIMESTAMP
-        WHERE yield_ref_id = '${
-          inventoryLog.yield_ref_id
-        }' AND id != '${inventoryLog.id}'
+        WHERE yield_ref_id = '${inventoryLog.yield_ref_id}' AND id != '${inventoryLog.id}'
       `;
       await db.executeSql(voidAllDeductedYieldIngredientsInInventoryLogsQuery);
     }
@@ -1183,20 +1184,23 @@ export const addInventoryLog = async ({
     let taxRatePercentage = parseFloat(tax?.rate_percentage || 0);
     let unitCostNet = unitCost / (taxRatePercentage / 100 + 1);
     let unitCostTax = unitCost - unitCostNet;
-
-    if (inventoryOperation.type === 'remove_stock') {
-      unitCost = parseFloat(item.avg_unit_cost_net);
-      unitCostNet = parseFloat(item.avg_unit_cost_net);
-      unitCostTax = parseFloat(0);
-    }
-
-    const taxId = tax.id ? `'${tax.id}'` : 'null';
-    const taxName = tax.name ? `'${tax.name.replace(/\'/g, "''")}'` : 'null';
-
-    const vendorId = vendor.id ? `'${vendor.id}'` : 'null';
-    const vendorDisplayName = vendor.vendor_display_name
+    let taxId = tax.id ? `'${tax.id}'` : 'null';
+    let taxName = tax.name ? `'${tax.name.replace(/\'/g, "''")}'` : 'null';
+    let vendorId = vendor.id ? `'${vendor.id}'` : 'null';
+    let vendorDisplayName = vendor.vendor_display_name
       ? `'${vendor.vendor_display_name.replace(/\'/g, "''")}'`
       : 'null';
+
+    if (inventoryOperation.type === 'remove_stock') {
+      unitCost = parseFloat(item.avg_unit_cost_net || 0); // when removing stock, we always use avg net cost
+      unitCostNet = parseFloat(item.avg_unit_cost_net || 0);
+      unitCostTax = parseFloat(0);
+      taxId = 'null';
+      taxName = 'null';
+      taxRatePercentage = 0;
+      vendorId = 'null';
+      vendorDisplayName = 'null';
+    }
 
     const officialReceiptNumber = log.official_receipt_number
       ? `'${log.official_receipt_number}'`

@@ -249,7 +249,7 @@ export const createItemEndingInventoryEntry = async ({
      * Insert inventory log (Stock Usage)
      */
 
-    const avgUnitCost = parseFloat(item.avg_unit_cost_net || 0);
+    const avgUnitCost = parseFloat(item.avg_unit_cost_net || 0); // we always use avg unit cost net when removing stock as Stock Usage
     const avgUnitCostNet = parseFloat(item.avg_unit_cost_net || 0);
     const avgUnitCostTax = parseFloat(0);
 

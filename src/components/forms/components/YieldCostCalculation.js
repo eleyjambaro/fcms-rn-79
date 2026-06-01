@@ -11,8 +11,10 @@ const YieldCostCalculation = props => {
   const currencySymbol = useCurrencySymbol();
 
   const unitCost = parseFloat(values?.unit_cost || 0);
+  const unitCostNet = parseFloat(values?.unit_cost_net || 0);
   const initialStockQty = parseFloat(values?.initial_stock_qty || 0);
   const calculatedTotalCost = unitCost * initialStockQty;
+  const calculatedTotalCostNet = unitCostNet * initialStockQty;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -59,6 +61,24 @@ const YieldCostCalculation = props => {
 
       <View style={[styles.listItemContainer, {marginTop: 15}]}>
         <Text style={{fontSize: 14, color: 'gray', fontWeight: 'bold'}}>
+          {`Cost Per Yield / Unit Cost (Net):`}
+        </Text>
+        <View style={styles.valueContainer}>
+          <Subheading
+            numberOfLines={1}
+            style={{
+              color: colors.accent,
+              marginRight: 5,
+              fontWeight: 'bold',
+              fontSize: 20,
+            }}>
+            {`${currencySymbol} ${commaNumber(unitCostNet.toFixed(2))}`}
+          </Subheading>
+        </View>
+      </View>
+
+      <View style={[styles.listItemContainer, {marginTop: 15}]}>
+        <Text style={{fontSize: 14, color: 'gray', fontWeight: 'bold'}}>
           {`Total Cost (Gross):`}
         </Text>
         <View style={styles.valueContainer}>
@@ -71,6 +91,26 @@ const YieldCostCalculation = props => {
               fontSize: 20,
             }}>
             {`${currencySymbol} ${commaNumber(calculatedTotalCost.toFixed(2))}`}
+          </Subheading>
+        </View>
+      </View>
+
+      <View style={[styles.listItemContainer, {marginTop: 15}]}>
+        <Text style={{fontSize: 14, color: 'gray', fontWeight: 'bold'}}>
+          {`Total Cost (Net):`}
+        </Text>
+        <View style={styles.valueContainer}>
+          <Subheading
+            numberOfLines={1}
+            style={{
+              color: colors.accent,
+              marginRight: 5,
+              fontWeight: 'bold',
+              fontSize: 20,
+            }}>
+            {`${currencySymbol} ${commaNumber(
+              calculatedTotalCostNet.toFixed(2),
+            )}`}
           </Subheading>
         </View>
       </View>
