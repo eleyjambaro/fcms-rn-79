@@ -35,7 +35,14 @@ const {
   cloudV2DeviceCompanyId,
   cloudV2DesignatedBranch,
   cloudV2DeviceCompanyInfo,
+  cloudV2LastSignInAccountType,
 } = rnStorageKeys;
+
+// Maps an authUser to the account-type marker we persist so the auth stack can
+// default to the matching sign-in screen ('root' → Company Owner, 'sub' → Team
+// Member) the next time the device returns to the unauthenticated state.
+const accountTypeOf = user =>
+  user?.account?.is_root_account ? 'root' : 'sub';
 
 const saveItem = async (key, value) => {
   if (value === null || value === undefined) {
@@ -82,6 +89,7 @@ const reducer = (prevState, action) => {
         deviceToken: action.deviceToken,
         designatedBranch: action.designatedBranch,
         deviceCompanyInfo: action.deviceCompanyInfo,
+        lastSignInAccountType: action.lastSignInAccountType ?? null,
       };
     case 'SIGN_IN':
       return {
@@ -90,6 +98,7 @@ const reducer = (prevState, action) => {
         isSignout: false,
         authToken: action.authToken,
         authUser: action.authUser,
+        lastSignInAccountType: action.lastSignInAccountType,
         // clearDevice: root account signing in under a different company
         ...(action.clearDevice
           ? {deviceId: null, deviceToken: null, designatedBranch: null, deviceCompanyInfo: null}
@@ -102,6 +111,8 @@ const reducer = (prevState, action) => {
         isSignout: false,
         authToken: action.authToken,
         authUser: action.authUser,
+        // New company account — owner, so default to the owner sign-in screen
+        lastSignInAccountType: 'root',
         // New company account — always start fresh device registration
         deviceId: null,
         deviceToken: null,
@@ -179,6 +190,9 @@ const initialState = {
   deviceToken: null,
   designatedBranch: null,
   deviceCompanyInfo: null,
+  // 'root' | 'sub' | null — account type of the last successful sign-in, used
+  // to pick which sign-in screen the unauthenticated auth stack defaults to.
+  lastSignInAccountType: null,
   // True while setDesignatedBranch is preparing the new branch DB and running
   // its initial pull. App.js shows Splash for the duration so the user never
   // sees an empty Items / Recipes screen mid-switch.
@@ -200,6 +214,9 @@ const CloudAuthContextProvider = ({children}) => {
         const deviceToken = await loadItem(cloudV2DeviceToken);
         const designatedBranch = await loadItem(cloudV2DesignatedBranch, true);
         const deviceCompanyInfo = await loadItem(cloudV2DeviceCompanyInfo, true);
+        const lastSignInAccountType = await loadItem(
+          cloudV2LastSignInAccountType,
+        );
 
         // Activate the company+branch-scoped DB and seed defaults
         // before any component reads local data (isLoading stays true until done)
@@ -222,6 +239,7 @@ const CloudAuthContextProvider = ({children}) => {
           deviceToken,
           designatedBranch,
           deviceCompanyInfo,
+          lastSignInAccountType,
         });
 
         // Fire-and-forget: refresh company info via device token so existing
@@ -279,6 +297,11 @@ const CloudAuthContextProvider = ({children}) => {
         await saveItem(cloudV2AuthToken, token);
         await saveItem(cloudV2AuthUser, user);
 
+        // Remember the account type so the next unauthenticated session defaults
+        // to the matching sign-in screen (Company Owner vs Team Member).
+        const accountType = accountTypeOf(user);
+        await saveItem(cloudV2LastSignInAccountType, accountType);
+
         // Root account sign-in: clear device credentials if the company changed.
         // This forces device registration for a new company while preserving
         // credentials when the same owner signs back in.
@@ -316,6 +339,7 @@ const CloudAuthContextProvider = ({children}) => {
           authToken: token,
           authUser: user,
           clearDevice,
+          lastSignInAccountType: accountType,
         });
       },
 
@@ -326,6 +350,8 @@ const CloudAuthContextProvider = ({children}) => {
           : null;
         await saveItem(cloudV2AuthToken, token);
         await saveItem(cloudV2AuthUser, user);
+        // New company account is always an owner — default to owner sign-in next.
+        await saveItem(cloudV2LastSignInAccountType, 'root');
         // New company account — always clear any existing device credentials
         await clearDeviceFromStorage();
         // Switch to the new company's isolated DB file (no branch yet — branch
@@ -344,6 +370,11 @@ const CloudAuthContextProvider = ({children}) => {
           : null;
         await saveItem(cloudV2AuthToken, token);
         await saveItem(cloudV2AuthUser, user);
+
+        // OTP verify is the owner flow, but derive the marker from the account
+        // anyway so it stays correct if that ever changes.
+        const accountType = accountTypeOf(user);
+        await saveItem(cloudV2LastSignInAccountType, accountType);
 
         const storedCompanyId = await loadItem(cloudV2DeviceCompanyId);
         let clearDevice = false;
@@ -373,6 +404,7 @@ const CloudAuthContextProvider = ({children}) => {
           authToken: token,
           authUser: user,
           clearDevice,
+          lastSignInAccountType: accountType,
         });
       },
 

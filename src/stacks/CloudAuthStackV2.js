@@ -108,9 +108,19 @@ const CloudAuthStackV2 = () => {
     );
   }
 
-  // Phase 1: not authenticated — show full sign in / sign up flow
+  // Phase 1: not authenticated — show full sign in / sign up flow.
+  // Default to the sign-in screen matching the last successful sign-in: a team
+  // member (sub-account) lands on Team Member Sign In, everyone else (owner /
+  // first run) on Company Owner Sign In.
+  const initialAuthRoute =
+    cloudAuthState.lastSignInAccountType === 'sub'
+      ? routes.cloudV2SubAccountSignIn()
+      : routes.cloudV2SignIn();
+
   return (
-    <Stack.Navigator screenOptions={{headerShown: false}}>
+    <Stack.Navigator
+      initialRouteName={initialAuthRoute}
+      screenOptions={{headerShown: false}}>
       <Stack.Screen name={routes.cloudV2SignIn()} component={CloudV2SignIn} />
       <Stack.Screen
         name={routes.cloudV2SignUpStep1()}

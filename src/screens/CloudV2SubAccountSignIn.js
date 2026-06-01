@@ -15,6 +15,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import {signIn} from '../serverDbQueries/v2/auth';
+import routes from '../constants/routes';
 import appDefaults from '../constants/appDefaults';
 import CloudAppIcon from '../components/icons/CloudAppIcon';
 
@@ -89,7 +90,7 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
         </View>
         <Button
           mode="contained"
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate(routes.cloudV2SignIn())}
           style={styles.button}
           contentStyle={styles.buttonContent}>
           Account Owner? Sign In Here
@@ -220,7 +221,7 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
         <Text style={styles.footerText}>Account owner?</Text>
         <Pressable
           style={styles.footerLink}
-          onPress={() => navigation.goBack()}>
+          onPress={() => navigation.navigate(routes.cloudV2SignIn())}>
           <Text style={[styles.footerLinkText, {color: colors.primary}]}>
             Sign in here
           </Text>

@@ -12,6 +12,9 @@ export const rnStorageKeys = {
   cloudV2DeviceCompanyId: 'cloudV2DeviceCompanyId',
   cloudV2DesignatedBranch: 'cloudV2DesignatedBranch',
   cloudV2DeviceCompanyInfo: 'cloudV2DeviceCompanyInfo',
+  // 'root' | 'sub' — account type of the last successful sign-in. Drives which
+  // sign-in screen (Company Owner vs Team Member) the auth stack defaults to.
+  cloudV2LastSignInAccountType: 'cloudV2LastSignInAccountType',
 };
 
 export default rnStorageKeys;
