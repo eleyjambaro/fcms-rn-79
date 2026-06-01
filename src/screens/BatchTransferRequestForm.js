@@ -157,51 +157,71 @@ const BatchTransferRequestForm = ({navigation}) => {
           <View style={{flex: 1}}>
             {isOut ? (
               <>
-                <TextInput
-                  label="Origin (your branch)"
-                  value={currentBranchLabel}
-                  editable={false}
-                  dense
-                  mode="flat"
-                  style={styles.input}
-                />
-                <Pressable onPress={() => setShowPicker(true)}>
-                  <View pointerEvents="none">
+                <View style={styles.inputRow}>
+                  <Text style={styles.sideLabel}>From:</Text>
+                  <View style={{flex: 1}}>
                     <TextInput
-                      label={counterpartyPickerLabel}
-                      value={counterpartyLabel}
-                      placeholder="Tap to choose…"
+                      label="Origin (your branch)"
+                      value={currentBranchLabel}
                       editable={false}
                       dense
                       mode="flat"
                       style={styles.input}
                     />
                   </View>
-                </Pressable>
+                </View>
+                <View style={styles.inputRow}>
+                  <Text style={styles.sideLabel}>To:</Text>
+                  <Pressable
+                    onPress={() => setShowPicker(true)}
+                    style={{flex: 1}}>
+                    <View pointerEvents="none">
+                      <TextInput
+                        label={counterpartyPickerLabel}
+                        value={counterpartyLabel}
+                        placeholder="Tap to choose…"
+                        editable={false}
+                        dense
+                        mode="flat"
+                        style={styles.input}
+                      />
+                    </View>
+                  </Pressable>
+                </View>
               </>
             ) : (
               <>
-                <Pressable onPress={() => setShowPicker(true)}>
-                  <View pointerEvents="none">
+                <View style={styles.inputRow}>
+                  <Text style={styles.sideLabel}>From:</Text>
+                  <Pressable
+                    onPress={() => setShowPicker(true)}
+                    style={{flex: 1}}>
+                    <View pointerEvents="none">
+                      <TextInput
+                        label={counterpartyPickerLabel}
+                        value={counterpartyLabel}
+                        placeholder="Tap to choose…"
+                        editable={false}
+                        dense
+                        mode="flat"
+                        style={styles.input}
+                      />
+                    </View>
+                  </Pressable>
+                </View>
+                <View style={styles.inputRow}>
+                  <Text style={styles.sideLabel}>To:</Text>
+                  <View style={{flex: 1}}>
                     <TextInput
-                      label={counterpartyPickerLabel}
-                      value={counterpartyLabel}
-                      placeholder="Tap to choose…"
+                      label="Destination (your branch)"
+                      value={currentBranchLabel}
                       editable={false}
                       dense
                       mode="flat"
                       style={styles.input}
                     />
                   </View>
-                </Pressable>
-                <TextInput
-                  label="Destination (your branch)"
-                  value={currentBranchLabel}
-                  editable={false}
-                  dense
-                  mode="flat"
-                  style={styles.input}
-                />
+                </View>
               </>
             )}
           </View>
@@ -231,8 +251,9 @@ const BatchTransferRequestForm = ({navigation}) => {
           />
           <Text style={styles.noteCardText}>
             {isOut
-              ? "You'll pick items and quantities in the next step. The destination branch will review your request and confirm before any stock changes."
-              : "You'll pick the items you want to request in the next step. The source branch will review your request and confirm before any stock changes."}
+              ? "You'll pick items and quantities in the next step. The destination branch will review your request and confirm "
+              : "You'll pick the items you want to request in the next step. The source branch will review your request and confirm "}
+            <Text style={styles.noteCardTextBold}>before any stock changes.</Text>
           </Text>
         </View>
       </View>
@@ -276,6 +297,13 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   input: {backgroundColor: 'transparent', marginBottom: 4},
+  inputRow: {flexDirection: 'row', alignItems: 'center'},
+  sideLabel: {
+    fontWeight: 'bold',
+    fontSize: 13,
+    width: 44,
+    marginRight: 4,
+  },
   swapBtn: {padding: 8, marginLeft: 4},
   badgeRow: {flexDirection: 'row', justifyContent: 'center', marginTop: 8},
   directionBadge: {
@@ -296,6 +324,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     lineHeight: 17,
+    color: '#1565C0',
+  },
+  noteCardTextBold: {
+    fontWeight: 'bold',
     color: '#1565C0',
   },
   nextBtn: {marginTop: 'auto'},

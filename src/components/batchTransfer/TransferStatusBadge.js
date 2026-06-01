@@ -2,7 +2,7 @@ import React from 'react';
 import {StyleSheet} from 'react-native';
 import {Badge} from 'react-native-paper';
 
-const STATUS_COLORS = {
+export const STATUS_COLORS = {
   draft: '#9E9E9E',
   requested: '#FB8C00',
   accepted: '#1E88E5',

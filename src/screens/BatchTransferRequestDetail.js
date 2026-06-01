@@ -39,7 +39,10 @@ import {
   updateDraftBatchTransferEntry,
   resolveMissingSourceItemIdsForGroup,
 } from '../localDbQueries/batchTransfer';
-import TransferStatusBadge from '../components/batchTransfer/TransferStatusBadge';
+import TransferStatusBadge, {
+  STATUS_COLORS,
+} from '../components/batchTransfer/TransferStatusBadge';
+import TransferStatusTimeline from '../components/batchTransfer/TransferStatusTimeline';
 import {formatTransferUOMAbbrev} from '../utils/stringHelpers';
 
 const OUT_BADGE_COLOR = '#E53935';
@@ -759,33 +762,42 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             </View>
           </View>
 
-          {group.date_requested ? (
-            <Text style={styles.timestamp}>
-              Requested {formatDate(group.date_requested)}
-            </Text>
-          ) : null}
-          {group.date_accepted ? (
-            <Text style={styles.timestamp}>
-              Accepted {formatDate(group.date_accepted)}
-            </Text>
-          ) : null}
-          {group.date_transferring ? (
-            <Text style={styles.timestamp}>
-              Transferring {formatDate(group.date_transferring)}
-            </Text>
-          ) : null}
-          {group.date_received ? (
-            <Text style={styles.timestamp}>
-              Received {formatDate(group.date_received)}
-            </Text>
-          ) : null}
+          <TransferStatusTimeline
+            steps={[
+              {
+                key: 'requested',
+                label: 'Requested',
+                date: group.date_requested,
+                color: STATUS_COLORS.requested,
+              },
+              {
+                key: 'accepted',
+                label: 'Accepted',
+                date: group.date_accepted,
+                color: STATUS_COLORS.accepted,
+              },
+              {
+                key: 'transferring',
+                label: 'Transferring',
+                date: group.date_transferring,
+                color: STATUS_COLORS.transferring,
+              },
+              {
+                key: 'received',
+                label: 'Received',
+                date: group.date_received,
+                color: STATUS_COLORS.received,
+              },
+            ]}
+            formatDate={formatDate}
+          />
           {group.date_cancelled ? (
-            <Text style={styles.timestamp}>
+            <Text style={[styles.timestamp, {color: STATUS_COLORS.cancelled}]}>
               Cancelled {formatDate(group.date_cancelled)}
             </Text>
           ) : null}
           {group.date_rejected ? (
-            <Text style={styles.timestamp}>
+            <Text style={[styles.timestamp, {color: STATUS_COLORS.rejected}]}>
               Rejected {formatDate(group.date_rejected)}
             </Text>
           ) : null}
