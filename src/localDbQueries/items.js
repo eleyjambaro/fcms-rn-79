@@ -15,6 +15,22 @@ import {generateMasterItemSku} from '../utils/generateMasterItemSku';
 import {generateMasterItemDescription} from '../utils/generateMasterItemDescription';
 import {generateMasterItemDedupKey} from '../utils/generateMasterItemDedupKey';
 
+// Normalize an id column value to a real null. An earlier double-quoting bug in
+// updateItem (e.g. `tax_id = '${defaultTaxId}'` where defaultTaxId was already
+// the bareword `null`) wrote the literal STRING 'null' into id columns such as
+// items.tax_id / inventory_logs.ref_tax_id. Those strings are truthy, so the
+// next edit re-quoted them into `''null''` and crashed the UPDATE. Treat the
+// stray 'null'/'undefined' strings (and empty/whitespace) as null so reads
+// skip them and the rows self-heal to an actual NULL on the next save.
+const normalizeId = value => {
+  if (value === null || value === undefined) return null;
+  const trimmed = String(value).trim();
+  if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') {
+    return null;
+  }
+  return value;
+};
+
 // Read the current cloud account once per registerItem call so we can stamp
 // audit fields (e.g. master_items.registered_by_account_id). Returns null
 // when not signed in — caller treats the audit field as nullable.
@@ -1014,6 +1030,16 @@ export const getItem = async ({queryKey}) => {
     items.category_id AS category_id,
     items.sku AS sku,
     items.master_item_sync_id AS master_item_sync_id,
+    /* Company-wide master description (read-only on the branch Edit Item
+       screen). Scalar subqueries — not a JOIN — so master_items columns can't
+       collide with / overwrite the item's own same-named columns under the
+       SELECT *. Prefer the canonical sync_id join key, fall back to sku (which
+       is denormalized onto items and unique per company in master_items) to
+       cover the post-reinstall window before master_item_sync_id is rebuilt. */
+    COALESCE(
+      (SELECT mi.description FROM active_master_items mi WHERE mi.sync_id = items.master_item_sync_id LIMIT 1),
+      (SELECT mi.description FROM active_master_items mi WHERE mi.sku = items.sku LIMIT 1)
+    ) AS master_item_description,
     categories.name AS category_name,
     (SELECT beginning_inventory_date FROM inventory_logs WHERE voided != 1 AND item_id = '${id}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')) AS beginning_inventory_date,
 
@@ -1199,7 +1225,7 @@ export const updateItem = async ({
     /**
      * Get item default tax
      */
-    if (item.tax_id) {
+    if (normalizeId(item.tax_id)) {
       const getItemDefaultTaxQuery = `
         SELECT * FROM taxes WHERE id = '${item.tax_id}'
       `;
@@ -1257,7 +1283,7 @@ export const updateItem = async ({
     /**
      * Check and set initial stock applied tax
      */
-    if (itemInitStockLog?.ref_tax_id) {
+    if (normalizeId(itemInitStockLog?.ref_tax_id)) {
       initStockTax = {
         id: itemInitStockLog.ref_tax_id,
         name: itemInitStockLog.adjustment_tax_name,
@@ -1310,7 +1336,7 @@ export const updateItem = async ({
     /**
      * Get item default (preferred) vendor
      */
-    if (item.preferred_vendor_id) {
+    if (normalizeId(item.preferred_vendor_id)) {
       const getItemDefaultVendorQuery = `
         SELECT * FROM vendors WHERE id = '${item.preferred_vendor_id}'
       `;
@@ -1368,7 +1394,7 @@ export const updateItem = async ({
     /**
      * Check and set initial stock vendor
      */
-    if (itemInitStockLog?.ref_vendor_id) {
+    if (normalizeId(itemInitStockLog?.ref_vendor_id)) {
       initStockVendor = {
         id: itemInitStockLog.ref_vendor_id,
         vendor_display_name: itemInitStockLog.vendor_display_name,
@@ -1452,8 +1478,8 @@ export const updateItem = async ({
       SET category_id = ${
         updatedValues.category_id ? `'${updatedValues.category_id}'` : 'null'
       },
-      tax_id = '${defaultTaxId}',
-      preferred_vendor_id = '${defaultVendorId}',
+      tax_id = ${defaultTaxId},
+      preferred_vendor_id = ${defaultVendorId},
       name = '${updatedValues.name.replace(/\'/g, "''")}',
       uom_abbrev = '${updatedValues.uom_abbrev}',
       uom_abbrev_per_piece = '${updatedValues.uom_abbrev_per_piece}',
@@ -1494,8 +1520,8 @@ export const updateItem = async ({
       const updateLoggedInitialStockQuery = `
         UPDATE inventory_logs
         SET adjustment_unit_cost = ${unitCost},
-        ref_tax_id = '${initStockTaxId}',
-        ref_vendor_id = '${initStockVendorId}',
+        ref_tax_id = ${initStockTaxId},
+        ref_vendor_id = ${initStockVendorId},
         vendor_display_name = ${initStockVendorDisplayName},
         adjustment_unit_cost_net = ${unitCostNet},
         adjustment_unit_cost_tax = ${unitCostTax},

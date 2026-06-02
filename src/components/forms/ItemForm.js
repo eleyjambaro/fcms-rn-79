@@ -168,6 +168,32 @@ const ActivityLoader = ({colors}) => (
   />
 );
 
+// Custom Dropdown input that bolds the selected value, matching the bold
+// Master Item value pattern used on the Edit Master Item screen. Dropdown
+// forwards only a fixed set of TextInputProps to its inner input and offers no
+// style passthrough, so a custom input is the only way to style the value.
+const BoldDropdownInput = ({
+  placeholder,
+  label,
+  rightIcon,
+  selectedLabel,
+  mode,
+  disabled,
+  error,
+}) => (
+  <TextInput
+    placeholder={placeholder}
+    label={label}
+    value={selectedLabel}
+    right={rightIcon}
+    mode={mode}
+    editable={false}
+    disabled={disabled}
+    error={error}
+    contentStyle={styles.masterValueText}
+  />
+);
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -197,6 +223,13 @@ const ItemForm = props => {
   const isMasterLocked =
     !!masterItem ||
     (editMode && (!!item?.master_item_sync_id || !!item?.sku));
+
+  // Company-wide master description, shown read-only on the branch Edit Item
+  // screen. From the picked master in add-from-master mode, otherwise from the
+  // master_item_description the getItem query resolves for the linked item.
+  const masterItemDescription = masterItem
+    ? masterItem.description ?? ''
+    : item?.master_item_description ?? '';
 
   // Merge master overrides on top of whatever initialValues the caller passed
   // (or the form-wide defaults if none). Falsy `initialValues` means the
@@ -706,6 +739,9 @@ const ItemForm = props => {
                 style={[styles.textInput, {flex: 1}]}
                 keyboardType="numeric"
                 error={!!(errors.qty_per_piece && touched.qty_per_piece)}
+                contentStyle={
+                  isMasterLocked ? styles.masterValueText : undefined
+                }
               />
               <QuantityUOMText
                 textStyle={disabled ? {color: colors.disabled} : {}}
@@ -727,6 +763,9 @@ const ItemForm = props => {
               activeColor={colors.accent}
               dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
               disabled={isMasterLocked}
+              CustomDropdownInput={
+                isMasterLocked ? BoldDropdownInput : undefined
+              }
             />
             {isMasterLocked
               ? renderMasterItemNote('Variant fields locked to Master Item List')
@@ -1759,9 +1798,20 @@ const ItemForm = props => {
         value={values.name}
         error={!!(errors.name && touched.name)}
         autoCapitalize="words"
-        editable={!isMasterLocked}
       />
-      {isMasterLocked ? renderMasterItemNote('From Master Item List') : null}
+      {isMasterLocked ? (
+        <>
+          <TextInput
+            style={[styles.textInput, {marginTop: 6}]}
+            label="Master Item Description"
+            value={masterItemDescription}
+            editable={false}
+            multiline
+            contentStyle={styles.masterValueText}
+          />
+          {renderMasterItemNote('From Master Item List')}
+        </>
+      ) : null}
       <View style={{flexDirection: 'row'}}>
         <TextInput
           label="Item Barcode (Optional)"
@@ -1806,6 +1856,7 @@ const ItemForm = props => {
             style={styles.textInput}
             error={!!(errors.sku && touched.sku)}
             editable={!isMasterLocked}
+            contentStyle={isMasterLocked ? styles.masterValueText : undefined}
           />
           {errors.sku && touched.sku ? (
             <HelperText type="error">{errors.sku}</HelperText>
@@ -1948,6 +1999,9 @@ const ItemForm = props => {
 
 const styles = StyleSheet.create({
   textInput: {},
+  masterValueText: {
+    fontWeight: 'bold',
+  },
   masterItemLinkRow: {
     flexDirection: 'row',
     alignItems: 'center',
