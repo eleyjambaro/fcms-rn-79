@@ -263,7 +263,7 @@ export const createItemEndingInventoryEntry = async ({
 
     const adjustmentDate = monthYearDateFilter
       ? `datetime('${monthYearDateFilter}')`
-      : `datetime('now')`;
+      : `datetime('now', 'localtime')`;
 
     // Use operation codes: stock_usage for remove, inventory_recount_in for add
     let operationUUID = OPERATION_DEFAULT_UUIDS.stock_usage;

@@ -392,7 +392,7 @@ export const hasCurrentBatchStockUsageGroup = async () => {
 export const confirmBatchStockUsageEntries = async ({usageDate}) => {
   const dateConfirmed = usageDate
     ? `datetime('${usageDate}')`
-    : `datetime('now')`;
+    : `datetime('now', 'localtime')`;
 
   try {
     const db = await getDBConnection();

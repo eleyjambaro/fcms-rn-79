@@ -1587,10 +1587,10 @@ export const insertTemplateDataToDb = async ({
           operationId = OPERATION_DEFAULT_UUIDS.initial_stock;
           beginningInventoryDateValue = beginningInventoryDate
             ? `datetime('${beginningInventoryDate}', 'start of month')`
-            : `datetime('now', 'start of month')`;
+            : `datetime('now', 'localtime', 'start of month')`;
           adjustmentDateValue = beginningInventoryDate
             ? `datetime('${beginningInventoryDate}', 'start of month', '-1 day')`
-            : `datetime('now', 'start of month', '-1 day')`;
+            : `datetime('now', 'localtime', 'start of month', '-1 day')`;
         }
 
         const newInvLogId = uuid.v4();

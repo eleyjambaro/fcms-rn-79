@@ -438,7 +438,7 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
 
     let adjustmentDate = updatedValues.adjustment_date
       ? `datetime('${updatedValues.adjustment_date}')`
-      : `datetime('now')`;
+      : `datetime('now', 'localtime')`;
     let beginningInventoryDate = 'null';
 
     if (log.operation_code === OPERATION_CODES.PRE_APP_STOCK) {
@@ -446,10 +446,10 @@ export const updateInventoryLog = async ({id, updatedValues}) => {
 
       const beginningInventoryDateFixedValue = beginningInventoryDate
         ? `datetime('${beginningInventoryDate}', 'start of month')`
-        : `datetime('now', 'start of month')`;
+        : `datetime('now', 'localtime', 'start of month')`;
       const adjustmentDateFixedValue = beginningInventoryDate
         ? `datetime('${beginningInventoryDate}', 'start of month', '-1 day')`
-        : `datetime('now', 'start of month', '-1 day')`;
+        : `datetime('now', 'localtime', 'start of month', '-1 day')`;
 
       beginningInventoryDate = beginningInventoryDateFixedValue;
       adjustmentDate = adjustmentDateFixedValue;
@@ -911,7 +911,7 @@ export const getItemCostPercentage = async ({queryKey}) => {
       const getCurrentMonthRevenueGroupAmountQuery = `
       SELECT SUM(amount) AS total_amount
       FROM revenues
-      WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('now'))
+      WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('now', 'localtime'))
       AND revenue_group_id = '${revenueGroupId}'
     `;
       const getCurrentMonthRevenueGroupAmountResult = await db.executeSql(
@@ -1069,7 +1069,7 @@ export const getCategoryCostPercentage = async ({queryKey}) => {
       const getCurrentMonthRevenueGroupAmountQuery = `
       SELECT SUM(amount) AS total_amount
       FROM revenues
-      WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('now'))
+      WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('now', 'localtime'))
       AND revenue_group_id = '${revenueGroupId}'
     `;
       const getCurrentMonthRevenueGroupAmountResult = await db.executeSql(
@@ -1262,7 +1262,7 @@ export const addInventoryLog = async ({
 
     const adjustmentDate = log.adjustment_date
       ? `datetime('${log.adjustment_date}')`
-      : `datetime('now')`;
+      : `datetime('now', 'localtime')`;
 
     const {deviceId, branchId} = await getCloudSyncParams();
     const newLogId = uuid.v4();

@@ -737,10 +737,10 @@ export const registerItem = async ({
 
     let beginningInventoryDateFixedValue = beginningInventoryDate
       ? `datetime('${beginningInventoryDate}', 'start of month')`
-      : `datetime('now', 'start of month')`;
+      : `datetime('now', 'localtime', 'start of month')`;
     let adjustmentDateFixedValue = beginningInventoryDate
       ? `datetime('${beginningInventoryDate}', 'start of month', '-1 day')`
-      : `datetime('now', 'start of month', '-1 day')`;
+      : `datetime('now', 'localtime', 'start of month', '-1 day')`;
 
     // Change date if finished product
     if (isFinishedProduct) {
@@ -1503,10 +1503,10 @@ export const updateItem = async ({
 
       const beginningInventoryDateFixedValue = beginningInventoryDate
         ? `datetime('${beginningInventoryDate}', 'start of month')`
-        : `datetime('now', 'start of month')`;
+        : `datetime('now', 'localtime', 'start of month')`;
       const adjustmentDateFixedValue = beginningInventoryDate
         ? `datetime('${beginningInventoryDate}', 'start of month', '-1 day')`
-        : `datetime('now', 'start of month', '-1 day')`;
+        : `datetime('now', 'localtime', 'start of month', '-1 day')`;
 
       const initStockOfficialReceiptNumber =
         updatedValues.official_receipt_number

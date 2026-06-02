@@ -608,7 +608,7 @@ export const confirmBatchPurchaseEntries = async ({
 }) => {
   const dateConfirmed = purchaseDate
     ? `datetime('${purchaseDate}')`
-    : `datetime('now')`;
+    : `datetime('now', 'localtime')`;
 
   try {
     const db = await getDBConnection();

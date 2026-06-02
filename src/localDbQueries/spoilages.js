@@ -58,7 +58,7 @@ export const addSpoilage = async ({values}) => {
 
     const spoilageDate = values.in_spoilage_date
       ? `datetime('${values.in_spoilage_date}')`
-      : `datetime('now')`;
+      : `datetime('now', 'localtime')`;
 
     const {deviceId, branchId} = await getCloudSyncParams();
     const newSpoilageId = uuid.v4();
@@ -585,7 +585,7 @@ export const updateSpoilage = async ({id, updatedValues}) => {
 
     const spoilageDate = updatedValues.in_spoilage_date
       ? `datetime('${updatedValues.in_spoilage_date}')`
-      : `datetime('now')`;
+      : `datetime('now', 'localtime')`;
 
     const updateSpoilageQuery = `
       UPDATE spoilages

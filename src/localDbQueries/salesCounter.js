@@ -20,7 +20,7 @@ export const confirmSaleEntries = async ({
 
   const salesInvoiceDate = saleDate
     ? `datetime('${saleDate}')`
-    : `datetime('now')`;
+    : `datetime('now', 'localtime')`;
 
   let createdInvoiceId = null;
 
@@ -464,7 +464,7 @@ export const confirmFulfillingSalesOrders = async ({
 
   const salesInvoiceDate = saleDate
     ? `datetime('${saleDate}')`
-    : `datetime('now')`;
+    : `datetime('now', 'localtime')`;
 
   let createdInvoiceId = null;
 
@@ -900,7 +900,7 @@ export const addSaleEntriesToSalesOrders = async ({
 
   const salesOrderDate = orderDate
     ? `datetime('${orderDate}')`
-    : `datetime('now')`;
+    : `datetime('now', 'localtime')`;
 
   let createdSalesOrderGroupId = null;
 

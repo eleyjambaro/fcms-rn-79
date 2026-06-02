@@ -171,9 +171,15 @@ The SKU/name fallbacks are load-bearing: `master_item_sync_id` is a client-only 
 
 The three call sites — `confirmTransferReceived` (dest, `createIfMissing: true`), `materializeReceivedTransferLogs` (source, `createIfMissing: true`), and `resolveMissingSourceItemIdsForGroup` (source at request-open, `createIfMissing: false` so browsing never spawns stockless items) — must all route through this helper.
 
-#### `inventory_logs.adjustment_date` is LOCAL time
+#### Date/time convention: business/event dates are LOCAL, audit/sync timestamps are UTC
 
-Every `inventory_logs.adjustment_date` is stored in **local** time as `YYYY-MM-DD HH:mm:ss` — user-entered dates come from a local date picker (built from `getHours()` etc.) and the log list/details display and **sort** the value as-is with no timezone conversion (`getInventoryLogs` orders by `adjustment_date DESC`). When a transfer materializes an inventory log, stamp `adjustment_date` with `datetime('now', 'localtime')` (or convert a stored-UTC source like `group.date_received` via `datetime(<utc>, 'localtime')`) — **never** bare `CURRENT_TIMESTAMP` / `datetime('now')`, which are UTC and sink the row `tz-offset` hours into the past, hiding it below same-day local entries in the sorted list. Only the sync columns (`updated_at`, `synced_at`) stay UTC — they're watermarks, not user-facing dates.
+This applies to **every** insert and update across `/src/localDbQueries/`, not just Batch Transfer — getting it wrong silently misorders rows in date-sorted lists.
+
+**Business/event date columns are stored in LOCAL time** as `YYYY-MM-DD HH:mm:ss`: `inventory_logs.adjustment_date`, `inventory_logs.beginning_inventory_date`, `spoilages.in_spoilage_date`, and the sale / purchase / order / usage / ending-inventory dates. User-entered values come from a local date picker (built from `getHours()` etc.), and lists display and **sort** them as-is with no timezone conversion (e.g. `getInventoryLogs` orders by `adjustment_date DESC`). So when a write generates the date itself, it MUST use `datetime('now', 'localtime')` (or `datetime('now', 'localtime', 'start of month', …)` for beginning-inventory baselines, with `'localtime'` first so the month math runs on the local date). To carry over a stored-UTC value (e.g. a transfer's `group.date_received`), convert it with `datetime(<utc>, 'localtime')`.
+
+**Never** stamp a business date with bare `CURRENT_TIMESTAMP` or `datetime('now')` — both are UTC and sink the row `tz-offset` hours into the past, hiding it below same-day local entries in the sorted list (the Batch Transfer "Transfer In missing from the log list" bug). The established per-write idiom is `userDate ? datetime('${userDate}') : datetime('now', 'localtime')`.
+
+**Audit/sync timestamp columns stay UTC**: `updated_at` and `synced_at` (sync watermarks — the server compares `updated_at`, so it MUST be UTC), plus `date_created` / `date_saved` (uniformly UTC via `CURRENT_TIMESTAMP` / `datetime('now')`; flipping these to local would mix timezones within the column against existing rows and reintroduce the same misordering). Do not "localize" these.
 
 #### UOM abbreviation display (all Batch Transfer screens)
 
