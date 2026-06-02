@@ -34,6 +34,7 @@ const useIngredientsValidator = ({enabled = false, recipeId, updatedYield}) => {
   const recipeIngredientsMap = {};
   const requiredIngredients = [];
   let hasError = isError;
+  let hasInsufficientStock = false;
 
   if (enabled && recipe && recipeIngredients?.length) {
     for (let ingredient of recipeIngredients) {
@@ -48,6 +49,7 @@ const useIngredientsValidator = ({enabled = false, recipeId, updatedYield}) => {
 
       if (isInsufficientStock) {
         hasError = true;
+        hasInsufficientStock = true;
       }
 
       const recipeIngredient = {
@@ -82,6 +84,7 @@ const useIngredientsValidator = ({enabled = false, recipeId, updatedYield}) => {
     ingredientsMap,
     setIngredientsMap,
     hasError,
+    hasInsufficientStock,
   };
 };
 

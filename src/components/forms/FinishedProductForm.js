@@ -198,7 +198,21 @@ const FinishedProductForm = props => {
     updatedYield: formik.values.initial_stock_qty,
     enabled: true,
   });
-  const {hasError, requiredIngredients} = ingredientsValidator;
+  const {hasError, hasInsufficientStock, isError, requiredIngredients} =
+    ingredientsValidator;
+  const [
+    confirmInsufficientStockYield,
+    setConfirmInsufficientStockYield,
+  ] = useState(false);
+
+  // Re-require confirmation whenever the insufficient-stock condition clears,
+  // so the user must explicitly re-confirm if it reappears (e.g. after
+  // changing the total yield to produce).
+  useEffect(() => {
+    if (!hasInsufficientStock && confirmInsufficientStockYield) {
+      setConfirmInsufficientStockYield(false);
+    }
+  }, [hasInsufficientStock, confirmInsufficientStockYield]);
 
   const handleDateTimePickerChange = (_event, selectedDate) => {
     const currentDate = selectedDate || date;
@@ -759,6 +773,96 @@ const FinishedProductForm = props => {
     );
   };
 
+  const renderInsufficientStockConfirmation = () => {
+    if (!hasInsufficientStock) return null;
+
+    return (
+      <View style={{marginTop: 15}}>
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.error,
+            borderRadius: 5,
+            padding: 12,
+          }}>
+          <Text
+            style={{
+              fontWeight: 'bold',
+              fontSize: 16,
+              color: colors.dark,
+            }}>
+            Want to produce this yield anyway?
+          </Text>
+          <ConfirmationCheckbox
+            status={confirmInsufficientStockYield}
+            containerStyle={{
+              paddingTop: 8,
+              paddingBottom: 0,
+              paddingHorizontal: 0,
+            }}
+            text="I confirm I'm producing this yield even though some ingredients have insufficient stock for the total yield I'm producing. This will result in negative stock for those ingredients in the inventory."
+            onPress={() => {
+              setConfirmInsufficientStockYield(
+                prevConfirm => !prevConfirm,
+              );
+            }}
+          />
+        </View>
+
+        <View
+          style={{
+            backgroundColor: colors.highlighted,
+            borderRadius: 5,
+            padding: 12,
+            marginTop: 12,
+          }}>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <MaterialCommunityIcons
+              name="lightbulb-on-outline"
+              size={18}
+              color={colors.accent}
+            />
+            <Text
+              style={{
+                fontWeight: 'bold',
+                fontSize: 15,
+                color: colors.dark,
+                marginLeft: 6,
+              }}>
+              Why is my stock insufficient?
+            </Text>
+          </View>
+          <Text style={{color: colors.dark, marginTop: 6}}>
+            This can happen because:
+          </Text>
+          <Text style={{color: colors.dark, marginTop: 4}}>
+            {
+              '• the ingredients (or their purchases) you are using have not been encoded yet'
+            }
+          </Text>
+          <Text style={{color: colors.dark, marginTop: 4}}>
+            {'• an ingredient’s stock quantity was not encoded correctly'}
+          </Text>
+          <Text style={{color: colors.dark, marginTop: 4}}>
+            {
+              '• stock was already used or transferred elsewhere and not yet recorded'
+            }
+          </Text>
+          <Text
+            style={{
+              color: colors.dark,
+              fontStyle: 'italic',
+              marginTop: 8,
+            }}>
+            Tip: Coordinate with your encoder to correct the affected
+            ingredients’ stock first, or lower the total yield to produce.
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   const renderInitStockFields = formikProps => {
     const {
       handleChange,
@@ -812,6 +916,8 @@ const FinishedProductForm = props => {
         />
 
         {renderRequiredIngredientsSummary()}
+
+        {renderInsufficientStockConfirmation()}
 
         <SectionHeading
           headingText={'Other Details'}
@@ -1086,7 +1192,12 @@ const FinishedProductForm = props => {
 
           handleSubmit(...args);
         }}
-        disabled={!isValid || isSubmitting || hasError}
+        disabled={
+          !isValid ||
+          isSubmitting ||
+          isError ||
+          (hasInsufficientStock && !confirmInsufficientStockYield)
+        }
         loading={isSubmitting}
         style={{marginTop: 20}}>
         {editMode ? 'Save Changes' : 'Proceed'}
