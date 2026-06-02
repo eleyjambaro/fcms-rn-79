@@ -171,6 +171,10 @@ The SKU/name fallbacks are load-bearing: `master_item_sync_id` is a client-only 
 
 The three call sites — `confirmTransferReceived` (dest, `createIfMissing: true`), `materializeReceivedTransferLogs` (source, `createIfMissing: true`), and `resolveMissingSourceItemIdsForGroup` (source at request-open, `createIfMissing: false` so browsing never spawns stockless items) — must all route through this helper.
 
+#### `inventory_logs.adjustment_date` is LOCAL time
+
+Every `inventory_logs.adjustment_date` is stored in **local** time as `YYYY-MM-DD HH:mm:ss` — user-entered dates come from a local date picker (built from `getHours()` etc.) and the log list/details display and **sort** the value as-is with no timezone conversion (`getInventoryLogs` orders by `adjustment_date DESC`). When a transfer materializes an inventory log, stamp `adjustment_date` with `datetime('now', 'localtime')` (or convert a stored-UTC source like `group.date_received` via `datetime(<utc>, 'localtime')`) — **never** bare `CURRENT_TIMESTAMP` / `datetime('now')`, which are UTC and sink the row `tz-offset` hours into the past, hiding it below same-day local entries in the sorted list. Only the sync columns (`updated_at`, `synced_at`) stay UTC — they're watermarks, not user-facing dates.
+
 #### UOM abbreviation display (all Batch Transfer screens)
 
 Every UOM abbreviation rendered on a Batch Transfer screen — item rows, qty badges, input labels, dialog text — must be displayed **uppercase**, with one exception: `"ea"` (Each) renders as **`"ea (pc)"`** because users recognize "pc" (piece) more readily than "EA". Use the single helper `formatTransferUOMAbbrev(uomAbbrev)` from `/src/utils/stringHelpers.js` — never render a raw `uom_abbrev`/`item_uom_abbrev` string directly on these screens. (Note: this is distinct from the generic `formatUOMAbbrev`, which maps `"ea"` to `"PC"`; Batch Transfer intentionally keeps the `"ea (pc)"` form.)

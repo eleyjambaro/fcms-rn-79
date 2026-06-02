@@ -732,6 +732,13 @@ export const confirmTransferReceived = async ({
     const unitCost = parseFloat(entry.unit_cost_snapshot || 0);
     const qty = parseFloat(entry.received_qty);
     const remarks = buildTransferLogRemark(entry, 'in');
+    // adjustment_date is stored in LOCAL time to match every other inventory
+    // log in the app — user-entered dates come from a local date picker
+    // (YYYY-MM-DD HH:mm:ss built from getHours() etc.) and the log list/details
+    // display and sort the value as-is, with no timezone conversion. Using UTC
+    // CURRENT_TIMESTAMP here sank transfer-in rows ~tz-offset hours into the
+    // past, hiding them below same-day local entries in the date-sorted list.
+    // updated_at below intentionally stays UTC — it's the sync watermark.
     await db.executeSql(
       `INSERT INTO inventory_logs (
          id, sync_id,
@@ -747,7 +754,7 @@ export const confirmTransferReceived = async ({
          ${sqlStr(OPERATION_DEFAULT_UUIDS.stock_transfer_in)},
          ${sqlStr(destItemId)},
          ${unitCost}, ${unitCost},
-         ${qty}, CURRENT_TIMESTAMP,
+         ${qty}, datetime('now', 'localtime'),
          ${sqlStr(groupId)},
          ${sqlStr(initiatorAccountUid)},
          ${sqlStr(remarks)},
@@ -1115,9 +1122,14 @@ export const materializeReceivedTransferLogs = async () => {
         const unitCost = parseFloat(entry.unit_cost_snapshot || 0);
         const qty = parseFloat(entry.received_qty);
         const remarks = buildTransferLogRemark(entry, 'out');
+        // Source's transfer-out date mirrors the destination's receive time
+        // (group.date_received, stored UTC via CURRENT_TIMESTAMP), converted to
+        // LOCAL time so it sorts/displays consistently with the rest of this
+        // branch's inventory logs (see the local-time note in
+        // confirmTransferReceived). Falls back to local now if unset.
         const adjustmentDate = group.date_received
-          ? sqlStr(group.date_received)
-          : 'CURRENT_TIMESTAMP';
+          ? `datetime(${sqlStr(group.date_received)}, 'localtime')`
+          : `datetime('now', 'localtime')`;
         await db.executeSql(
           `INSERT INTO inventory_logs (
              id, sync_id,
