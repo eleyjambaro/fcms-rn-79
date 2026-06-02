@@ -90,10 +90,26 @@ const parseExcelDate = dateValue => {
       }
     }
 
-    // ISO date YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-      const date = new Date(trimmed);
-      return isNaN(date.getTime()) ? null : date;
+    // ISO date YYYY-MM-DD. Build a LOCAL-midnight Date from the parts, the
+    // same as the MM/DD/YYYY and MM-DD-YYYY branches. `new Date('YYYY-MM-DD')`
+    // parses as UTC midnight, which then shifts the calendar day once the value
+    // is serialised on a non-UTC device — so we construct from components to
+    // keep every parse path on a consistent local-midnight basis.
+    const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const year = parseInt(isoMatch[1], 10);
+      const month = parseInt(isoMatch[2], 10) - 1;
+      const day = parseInt(isoMatch[3], 10);
+      if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+        const date = new Date(year, month, day);
+        if (
+          !isNaN(date.getTime()) &&
+          date.getMonth() === month &&
+          date.getDate() === day
+        ) {
+          return date;
+        }
+      }
     }
 
     // MM-DD-YYYY with dashes
@@ -120,6 +136,19 @@ const parseExcelDate = dateValue => {
   }
 
   return null;
+};
+
+// Format a Date to a 'YYYY-MM-DD' string from its LOCAL calendar fields. IDT
+// purchase/transfer dates are date-only; using toISOString() here converts to
+// UTC and shifts the day on non-UTC devices (a local-midnight Date in UTC+8
+// serialises to the previous day). parseExcelDate yields local-midnight Dates,
+// so local getters reproduce the exact calendar day the user typed in the sheet.
+const formatLocalDateOnly = date => {
+  if (!(date instanceof Date) || isNaN(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = ('0' + (date.getMonth() + 1)).slice(-2);
+  const day = ('0' + date.getDate()).slice(-2);
+  return `${year}-${month}-${day}`;
 };
 
 const removeDuplicatesFromArray = (array, valueKey) => {
@@ -1574,14 +1603,14 @@ export const insertTemplateDataToDb = async ({
         if (item.purchase_date) {
           operationId = OPERATION_DEFAULT_UUIDS.new_purchase;
           const purchaseDate = parseExcelDate(item.purchase_date);
-          const purchaseDateISO = purchaseDate.toISOString().split('T')[0];
-          adjustmentDateValue = `datetime('${purchaseDateISO}')`;
+          const purchaseDateLocal = formatLocalDateOnly(purchaseDate);
+          adjustmentDateValue = `datetime('${purchaseDateLocal}')`;
           beginningInventoryDateValue = 'null';
         } else if (item.transfer_in_date) {
           operationId = OPERATION_DEFAULT_UUIDS.stock_transfer_in;
           const transferInDate = parseExcelDate(item.transfer_in_date);
-          const transferInDateISO = transferInDate.toISOString().split('T')[0];
-          adjustmentDateValue = `datetime('${transferInDateISO}')`;
+          const transferInDateLocal = formatLocalDateOnly(transferInDate);
+          adjustmentDateValue = `datetime('${transferInDateLocal}')`;
           beginningInventoryDateValue = 'null';
         } else {
           operationId = OPERATION_DEFAULT_UUIDS.initial_stock;
