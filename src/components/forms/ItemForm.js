@@ -583,7 +583,9 @@ const ItemForm = props => {
   const renderUOMValue = (unitAbbrev, props) => {
     if (!unitAbbrev) return null;
     const UOM =
-      unitAbbrev === 'ea' ? 'Piece' : convert().describe(unitAbbrev).singular;
+      unitAbbrev === 'ea'
+        ? 'Each (Piece)'
+        : convert().describe(unitAbbrev).singular;
     return (
       <Text variant="titleMedium" {...props}>
         {props?.trimTextLength(UOM)}
