@@ -13,6 +13,7 @@ import {
   TextInput,
   useTheme,
   ActivityIndicator,
+  Avatar,
 } from 'react-native-paper';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
@@ -136,14 +137,54 @@ const BatchTransferRequestForm = ({navigation}) => {
     ? 'Destination branch'
     : 'Origin (source) branch';
 
+  const company = companyData?.data;
+  const companyDisplayName = company?.display_name || company?.name || '';
+  const companyLogoUri = (() => {
+    const path = company?.logo_url;
+    if (!path) return null;
+    return path.startsWith('http://') || path.startsWith('https://')
+      ? path
+      : `file://${path}`;
+  })();
+
   return (
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         {/* Company header */}
-        {companyData?.data?.name ? (
-          <Text style={styles.companyName}>{companyData.data.name}</Text>
+        {company ? (
+          <View style={styles.companyHeader}>
+            {companyLogoUri ? (
+              <Avatar.Image
+                size={40}
+                source={{uri: companyLogoUri}}
+                style={styles.companyLogo}
+              />
+            ) : (
+              <Avatar.Icon
+                size={40}
+                icon="office-building"
+                color={colors.surface}
+                style={[
+                  styles.companyLogo,
+                  {backgroundColor: colors.primary},
+                ]}
+              />
+            )}
+            <View style={styles.companyTextWrap}>
+              {companyDisplayName ? (
+                <Text style={styles.companyName} numberOfLines={1}>
+                  {companyDisplayName}
+                </Text>
+              ) : null}
+              {company.address ? (
+                <Text style={styles.companyAddress} numberOfLines={1}>
+                  {company.address}
+                </Text>
+              ) : null}
+            </View>
+          </View>
         ) : null}
 
         {/* Origin / Destination card */}
@@ -303,7 +344,15 @@ const styles = StyleSheet.create({
   container: {flex: 1, padding: 16},
   scrollContent: {paddingBottom: 8},
   center: {flex: 1, alignItems: 'center', justifyContent: 'center'},
-  companyName: {fontSize: 14, opacity: 0.7, marginBottom: 12},
+  companyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  companyLogo: {marginRight: 10},
+  companyTextWrap: {flex: 1},
+  companyName: {fontSize: 16, fontWeight: 'bold'},
+  companyAddress: {fontSize: 12, opacity: 0.6, marginTop: 1},
   routeCard: {
     padding: 14,
     borderRadius: 12,
