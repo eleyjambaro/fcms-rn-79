@@ -80,10 +80,12 @@ const RevenueForm = props => {
                   <Paragraph>
                     {`You are about to update ${
                       revenue?.name + ' ' || ''
-                    }revenue for the month of ${moment(
-                      revenue?.revenue_group_date
-                        ? new Date(revenue?.revenue_group_date?.split(' ')[0])
-                        : new Date(),
+                    }revenue for the month of ${(revenue?.revenue_group_date
+                      ? moment(
+                          revenue.revenue_group_date.split(' ')[0],
+                          'YYYY-MM-DD',
+                        )
+                      : moment()
                     ).format('MMMM YYYY')}.`}
                   </Paragraph>
                 </Dialog.Content>

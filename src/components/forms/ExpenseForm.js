@@ -280,10 +280,12 @@ const ExpenseForm = props => {
                     <Paragraph>
                       {`You are about to update ${
                         expense?.name + ' ' || ''
-                      }expense for the month of ${moment(
-                        expense?.expense_group_date
-                          ? new Date(expense?.expense_group_date?.split(' ')[0])
-                          : new Date(),
+                      }expense for the month of ${(expense?.expense_group_date
+                        ? moment(
+                            expense.expense_group_date.split(' ')[0],
+                            'YYYY-MM-DD',
+                          )
+                        : moment()
                       ).format('MMMM YYYY')}.`}
                     </Paragraph>
                   </Dialog.Content>

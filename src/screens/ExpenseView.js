@@ -34,9 +34,14 @@ function ExpenseView(props) {
   const expenseGroupId = route?.params?.expense_group_id;
   const expenseGroupDate = route?.params?.expense_group_date || '';
   const expenseGroupName = route?.params?.expense_group_name || '';
-  const date = expenseGroupDate
-    ? new Date(expenseGroupDate.split(' ')[0])
-    : new Date();
+  // Parse the date-only part as LOCAL midnight (component construction).
+  // `new Date('YYYY-MM-DD')` parses as UTC midnight, which can shift the month
+  // label back a day for negative-UTC users at month boundaries.
+  const date = (() => {
+    if (!expenseGroupDate) return new Date();
+    const [y, m, d] = expenseGroupDate.split(' ')[0].split('-').map(Number);
+    return new Date(y, m - 1, d);
+  })();
 
   useEffect(() => {
     navigation.setOptions({headerTitle: `Expenses - ${expenseGroupName}`});

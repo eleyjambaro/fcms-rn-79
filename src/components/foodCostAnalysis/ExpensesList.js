@@ -364,10 +364,12 @@ const ExpenseList = props => {
             <Paragraph>
               {`Are you sure you want to delete ${
                 focusedItem?.name + ' ' || ''
-              }expense for the month of ${moment(
-                focusedItem?.expense_group_date
-                  ? new Date(focusedItem?.expense_group_date?.split(' ')[0])
-                  : new Date(),
+              }expense for the month of ${(focusedItem?.expense_group_date
+                ? moment(
+                    focusedItem.expense_group_date.split(' ')[0],
+                    'YYYY-MM-DD',
+                  )
+                : moment()
               ).format('MMMM YYYY')}? You can't undo this action.`}
             </Paragraph>
           </Dialog.Content>

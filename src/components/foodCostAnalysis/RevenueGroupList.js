@@ -511,8 +511,9 @@ const RevenueGroupList = props => {
               {`${focusedItem?.name} Total Revenue`}
             </Title>
             <Text style={{fontWeight: 'bold', color: colors.dark}}>
-              {`${moment(
-                new Date(dateFilter?.split(' ')?.[0]) || new Date(),
+              {`${(dateFilter
+                ? moment(dateFilter.split(' ')[0], 'YYYY-MM-DD')
+                : moment()
               ).format('MMMM YYYY')}`}
             </Text>
           </View>
@@ -556,10 +557,12 @@ const RevenueGroupList = props => {
             <Paragraph>
               {`Are you sure you want to delete ${
                 focusedItem?.name + ' ' || ''
-              }revenue for the month of ${moment(
-                focusedItem?.revenue_group_date
-                  ? new Date(focusedItem?.revenue_group_date?.split(' ')[0])
-                  : new Date(),
+              }revenue for the month of ${(focusedItem?.revenue_group_date
+                ? moment(
+                    focusedItem.revenue_group_date.split(' ')[0],
+                    'YYYY-MM-DD',
+                  )
+                : moment()
               ).format('MMMM YYYY')}? You can't undo this action.`}
             </Paragraph>
           </Dialog.Content>

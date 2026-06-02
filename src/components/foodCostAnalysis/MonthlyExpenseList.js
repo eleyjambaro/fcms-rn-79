@@ -504,8 +504,9 @@ const MonthlyExpenseList = props => {
             <Title style={{textAlign: 'center'}}>
               {`${focusedItem?.name} Expense Amount`}
             </Title>
-            <Text>{`For the month of ${moment(
-              new Date(dateFilter?.split(' ')?.[0]) || new Date(),
+            <Text>{`For the month of ${(dateFilter
+              ? moment(dateFilter.split(' ')[0], 'YYYY-MM-DD')
+              : moment()
             ).format('MMMM YYYY')}`}</Text>
           </View>
           <ExpenseForm
@@ -526,10 +527,12 @@ const MonthlyExpenseList = props => {
             <Paragraph>
               {`Are you sure you want to delete ${
                 focusedItem?.name + ' ' || ''
-              }expense for the month of ${moment(
-                focusedItem?.expense_group_date
-                  ? new Date(focusedItem?.expense_group_date?.split(' ')[0])
-                  : new Date(),
+              }expense for the month of ${(focusedItem?.expense_group_date
+                ? moment(
+                    focusedItem.expense_group_date.split(' ')[0],
+                    'YYYY-MM-DD',
+                  )
+                : moment()
               ).format('MMMM YYYY')}? You can't undo this action.`}
             </Paragraph>
           </Dialog.Content>
