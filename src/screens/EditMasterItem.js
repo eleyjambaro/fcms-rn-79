@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {StyleSheet, ScrollView, View} from 'react-native';
+import {StyleSheet, ScrollView, View, Pressable} from 'react-native';
 import {
   Button,
   TextInput,
@@ -11,6 +11,7 @@ import {useFormik} from 'formik';
 import * as Yup from 'yup';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {Dropdown} from 'react-native-paper-dropdown';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import MoreSelectionButton from '../components/buttons/MoreSelectionButton';
 import ConfirmationCheckbox from '../components/forms/ConfirmationCheckbox';
@@ -229,14 +230,31 @@ const EditMasterItem = ({navigation, route}) => {
           </Button>
         </View>
 
-        <TextInput
-          label="Barcode (Optional)"
-          value={formik.values.barcode}
-          onChangeText={formik.handleChange('barcode')}
-          onBlur={formik.handleBlur('barcode')}
-          error={!!(formik.touched.barcode && formik.errors.barcode)}
-          style={styles.input}
-        />
+        <View style={{flexDirection: 'row'}}>
+          <TextInput
+            label="Barcode (Optional)"
+            value={formik.values.barcode}
+            onChangeText={formik.handleChange('barcode')}
+            onBlur={formik.handleBlur('barcode')}
+            error={!!(formik.touched.barcode && formik.errors.barcode)}
+            style={[styles.input, {flex: 1}]}
+          />
+          <Pressable
+            onPress={() => {
+              navigation.navigate('ScanBarcode', {
+                onBarCodeRead: value =>
+                  formik.setFieldValue('barcode', value ?? ''),
+              });
+            }}
+            hitSlop={10}
+            style={{position: 'absolute', top: 18, right: 15}}>
+            <MaterialCommunityIcons
+              name="barcode-scan"
+              size={25}
+              color={colors.dark}
+            />
+          </Pressable>
+        </View>
         {formik.touched.barcode && formik.errors.barcode ? (
           <HelperText type="error" visible>
             {formik.errors.barcode}
