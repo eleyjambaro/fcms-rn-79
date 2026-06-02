@@ -121,8 +121,11 @@ const RevenueGroupList = props => {
     },
   });
 
+  // Distinct sub-key ('picker') from the manage list's infinite query
+  // ('manage') so the two don't share a cache entry with incompatible shapes —
+  // both still match invalidateQueries('revenueSources') by prefix.
   const {data: revenueSourcesData} = useQuery(
-    ['revenueSources', {}],
+    ['revenueSources', {scope: 'picker'}],
     getRevenueSources,
   );
   const revenueSources = revenueSourcesData?.result || [];

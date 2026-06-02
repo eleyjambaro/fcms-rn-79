@@ -44,7 +44,7 @@ const RevenueSourceList = () => {
     status,
     refetch,
     isRefetching,
-  } = useInfiniteQuery(['revenueSources', {}], getRevenueSources, {
+  } = useInfiniteQuery(['revenueSources', {scope: 'manage'}], getRevenueSources, {
     getNextPageParam: (lastPage, pages) => {
       let pagesResult = [];
       for (let page of pages) {
