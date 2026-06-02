@@ -9,6 +9,7 @@ import {
 } from 'react-native-paper';
 import {useFormik} from 'formik';
 import * as Yup from 'yup';
+import convert from 'convert-units';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {Dropdown} from 'react-native-paper-dropdown';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -20,6 +21,19 @@ import useItemFormContext from '../hooks/useItemFormContext';
 import {updateMasterItem} from '../serverDbQueries/v2/masterItems';
 import {PACKAGING_TYPE_OPTIONS} from '../constants/itemForm';
 import {generateMasterItemDescription} from '../utils/generateMasterItemDescription';
+
+// Render a UOM abbreviation as its full measurement name (e.g. "kg" -> "Kilogram")
+// via convert-units. "ea" (Each) is shown as "Each (Piece)" because most users
+// recognize "Piece" more readily than "Each".
+const formatUOMName = uomAbbrev => {
+  if (!uomAbbrev) return '';
+  if (uomAbbrev === 'ea') return 'Each (Piece)';
+  try {
+    return convert().describe(uomAbbrev).singular;
+  } catch (e) {
+    return uomAbbrev;
+  }
+};
 
 const EditMasterItemSchema = Yup.object({
   sku: Yup.string()
@@ -296,7 +310,7 @@ const EditMasterItem = ({navigation, route}) => {
           renderValueCurrentValue={formik.values.uom_abbrev}
           renderValue={(_v, p) => (
             <Text variant="titleMedium" {...p}>
-              {p?.trimTextLength(formik.values.uom_abbrev)}
+              {p?.trimTextLength(formatUOMName(formik.values.uom_abbrev))}
             </Text>
           )}
           onPress={() => navigateToUOM('uom_abbrev')}
@@ -320,7 +334,9 @@ const EditMasterItem = ({navigation, route}) => {
               renderValueCurrentValue={formik.values.uom_abbrev_per_piece}
               renderValue={(_v, p) => (
                 <Text variant="titleMedium" {...p}>
-                  {p?.trimTextLength(formik.values.uom_abbrev_per_piece)}
+                  {p?.trimTextLength(
+                    formatUOMName(formik.values.uom_abbrev_per_piece),
+                  )}
                 </Text>
               )}
               onPress={() => navigateToUOM('uom_abbrev_per_piece')}
