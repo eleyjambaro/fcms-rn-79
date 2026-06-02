@@ -706,29 +706,19 @@ export const confirmTransferReceived = async ({
   );
 
   for (const entry of entries) {
-    let destItemId = entry.dest_item_id;
-
-    // Resolve dest's local item via master_item_id; auto-create if missing.
-    if (!destItemId && entry.master_item_id) {
-      // items.master_item_sync_id is the canonical company-wide bridge.
-      const localItem = firstRow(
-        await db.executeSql(
-          `SELECT id FROM active_items
-           WHERE master_item_sync_id = ${sqlStr(entry.master_item_id)}
-           LIMIT 1`,
-        ),
-      );
-      destItemId = localItem?.id ?? null;
-    }
-
-    if (!destItemId) {
-      destItemId = await autoCreateLocalItemForTransfer({
-        db,
-        entry,
-        deviceId,
-        branchId,
-      });
-    }
+    // Resolve the destination's local item without ever creating a duplicate:
+    // matches by existing dest_item_id, master link, SKU, then name, and only
+    // auto-creates when the item genuinely isn't on this branch yet. Matching
+    // by master link ALONE used to spawn a duplicate whenever the link was
+    // NULL or mismatched, sinking the transfer-in log into the dup.
+    const destItemId = await resolveLocalItemForEntry({
+      db,
+      entry,
+      side: 'dest',
+      deviceId,
+      branchId,
+      createIfMissing: true,
+    });
 
     // Stamp dest_item_id on the entry so source's drill-down can join later.
     await db.executeSql(
@@ -818,6 +808,126 @@ const autoCreateLocalItemForTransfer = async ({
 };
 
 /**
+ * Resolve the current branch's local item for a transfer entry WITHOUT
+ * creating a duplicate. This is the single source of truth for cross-branch
+ * item matching — every place that needs to find "which local item does this
+ * entry correspond to on my branch" must go through here so the matching rules
+ * can never drift apart again.
+ *
+ * Match priority — first hit wins:
+ *   1. The side's already-stamped local id (dest_item_id for the destination,
+ *      source_item_id for the source) — but only if it still resolves to a live
+ *      row ON THIS branch. The opposite side's id is a foreign (other-branch)
+ *      id that rides along on the synced row, so it is intentionally ignored.
+ *   2. The cross-branch master link (items.master_item_sync_id = master_item_id).
+ *   3. The SKU — the canonical company-wide key the server itself uses to bind
+ *      a branch item to its master. Matching here is what prevents a duplicate
+ *      when the two branches' items never converged on the same
+ *      master_item_sync_id (registered independently, link not yet backfilled
+ *      by the post-pull backfillItemMasterLinks, or the entry was authored
+ *      before convergence) — the exact failure that was spawning duplicate
+ *      items and attaching the transfer log to them.
+ *   4. Exact name (+ UOM) when the entry carries no SKU to key off.
+ *
+ * Only when nothing matches AND `createIfMissing` is true does it auto-create a
+ * local item. Callers that run while merely browsing (request-open resolution)
+ * pass false so they never spawn stockless placeholder items.
+ *
+ * Transfer never deals with finished products (the item picker filters them
+ * out and auto-created items are non-finished), so the SKU/name/master matches
+ * are scoped to non-finished items to avoid a coincidental collision with a
+ * finished product sharing the same SKU or name.
+ */
+const resolveLocalItemForEntry = async ({
+  db,
+  entry,
+  side, // 'dest' | 'source'
+  deviceId,
+  branchId,
+  createIfMissing = false,
+}) => {
+  // 1. Trust an already-stamped id only for the side we own on this branch,
+  //    and only if it still points at a live item here.
+  const presetId = side === 'dest' ? entry.dest_item_id : entry.source_item_id;
+  if (presetId) {
+    const live = firstRow(
+      await db.executeSql(
+        `SELECT id FROM active_items WHERE id = ${sqlStr(presetId)} LIMIT 1`,
+      ),
+    );
+    if (live?.id) return live.id;
+  }
+
+  // 2. Cross-branch master link.
+  if (entry.master_item_id) {
+    const byMaster = firstRow(
+      await db.executeSql(
+        `SELECT id FROM active_items
+         WHERE master_item_sync_id = ${sqlStr(entry.master_item_id)}
+           AND IFNULL(is_finished_product, 0) = 0
+         LIMIT 1`,
+      ),
+    );
+    if (byMaster?.id) return byMaster.id;
+  }
+
+  // 3. SKU — the canonical cross-branch key.
+  const sku = (entry.item_display_sku ?? '').trim();
+  if (sku) {
+    const bySku = firstRow(
+      await db.executeSql(
+        `SELECT id, master_item_sync_id FROM active_items
+         WHERE sku = ${sqlStr(sku)} COLLATE NOCASE
+           AND IFNULL(is_finished_product, 0) = 0
+         LIMIT 1`,
+      ),
+    );
+    if (bySku?.id) {
+      await backfillEntryMasterLink(db, bySku, entry.master_item_id);
+      return bySku.id;
+    }
+  }
+
+  // 4. Exact name (+ UOM) fallback when there's no SKU.
+  const name = (entry.item_display_name ?? '').trim();
+  if (!sku && name) {
+    const byName = firstRow(
+      await db.executeSql(
+        `SELECT id, master_item_sync_id FROM active_items
+         WHERE LOWER(name) = LOWER(${sqlStr(name)})
+           AND IFNULL(uom_abbrev, '') = ${sqlStr(entry.item_uom_abbrev ?? '')}
+           AND IFNULL(is_finished_product, 0) = 0
+         LIMIT 1`,
+      ),
+    );
+    if (byName?.id) {
+      await backfillEntryMasterLink(db, byName, entry.master_item_id);
+      return byName.id;
+    }
+  }
+
+  if (!createIfMissing) return null;
+  return autoCreateLocalItemForTransfer({db, entry, deviceId, branchId});
+};
+
+/**
+ * When a transfer entry is matched to a local item by SKU/name but that item
+ * has no master link yet, stamp the entry's master_item_id onto it so every
+ * later join (Master Item List, future transfers) lines up immediately.
+ * master_item_sync_id is a client-only column derived from sku, so this does
+ * NOT bump updated_at (mirrors backfillItemMasterLinks in syncService).
+ */
+const backfillEntryMasterLink = async (db, itemRow, masterItemId) => {
+  if (!masterItemId || !itemRow?.id || itemRow.master_item_sync_id) return;
+  await db.executeSql(
+    `UPDATE items
+       SET master_item_sync_id = ${sqlStr(masterItemId)}
+       WHERE id = ${sqlStr(itemRow.id)}
+         AND (master_item_sync_id IS NULL OR master_item_sync_id = '')`,
+  );
+};
+
+/**
  * Find (or create) a category on the destination branch matching the
  * denormalized source category name. Falls back to the first active category
  * on the branch when no name is available, and returns null only when the
@@ -891,23 +1001,34 @@ const buildTransferLogRemark = (entry, direction) => {
 export const resolveMissingSourceItemIdsForGroup = async ({groupId}) => {
   if (!groupId) return 0;
   const db = await getDBConnection();
-  const candidates = allRows(
+  const {deviceId, branchId} = await getCloudSyncParams();
+  const entries = allRows(
     await db.executeSql(
-      `SELECT e.id AS entry_id, i.id AS resolved_id
-       FROM active_batch_transfer_entries e
-       JOIN active_items i ON i.master_item_sync_id = e.master_item_id
-       WHERE e.batch_transfer_group_id = ${sqlStr(groupId)}
-         AND e.source_item_id IS NULL
-         AND e.master_item_id IS NOT NULL`,
+      `SELECT * FROM active_batch_transfer_entries
+       WHERE batch_transfer_group_id = ${sqlStr(groupId)}
+         AND source_item_id IS NULL`,
     ),
   );
   let count = 0;
-  for (const row of candidates) {
+  for (const entry of entries) {
+    // createIfMissing = false: at request-open time we only resolve to an item
+    // the source already has (by master link, SKU, or name). We deliberately
+    // don't auto-create here — materializeReceivedTransferLogs creates the
+    // local item later only if the source actually fulfills the line.
+    const resolvedId = await resolveLocalItemForEntry({
+      db,
+      entry,
+      side: 'source',
+      deviceId,
+      branchId,
+      createIfMissing: false,
+    });
+    if (!resolvedId) continue;
     await db.executeSql(
       `UPDATE batch_transfer_entries
-         SET source_item_id = ${sqlStr(row.resolved_id)},
+         SET source_item_id = ${sqlStr(resolvedId)},
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = ${sqlStr(row.entry_id)}`,
+         WHERE id = ${sqlStr(entry.id)}`,
     );
     count++;
   }
@@ -965,35 +1086,21 @@ export const materializeReceivedTransferLogs = async () => {
       );
 
       for (const entry of entries) {
-        let sourceItemId = entry.source_item_id;
-
-        // In-mode entries arrive with source_item_id = NULL because the
-        // destination/initiator could not see the source's items. The
-        // resolveMissingSourceItemIdsForGroup pass at request-open time may
-        // also have failed to find a match (items were created independently
-        // on each branch so master_item_sync_id doesn't line up). Retry the
-        // master lookup here, then fall back to auto-creating a local item
-        // on the source branch so the stock_transfer_out log can still be
-        // written. Without this fallback the source's inventory_logs are
-        // silently missed.
-        if (!sourceItemId && entry.master_item_id) {
-          const localItem = firstRow(
-            await db.executeSql(
-              `SELECT id FROM active_items
-               WHERE master_item_sync_id = ${sqlStr(entry.master_item_id)}
-               LIMIT 1`,
-            ),
-          );
-          sourceItemId = localItem?.id ?? null;
-        }
-        if (!sourceItemId) {
-          sourceItemId = await autoCreateLocalItemForTransfer({
-            db,
-            entry,
-            deviceId,
-            branchId,
-          });
-        }
+        // Resolve the source's local item without creating a duplicate:
+        // matches by existing source_item_id, master link, SKU, then name, and
+        // only auto-creates when the item truly isn't on this branch. In-mode
+        // entries arrive with source_item_id = NULL (the destination/initiator
+        // couldn't see the source's items); the SKU/name fallbacks here are
+        // what let the source reuse its existing item instead of spawning a
+        // duplicate whenever the master link doesn't line up.
+        const sourceItemId = await resolveLocalItemForEntry({
+          db,
+          entry,
+          side: 'source',
+          deviceId,
+          branchId,
+          createIfMissing: true,
+        });
 
         if (entry.source_item_id !== sourceItemId) {
           await db.executeSql(
