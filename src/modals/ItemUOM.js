@@ -104,11 +104,16 @@ const ItemUOM = () => {
         <CheckboxSelection
           value={selectedUnit}
           options={(data ?? []).map(unit => {
-            const unitName = unit.singular === 'Each' ? 'Piece' : unit.singular;
-            const unitAbbrev = unit.abbr === 'ea' ? 'pc' : unit.abbr;
+            // "Each" is shown as "Each / Piece (EA / PC)" because most users
+            // recognize "Piece" / "pc" more readily than "Each" / "ea".
+            // Abbreviations are rendered uppercase.
+            const label =
+              unit.abbr === 'ea'
+                ? 'Each / Piece (EA / PC)'
+                : `${unit.singular} (${unit.abbr.toUpperCase()})`;
 
             return {
-              label: `${unitName} (${unitAbbrev})`,
+              label,
               value: unit.abbr,
             };
           })}
