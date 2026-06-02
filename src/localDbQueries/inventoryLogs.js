@@ -6,6 +6,7 @@ import {
   isMutationDisabled,
 } from '../utils/localDbQueryHelpers';
 import {getItem} from './items';
+import {buildRevenueGroupMonthTotalSql} from './revenues';
 import {scheduleSyncSoon} from '../services/syncService';
 
 export const getInventoryLogs = async ({queryKey, pageParam = 1}) => {
@@ -907,12 +908,13 @@ export const getItemCostPercentage = async ({queryKey}) => {
       // get item revenue group id from its category
       const revenueGroupId = itemRevenueCategory.revenue_group_id;
 
-      // get the amount of revenue group for the current month
+      // Revenue group total for the current month = internal POS sales for the
+      // group's categories + manual/external per-source amounts.
       const getCurrentMonthRevenueGroupAmountQuery = `
-      SELECT SUM(amount) AS total_amount
-      FROM revenues
-      WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('now', 'localtime'))
-      AND revenue_group_id = '${revenueGroupId}'
+      SELECT ${buildRevenueGroupMonthTotalSql({
+        groupIdSql: `'${revenueGroupId}'`,
+        dateSql: `datetime('now', 'localtime')`,
+      })} AS total_amount
     `;
       const getCurrentMonthRevenueGroupAmountResult = await db.executeSql(
         getCurrentMonthRevenueGroupAmountQuery,
@@ -1065,12 +1067,13 @@ export const getCategoryCostPercentage = async ({queryKey}) => {
       // get category revenue group id
       const revenueGroupId = categoryRevenueGroup.revenue_group_id;
 
-      // get the amount of revenue group for the current month
+      // Revenue group total for the current month = internal POS sales for the
+      // group's categories + manual/external per-source amounts.
       const getCurrentMonthRevenueGroupAmountQuery = `
-      SELECT SUM(amount) AS total_amount
-      FROM revenues
-      WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('now', 'localtime'))
-      AND revenue_group_id = '${revenueGroupId}'
+      SELECT ${buildRevenueGroupMonthTotalSql({
+        groupIdSql: `'${revenueGroupId}'`,
+        dateSql: `datetime('now', 'localtime')`,
+      })} AS total_amount
     `;
       const getCurrentMonthRevenueGroupAmountResult = await db.executeSql(
         getCurrentMonthRevenueGroupAmountQuery,

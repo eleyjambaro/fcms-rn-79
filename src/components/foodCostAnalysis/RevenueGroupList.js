@@ -53,6 +53,7 @@ import {
   getRevenueCategoryNames,
   getRevenueGroups,
   getRevenueGroupsGrandTotal,
+  getRevenueSources,
   updateRevenue,
   updateRevenueGroup,
 } from '../../localDbQueries/revenues';
@@ -120,11 +121,18 @@ const RevenueGroupList = props => {
     },
   });
 
+  const {data: revenueSourcesData} = useQuery(
+    ['revenueSources', {}],
+    getRevenueSources,
+  );
+  const revenueSources = revenueSourcesData?.result || [];
+
   const createRevenueMutation = useMutation(createRevenue, {
     onSuccess: () => {
       queryClient.invalidateQueries('revenueGroups');
       queryClient.invalidateQueries('revenueGroupsGrandTotal');
       queryClient.invalidateQueries('revenues');
+      queryClient.invalidateQueries('revenueEntries');
     },
   });
   const updateRevenueMutation = useMutation(updateRevenue, {
@@ -132,6 +140,7 @@ const RevenueGroupList = props => {
       queryClient.invalidateQueries('revenueGroups');
       queryClient.invalidateQueries('revenueGroupsGrandTotal');
       queryClient.invalidateQueries('revenues');
+      queryClient.invalidateQueries('revenueEntries');
     },
   });
   const deleteRevenueMutation = useMutation(deleteRevenue, {
@@ -139,6 +148,7 @@ const RevenueGroupList = props => {
       queryClient.invalidateQueries('revenueGroups');
       queryClient.invalidateQueries('revenueGroupsGrandTotal');
       queryClient.invalidateQueries('revenues');
+      queryClient.invalidateQueries('revenueEntries');
     },
   });
 
@@ -149,6 +159,10 @@ const RevenueGroupList = props => {
 
   const [createRevenueModalVisible, setCreateRevenueModalVisible] =
     useState(false);
+  // The external-revenue entry currently being edited (null = adding a new one).
+  const [editingEntry, setEditingEntry] = useState(null);
+  // The external-revenue entry pending deletion.
+  const [focusedEntry, setFocusedEntry] = useState(null);
 
   const [deleteRevenueDialogVisible, setDeleteRevenueDialogVisible] =
     useState(false);
@@ -196,65 +210,33 @@ const RevenueGroupList = props => {
     return pagesData;
   };
 
-  const itemOptions =
-    viewMode === 'manage-list'
-      ? [
-          {
-            label: `Update ${focusedItem?.name} revenue group`,
-            icon: 'pencil-outline',
-            handler: () => {
-              showUpdateRevenueGroupModal();
-              closeOptionsBottomSheet();
-            },
-          },
-          {
-            label: 'Delete',
-            labelColor: colors.notification,
-            icon: 'delete-outline',
-            iconColor: colors.notification,
-            handler: () => {
-              showDeleteRevenueGroupDialog();
-              closeOptionsBottomSheet();
-            },
-          },
-        ]
-      : [
-          {
-            label: 'Update revenue amount',
-            icon: 'pencil-outline',
-            handler: () => {
-              showCreateRevenueModal();
-              closeOptionsBottomSheet();
-            },
-          },
-          {
-            label: 'Delete revenue amount',
-            labelColor: colors.notification,
-            icon: 'delete-outline',
-            iconColor: focusedItem?.revenue_id
-              ? colors.notification
-              : colors.disabled,
-            disabled: focusedItem?.revenue_id ? false : true,
-            handler: () => {
-              showDeleteRevenueDialog();
-              closeOptionsBottomSheet();
-            },
-          },
-          {
-            label: `Update ${focusedItem?.name} revenue group`,
-            icon: 'clipboard-edit-outline',
-            handler: () => {
-              showUpdateRevenueGroupModal();
-              closeOptionsBottomSheet();
-            },
-          },
-        ];
+  // The options bottom sheet is only used in manage-list mode. In the main
+  // (list) view, per-source amounts are added/edited/deleted directly from the
+  // accordion breakdown rows (see RevenueGroupListItem).
+  const itemOptions = [
+    {
+      label: `Update ${focusedItem?.name} revenue group`,
+      icon: 'pencil-outline',
+      handler: () => {
+        showUpdateRevenueGroupModal();
+        closeOptionsBottomSheet();
+      },
+    },
+    {
+      label: 'Delete',
+      labelColor: colors.notification,
+      icon: 'delete-outline',
+      iconColor: colors.notification,
+      handler: () => {
+        showDeleteRevenueGroupDialog();
+        closeOptionsBottomSheet();
+      },
+    },
+  ];
 
   const optionsBottomSheetModalRef = useRef(null);
-  const optionsBottomSheetSnapPoints = useMemo(
-    () => [120, itemOptions.length * 75 + 30],
-    [],
-  );
+  // Two options (update / delete group): 2 * 75 + 30 = 180.
+  const optionsBottomSheetSnapPoints = useMemo(() => [120, 180], []);
 
   const openOptionsBottomSheet = () => {
     optionsBottomSheetModalRef.current?.present();
@@ -279,13 +261,37 @@ const RevenueGroupList = props => {
   const handleConfirmDeleteRevenue = async () => {
     try {
       await deleteRevenueMutation.mutateAsync({
-        id: focusedItem?.revenue_id,
+        id: focusedEntry?.id,
       });
     } catch (error) {
       console.debug(error);
     } finally {
       hideDeleteRevenueDialog();
     }
+  };
+
+  // Accordion breakdown actions (list mode).
+  const handleAddExternalRevenue = group => {
+    setFocusedItem(() => group);
+    setEditingEntry(() => null);
+    showCreateRevenueModal();
+  };
+
+  const handleEditEntry = (group, entry) => {
+    setFocusedItem(() => group);
+    setEditingEntry(() => entry);
+    showCreateRevenueModal();
+  };
+
+  const handleDeleteEntry = (group, entry) => {
+    setFocusedItem(() => group);
+    setFocusedEntry(() => entry);
+    showDeleteRevenueDialog();
+  };
+
+  const handleManageSources = () => {
+    hideCreateRevenueModal();
+    navigation.navigate(routes.manageRevenueSources());
   };
 
   const handleBottomSheetChange = useCallback(_index => {
@@ -321,6 +327,7 @@ const RevenueGroupList = props => {
   };
 
   const handleCancelCreateRevenueForm = () => {
+    setEditingEntry(() => null);
     hideCreateRevenueModal();
   };
 
@@ -354,15 +361,21 @@ const RevenueGroupList = props => {
   };
 
   const handleSubmitCreateRevenueForm = async (values, actions) => {
-    console.log(values);
     try {
-      await createRevenueMutation.mutateAsync({
-        values,
-      });
+      if (editingEntry) {
+        // Editing an existing per-source amount: only the amount changes.
+        await updateRevenueMutation.mutateAsync({
+          id: editingEntry.id,
+          updatedValues: {amount: values.amount},
+        });
+      } else {
+        await createRevenueMutation.mutateAsync({values});
+      }
     } catch (error) {
       console.debug(error);
     } finally {
       actions.resetForm();
+      setEditingEntry(() => null);
       hideCreateRevenueModal();
     }
   };
@@ -417,18 +430,20 @@ const RevenueGroupList = props => {
         highlighted={item.id === highlightedItemId ? true : false}
         viewMode={viewMode}
         item={item}
+        dateFilter={dateFilter}
         onPress={() => {
           setFocusedItem(() => item);
           if (viewMode === 'manage-list') {
             showUpdateRevenueGroupModal();
-          } else {
-            showCreateRevenueModal();
           }
         }}
         onPressItemOptions={() => {
           setFocusedItem(() => item);
           openOptionsBottomSheet();
         }}
+        onAddExternalRevenue={handleAddExternalRevenue}
+        onEditEntry={handleEditEntry}
+        onDeleteEntry={handleDeleteEntry}
       />
     );
   };
@@ -463,7 +478,8 @@ const RevenueGroupList = props => {
   const revenueFormInitialValues = {
     revenue_group_id: focusedItem?.id?.toString() || '',
     revenue_group_date: dateFilter || '',
-    amount: focusedItem?.amount?.toString() || '',
+    revenue_source_id: editingEntry?.revenue_source_id?.toString() || '',
+    amount: editingEntry?.amount?.toString() || '',
   };
 
   return (
@@ -504,11 +520,16 @@ const RevenueGroupList = props => {
       <Portal>
         <Modal
           visible={createRevenueModalVisible}
-          onDismiss={() => setCreateRevenueModalVisible(() => false)}
+          onDismiss={() => {
+            setEditingEntry(() => null);
+            setCreateRevenueModalVisible(() => false);
+          }}
           contentContainerStyle={{backgroundColor: 'white', padding: 20}}>
           <View style={{alignItems: 'center', marginBottom: 20}}>
             <Title style={{textAlign: 'center'}}>
-              {`${focusedItem?.name} Total Revenue`}
+              {editingEntry
+                ? `Edit ${focusedItem?.name} External Revenue`
+                : `Add ${focusedItem?.name} External Revenue`}
             </Title>
             <Text style={{fontWeight: 'bold', color: colors.dark}}>
               {`${(dateFilter
@@ -518,11 +539,13 @@ const RevenueGroupList = props => {
             </Text>
           </View>
           <RevenueForm
-            editMode={focusedItem?.revenue_id ? true : false}
-            revenue={focusedItem}
+            editMode={editingEntry ? true : false}
+            revenue={editingEntry}
+            sources={revenueSources}
             initialValues={revenueFormInitialValues}
             onSubmit={handleSubmitCreateRevenueForm}
             onCancel={handleCancelCreateRevenueForm}
+            onManageSources={handleManageSources}
           />
         </Modal>
       </Portal>
@@ -552,14 +575,18 @@ const RevenueGroupList = props => {
         <Dialog
           visible={deleteRevenueDialogVisible}
           onDismiss={hideDeleteRevenueDialog}>
-          <Dialog.Title>Delete revenue?</Dialog.Title>
+          <Dialog.Title>Delete external revenue?</Dialog.Title>
           <Dialog.Content>
             <Paragraph>
               {`Are you sure you want to delete ${
-                focusedItem?.name + ' ' || ''
-              }revenue for the month of ${(focusedItem?.revenue_group_date
+                focusedEntry?.revenue_source_name
+                  ? focusedEntry.revenue_source_name + ' '
+                  : ''
+              }external revenue${
+                focusedItem?.name ? ` for ${focusedItem.name}` : ''
+              } for the month of ${(focusedEntry?.revenue_group_date
                 ? moment(
-                    focusedItem.revenue_group_date.split(' ')[0],
+                    focusedEntry.revenue_group_date.split(' ')[0],
                     'YYYY-MM-DD',
                   )
                 : moment()
@@ -623,6 +650,12 @@ const RevenueGroupList = props => {
         <ManageListButton
           label="Manage revenue group list"
           onPress={() => navigation.navigate(routes.manageRevenueGroups())}
+        />
+      )}
+      {viewMode === 'list' && (
+        <ManageListButton
+          label="Manage external revenue sources"
+          onPress={() => navigation.navigate(routes.manageRevenueSources())}
         />
       )}
       {viewMode === 'list' && (

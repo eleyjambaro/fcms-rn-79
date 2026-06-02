@@ -1019,10 +1019,28 @@ const createRevenueGroupsTableQuery = `
   );
 `;
 
+// Reusable external POS / revenue sources (e.g. "External POS1", "Portable
+// Terminal"). Branch-scoped delta-sync table, mirrors revenue_groups.
+const createRevenueSourcesTableQuery = `
+  CREATE TABLE IF NOT EXISTS revenue_sources (
+    id TEXT PRIMARY KEY NOT NULL,
+    name VARCHAR NOT NULL,
+    date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_updated DATETIME,
+    device_id VARCHAR DEFAULT NULL,
+    branch_id VARCHAR DEFAULT NULL,
+    sync_id VARCHAR(36) DEFAULT NULL,
+    updated_at DATETIME DEFAULT NULL,
+    synced_at DATETIME DEFAULT NULL,
+    is_deleted INTEGER DEFAULT 0
+  );
+`;
+
 const createRevenuesTableQuery = `
   CREATE TABLE IF NOT EXISTS revenues (
     id TEXT PRIMARY KEY NOT NULL,
     revenue_group_id TEXT,
+    revenue_source_id TEXT,
     revenue_group_date DATETIME,
     amount REAL DEFAULT 0,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -1036,7 +1054,11 @@ const createRevenuesTableQuery = `
 
     CONSTRAINT fk_revenue_group
     FOREIGN KEY (revenue_group_id)
-    REFERENCES revenue_groups(id)
+    REFERENCES revenue_groups(id),
+
+    CONSTRAINT fk_revenue_source
+    FOREIGN KEY (revenue_source_id)
+    REFERENCES revenue_sources(id)
   );
 `;
 
@@ -1280,6 +1302,7 @@ const DELTA_SYNC_TABLES = [
   'refunds',
   'spoilages',
   'revenue_groups',
+  'revenue_sources',
   'revenues',
   'expense_groups',
   'expenses',
@@ -1332,6 +1355,7 @@ export const createTables = async () => {
     await db.executeSql(createIngredientsTableQuery);
     await db.executeSql(createSpoilagesTableQuery);
     await db.executeSql(createRevenueGroupsTableQuery);
+    await db.executeSql(createRevenueSourcesTableQuery);
     await db.executeSql(createRevenuesTableQuery);
     await db.executeSql(createExpenseGroupsTableQuery);
     await db.executeSql(createExpensesTableQuery);
@@ -1788,6 +1812,21 @@ export const alterTables = async currentAppVersion => {
         db,
         'items',
         'packaging_type',
+        addNewTableColumnsQuery,
+      );
+
+      /**
+       * Reusable external POS / revenue sources: link each manual revenue row to
+       * a source (NULL = legacy unnamed external amount).
+       */
+      addNewTableColumnsQuery = `
+        ALTER TABLE revenues ADD COLUMN revenue_source_id TEXT DEFAULT NULL;
+      `;
+
+      await executeSqlIfColumnNotExist(
+        db,
+        'revenues',
+        'revenue_source_id',
         addNewTableColumnsQuery,
       );
 

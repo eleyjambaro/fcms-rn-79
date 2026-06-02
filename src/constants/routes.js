@@ -102,6 +102,7 @@ export const routes = {
   beverageVariance: () => 'BeverageVariance',
   foodMenuMix: () => 'FoodMenuMix',
   manageRevenueGroups: () => 'ManageRevenueGroups',
+  manageRevenueSources: () => 'ManageRevenueSources',
   manageExpenseGroups: () => 'ManageExpenseGroups',
   manageMonthlyExpenses: () => 'ManageMonthlyExpenses',
   monthlyReportByItem: () => 'MonthlyReportByItem',

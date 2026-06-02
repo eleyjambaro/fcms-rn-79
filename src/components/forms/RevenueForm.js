@@ -1,9 +1,12 @@
 import React, {useState} from 'react';
-import {View, StyleSheet} from 'react-native';
+import {View, StyleSheet, ScrollView} from 'react-native';
 import {
   Button,
   useTheme,
   TextInput,
+  Text,
+  Subheading,
+  RadioButton,
   Paragraph,
   Dialog,
   Portal,
@@ -13,20 +16,29 @@ import * as Yup from 'yup';
 import moment from 'moment';
 
 const RevenueValidationSchema = Yup.object().shape({
+  revenue_source_id: Yup.string().required('Select an external revenue source'),
   amount: Yup.string().required('Required'),
 });
 
+/**
+ * Add / edit an external (per-source) revenue amount for a revenue group in a
+ * month. In create mode the user picks one of the reusable revenue sources; in
+ * edit mode the source is fixed and only the amount changes.
+ */
 const RevenueForm = props => {
   const {
     editMode = false,
     revenue,
+    sources = [],
     initialValues = {
       revenue_group_id: '',
       revenue_group_date: '',
+      revenue_source_id: '',
       amount: '',
     },
     onSubmit,
     onCancel,
+    onManageSources,
     submitButtonTitle = 'Save',
   } = props;
   const {colors} = useTheme();
@@ -47,16 +59,85 @@ const RevenueForm = props => {
     }
   };
 
+  const renderSourceSelection = ({values, errors, touched, setFieldValue, setFieldTouched}) => {
+    // In edit mode the source is fixed — just show its name.
+    if (editMode) {
+      return (
+        <View style={{marginVertical: 10}}>
+          <Subheading>Source</Subheading>
+          <Text style={{fontWeight: 'bold', color: colors.dark}}>
+            {revenue?.revenue_source_name || 'External revenue'}
+          </Text>
+        </View>
+      );
+    }
+
+    if (!sources?.length) {
+      return (
+        <View style={{marginVertical: 15}}>
+          <Text style={{marginBottom: 10}}>
+            You don't have any external revenue source yet. Create one first
+            (e.g. "External POS1", "Portable Terminal").
+          </Text>
+          {onManageSources && (
+            <Button mode="outlined" icon="cog-outline" onPress={onManageSources}>
+              Manage revenue sources
+            </Button>
+          )}
+        </View>
+      );
+    }
+
+    return (
+      <View style={{marginVertical: 10}}>
+        <Subheading style={{marginBottom: 5}}>
+          Select external revenue source:
+        </Subheading>
+        <ScrollView style={{maxHeight: 220}}>
+          <RadioButton.Group
+            value={values.revenue_source_id}
+            onValueChange={value => {
+              setFieldTouched('revenue_source_id', true);
+              setFieldValue('revenue_source_id', value);
+            }}>
+            {sources.map(source => (
+              <RadioButton.Item
+                key={source.id}
+                label={source.name}
+                value={source.id}
+              />
+            ))}
+          </RadioButton.Group>
+        </ScrollView>
+        {errors.revenue_source_id && touched.revenue_source_id && (
+          <Text style={{color: colors.error, marginTop: 5}}>
+            {errors.revenue_source_id}
+          </Text>
+        )}
+        {onManageSources && (
+          <Button
+            compact
+            icon="cog-outline"
+            onPress={onManageSources}
+            style={{marginTop: 5}}>
+            Manage revenue sources
+          </Button>
+        )}
+      </View>
+    );
+  };
+
   return (
     <Formik
       initialValues={{
         revenue_group_id: initialValues.revenue_group_id || '',
         revenue_group_date: initialValues.revenue_group_date || '',
+        revenue_source_id: initialValues.revenue_source_id || '',
         amount: initialValues.amount || '',
       }}
       validationSchema={RevenueValidationSchema}
       onSubmit={handleFormSubmit}>
-      {props => {
+      {formikProps => {
         const {
           handleChange,
           handleBlur,
@@ -67,7 +148,9 @@ const RevenueForm = props => {
           dirty,
           isSubmitting,
           isValid,
-        } = props;
+          setFieldValue,
+          setFieldTouched,
+        } = formikProps;
 
         return (
           <>
@@ -79,7 +162,9 @@ const RevenueForm = props => {
                 <Dialog.Content>
                   <Paragraph>
                     {`You are about to update ${
-                      revenue?.name + ' ' || ''
+                      revenue?.revenue_source_name
+                        ? revenue.revenue_source_name + ' '
+                        : ''
                     }revenue for the month of ${(revenue?.revenue_group_date
                       ? moment(
                           revenue.revenue_group_date.split(' ')[0],
@@ -105,8 +190,15 @@ const RevenueForm = props => {
                 </Dialog.Actions>
               </Dialog>
             </Portal>
+            {renderSourceSelection({
+              values,
+              errors,
+              touched,
+              setFieldValue,
+              setFieldTouched,
+            })}
             <TextInput
-              label="Total Revenue"
+              label="Amount"
               onChangeText={handleChange('amount')}
               onBlur={handleBlur('amount')}
               value={values.amount}

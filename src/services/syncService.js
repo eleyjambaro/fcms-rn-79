@@ -138,10 +138,15 @@ const GROUP_A_ENTITIES = [
     },
   },
   {key: 'revenue_groups', table: 'revenue_groups'},
+  // Reusable external POS / revenue sources. No FK remap (only `name`).
+  {key: 'revenue_sources', table: 'revenue_sources'},
   {
     key: 'revenues',
     table: 'revenues',
-    pushFieldMap: {revenue_group_id: 'revenue_group_sync_id'},
+    pushFieldMap: {
+      revenue_group_id: 'revenue_group_sync_id',
+      revenue_source_id: 'revenue_source_sync_id',
+    },
   },
   {key: 'expense_groups', table: 'expense_groups'},
   {

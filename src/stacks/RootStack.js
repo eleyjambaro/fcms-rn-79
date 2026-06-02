@@ -56,6 +56,7 @@ import ExpenseGroup from '../screens/ExpenseGroup';
 import ItemsTab from '../tabs/ItemsTab';
 import EditRecipe from '../modals/EditRecipe';
 import ManageRevenueGroups from '../screens/ManageRevenueGroups';
+import ManageRevenueSources from '../screens/ManageRevenueSources';
 import ManageExpenseGroups from '../screens/ManageExpenseGroups';
 import ManageMonthlyExpenses from '../screens/ManageMonthlyExpenses';
 import Categories from '../screens/Categories';
@@ -196,6 +197,7 @@ const MemoizedExpenseGroup = React.memo(ExpenseGroup);
 const MemoizedReports = React.memo(Reports);
 const MemoizedFoodCostAnalysis = React.memo(FoodCostAnalysis);
 const MemoizedManageRevenueGroups = React.memo(ManageRevenueGroups);
+const MemoizedManageRevenueSources = React.memo(ManageRevenueSources);
 const MemoizedManageExpenseGroups = React.memo(ManageExpenseGroups);
 const MemoizedManageMonthlyExpenses = React.memo(ManageMonthlyExpenses);
 const MemoizedCategories = React.memo(Categories);
@@ -732,6 +734,11 @@ const RootStack = () => {
           name={routes.manageRevenueGroups()}
           component={MemoizedManageRevenueGroups}
           options={{headerTitle: 'Manage Revenue Groups'}}
+        />
+        <Stack.Screen
+          name={routes.manageRevenueSources()}
+          component={MemoizedManageRevenueSources}
+          options={{headerTitle: 'Manage Revenue Sources'}}
         />
         <Stack.Screen
           name={routes.manageExpenseGroups()}

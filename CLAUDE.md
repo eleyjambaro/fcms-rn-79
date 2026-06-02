@@ -117,6 +117,7 @@ Delta sync tables (defined in `DELTA_SYNC_TABLES` constant in `/src/localDb/inde
 | `refunds`                   | `localDbQueries/salesCounter.js`    |
 | `spoilages`                 | `localDbQueries/spoilages.js`       |
 | `revenue_groups`            | `localDbQueries/revenues.js`        |
+| `revenue_sources`           | `localDbQueries/revenues.js`        |
 | `revenues`                  | `localDbQueries/revenues.js`        |
 | `expense_groups`            | `localDbQueries/expenses.js`        |
 | `expenses`                  | `localDbQueries/expenses.js`        |
@@ -190,6 +191,17 @@ This applies to **every** insert and update across `/src/localDbQueries/`, not j
 #### UOM abbreviation display (all Batch Transfer screens)
 
 Every UOM abbreviation rendered on a Batch Transfer screen — item rows, qty badges, input labels, dialog text — must be displayed **uppercase**, with one exception: `"ea"` (Each) renders as **`"ea (pc)"`** because users recognize "pc" (piece) more readily than "EA". Use the single helper `formatTransferUOMAbbrev(uomAbbrev)` from `/src/utils/stringHelpers.js` — never render a raw `uom_abbrev`/`item_uom_abbrev` string directly on these screens. (Note: this is distinct from the generic `formatUOMAbbrev`, which maps `"ea"` to `"PC"`; Batch Transfer intentionally keeps the `"ea (pc)"` form.)
+
+### Revenue Groups (internal POS sales + external sources)
+
+A Revenue Group's monthly revenue — which is the **denominator for every item/category Cost Percentage** — is computed as **internal POS sales + external per-source amounts**, not the old single hand-entered number:
+
+- **Internal sales**: gross (VAT-inclusive) `SUM(sale_unit_selling_price * sale_qty)` from `active_sale_logs`, joined `sale_logs → active_items → active_revenue_categories` for the group's categories, filtered to the month, excluding `voided`/`is_refunded`.
+- **External amounts**: rows in `revenues`, each linked to a reusable `revenue_sources` record (e.g. "External POS1", "Portable Terminal") via `revenues.revenue_source_id`. Users add an amount **per source per group per month** (`createRevenue` upserts on the `(group, month, source)` key).
+
+**Single source of truth**: the SQL is built by `buildRevenueGroupMonthSalesSql` / `buildRevenueGroupMonthExternalSql` / `buildRevenueGroupMonthTotalSql` in `/src/localDbQueries/revenues.js`. Every place that needs a revenue-group monthly total reuses these so the formula can never drift — `getRevenueGroups`/`getRevenueGroupsGrandTotal` (revenues.js), `getItemCostPercentage`/`getCategoryCostPercentage` (inventoryLogs.js), and the `selected_month_revenue_group_total_amount` / all-categories grand-total subqueries in `reports.js` and `endingInventory.js`. **Never reintroduce a bare `SUM(revenues.amount)` for a revenue-group total** — route it through these helpers (pass your own `groupIdSql`/`dateSql` raw SQL fragments).
+
+`revenue_sources` is a branch-scoped delta-sync table (mirrors `revenue_groups`); `revenues.revenue_source_id` maps to the server's `revenue_source_sync_id` (see `pushFieldMap` in `syncService.js` and `allowedFields` in `SyncController.php`). The breakdown UI is `RevenueGroupListItem` (a `List.Accordion`: sales line + per-source rows + total) fed by `getRevenueEntries`; sources are managed on the `ManageRevenueSources` screen.
 
 ### Inventory Data Template (IDT) Import/Export
 

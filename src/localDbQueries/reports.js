@@ -1,5 +1,31 @@
 import {getDBConnection} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
+import {buildRevenueGroupMonthTotalSql} from './revenues';
+
+// Revenue-group monthly total (internal POS sales + external/manual amounts) for
+// the group that owns a category. `categoryIdSql` is the SQL expression that
+// resolves the category id in the surrounding report query (e.g.
+// `'items.category_id'`, `'i.category_id'`). The formula lives in revenues.js so it can
+// never drift from the Revenue/Expense Groups screen or the cost-percentage
+// queries.
+const revenueGroupTotalForCategorySql = (categoryIdSql, dateFilter) =>
+  buildRevenueGroupMonthTotalSql({
+    groupIdSql: `(
+      SELECT revenue_group_id
+      FROM active_revenue_categories revenue_categories
+      WHERE category_id = ${categoryIdSql}
+      ORDER BY date_created DESC
+    )`,
+    dateSql: `datetime('${dateFilter}')`,
+  });
+
+// Grand total across ALL revenue groups for the month (sales + external),
+// used as the all-categories cost-percentage denominator.
+const revenueGroupsGrandTotalSql = dateFilter =>
+  `(SELECT IFNULL(SUM(${buildRevenueGroupMonthTotalSql({
+    groupIdSql: 'revenue_groups.id',
+    dateSql: `'${dateFilter}'`,
+  })}), 0) FROM active_revenue_groups revenue_groups)`;
 
 export const getItemsMonthlyReport = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter, dateFilter, limit = 15}] = queryKey;
@@ -121,27 +147,20 @@ export const getItemsMonthlyReport = async ({queryKey, pageParam = 1}) => {
           WHERE revenue_groups.id = (
             SELECT revenue_group_id
             FROM active_revenue_categories revenue_categories
-            WHERE revenue_categories.category_id = i.id
+            WHERE revenue_categories.category_id = i.category_id
             ORDER BY date_created DESC
           )
         ) AS revenue_group_name,
         (
           SELECT revenue_group_id
           FROM active_revenue_categories revenue_categories
-          WHERE revenue_categories.category_id = i.id
+          WHERE revenue_categories.category_id = i.category_id
           ORDER BY date_created DESC
         ) AS revenue_group_id,
-        (
-          SELECT IFNULL(SUM(amount), 0)
-          FROM active_revenues revenues
-          WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
-          AND revenue_group_id = (
-            SELECT revenue_group_id
-            FROM active_revenue_categories revenue_categories
-            WHERE category_id = i.id
-            ORDER BY date_created DESC
-          )
-        ) AS selected_month_revenue_group_total_amount
+        ${revenueGroupTotalForCategorySql(
+          'i.category_id',
+          dateFilter,
+        )} AS selected_month_revenue_group_total_amount
         FROM active_items i
       ) AS items
 
@@ -489,17 +508,10 @@ export const getItemsMonthlyReportTotals = async ({
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
-      (
-        SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM active_revenues revenues
-        WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
-        AND revenue_group_id = (
-          SELECT revenue_group_id
-          FROM active_revenue_categories revenue_categories
-          WHERE category_id = items.category_id
-          ORDER BY date_created DESC
-        )
-      ) AS selected_month_revenue_group_total_amount
+      ${revenueGroupTotalForCategorySql(
+        'items.category_id',
+        dateFilter,
+      )} AS selected_month_revenue_group_total_amount
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
@@ -847,17 +859,10 @@ export const getItemReport = async ({queryKey}) => {
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
-      (
-        SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM active_revenues revenues
-        WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
-        AND revenue_group_id = (
-          SELECT revenue_group_id
-          FROM active_revenue_categories revenue_categories
-          WHERE category_id = items.category_id
-          ORDER BY date_created DESC
-        )
-      ) AS selected_month_revenue_group_total_amount
+      ${revenueGroupTotalForCategorySql(
+        'items.category_id',
+        dateFilter,
+      )} AS selected_month_revenue_group_total_amount
     `;
     const query = `
       FROM active_items items
@@ -1084,17 +1089,10 @@ export const getCategoriesMonthlyReport = async ({queryKey, pageParam = 1}) => {
           WHERE revenue_categories.category_id = c.id
           ORDER BY date_created DESC
         ) AS revenue_group_id,
-        (
-          SELECT IFNULL(SUM(amount), 0)
-          FROM active_revenues revenues
-          WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
-          AND revenue_group_id = (
-            SELECT revenue_group_id
-            FROM active_revenue_categories revenue_categories
-            WHERE category_id = c.id
-            ORDER BY date_created DESC
-          )
-        ) AS selected_month_revenue_group_total_amount
+        ${revenueGroupTotalForCategorySql(
+          'c.id',
+          dateFilter,
+        )} AS selected_month_revenue_group_total_amount
         FROM active_categories c
       ) AS categories
 
@@ -1298,11 +1296,11 @@ export const getCategoriesMonthlyReportTotals = async ({
       categories.id AS category_id,
       categories.name AS category_name,
 
-      SUM(whole_month_totals.whole_month_total_removed_stock_cost) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM active_revenues revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_removed_stock_cost_percentage,
-      SUM(whole_month_totals.whole_month_total_removed_stock_cost_net) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM active_revenues revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_removed_stock_cost_net_percentage,
+      SUM(whole_month_totals.whole_month_total_removed_stock_cost) / ${revenueGroupsGrandTotalSql(dateFilter)} * 100 AS whole_month_all_categories_total_removed_stock_cost_percentage,
+      SUM(whole_month_totals.whole_month_total_removed_stock_cost_net) / ${revenueGroupsGrandTotalSql(dateFilter)} * 100 AS whole_month_all_categories_total_removed_stock_cost_net_percentage,
 
-      SUM(whole_month_totals.whole_month_total_added_stock_cost) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM active_revenues revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_added_stock_cost_percentage,
-      SUM(whole_month_totals.whole_month_total_added_stock_cost_net) / (SELECT SUM(revenues.amount) AS revenue_groups_grand_total FROM active_revenues revenues WHERE strftime('%m %Y', revenues.revenue_group_date) = strftime('%m %Y', '${dateFilter}')) * 100 AS whole_month_all_categories_total_added_stock_cost_net_percentage,
+      SUM(whole_month_totals.whole_month_total_added_stock_cost) / ${revenueGroupsGrandTotalSql(dateFilter)} * 100 AS whole_month_all_categories_total_added_stock_cost_percentage,
+      SUM(whole_month_totals.whole_month_total_added_stock_cost_net) / ${revenueGroupsGrandTotalSql(dateFilter)} * 100 AS whole_month_all_categories_total_added_stock_cost_net_percentage,
 
       selected_month_totals.selected_month_total_added_stock_cost AS selected_month_total_added_stock_cost,
       selected_month_totals.selected_month_total_removed_stock_cost AS selected_month_total_removed_stock_cost,
@@ -1404,17 +1402,10 @@ export const getCategoriesMonthlyReportTotals = async ({
           WHERE revenue_categories.category_id = c.id
           ORDER BY date_created DESC
         ) AS revenue_group_id,
-        (
-          SELECT IFNULL(SUM(amount), 0)
-          FROM active_revenues revenues
-          WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
-          AND revenue_group_id = (
-            SELECT revenue_group_id
-            FROM active_revenue_categories revenue_categories
-            WHERE category_id = c.id
-            ORDER BY date_created DESC
-          )
-        ) AS selected_month_revenue_group_total_amount
+        ${revenueGroupTotalForCategorySql(
+          'c.id',
+          dateFilter,
+        )} AS selected_month_revenue_group_total_amount
         FROM active_categories c
       ) AS categories
 
@@ -1833,17 +1824,10 @@ export const getItemsCustomReport = async ({queryKey, pageParam = 1}) => {
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
-      (
-        SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM active_revenues revenues
-        WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
-        AND revenue_group_id = (
-          SELECT revenue_group_id
-          FROM active_revenue_categories revenue_categories
-          WHERE category_id = items.category_id
-          ORDER BY date_created DESC
-        )
-      ) AS selected_month_revenue_group_total_amount
+      ${revenueGroupTotalForCategorySql(
+        'items.category_id',
+        dateFilter,
+      )} AS selected_month_revenue_group_total_amount
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
@@ -2133,17 +2117,10 @@ export const getItemsCustomReportTotals = async ({queryKey, pageParam = 1}) => {
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
-      (
-        SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM active_revenues revenues
-        WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
-        AND revenue_group_id = (
-          SELECT revenue_group_id
-          FROM active_revenue_categories revenue_categories
-          WHERE category_id = items.category_id
-          ORDER BY date_created DESC
-        )
-      ) AS selected_month_revenue_group_total_amount
+      ${revenueGroupTotalForCategorySql(
+        'items.category_id',
+        dateFilter,
+      )} AS selected_month_revenue_group_total_amount
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
@@ -2442,17 +2419,10 @@ export const getCategoriesCustomReport = async ({queryKey, pageParam = 1}) => {
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
-      (
-        SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM active_revenues revenues
-        WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
-        AND revenue_group_id = (
-          SELECT revenue_group_id
-          FROM active_revenue_categories revenue_categories
-          WHERE category_id = categories.id
-          ORDER BY date_created DESC
-        )
-      ) AS selected_month_revenue_group_total_amount
+      ${revenueGroupTotalForCategorySql(
+        'categories.id',
+        dateFilter,
+      )} AS selected_month_revenue_group_total_amount
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
@@ -2677,17 +2647,10 @@ export const getCategoriesCustomReportTotals = async ({
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
-      (
-        SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM active_revenues revenues
-        WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
-        AND revenue_group_id = (
-          SELECT revenue_group_id
-          FROM active_revenue_categories revenue_categories
-          WHERE category_id = categories.id
-          ORDER BY date_created DESC
-        )
-      ) AS selected_month_revenue_group_total_amount
+      ${revenueGroupTotalForCategorySql(
+        'categories.id',
+        dateFilter,
+      )} AS selected_month_revenue_group_total_amount
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
@@ -2994,17 +2957,10 @@ export const getRevenueGroupsMonthlyReportTotals = async ({
           WHERE revenue_categories.category_id = c.id
           ORDER BY date_created DESC
         ) AS revenue_group_id,
-        (
-          SELECT IFNULL(SUM(amount), 0)
-          FROM active_revenues revenues
-          WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${dateFilter}'))
-          AND revenue_group_id = (
-            SELECT revenue_group_id
-            FROM active_revenue_categories revenue_categories
-            WHERE category_id = c.id
-            ORDER BY date_created DESC
-          )
-        ) AS selected_month_revenue_group_total_amount
+        ${revenueGroupTotalForCategorySql(
+          'c.id',
+          dateFilter,
+        )} AS selected_month_revenue_group_total_amount
         FROM active_categories c
       ) AS categories
 

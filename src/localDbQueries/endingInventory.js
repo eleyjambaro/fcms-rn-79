@@ -6,6 +6,7 @@ import {
   OPERATION_DEFAULT_UUIDS,
 } from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
+import {buildRevenueGroupMonthTotalSql} from './revenues';
 import {scheduleSyncSoon} from '../services/syncService';
 
 export const createItemEndingInventoryEntry = async ({
@@ -65,17 +66,15 @@ export const createItemEndingInventoryEntry = async ({
           ORDER BY date_created DESC
         )
       ) AS revenue_group_name,
-      (
-        SELECT SUM(amount) AS selected_month_revenue_group_total_amount
-        FROM active_revenues revenues
-        WHERE strftime('%m %Y', revenue_group_date) = strftime('%m %Y', datetime('${monthYearDateFilter}'))
-        AND revenue_group_id = (
+      ${buildRevenueGroupMonthTotalSql({
+        groupIdSql: `(
           SELECT revenue_group_id
           FROM active_revenue_categories revenue_categories
           WHERE category_id = items.category_id
           ORDER BY date_created DESC
-        )
-      ) AS selected_month_revenue_group_total_amount
+        )`,
+        dateSql: `datetime('${monthYearDateFilter}')`,
+      })} AS selected_month_revenue_group_total_amount
 
       FROM active_items items
 
