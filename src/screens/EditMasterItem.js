@@ -46,6 +46,31 @@ const EditMasterItemSchema = Yup.object({
   packaging_type: Yup.string().nullable().max(64),
 });
 
+// Dropdown forwards only a fixed set of TextInputProps to its inner input and
+// no style passthrough, so we supply a custom input to bold the selected value
+// — matching the bold value text on the TextInput fields.
+const BoldDropdownInput = ({
+  placeholder,
+  label,
+  rightIcon,
+  selectedLabel,
+  mode,
+  disabled,
+  error,
+}) => (
+  <TextInput
+    placeholder={placeholder}
+    label={label}
+    value={selectedLabel}
+    right={rightIcon}
+    mode={mode}
+    editable={false}
+    disabled={disabled}
+    error={error}
+    contentStyle={styles.valueText}
+  />
+);
+
 const EditMasterItem = ({navigation, route}) => {
   const {colors} = useTheme();
   const queryClient = useQueryClient();
@@ -164,6 +189,7 @@ const EditMasterItem = ({navigation, route}) => {
           autoCapitalize="characters"
           error={!!(formik.touched.sku && formik.errors.sku)}
           style={styles.input}
+          contentStyle={styles.valueText}
         />
         <HelperText
           type={formik.touched.sku && formik.errors.sku ? 'error' : 'info'}
@@ -181,6 +207,7 @@ const EditMasterItem = ({navigation, route}) => {
           multiline
           error={!!(formik.touched.description && formik.errors.description)}
           style={styles.input}
+          contentStyle={styles.valueText}
         />
         <HelperText
           type={
@@ -238,6 +265,7 @@ const EditMasterItem = ({navigation, route}) => {
             onBlur={formik.handleBlur('barcode')}
             error={!!(formik.touched.barcode && formik.errors.barcode)}
             style={[styles.input, {flex: 1}]}
+            contentStyle={styles.valueText}
           />
           <Pressable
             onPress={() => {
@@ -311,6 +339,7 @@ const EditMasterItem = ({navigation, route}) => {
                   )
                 }
                 style={[styles.input, {flex: 1}]}
+                contentStyle={styles.valueText}
               />
               <QuantityUOMText
                 uomAbbrev={formik.values.uom_abbrev_per_piece}
@@ -338,6 +367,7 @@ const EditMasterItem = ({navigation, route}) => {
               options={PACKAGING_TYPE_OPTIONS}
               activeColor={colors.accent}
               dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
+              CustomDropdownInput={BoldDropdownInput}
             />
           </>
         ) : null}
@@ -377,6 +407,9 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 4,
+  },
+  valueText: {
+    fontWeight: 'bold',
   },
   regenerateRow: {
     flexDirection: 'row',
