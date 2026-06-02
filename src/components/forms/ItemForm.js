@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useMemo} from 'react';
-import {View, StyleSheet, Modal, Pressable} from 'react-native';
+import {View, StyleSheet, Modal, Pressable, Alert} from 'react-native';
 import {
   TextInput,
   Button,
@@ -25,6 +25,7 @@ import uuid from 'react-native-uuid';
 
 import MoreSelectionButton from '../buttons/MoreSelectionButton';
 import useItemFormContext from '../../hooks/useItemFormContext';
+import useCurrentUser from '../../hooks/useCurrentUser';
 import {getCategory} from '../../localDbQueries/categories';
 import {getTax} from '../../localDbQueries/taxes';
 import routes from '../../constants/routes';
@@ -47,6 +48,7 @@ import {Dropdown} from 'react-native-paper-dropdown';
 import PreventGoBack from '../utils/PreventGoBack';
 import UnitOrTotalCostRadioButtonWrapper from './UnitOrTotalCostRadioButtonWrapper';
 import {PACKAGING_TYPE_OPTIONS} from '../../constants/itemForm';
+import {getMasterItems} from '../../serverDbQueries/v2/masterItems';
 
 // ---------------------------------------------------------------------------
 // Validation schema
@@ -232,6 +234,12 @@ const ItemForm = props => {
   const {colors} = useTheme();
   const navigation = useNavigation();
   const {setFormikActions} = useItemFormContext();
+  const [{authUser}] = useCurrentUser();
+  // Only the root account may edit master items (the server returns 403 for
+  // sub-accounts), so the tappable "edit on the Master Item List screen"
+  // shortcut is gated to root — mirroring how MasterItemList suppresses its
+  // edit affordance for sub-accounts.
+  const isRoot = !!authUser?.is_root_account;
   const [isCancelPreventGoBack, setIsCancelPreventGoBack] = useState(false);
 
   // ---- dialog / modal visibility state ----
@@ -286,6 +294,99 @@ const ItemForm = props => {
   const [showPackagingDropDown, setShowPackagingDropDown] = useState(false);
   const [noInitStockDialogVisible, setNoInitStockDialogVisible] =
     useState(false);
+
+  // ---- master item edit shortcut ----
+  const [isOpeningMasterItem, setIsOpeningMasterItem] = useState(false);
+
+  // Opens the Master Item List edit screen for the master this branch item is
+  // linked to. The update endpoint is keyed by the server-side master id, which
+  // the local mirror does NOT carry (locally master_items.id === sync_id, while
+  // the server assigns its own separate id). So we look the master up on the
+  // server by SKU — the same source MasterItemList uses — to obtain a record
+  // with the correct id before navigating.
+  const handleOpenMasterItemEdit = async () => {
+    if (isOpeningMasterItem) return;
+
+    const sku = String(item?.sku ?? '').trim();
+    if (!sku) {
+      Alert.alert(
+        'Master item unavailable',
+        'This item has no SKU, so its Master Item List entry could not be located.',
+      );
+      return;
+    }
+
+    setIsOpeningMasterItem(true);
+    try {
+      const res = await getMasterItems({
+        queryKey: ['masterItems', {q: sku, perPage: 100}],
+      });
+      // q matches SKU or description with a LIKE, so narrow to the exact SKU
+      // (unique per company in master_items).
+      const master = (res?.data ?? []).find(
+        m => String(m?.sku ?? '').toUpperCase() === sku.toUpperCase(),
+      );
+      if (!master) {
+        Alert.alert(
+          'Master item not found',
+          'Could not find the linked Master Item List entry for this item.',
+        );
+        return;
+      }
+      navigation.navigate(routes.editMasterItem(), {master});
+    } catch (err) {
+      console.debug('[ItemForm] handleOpenMasterItemEdit error:', err);
+      Alert.alert(
+        'Unable to open',
+        'Failed to load the master item. Please check your connection and try again.',
+      );
+    } finally {
+      setIsOpeningMasterItem(false);
+    }
+  };
+
+  // Note shown under fields that are locked because the item is linked to a
+  // company-wide master. Root accounts get a tappable shortcut into the Master
+  // Item List edit screen; sub-accounts (who can't edit masters) keep the
+  // original read-only note. `leadIn` is the context sentence without the
+  // trailing call-to-action.
+  const renderMasterItemNote = leadIn => {
+    if (!isRoot) {
+      return (
+        <HelperText type="info">
+          {`${leadIn} — edit on the Master Item List screen.`}
+        </HelperText>
+      );
+    }
+
+    return (
+      <>
+        <HelperText type="info" style={{paddingBottom: 0}}>
+          {`${leadIn}.`}
+        </HelperText>
+        <Pressable
+          onPress={handleOpenMasterItemEdit}
+          disabled={isOpeningMasterItem}
+          hitSlop={8}
+          style={({pressed}) => [
+            styles.masterItemLinkRow,
+            {opacity: pressed || isOpeningMasterItem ? 0.6 : 1},
+          ]}>
+          <MaterialCommunityIcons
+            name="open-in-new"
+            size={16}
+            color={colors.primary}
+            style={{marginRight: 6}}
+          />
+          <Text style={[styles.masterItemLinkText, {color: colors.primary}]}>
+            {isOpeningMasterItem
+              ? 'Opening…'
+              : 'Edit on the Master Item List screen'}
+          </Text>
+        </Pressable>
+      </>
+    );
+  };
 
   // -------------------------------------------------------------------------
   // Queries
@@ -627,12 +728,9 @@ const ItemForm = props => {
               dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
               disabled={isMasterLocked}
             />
-            {isMasterLocked ? (
-              <HelperText type="info">
-                Variant fields locked to Master Item List — edit on the Master
-                Item List screen.
-              </HelperText>
-            ) : null}
+            {isMasterLocked
+              ? renderMasterItemNote('Variant fields locked to Master Item List')
+              : null}
           </>
         )}
       </>
@@ -1663,11 +1761,7 @@ const ItemForm = props => {
         autoCapitalize="words"
         editable={!isMasterLocked}
       />
-      {isMasterLocked ? (
-        <HelperText type="info">
-          From Master Item List — edit on the Master Item List screen.
-        </HelperText>
-      ) : null}
+      {isMasterLocked ? renderMasterItemNote('From Master Item List') : null}
       <View style={{flexDirection: 'row'}}>
         <TextInput
           label="Item Barcode (Optional)"
@@ -1713,13 +1807,15 @@ const ItemForm = props => {
             error={!!(errors.sku && touched.sku)}
             editable={!isMasterLocked}
           />
-          <HelperText type={errors.sku && touched.sku ? 'error' : 'info'}>
-            {errors.sku && touched.sku
-              ? errors.sku
-              : isMasterLocked
-              ? 'From Master Item List — edit on the Master Item List screen.'
-              : 'Leave blank to auto-generate (e.g. AKA-7K2P).'}
-          </HelperText>
+          {errors.sku && touched.sku ? (
+            <HelperText type="error">{errors.sku}</HelperText>
+          ) : isMasterLocked ? (
+            renderMasterItemNote('From Master Item List')
+          ) : (
+            <HelperText type="info">
+              Leave blank to auto-generate (e.g. AKA-7K2P).
+            </HelperText>
+          )}
         </>
       )}
       <MoreSelectionButton
@@ -1852,6 +1948,18 @@ const ItemForm = props => {
 
 const styles = StyleSheet.create({
   textInput: {},
+  masterItemLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingTop: 2,
+    paddingBottom: 6,
+  },
+  masterItemLinkText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
   modalContentContainer: {
     flexDirection: 'column',
     justifyContent: 'center',
