@@ -255,7 +255,8 @@ export const getYieldStockInventoryLogByYieldRefId = async ({queryKey}) => {
     INNER JOIN operations ON operations.id = inventory_logs.operation_id
     INNER JOIN items ON items.id = inventory_logs.item_id
     LEFT JOIN categories ON categories.id = items.category_id
-    WHERE inventory_logs.yield_ref_id = '${yieldRefId}' AND operations.id = 11
+    WHERE inventory_logs.yield_ref_id = '${yieldRefId}'
+    AND operations.code = '${OPERATION_CODES.NEW_YIELD_STOCK}'
   `;
 
   try {
