@@ -115,7 +115,7 @@ const ItemLogDetails = props => {
   };
 
   const renderVendor = (status, data) => {
-    if (log.operation_type === 'remove_stock') return null;
+    if (log.operation_type === 'remove_stock' || log.yield_ref_id) return null;
 
     if (log.ref_vendor_id && status === 'loading') {
       return <DefaultLoadingScreen />;
@@ -648,7 +648,7 @@ const ItemLogDetails = props => {
             </Subheading>
           </View>
 
-          {log.operation_type === 'add_stock' && (
+          {log.operation_type === 'add_stock' && !log.yield_ref_id && (
             <View style={[styles.detailsListItem]}>
               <Text
                 style={{
@@ -678,65 +678,74 @@ const ItemLogDetails = props => {
 
           {log.operation_type === 'add_stock' && (
             <>
-              <DashedDivider containerStyle={{marginHorizontal: 15}} />
+              {!log.yield_ref_id && (
+                <>
+                  <DashedDivider containerStyle={{marginHorizontal: 15}} />
 
-              <View style={[styles.detailsListItem]}>
-                <Text style={{fontWeight: 'bold'}}>Tax:</Text>
-                <Text
-                  style={[
-                    {
-                      marginLeft: 7,
-                      fontWeight: 'bold',
-                      color: colors.dark,
-                    },
-                    ((log.operation_type === 'add_stock' && log.yield_ref_id) ||
-                      log.operation_type === 'remove_stock') && {
-                      fontStyle: 'italic',
-                    },
-                  ]}>
-                  {appliedTax}
-                </Text>
-              </View>
+                  <View style={[styles.detailsListItem]}>
+                    <Text style={{fontWeight: 'bold'}}>Tax:</Text>
+                    <Text
+                      style={[
+                        {
+                          marginLeft: 7,
+                          fontWeight: 'bold',
+                          color: colors.dark,
+                        },
+                        ((log.operation_type === 'add_stock' &&
+                          log.yield_ref_id) ||
+                          log.operation_type === 'remove_stock') && {
+                          fontStyle: 'italic',
+                        },
+                      ]}>
+                      {appliedTax}
+                    </Text>
+                  </View>
 
-              <View style={[styles.detailsListItem]}>
-                <Text style={{fontWeight: 'bold'}}>Tax Total Amount:</Text>
-                <Text
-                  style={{
-                    marginLeft: 7,
-                    fontWeight: 'bold',
-                    color: colors.dark,
-                  }}>
-                  {`${currencySymbol} ${commaNumber(taxAmount.toFixed(2))}`}
-                </Text>
-              </View>
+                  <View style={[styles.detailsListItem]}>
+                    <Text style={{fontWeight: 'bold'}}>Tax Total Amount:</Text>
+                    <Text
+                      style={{
+                        marginLeft: 7,
+                        fontWeight: 'bold',
+                        color: colors.dark,
+                      }}>
+                      {`${currencySymbol} ${commaNumber(taxAmount.toFixed(2))}`}
+                    </Text>
+                  </View>
+                </>
+              )}
             </>
           )}
 
           {log.operation_type === 'add_stock' && (
             <>
-              <DashedDivider containerStyle={{marginHorizontal: 15}} />
+              {!log.yield_ref_id && (
+                <>
+                  <DashedDivider containerStyle={{marginHorizontal: 15}} />
 
-              <View style={[styles.detailsListItem]}>
-                <Text
-                  style={{
-                    fontWeight: 'bold',
-                  }}>{`Unit Cost (Tax Inclusive):`}</Text>
-                <Text
-                  style={{
-                    marginLeft: 7,
-                    fontWeight: 'bold',
-                    color: colors.dark,
-                  }}>
-                  {`${currencySymbol} ${commaNumber(unitCost.toFixed(2))}`}
-                </Text>
-                <Text
-                  style={{
-                    marginLeft: 5,
-                    color: colors.dark,
-                  }}>
-                  {`/ ${formatUOMAbbrev(log.item_uom_abbrev)}`}
-                </Text>
-              </View>
+                  <View style={[styles.detailsListItem]}>
+                    <Text
+                      style={{
+                        fontWeight: 'bold',
+                      }}>{`Unit Cost (Tax Inclusive):`}</Text>
+                    <Text
+                      style={{
+                        marginLeft: 7,
+                        fontWeight: 'bold',
+                        color: colors.dark,
+                      }}>
+                      {`${currencySymbol} ${commaNumber(unitCost.toFixed(2))}`}
+                    </Text>
+                    <Text
+                      style={{
+                        marginLeft: 5,
+                        color: colors.dark,
+                      }}>
+                      {`/ ${formatUOMAbbrev(log.item_uom_abbrev)}`}
+                    </Text>
+                  </View>
+                </>
+              )}
             </>
           )}
           <View style={[styles.detailsListItem]}>
@@ -768,7 +777,7 @@ const ItemLogDetails = props => {
             </Text>
             {renderDate()}
           </View>
-          {log.operation_type === 'add_stock' && (
+          {log.operation_type === 'add_stock' && !log.yield_ref_id && (
             <View style={[styles.detailsListItem]}>
               <Text style={{fontWeight: 'bold'}}>Official Receipt #:</Text>
               <Text
