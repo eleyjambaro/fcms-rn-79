@@ -25,8 +25,9 @@ import ListEmpty from '../stateIndicators/ListEmpty';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
 import {getVendor} from '../../localDbQueries/vendors';
+import {getYieldIngredientLogsByYieldRefId} from '../../localDbQueries/inventoryLogs';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
-import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import {formatUOM, formatUOMAbbrev} from '../../utils/stringHelpers';
 import DashedDivider from '../dividers/DashedDivider';
 
 const ItemLogDetails = props => {
@@ -41,6 +42,27 @@ const ItemLogDetails = props => {
     getVendor,
     {
       enabled: log?.ref_vendor_id ? true : false,
+    },
+  );
+
+  // A "New Yield Stock" is the add_stock log produced by a recipe yield. Its
+  // ingredient deductions are remove_stock (Stock Usage) logs sharing the same
+  // yield_ref_id — we fetch those to list which items were used and how much.
+  const isNewYieldStock =
+    log?.operation_type === 'add_stock' &&
+    log?.operation_code === OPERATION_CODES.NEW_YIELD_STOCK &&
+    log?.yield_ref_id
+      ? true
+      : false;
+
+  const {
+    status: getYieldIngredientLogsStatus,
+    data: getYieldIngredientLogsData,
+  } = useQuery(
+    ['yieldIngredientLogs', {yieldRefId: log?.yield_ref_id}],
+    getYieldIngredientLogsByYieldRefId,
+    {
+      enabled: isNewYieldStock,
     },
   );
 
@@ -262,6 +284,94 @@ const ItemLogDetails = props => {
     );
   };
 
+  const renderYieldIngredients = () => {
+    if (!isNewYieldStock) return null;
+
+    if (getYieldIngredientLogsStatus === 'loading') {
+      return (
+        <Text
+          style={{
+            marginLeft: 15,
+            marginTop: 8,
+            fontStyle: 'italic',
+            color: colors.neutralTint2,
+          }}>
+          {'Loading ingredients used...'}
+        </Text>
+      );
+    }
+
+    if (getYieldIngredientLogsStatus === 'error') {
+      return (
+        <Text
+          style={{
+            marginLeft: 15,
+            marginTop: 8,
+            fontStyle: 'italic',
+            color: colors.notification,
+          }}>
+          {'Failed to load ingredients used.'}
+        </Text>
+      );
+    }
+
+    const ingredientLogs = getYieldIngredientLogsData?.result ?? [];
+
+    if (!ingredientLogs.length) return null;
+
+    return (
+      <View style={{marginTop: 12}}>
+        <Text style={{marginLeft: 15, fontWeight: 'bold'}}>
+          {'Ingredients Used (Stock Usage):'}
+        </Text>
+        {ingredientLogs.map(ingredient => {
+          const ingredientQty = parseFloat(ingredient.adjustment_qty || 0);
+          const ingredientUnit = formatUOM(
+            ingredient.item_uom_abbrev,
+            ingredientQty > 1 ? 'plural' : 'singular',
+          );
+
+          return (
+            <Pressable
+              key={ingredient.id}
+              onPress={() =>
+                navigation.push(routes.logView(), {
+                  log_id: ingredient.id,
+                  item_id: ingredient.item_id,
+                })
+              }
+              style={({pressed}) => [
+                styles.ingredientListItem,
+                {borderBottomColor: colors.neutralTint5},
+                pressed && {backgroundColor: colors.neutralTint5},
+              ]}>
+              <View style={{flex: 1, marginRight: 10}}>
+                <Text
+                  numberOfLines={2}
+                  style={{fontWeight: 'bold', color: colors.primary}}>
+                  {ingredient.item_name}
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontWeight: 'bold',
+                  color:
+                    ingredient.voided === 1 ? colors.notification : colors.dark,
+                }}>
+                {`${commaNumber(ingredientQty.toFixed(2))} ${ingredientUnit}`}
+              </Text>
+              <MaterialIcons
+                name="chevron-right"
+                size={22}
+                color={colors.neutralTint3}
+              />
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  };
+
   const renderYieldDetails = () => {
     if (!log.yield_ref_id) return null;
 
@@ -307,6 +417,8 @@ const ItemLogDetails = props => {
               {log.yield_ref_id}
             </Text>
           </View>
+
+          {renderYieldIngredients()}
         </View>
       </>
     );
@@ -689,6 +801,14 @@ const styles = StyleSheet.create({
     marginVertical: 7,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  ingredientListItem: {
+    marginHorizontal: 15,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
   },
   detailsListItemGroup: {
     borderRadius: 1,

@@ -271,6 +271,59 @@ export const getYieldStockInventoryLogByYieldRefId = async ({queryKey}) => {
   }
 };
 
+/**
+ * Get the ingredient stock usage logs (remove_stock) that were deducted for a
+ * New Yield Stock, identified by the shared yield_ref_id. Returns one row per
+ * ingredient item used, with the qty used and its unit of measurement.
+ */
+export const getYieldIngredientLogsByYieldRefId = async ({queryKey}) => {
+  const [_key, {yieldRefId}] = queryKey;
+  const query = `
+    SELECT
+    inventory_logs.id AS id,
+    inventory_logs.operation_id AS operation_id,
+    inventory_logs.recipe_id,
+    inventory_logs.yield_ref_id,
+    operations.type AS operation_type,
+    operations.name AS operation_name,
+    operations.code AS operation_code,
+
+    items.name AS item_name,
+    items.uom_abbrev AS item_uom_abbrev,
+
+    voided,
+    item_id,
+    adjustment_qty,
+    adjustment_date
+
+    FROM active_inventory_logs inventory_logs
+    INNER JOIN operations ON operations.id = inventory_logs.operation_id
+    INNER JOIN active_items items ON items.id = inventory_logs.item_id
+    WHERE inventory_logs.yield_ref_id = '${yieldRefId}'
+    AND operations.type = 'remove_stock'
+    ORDER BY items.name ASC
+  `;
+
+  try {
+    const db = await getDBConnection();
+    const results = await db.executeSql(query);
+    const logs = [];
+
+    results.forEach(result => {
+      for (let index = 0; index < result.rows.length; index++) {
+        logs.push(result.rows.item(index));
+      }
+    });
+
+    return {
+      result: logs,
+    };
+  } catch (error) {
+    console.debug(error);
+    throw Error('Failed to fetch yield ingredient inventory logs.');
+  }
+};
+
 export const updateInventoryLog = async ({id, updatedValues}) => {
   try {
     const db = await getDBConnection();
