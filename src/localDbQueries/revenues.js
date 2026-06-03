@@ -7,8 +7,8 @@ import {scheduleSyncSoon} from '../services/syncService';
 /**
  * A revenue group's monthly revenue is now computed as:
  *
- *   (gross internal POS sales for the group's categories in the month)
- * + (sum of that group's manual/external per-source amounts in the month)
+ *   (net, VAT-exclusive internal POS sales for the group's categories in the month)
+ * + (sum of that group's manual/external per-source NET amounts in the month)
  *
  * This replaces the legacy `SUM(revenues.amount)` everywhere the revenue-group
  * monthly total is needed (group lists, grand totals, item/category cost
@@ -20,10 +20,11 @@ import {scheduleSyncSoon} from '../services/syncService';
  *   dateSql:    `"'${dateFilter}'"` or `"datetime('now', 'localtime')"`
  */
 
-// Gross (VAT-inclusive) internal sales for a group's categories in a month.
-// Excludes voided and refunded sale logs.
+// Net (VAT-exclusive) internal sales for a group's categories in a month.
+// Excludes voided and refunded sale logs. (Gross uses sale_unit_selling_price;
+// this feature deliberately uses the net column.)
 export const buildRevenueGroupMonthSalesSql = ({groupIdSql, dateSql}) => `
-  (SELECT IFNULL(SUM(sl.sale_unit_selling_price * sl.sale_qty), 0)
+  (SELECT IFNULL(SUM(sl.sale_unit_selling_price_net * sl.sale_qty), 0)
    FROM active_sale_logs sl
    JOIN active_items it ON it.id = sl.item_id
    JOIN active_revenue_categories rc ON rc.category_id = it.category_id

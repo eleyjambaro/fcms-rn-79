@@ -74,7 +74,7 @@ const RevenueGroupListItem = props => {
         {/* Internal POS sales */}
         <View style={styles.breakdownRow}>
           <Text style={[styles.breakdownLabel, {color: colors.dark}]}>
-            Total revenue (Sales)
+            Net sales (POS)
           </Text>
           <Text style={[styles.breakdownAmount, {color: colors.dark}]}>
             {formatAmount(item.sales_total)}
@@ -143,10 +143,18 @@ const RevenueGroupListItem = props => {
 
   return (
     <List.Accordion
-      title={item.name}
-      titleStyle={{color: colors.dark, fontSize: 14}}
-      description={formatAmount(item.total_amount)}
-      descriptionStyle={{color: colors.dark, fontWeight: 'bold'}}
+      title={
+        <View style={styles.headerRow}>
+          <Text
+            style={[styles.headerName, {color: colors.dark}]}
+            numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={[styles.headerTotal, {color: colors.dark}]}>
+            {formatAmount(item.total_amount)}
+          </Text>
+        </View>
+      }
       expanded={expanded}
       onPress={() => setExpanded(prev => !prev)}
       style={[
@@ -165,6 +173,20 @@ const styles = StyleSheet.create({
   accordion: {
     borderBottomWidth: 1,
     width: '100%',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerName: {
+    flex: 1,
+    fontSize: 14,
+    marginRight: 10,
+  },
+  headerTotal: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   container: {
     flexDirection: 'row',

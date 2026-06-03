@@ -198,13 +198,16 @@ const RevenueForm = props => {
               setFieldTouched,
             })}
             <TextInput
-              label="Amount"
+              label="Net amount (VAT-exclusive)"
               onChangeText={handleChange('amount')}
               onBlur={handleBlur('amount')}
               value={values.amount}
               error={errors.amount && touched.amount ? true : false}
               keyboardType="numeric"
             />
+            <Text style={{marginTop: 5, color: colors.disabled}}>
+              Enter the net (tax-exclusive) revenue from this external POS.
+            </Text>
             <Button
               mode="contained"
               onPress={handleSubmit}
