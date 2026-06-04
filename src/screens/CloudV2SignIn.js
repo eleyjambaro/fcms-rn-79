@@ -43,11 +43,32 @@ const CloudV2SignIn = ({navigation}) => {
       }
       const data = await mutation.mutateAsync(payload);
       if (data?.status === 'success') {
+        const account = data?.data?.account;
+        // Belt-and-suspenders for version skew: if an older server lets an
+        // unverified owner through, still route them to email verification
+        // instead of signing them in.
+        if (account?.is_root_account && !account?.email_verified_at) {
+          navigation.navigate(routes.cloudV2OTPVerification(), {
+            email: values.email,
+          });
+          return;
+        }
         await dispatchSignIn(data);
       } else {
         setServerError(data?.message || 'Sign in failed. Please try again.');
       }
     } catch (error) {
+      // The server rejects an owner who signed up but never verified their
+      // email (closed the app on the OTP screen). Route them to email
+      // verification — requesting a fresh OTP there and verifying issues a new
+      // token and continues into device registration — rather than showing a
+      // dead-end error.
+      if (error?.response?.data?.errors?.code === 'email_not_verified') {
+        navigation.navigate(routes.cloudV2OTPVerification(), {
+          email: values.email,
+        });
+        return;
+      }
       const msg =
         error?.response?.data?.message ||
         'Unable to connect. Check your network and try again.';
