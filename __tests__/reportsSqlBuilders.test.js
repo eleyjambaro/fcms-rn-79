@@ -18,8 +18,12 @@
  *
  * The captured SQL is whitespace-normalized before snapshotting, so the refactor
  * is free to reformat the generated SQL as long as it stays semantically
- * identical. Do NOT regenerate these snapshots after the refactor — they are the
- * record of the original behavior.
+ * identical. These snapshots are the record of the original behavior, with ONE
+ * deliberate, reviewed exception applied after baselining: the item reports'
+ * `previous_month_total_added/removed_stock_qty` output columns were corrected to
+ * read the subquery's real `*_qty` source instead of `*_cost` (a copy-paste bug).
+ * Do NOT otherwise regenerate these snapshots — a `-u` should only ever change
+ * them for an intentional, reviewed SQL change.
  */
 
 let mockCapturedSqls = [];

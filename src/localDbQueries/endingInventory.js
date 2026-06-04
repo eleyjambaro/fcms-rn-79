@@ -40,8 +40,8 @@ export const createItemEndingInventoryEntry = async ({
       ((selected_month_totals.selected_month_total_added_stock_cost_net - selected_month_totals.selected_month_total_removed_stock_cost_net) / (selected_month_totals.selected_month_total_added_stock_qty - selected_month_totals.selected_month_total_removed_stock_qty)) AS avg_unit_cost_net,
       ((selected_month_totals.selected_month_total_added_stock_cost_tax - selected_month_totals.selected_month_total_removed_stock_cost_tax) / (selected_month_totals.selected_month_total_added_stock_qty - selected_month_totals.selected_month_total_removed_stock_qty)) AS avg_unit_cost_tax,
 
-      previous_month_totals.previous_month_total_added_stock_cost AS previous_month_total_added_stock_qty,
-      previous_month_totals.previous_month_total_removed_stock_cost AS previous_month_total_removed_stock_qty,
+      previous_month_totals.previous_month_total_added_stock_qty AS previous_month_total_added_stock_qty,
+      previous_month_totals.previous_month_total_removed_stock_qty AS previous_month_total_removed_stock_qty,
       previous_month_totals.previous_month_total_added_stock_cost AS previous_month_total_added_stock_cost,
       previous_month_totals.previous_month_total_removed_stock_cost AS previous_month_total_removed_stock_cost,
       previous_month_totals.previous_month_total_added_stock_cost_net AS previous_month_total_added_stock_cost_net,

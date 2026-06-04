@@ -204,8 +204,8 @@ export const getSpoilages = async ({queryKey, pageParam = 1}) => {
       ((selected_month_totals.selected_month_total_added_stock_cost_net / selected_month_totals.selected_month_total_added_stock_qty) * spoilages.in_spoilage_qty_based_on_item_uom) AS total_cost_net,
       ((selected_month_totals.selected_month_total_added_stock_cost_tax / selected_month_totals.selected_month_total_added_stock_qty) * spoilages.in_spoilage_qty_based_on_item_uom) AS total_cost_tax,
 
-      previous_month_totals.previous_month_total_added_stock_cost AS previous_month_total_added_stock_qty,
-      previous_month_totals.previous_month_total_removed_stock_cost AS previous_month_total_removed_stock_qty,
+      previous_month_totals.previous_month_total_added_stock_qty AS previous_month_total_added_stock_qty,
+      previous_month_totals.previous_month_total_removed_stock_qty AS previous_month_total_removed_stock_qty,
       previous_month_totals.previous_month_total_added_stock_cost AS previous_month_total_added_stock_cost,
       previous_month_totals.previous_month_total_removed_stock_cost AS previous_month_total_removed_stock_cost,
       previous_month_totals.previous_month_total_added_stock_cost_net AS previous_month_total_added_stock_cost_net,
@@ -415,8 +415,8 @@ export const getSpoilagesTotal = async ({queryKey, pageParam = 1}) => {
       SUM(((selected_month_totals.selected_month_total_added_stock_cost_net / selected_month_totals.selected_month_total_added_stock_qty) * spoilages.in_spoilage_qty_based_on_item_uom)) AS total_cost_net,
       SUM(((selected_month_totals.selected_month_total_added_stock_cost_tax / selected_month_totals.selected_month_total_added_stock_qty) * spoilages.in_spoilage_qty_based_on_item_uom)) AS total_cost_tax,
 
-      previous_month_totals.previous_month_total_added_stock_cost AS previous_month_total_added_stock_qty,
-      previous_month_totals.previous_month_total_removed_stock_cost AS previous_month_total_removed_stock_qty,
+      previous_month_totals.previous_month_total_added_stock_qty AS previous_month_total_added_stock_qty,
+      previous_month_totals.previous_month_total_removed_stock_qty AS previous_month_total_removed_stock_qty,
       previous_month_totals.previous_month_total_added_stock_cost AS previous_month_total_added_stock_cost,
       previous_month_totals.previous_month_total_removed_stock_cost AS previous_month_total_removed_stock_cost,
       previous_month_totals.previous_month_total_added_stock_cost_net AS previous_month_total_added_stock_cost_net,
