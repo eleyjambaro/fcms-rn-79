@@ -323,7 +323,7 @@ const ItemStockSummary = props => {
         </View>
       </View>
       <View style={styles.detailsListItem}>
-        <Text style={{fontWeight: 'bold'}}>Cost Percentage (COGS %):</Text>
+        <Text style={{fontWeight: 'bold'}}>Cost Percentage:</Text>
         {renderCostPercentageValue()}
       </View>
 
