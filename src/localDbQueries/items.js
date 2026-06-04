@@ -937,6 +937,7 @@ export const registerItem = async ({
       // Save item selling size options as modifier options
       let insertModifierOptionsQuery = `
         INSERT INTO modifier_options (
+          id,
           modifier_id,
           option_name,
           option_selling_price,
@@ -955,6 +956,7 @@ export const registerItem = async ({
 
       for (let index = 0; index < item.selling_size_options.length; index++) {
         let modifierOption = item.selling_size_options[index];
+        const newModifierOptionId = uuid.v4();
 
         let itemUOMAbbrev = item.uom_abbrev;
         let itemUOMAbbrevPerPiece = item.uom_abbrev_per_piece;
@@ -983,6 +985,7 @@ export const registerItem = async ({
         }
 
         insertModifierOptionsQuery += `(
+          '${newModifierOptionId}',
           '${modifierId}',
           '${modifierOption.option_name.replace(/\'/g, "''")}',
           ${parseFloat(modifierOption.option_selling_price || 0)},
@@ -992,7 +995,7 @@ export const registerItem = async ({
           ${modifierOption.use_measurement_per_piece === true ? 1 : 0},
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
-          '${uuid.v4()}',
+          '${newModifierOptionId}',
           CURRENT_TIMESTAMP
         )`;
 
