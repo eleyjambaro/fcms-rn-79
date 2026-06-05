@@ -614,20 +614,20 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     ) {
       buttons.push(
         <Button
-          key="reject"
-          mode="outlined"
-          color={colors.error}
-          onPress={() => setRejectVisible(true)}>
-          Reject
-        </Button>,
-      );
-      buttons.push(
-        <Button
           key="accept"
           mode="contained"
           loading={acceptMut.isLoading}
           onPress={() => acceptMut.mutate({groupId})}>
           Accept Request
+        </Button>,
+      );
+      buttons.push(
+        <Button
+          key="reject"
+          mode="outlined"
+          color={colors.error}
+          onPress={() => setRejectVisible(true)}>
+          Reject
         </Button>,
       );
     } else if (status === STATUS.ACCEPTED) {
