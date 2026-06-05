@@ -29,6 +29,7 @@ import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScr
 import {getVendor} from '../../localDbQueries/vendors';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import ItemQRCode from './ItemQRCode';
 
 const ItemDetails = props => {
   const {
@@ -284,57 +285,64 @@ const ItemDetails = props => {
           {backgroundColor: colors.surface},
           containerStyle,
         ]}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            marginBottom: item.category_name ? 10 : 0,
-          }}>
-          <Headline numberOfLines={3} style={{flex: 1, marginRight: 10}}>
-            {item.name || item.item_name}
-          </Headline>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'flex-start',
-              height: '100%',
-            }}>
-            {/* <Pressable style={{marginLeft: 5}} onPress={onPressItemOptions}>
-              <MaterialIcons name="more-horiz" size={25} color={colors.dark} />
-            </Pressable> */}
-          </View>
-        </View>
-        <View style={{flexDirection: 'row'}}>
-          {item.category_name && (
-            <View>
-              <Chip
-                style={{marginRight: 'auto'}}
-                icon="clipboard-list-outline"
-                onPress={() => {
-                  navigation.navigate(routes.categoryView(), {
-                    category_id: item.category_id,
-                  });
+        <View style={{flexDirection: 'row', alignItems: 'flex-start'}}>
+          {item.sku ? (
+            <ItemQRCode value={item.sku} style={styles.headerQRCode} />
+          ) : null}
+          <View style={{flex: 1}}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: item.category_name ? 10 : 0,
+              }}>
+              <Headline numberOfLines={3} style={{flex: 1, marginRight: 10}}>
+                {item.name || item.item_name}
+              </Headline>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  height: '100%',
                 }}>
-                {item.category_name}
-              </Chip>
-            </View>
-          )}
-          {itemCostPercentageData.isCategoryHasRevenueGroup === true &&
-            itemCostPercentageData.revenueGroup && (
-              <View style={{marginLeft: 10}}>
-                <Chip
-                  style={{marginRight: 'auto'}}
-                  icon="cash-multiple"
-                  onPress={() => {
-                    navigation.navigate(routes.revenuesAndExpenses(), {
-                      revenue_group_highlighted_item_id:
-                        itemCostPercentageData.revenueGroup.id,
-                    });
-                  }}>
-                  {itemCostPercentageData.revenueGroup.name}
-                </Chip>
+                {/* <Pressable style={{marginLeft: 5}} onPress={onPressItemOptions}>
+                  <MaterialIcons name="more-horiz" size={25} color={colors.dark} />
+                </Pressable> */}
               </View>
-            )}
+            </View>
+            <View style={{flexDirection: 'row'}}>
+              {item.category_name && (
+                <View>
+                  <Chip
+                    style={{marginRight: 'auto'}}
+                    icon="clipboard-list-outline"
+                    onPress={() => {
+                      navigation.navigate(routes.categoryView(), {
+                        category_id: item.category_id,
+                      });
+                    }}>
+                    {item.category_name}
+                  </Chip>
+                </View>
+              )}
+              {itemCostPercentageData.isCategoryHasRevenueGroup === true &&
+                itemCostPercentageData.revenueGroup && (
+                  <View style={{marginLeft: 10}}>
+                    <Chip
+                      style={{marginRight: 'auto'}}
+                      icon="cash-multiple"
+                      onPress={() => {
+                        navigation.navigate(routes.revenuesAndExpenses(), {
+                          revenue_group_highlighted_item_id:
+                            itemCostPercentageData.revenueGroup.id,
+                        });
+                      }}>
+                      {itemCostPercentageData.revenueGroup.name}
+                    </Chip>
+                  </View>
+                )}
+            </View>
+          </View>
         </View>
 
         <Divider style={{marginTop: 15}} />
@@ -551,6 +559,9 @@ const styles = StyleSheet.create({
     marginBottom: 9,
     borderRadius: 5,
     padding: 15,
+  },
+  headerQRCode: {
+    marginRight: 12,
   },
   detailsContainer: {
     marginTop: 10,

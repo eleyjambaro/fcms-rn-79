@@ -808,6 +808,7 @@ export const buildItemReportSql = ({id, dateFilter}) => {
       SELECT items.id AS id,
       items.id AS item_id,
       items.name AS item_name,
+      items.sku AS sku,
       items.current_stock_qty AS item_current_stock_qty,
       items.uom_abbrev AS item_uom_abbrev,
       items.category_id AS category_id,

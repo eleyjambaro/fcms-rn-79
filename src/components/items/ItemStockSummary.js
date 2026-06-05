@@ -29,6 +29,7 @@ import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadin
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import ItemQRCode from './ItemQRCode';
 
 const ItemStockSummary = props => {
   const {
@@ -458,69 +459,78 @@ const ItemStockSummary = props => {
           {backgroundColor: colors.surface},
           containerStyle,
         ]}>
-        {/* HEADER */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            marginBottom: item.category_name ? 10 : 0,
-          }}>
-          <Headline numberOfLines={3} style={{flex: 1, marginRight: 10}}>
-            {item.name}
-          </Headline>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'flex-start',
-              height: '100%',
-            }}>
-            {showItemOptionsButton && (
-              <Pressable style={{marginLeft: 5}} onPress={onPressItemOptions}>
-                <MaterialIcons
-                  name="more-horiz"
-                  size={25}
-                  color={colors.dark}
-                />
-              </Pressable>
-            )}
+        {/* HEADER (QR code on the left of the name + badges) */}
+        <View style={{flexDirection: 'row', alignItems: 'flex-start'}}>
+          {item.sku ? (
+            <ItemQRCode value={item.sku} style={styles.headerQRCode} />
+          ) : null}
+          <View style={{flex: 1}}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: item.category_name ? 10 : 0,
+              }}>
+              <Headline numberOfLines={3} style={{flex: 1, marginRight: 10}}>
+                {item.name}
+              </Headline>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  height: '100%',
+                }}>
+                {showItemOptionsButton && (
+                  <Pressable
+                    style={{marginLeft: 5}}
+                    onPress={onPressItemOptions}>
+                    <MaterialIcons
+                      name="more-horiz"
+                      size={25}
+                      color={colors.dark}
+                    />
+                  </Pressable>
+                )}
+              </View>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                {renderFinishedProductBadge()}
+                {item.category_name && (
+                  <View>
+                    <Chip
+                      style={{marginRight: 'auto'}}
+                      icon="clipboard-list-outline"
+                      onPress={() => {
+                        navigation.navigate(routes.categoryView(), {
+                          category_id: item.category_id,
+                        });
+                      }}>
+                      {item.category_name}
+                    </Chip>
+                  </View>
+                )}
+                {itemCostPercentageData.isCategoryHasRevenueGroup === true &&
+                  itemCostPercentageData.revenueGroup && (
+                    <View style={{marginLeft: 10}}>
+                      <Chip
+                        style={{marginRight: 'auto'}}
+                        icon="cash-multiple"
+                        onPress={() => {
+                          navigation.navigate(routes.revenuesAndExpenses(), {
+                            revenue_group_highlighted_item_id:
+                              itemCostPercentageData.revenueGroup.id,
+                          });
+                        }}>
+                        {itemCostPercentageData.revenueGroup.name}
+                      </Chip>
+                    </View>
+                  )}
+              </View>
+            </ScrollView>
           </View>
         </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{flexDirection: 'row', alignItems: 'center'}}>
-            {renderFinishedProductBadge()}
-            {item.category_name && (
-              <View>
-                <Chip
-                  style={{marginRight: 'auto'}}
-                  icon="clipboard-list-outline"
-                  onPress={() => {
-                    navigation.navigate(routes.categoryView(), {
-                      category_id: item.category_id,
-                    });
-                  }}>
-                  {item.category_name}
-                </Chip>
-              </View>
-            )}
-            {itemCostPercentageData.isCategoryHasRevenueGroup === true &&
-              itemCostPercentageData.revenueGroup && (
-                <View style={{marginLeft: 10}}>
-                  <Chip
-                    style={{marginRight: 'auto'}}
-                    icon="cash-multiple"
-                    onPress={() => {
-                      navigation.navigate(routes.revenuesAndExpenses(), {
-                        revenue_group_highlighted_item_id:
-                          itemCostPercentageData.revenueGroup.id,
-                      });
-                    }}>
-                    {itemCostPercentageData.revenueGroup.name}
-                  </Chip>
-                </View>
-              )}
-          </View>
-        </ScrollView>
 
         {!hideReportSummary && (
           <>
@@ -594,6 +604,9 @@ const styles = StyleSheet.create({
     margin: 5,
     borderRadius: 5,
     padding: 15,
+  },
+  headerQRCode: {
+    marginRight: 12,
   },
   detailsContainer: {
     marginTop: 5,

@@ -26,6 +26,7 @@ import {
   deleteMasterItem,
 } from '../serverDbQueries/v2/masterItems';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
+import ItemQRCode from '../components/items/ItemQRCode';
 import useCurrentUser from '../hooks/useCurrentUser';
 import routes from '../constants/routes';
 
@@ -278,6 +279,11 @@ const MasterItemAccordion = ({masterItem, isRoot, onEdit, onDelete}) => {
           />
         </View>
       ) : null}
+      {masterItem.sku ? (
+        <View style={styles.qrContainer}>
+          <ItemQRCode value={masterItem.sku} showCaption={false} />
+        </View>
+      ) : null}
       {branchItems.length === 0 ? (
         <List.Item
           title={<Text style={{fontStyle: 'italic'}}>No branch items</Text>}
@@ -352,5 +358,9 @@ const styles = StyleSheet.create({
   rootActionsStem: {
     marginLeft: 0,
     marginRight: -8,
+  },
+  qrContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
   },
 });
