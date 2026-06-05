@@ -22,11 +22,17 @@ import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import {
   getBranches,
   createBranch,
+  updateBranch,
   deleteBranch,
 } from '../serverDbQueries/v2/branches';
 import {assignBranch} from '../serverDbQueries/v2/devices';
 
 const createBranchSchema = Yup.object({
+  name: Yup.string().required('Branch name is required'),
+  address: Yup.string(),
+});
+
+const editBranchSchema = Yup.object({
   name: Yup.string().required('Branch name is required'),
   address: Yup.string(),
 });
@@ -41,6 +47,9 @@ const ManageBranches = () => {
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [createServerError, setCreateServerError] = useState('');
+
+  const [editTarget, setEditTarget] = useState(null);
+  const [editServerError, setEditServerError] = useState('');
 
   const [menuVisibleId, setMenuVisibleId] = useState(null);
 
@@ -59,6 +68,12 @@ const ManageBranches = () => {
   const branches = branchesQuery.data?.data ?? [];
 
   const createMutation = useMutation(createBranch, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(['cloudV2Branches']);
+    },
+  });
+
+  const updateMutation = useMutation(updateBranch, {
     onSuccess: () => {
       queryClient.invalidateQueries(['cloudV2Branches']);
     },
@@ -83,6 +98,37 @@ const ManageBranches = () => {
     } catch (error) {
       setCreateServerError(
         error?.response?.data?.message || 'Could not create branch. Try again.',
+      );
+    }
+  };
+
+  const handleEditBranch = async (values, actions) => {
+    if (!editTarget) return;
+    setEditServerError('');
+    const trimmed = {
+      name: values.name.trim(),
+      address: values.address?.trim() ?? '',
+    };
+    try {
+      const data = await updateMutation.mutateAsync({
+        id: editTarget.id,
+        ...trimmed,
+      });
+      if (data?.status === 'success') {
+        // Keep the active branch's stored name/address in sync so it stays
+        // accurate everywhere it's displayed, without triggering a full
+        // branch-switch (setDesignatedBranch).
+        if (editTarget.id === activeBranchId) {
+          await cloudAuthActions.patchDesignatedBranch(trimmed);
+        }
+        actions.resetForm();
+        setEditTarget(null);
+      } else {
+        setEditServerError(data?.message || 'Failed to update branch.');
+      }
+    } catch (error) {
+      setEditServerError(
+        error?.response?.data?.message || 'Could not update branch. Try again.',
       );
     }
   };
@@ -185,6 +231,15 @@ const ManageBranches = () => {
                 leadingIcon="swap-horizontal"
                 disabled={isActive}
                 onPress={() => handleSwitchBranch(branch)}
+              />
+              <Menu.Item
+                title="Edit Branch"
+                leadingIcon="pencil-outline"
+                onPress={() => {
+                  setMenuVisibleId(null);
+                  setEditServerError('');
+                  setEditTarget(branch);
+                }}
               />
               <Divider />
               <Menu.Item
@@ -333,6 +388,84 @@ const ManageBranches = () => {
                     disabled={isSubmitting}
                     style={styles.modalButton}>
                     Create
+                  </Button>
+                </View>
+              </View>
+            )}
+          </Formik>
+        </Modal>
+      </Portal>
+
+      {/* Edit Branch Modal */}
+      <Portal>
+        <Modal
+          visible={!!editTarget}
+          onDismiss={() => setEditTarget(null)}
+          contentContainerStyle={[
+            styles.modal,
+            {backgroundColor: colors.surface},
+          ]}>
+          <Text style={[styles.modalTitle, {color: colors.text}]}>
+            Edit Branch
+          </Text>
+          <Formik
+            enableReinitialize
+            initialValues={{
+              name: editTarget?.name ?? '',
+              address: editTarget?.address ?? '',
+            }}
+            validationSchema={editBranchSchema}
+            onSubmit={handleEditBranch}>
+            {({
+              handleChange,
+              handleBlur,
+              handleSubmit,
+              values,
+              errors,
+              touched,
+              isSubmitting,
+            }) => (
+              <View>
+                <TextInput
+                  label="Branch Name *"
+                  value={values.name}
+                  onChangeText={handleChange('name')}
+                  onBlur={handleBlur('name')}
+                  mode="outlined"
+                  style={styles.input}
+                  error={touched.name && !!errors.name}
+                />
+                {touched.name && errors.name ? (
+                  <HelperText type="error">{errors.name}</HelperText>
+                ) : null}
+                <TextInput
+                  label="Address (optional)"
+                  value={values.address}
+                  onChangeText={handleChange('address')}
+                  onBlur={handleBlur('address')}
+                  mode="outlined"
+                  style={styles.input}
+                  multiline
+                />
+                {editServerError ? (
+                  <HelperText type="error" style={styles.serverError}>
+                    {editServerError}
+                  </HelperText>
+                ) : null}
+                <View style={styles.modalActions}>
+                  <Button
+                    onPress={() => setEditTarget(null)}
+                    disabled={isSubmitting}
+                    style={styles.modalButton}>
+                    Cancel
+                  </Button>
+                  <Button
+                    mode="contained"
+                    onPress={handleSubmit}
+                    loading={isSubmitting}
+                    disabled={isSubmitting}
+                    style={styles.modalButton}>
+                    Save
                   </Button>
                 </View>
               </View>
