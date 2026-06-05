@@ -107,12 +107,14 @@ const Home = props => {
       );
   };
 
-  const renderBatchTransferButtonBadge = () => {
+  const renderBatchTransferNotificationBadge = () => {
     if (!batchTransferUnreadCountData || batchTransferUnreadCountData <= 0) {
       return null;
     }
     return (
-      <Badge style={styles.buttonBadge}>{batchTransferUnreadCountData}</Badge>
+      <Badge style={styles.notificationBadge}>
+        {batchTransferUnreadCountData}
+      </Badge>
     );
   };
 
@@ -226,7 +228,6 @@ const Home = props => {
         onPress={() => {
           navigation.navigate(routes.batchTransferTypePicker());
         }}>
-        {renderBatchTransferButtonBadge()}
         <MaterialCommunityIcons
           name="swap-horizontal-bold"
           size={37}
@@ -525,7 +526,9 @@ const Home = props => {
     let jsxArrayOfButtons = [];
 
     for (let rowButton of highlightedFirstRowButtons) {
-      if (canAccessModule(highlightedButtonPermission[rowButton] || rowButton)) {
+      if (
+        canAccessModule(highlightedButtonPermission[rowButton] || rowButton)
+      ) {
         jsxArrayOfButtons.push(jsxButtons[rowButton]);
       }
     }
@@ -712,23 +715,11 @@ const Home = props => {
                   backgroundColor: colors.primary,
                 },
               ]}>
-              <View style={[styles.groupHeader, {flexDirection: 'row'}]}>
-                {/* <View
-                style={{
-                  backgroundColor: colors.surface,
-                  height: 18,
-                  width: 18,
-                  borderRadius: 18 / 2,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 6,
-                }}>
-                <MaterialCommunityIcons
-                  name="plus-minus-variant"
-                  size={14}
-                  color={colors.primary}
-                />
-              </View> */}
+              <View
+                style={[
+                  styles.groupHeader,
+                  {flexDirection: 'row', justifyContent: 'space-between'},
+                ]}>
                 <Text
                   style={{
                     marginLeft: 5,
@@ -738,6 +729,21 @@ const Home = props => {
                   }}>
                   {'Inventory Batch Entry'}
                 </Text>
+                {canAccessModule('transfer') && (
+                  <Pressable
+                    style={styles.notificationButton}
+                    hitSlop={8}
+                    onPress={() => {
+                      navigation.navigate(routes.batchTransferRequestList());
+                    }}>
+                    {renderBatchTransferNotificationBadge()}
+                    <MaterialCommunityIcons
+                      name="bell-outline"
+                      size={24}
+                      color={colors.surface}
+                    />
+                  </Pressable>
+                )}
               </View>
               {/* Highlighted first row */}
               <View style={styles.row}>
@@ -812,6 +818,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
+  },
+  notificationButton: {
+    paddingHorizontal: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -4,
+    zIndex: 1,
   },
   placeholderButton: {},
 });
