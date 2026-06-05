@@ -1355,6 +1355,45 @@ export const getBatchTransferEntries = async ({queryKey}) => {
   );
 };
 
+/**
+ * Stock Transfer In logs for a received batch transfer, for the "View Transfer
+ * In Logs" modal on the destination's Request Detail screen. These rows are
+ * written by confirmTransferReceived (operation_id = stock_transfer_in) into
+ * the DESTINATION branch's inventory_logs and reference the destination's local
+ * items — so this query only returns rows on the destination's DB (branch-
+ * scoped sync never pulls the other branch's logs). Joins through active_items
+ * for display and orders by adjustment_date DESC like getInventoryLogs.
+ */
+export const getTransferInLogs = async ({queryKey}) => {
+  const [_key, {groupId}] = queryKey;
+  if (!groupId) return [];
+  const db = await getDBConnection();
+  return allRows(
+    await db.executeSql(
+      `SELECT
+         il.id,
+         il.item_id,
+         il.adjustment_qty,
+         il.adjustment_unit_cost,
+         il.adjustment_unit_cost_net,
+         il.adjustment_date,
+         il.remarks,
+         il.batch_transfer_ref_no,
+         items.name AS item_name,
+         items.sku AS item_sku,
+         items.uom_abbrev AS item_uom_abbrev,
+         il.adjustment_unit_cost * il.adjustment_qty AS total_cost
+       FROM active_inventory_logs il
+       INNER JOIN active_items items ON items.id = il.item_id
+       WHERE il.batch_transfer_group_id = ${sqlStr(groupId)}
+         AND il.operation_id = ${sqlStr(
+           OPERATION_DEFAULT_UUIDS.stock_transfer_in,
+         )}
+       ORDER BY il.adjustment_date DESC, items.name ASC`,
+    ),
+  );
+};
+
 export const getBatchTransferUnreadCount = async () => {
   const branchId = getActiveBranchId();
   if (!branchId) return 0;

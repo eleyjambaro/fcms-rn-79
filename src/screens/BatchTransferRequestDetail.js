@@ -38,6 +38,7 @@ import {
   removeBatchTransferEntry,
   updateDraftBatchTransferEntry,
   resolveMissingSourceItemIdsForGroup,
+  getTransferInLogs,
 } from '../localDbQueries/batchTransfer';
 import TransferStatusBadge, {
   STATUS_COLORS,
@@ -205,6 +206,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
   const [editValues, setEditValues] = useState({qty: '', remarks: ''});
   const [rejectVisible, setRejectVisible] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [transferInLogsVisible, setTransferInLogsVisible] = useState(false);
   // Generic confirmation dialog (replaces native Alert.alert so confirmations
   // match the app's Paper dialog styling). Shape:
   // {title, message, confirmLabel, cancelLabel, destructive, onConfirm}
@@ -233,6 +235,13 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
   );
   const {data: branchesData} = useQuery(['branches', {per_page: 100}], () =>
     getBranches({per_page: 100}),
+  );
+  // Stock Transfer In logs for the "View Transfer In Logs" modal (RECEIVED only).
+  // These rows live on the destination's DB; fetched lazily when the modal opens.
+  const {data: transferInLogs = []} = useQuery(
+    ['batchTransferInLogs', {groupId}],
+    getTransferInLogs,
+    {enabled: !!groupId && transferInLogsVisible},
   );
 
   const branchById = useMemo(() => {
@@ -697,6 +706,18 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           Mark Transfer Received
         </Button>,
       );
+    } else if (status === STATUS.RECEIVED && isDest) {
+      // Transfer In logs are written to the destination's inventory_logs, so
+      // only the destination has them to view.
+      buttons.push(
+        <Button
+          key="view-transfer-in-logs"
+          mode="contained"
+          icon="clipboard-list-outline"
+          onPress={() => setTransferInLogsVisible(true)}>
+          View Transfer In Logs
+        </Button>,
+      );
     }
 
     return buttons;
@@ -1061,6 +1082,58 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           </Dialog.Actions>
         </Dialog>
 
+        {/* Stock Transfer In logs list (RECEIVED, destination only) */}
+        <Dialog
+          visible={transferInLogsVisible}
+          onDismiss={() => setTransferInLogsVisible(false)}
+          style={styles.confirmDialog}>
+          <Dialog.Title style={styles.dialogTitle}>
+            Stock Transfer In Logs
+          </Dialog.Title>
+          <Dialog.Content style={styles.logsDialogContent}>
+            <Text style={[styles.dialogHelper, {color: colors.neutralTint1}]}>
+              Stock added to your branch from this transfer
+              {transferInLogs.length
+                ? ` (${transferInLogs.length})`
+                : ''}
+              .
+            </Text>
+            {transferInLogs.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={{opacity: 0.7}}>No Transfer In logs found.</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.logsScroll}>
+                {transferInLogs.map(log => (
+                  <View key={log.id} style={styles.logRow}>
+                    <View style={styles.logHeader}>
+                      <Text style={styles.logItemName} numberOfLines={2}>
+                        {log.item_name}
+                      </Text>
+                      <Text style={[styles.logQty, {color: '#43A047'}]}>
+                        +{parseFloat(log.adjustment_qty)}{' '}
+                        {formatUOM(log.item_uom_abbrev)}
+                      </Text>
+                    </View>
+                    {log.item_sku ? (
+                      <Text style={styles.logMeta}>SKU {log.item_sku}</Text>
+                    ) : null}
+                    <Text style={styles.logMeta}>
+                      {formatDate(log.adjustment_date)}
+                    </Text>
+                    {log.remarks ? (
+                      <Text style={styles.logRemark}>• {log.remarks}</Text>
+                    ) : null}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions style={styles.dialogActions}>
+            <Button onPress={() => setTransferInLogsVisible(false)}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
+
         {/* Generic confirmation dialog (app-styled replacement for Alert.alert) */}
         <Dialog
           visible={!!confirm}
@@ -1218,6 +1291,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   confirmDialog: {borderRadius: 12, backgroundColor: 'white'},
+  logsDialogContent: {paddingBottom: 0},
+  logsScroll: {maxHeight: 360},
+  logRow: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E0E0E0',
+    paddingVertical: 10,
+  },
+  logHeader: {flexDirection: 'row', alignItems: 'flex-start'},
+  logItemName: {flex: 1, fontSize: 15, fontWeight: '500'},
+  logQty: {fontSize: 14, fontWeight: '700', marginLeft: 8},
+  logMeta: {fontSize: 11, opacity: 0.6, marginTop: 2},
+  logRemark: {fontSize: 12, fontStyle: 'italic', opacity: 0.85, marginTop: 4},
   dialogTitle: {fontSize: 18},
   dialogHelper: {marginBottom: 14, fontSize: 13, lineHeight: 18},
   dialogInput: {marginBottom: 10, backgroundColor: 'white'},
