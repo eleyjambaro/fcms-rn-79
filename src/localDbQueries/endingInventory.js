@@ -6,7 +6,13 @@ import {
   OPERATION_DEFAULT_UUIDS,
 } from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
-import {buildRevenueGroupMonthTotalSql} from './revenues';
+import {
+  selectedMonthTotalsBlock,
+  previousMonthTotalsBlock,
+  selectedMonthAddedAndRemovedBlock,
+  revenueGroupNameSubquery,
+  revenueGroupTotalForCategorySql,
+} from './reportsSqlBuilders';
 import {scheduleSyncSoon} from '../services/syncService';
 
 export const createItemEndingInventoryEntry = async ({
@@ -56,129 +62,16 @@ export const createItemEndingInventoryEntry = async ({
       selected_month_added_and_removed.total_added_stock_qty AS selected_month_total_added_stock_qty,
       selected_month_added_and_removed.total_removed_stock_qty AS selected_month_total_removed_stock_qty,
       
-      (
-        SELECT name
-        FROM active_revenue_groups revenue_groups
-        WHERE revenue_groups.id = (
-          SELECT revenue_group_id
-          FROM active_revenue_categories revenue_categories
-          WHERE category_id = items.category_id
-          ORDER BY date_created DESC
-        )
-      ) AS revenue_group_name,
-      ${buildRevenueGroupMonthTotalSql({
-        groupIdSql: `(
-          SELECT revenue_group_id
-          FROM active_revenue_categories revenue_categories
-          WHERE category_id = items.category_id
-          ORDER BY date_created DESC
-        )`,
-        dateSql: `datetime('${monthYearDateFilter}')`,
-      })} AS selected_month_revenue_group_total_amount
+      ${revenueGroupNameSubquery('items.category_id')},
+      ${revenueGroupTotalForCategorySql(
+        'items.category_id',
+        monthYearDateFilter,
+      )} AS selected_month_revenue_group_total_amount
 
       FROM active_items items
-
-      LEFT JOIN (
-        SELECT selected_month_total_added_and_removed.item_id AS item_id,
-        selected_month_total_added_and_removed.item_name AS item_name,
-        selected_month_total_added_and_removed.item_category_id AS item_category_id,
-        IFNULL(SUM(CASE WHEN selected_month_total_added_and_removed.operation_type = 'add_stock' THEN selected_month_total_added_and_removed.total_stock_qty END), 0) AS selected_month_total_added_stock_qty,
-        IFNULL(SUM(CASE WHEN selected_month_total_added_and_removed.operation_type = 'remove_stock' THEN selected_month_total_added_and_removed.total_stock_qty END), 0) AS selected_month_total_removed_stock_qty,
-        IFNULL(SUM(CASE WHEN selected_month_total_added_and_removed.operation_type = 'add_stock' THEN selected_month_total_added_and_removed.total_stock_cost END), 0) AS selected_month_total_added_stock_cost,
-        IFNULL(SUM(CASE WHEN selected_month_total_added_and_removed.operation_type = 'remove_stock' THEN selected_month_total_added_and_removed.total_stock_cost END), 0) AS selected_month_total_removed_stock_cost,
-        IFNULL(SUM(CASE WHEN selected_month_total_added_and_removed.operation_type = 'add_stock' THEN selected_month_total_added_and_removed.total_stock_cost_net END), 0) AS selected_month_total_added_stock_cost_net,
-        IFNULL(SUM(CASE WHEN selected_month_total_added_and_removed.operation_type = 'remove_stock' THEN selected_month_total_added_and_removed.total_stock_cost_net END), 0) AS selected_month_total_removed_stock_cost_net,
-        IFNULL(SUM(CASE WHEN selected_month_total_added_and_removed.operation_type = 'add_stock' THEN selected_month_total_added_and_removed.total_stock_cost_tax END), 0) AS selected_month_total_added_stock_cost_tax,
-        IFNULL(SUM(CASE WHEN selected_month_total_added_and_removed.operation_type = 'remove_stock' THEN selected_month_total_added_and_removed.total_stock_cost_tax END), 0) AS selected_month_total_removed_stock_cost_tax
-        FROM (
-          SELECT SUM(from_earliest_to_selected_month_logs.adjustment_qty) AS total_stock_qty,
-          SUM(from_earliest_to_selected_month_logs.adjustment_unit_cost * from_earliest_to_selected_month_logs.adjustment_qty) AS total_stock_cost,
-          SUM(from_earliest_to_selected_month_logs.adjustment_unit_cost_net * from_earliest_to_selected_month_logs.adjustment_qty) AS total_stock_cost_net,
-          SUM(from_earliest_to_selected_month_logs.adjustment_unit_cost_tax * from_earliest_to_selected_month_logs.adjustment_qty) AS total_stock_cost_tax,
-          operations.type AS operation_type,
-          items.id AS item_id,
-          items.name AS item_name,
-          items.category_id AS item_category_id
-          FROM (
-            SELECT * FROM active_inventory_logs inventory_logs
-            WHERE voided != 1
-            AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
-            AND DATE('${monthYearDateFilter}', 'start of month', '+1 month', '-1 day')
-          ) AS from_earliest_to_selected_month_logs
-          LEFT JOIN active_items items ON items.id = from_earliest_to_selected_month_logs.item_id
-          LEFT JOIN operations ON operations.id = from_earliest_to_selected_month_logs.operation_id
-          GROUP BY from_earliest_to_selected_month_logs.item_id, operations.type
-        ) AS selected_month_total_added_and_removed
-        LEFT JOIN active_items items ON items.id = selected_month_total_added_and_removed.item_id
-        GROUP BY selected_month_total_added_and_removed.item_id
-      ) AS selected_month_totals
-      ON selected_month_totals.item_id = items.id
-
-      LEFT JOIN (
-        SELECT previous_month_total_added_and_removed.item_id AS item_id,
-        previous_month_total_added_and_removed.item_name AS item_name,
-        previous_month_total_added_and_removed.item_category_id AS item_category_id,
-        IFNULL(SUM(CASE WHEN previous_month_total_added_and_removed.operation_type = 'add_stock' THEN previous_month_total_added_and_removed.total_stock_qty END), 0) AS previous_month_total_added_stock_qty,
-        IFNULL(SUM(CASE WHEN previous_month_total_added_and_removed.operation_type = 'remove_stock' THEN previous_month_total_added_and_removed.total_stock_qty END), 0) AS previous_month_total_removed_stock_qty,
-        IFNULL(SUM(CASE WHEN previous_month_total_added_and_removed.operation_type = 'add_stock' THEN previous_month_total_added_and_removed.total_stock_cost END), 0) AS previous_month_total_added_stock_cost,
-        IFNULL(SUM(CASE WHEN previous_month_total_added_and_removed.operation_type = 'remove_stock' THEN previous_month_total_added_and_removed.total_stock_cost END), 0) AS previous_month_total_removed_stock_cost,
-        IFNULL(SUM(CASE WHEN previous_month_total_added_and_removed.operation_type = 'add_stock' THEN previous_month_total_added_and_removed.total_stock_cost_net END), 0) AS previous_month_total_added_stock_cost_net,
-        IFNULL(SUM(CASE WHEN previous_month_total_added_and_removed.operation_type = 'remove_stock' THEN previous_month_total_added_and_removed.total_stock_cost_net END), 0) AS previous_month_total_removed_stock_cost_net,
-        IFNULL(SUM(CASE WHEN previous_month_total_added_and_removed.operation_type = 'add_stock' THEN previous_month_total_added_and_removed.total_stock_cost_tax END), 0) AS previous_month_total_added_stock_cost_tax,
-        IFNULL(SUM(CASE WHEN previous_month_total_added_and_removed.operation_type = 'remove_stock' THEN previous_month_total_added_and_removed.total_stock_cost_tax END), 0) AS previous_month_total_removed_stock_cost_tax
-        FROM (
-          SELECT SUM(from_earliest_to_previous_month_logs.adjustment_qty) AS total_stock_qty,
-          SUM(from_earliest_to_previous_month_logs.adjustment_unit_cost * from_earliest_to_previous_month_logs.adjustment_qty) AS total_stock_cost,
-          SUM(from_earliest_to_previous_month_logs.adjustment_unit_cost_net * from_earliest_to_previous_month_logs.adjustment_qty) AS total_stock_cost_net,
-          SUM(from_earliest_to_previous_month_logs.adjustment_unit_cost_tax * from_earliest_to_previous_month_logs.adjustment_qty) AS total_stock_cost_tax,
-          operations.type AS operation_type,
-          items.id AS item_id,
-          items.name AS item_name,
-          items.category_id AS item_category_id
-          FROM (
-            SELECT * FROM active_inventory_logs inventory_logs
-            WHERE voided != 1
-            AND DATE(inventory_logs.adjustment_date)
-            BETWEEN (SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)
-            AND DATE('${monthYearDateFilter}', 'start of month', '-1 day')
-          ) AS from_earliest_to_previous_month_logs
-          LEFT JOIN active_items items ON items.id = from_earliest_to_previous_month_logs.item_id
-          LEFT JOIN operations ON operations.id = from_earliest_to_previous_month_logs.operation_id
-          GROUP BY from_earliest_to_previous_month_logs.item_id, operations.type
-        ) AS previous_month_total_added_and_removed
-        LEFT JOIN active_items items ON items.id = previous_month_total_added_and_removed.item_id
-        GROUP BY previous_month_total_added_and_removed.item_id
-      ) AS previous_month_totals
-      ON previous_month_totals.item_id = items.id
-
-      LEFT JOIN (
-        SELECT selected_month_display_added_and_removed.item_id AS item_id,
-        selected_month_display_added_and_removed.item_name AS item_name,
-        selected_month_display_added_and_removed.item_category_id AS item_category_id,
-        IFNULL(SUM(CASE WHEN selected_month_display_added_and_removed.operation_type = 'add_stock' THEN selected_month_display_added_and_removed.total_stock_qty END), 0) AS total_added_stock_qty,
-        IFNULL(SUM(CASE WHEN selected_month_display_added_and_removed.operation_type = 'remove_stock' THEN selected_month_display_added_and_removed.total_stock_qty END), 0) AS total_removed_stock_qty
-        FROM (
-          SELECT SUM(selected_month_logs.adjustment_qty) AS total_stock_qty,
-          operations.type AS operation_type,
-          items.id AS item_id,
-          items.name AS item_name,
-          items.category_id AS item_category_id
-          FROM (
-            SELECT * FROM active_inventory_logs inventory_logs
-            WHERE voided != 1
-            AND DATE(inventory_logs.adjustment_date)
-            BETWEEN DATE('${monthYearDateFilter}', 'start of month')
-            AND DATE('${monthYearDateFilter}', 'start of month', '+1 month', '-1 day')
-          ) AS selected_month_logs
-          LEFT JOIN active_items items ON items.id = selected_month_logs.item_id
-          LEFT JOIN operations ON operations.id = selected_month_logs.operation_id
-          GROUP BY selected_month_logs.item_id, operations.type
-        ) AS selected_month_display_added_and_removed
-        LEFT JOIN active_items items ON items.id = selected_month_display_added_and_removed.item_id
-        GROUP BY selected_month_display_added_and_removed.item_id
-      ) AS selected_month_added_and_removed
-      ON selected_month_added_and_removed.item_id = items.id
+      ${selectedMonthTotalsBlock('item', monthYearDateFilter)}
+      ${previousMonthTotalsBlock('item', monthYearDateFilter)}
+      ${selectedMonthAddedAndRemovedBlock(monthYearDateFilter)}
 
       JOIN active_categories categories ON categories.id = items.category_id
       WHERE items.id = '${itemId}'

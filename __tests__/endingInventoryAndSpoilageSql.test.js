@@ -93,6 +93,16 @@ const spoilageParams = {
   listOrder: 'DESC',
 };
 
+// A second date branch (exact date) so the refactor's `selectedEndDate` wiring —
+// which flows into BOTH the selected- and previous-month subqueries — is locked,
+// not just the month branch.
+const spoilageParamsExactDate = {
+  filter: {'x.flag': 'on'},
+  exactDateFilter: '2026-05-15',
+  limit: 1000,
+  listOrder: 'DESC',
+};
+
 describe('endingInventory.js / spoilages.js generated SQL (golden master)', () => {
   it('createItemEndingInventoryEntry (SELECT)', async () => {
     const sqls = await captureSql(() =>
@@ -115,10 +125,29 @@ describe('endingInventory.js / spoilages.js generated SQL (golden master)', () =
     ).toMatchSnapshot();
   });
 
+  it('getSpoilages (exact date)', async () => {
+    expect(
+      await captureSql(() =>
+        spoilages.getSpoilages({
+          queryKey: ['k', spoilageParamsExactDate],
+          pageParam: 1,
+        }),
+      ),
+    ).toMatchSnapshot();
+  });
+
   it('getSpoilagesTotal', async () => {
     expect(
       await captureSql(() =>
         spoilages.getSpoilagesTotal({queryKey: ['k', spoilageParams]}),
+      ),
+    ).toMatchSnapshot();
+  });
+
+  it('getSpoilagesTotal (exact date)', async () => {
+    expect(
+      await captureSql(() =>
+        spoilages.getSpoilagesTotal({queryKey: ['k', spoilageParamsExactDate]}),
       ),
     ).toMatchSnapshot();
   });

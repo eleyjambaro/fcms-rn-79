@@ -47,7 +47,7 @@ const COST_VARIANTS = ['', '_net', '_tax'];
 
 // Earliest non-voided inventory log date in the DB — the lower bound for the
 // "running total from the beginning of time up to <period end>" windows.
-const EARLIEST_LOG_DATE = `(SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)`;
+export const EARLIEST_LOG_DATE = `(SELECT DATE(adjustment_date) FROM active_inventory_logs WHERE voided != 1 ORDER BY adjustment_date ASC LIMIT 1)`;
 
 const selectedMonthEnd = dateFilter =>
   `DATE('${dateFilter}', 'start of month', '+1 month', '-1 day')`;
@@ -133,7 +133,7 @@ export const revenueGroupsGrandTotalSql = dateFilter =>
 
 // Scalar subquery resolving a category's revenue-group NAME. `categoryIdSql` is
 // the surrounding-query expression for the category id.
-const revenueGroupNameSubquery = categoryIdSql => `(
+export const revenueGroupNameSubquery = categoryIdSql => `(
         SELECT name
         FROM active_revenue_groups revenue_groups
         WHERE revenue_groups.id = (
@@ -258,7 +258,21 @@ export const allEntitiesOperationSumColumns = (src, outPrefix) =>
  * innermost logs to resolve category_id. Both are reproduced exactly as the
  * original inlined them.
  */
-const periodTotalsBlock = ({entity, outer, inner, logs, prefix, start, end}) => {
+export const periodTotalsBlock = ({
+  entity,
+  outer,
+  inner,
+  logs,
+  prefix,
+  start,
+  end,
+  joinTo,
+}) => {
+  // The base row this totals table joins back to. Defaults to the entity's own
+  // table (`items.id` / `categories.id`); callers can point it at a different
+  // column — e.g. spoilages joins these totals on `spoilages.item_id`.
+  const joinTarget =
+    joinTo || (entity === 'item' ? 'items.id' : 'categories.id');
   if (entity === 'item') {
     return `
       LEFT JOIN (
@@ -294,7 +308,7 @@ const periodTotalsBlock = ({entity, outer, inner, logs, prefix, start, end}) => 
         LEFT JOIN active_items items ON items.id = ${inner}.item_id
         GROUP BY ${inner}.item_id
       ) AS ${outer}
-      ON ${outer}.item_id = items.id`;
+      ON ${outer}.item_id = ${joinTarget}`;
   }
 
   return `
@@ -323,10 +337,10 @@ const periodTotalsBlock = ({entity, outer, inner, logs, prefix, start, end}) => 
         LEFT JOIN active_categories categories ON categories.id = ${inner}.category_id
         GROUP BY ${inner}.category_id
       ) AS ${outer}
-      ON ${outer}.category_id = categories.id`;
+      ON ${outer}.category_id = ${joinTarget}`;
 };
 
-const selectedMonthTotalsBlock = (entity, dateFilter) =>
+export const selectedMonthTotalsBlock = (entity, dateFilter) =>
   periodTotalsBlock({
     entity,
     outer: 'selected_month_totals',
@@ -336,7 +350,7 @@ const selectedMonthTotalsBlock = (entity, dateFilter) =>
     ...rangeEarliestToSelectedMonth(dateFilter),
   });
 
-const previousMonthTotalsBlock = (entity, dateFilter) =>
+export const previousMonthTotalsBlock = (entity, dateFilter) =>
   periodTotalsBlock({
     entity,
     outer: 'previous_month_totals',
@@ -363,7 +377,7 @@ const dateFilteredTotalsBlock = (entity, start, end) =>
   });
 
 // Qty-only "added/removed within the selected month" block (item reports only).
-const selectedMonthAddedAndRemovedBlock = dateFilter => {
+export const selectedMonthAddedAndRemovedBlock = dateFilter => {
   const {start, end} = rangeWholeSelectedMonth(dateFilter);
   return `
       LEFT JOIN (
