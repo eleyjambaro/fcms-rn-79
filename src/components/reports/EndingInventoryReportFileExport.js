@@ -649,11 +649,11 @@ const EndingInventoryReportFileExport = props => {
         'Category Name',
         'Revenue Group',
         'Beginning Inventory',
-        'Purchases',
+        'Added Stock Cost',
         'Ending Inventory',
-        'Cost of Sales',
+        'Removed Stock Cost',
         'Category Cost %',
-        'Purchase %',
+        'Added Stock Cost %',
       ],
     ];
 

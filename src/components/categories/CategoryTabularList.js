@@ -733,13 +733,13 @@ const CategoryTabularList = props => {
               style={[styles.table, {backgroundColor: colors.surface}]}>
               <DataTable.Header>
                 <DataTable.Title style={styles.tableColumn} numeric>
-                  Cost of Sales
+                  Removed Stock Cost
                 </DataTable.Title>
                 <DataTable.Title style={styles.tableColumn} numeric>
                   Category Cost %
                 </DataTable.Title>
                 <DataTable.Title style={styles.tableColumn} numeric>
-                  Purchase %
+                  Added Stock Cost %
                 </DataTable.Title>
               </DataTable.Header>
               <FlatList

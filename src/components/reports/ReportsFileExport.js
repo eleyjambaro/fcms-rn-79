@@ -204,7 +204,10 @@ const ReportsFileExport = props => {
     [
       'inventoryLogs',
       {
-        filter: {'operations.code': OPERATION_CODES.NEW_PURCHASE, 'inventory_logs.voided': 0},
+        filter: {
+          'operations.code': OPERATION_CODES.NEW_PURCHASE,
+          'inventory_logs.voided': 0,
+        },
         limit: 0,
         // monthYearDateFilter: dateFilter,
         selectedMonthYearDateFilter: dateFilter,
@@ -798,11 +801,11 @@ const ReportsFileExport = props => {
         'Category Name',
         'Revenue Group',
         'Beginning Inventory',
-        'Purchases',
+        'Added Stock Cost',
         'Ending Inventory',
-        'Cost of Sales',
+        'Removed Stock Cost',
         'Category Cost %',
-        'Purchase %',
+        'Added Stock Cost %',
       ],
     ];
 
