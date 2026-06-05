@@ -10,8 +10,10 @@ import {
   Text,
   Button,
   Dialog,
+  Modal,
   Portal,
   TextInput,
+  Title,
   ActivityIndicator,
   Divider,
   useTheme,
@@ -38,8 +40,9 @@ import {
   removeBatchTransferEntry,
   updateDraftBatchTransferEntry,
   resolveMissingSourceItemIdsForGroup,
-  getTransferInLogs,
 } from '../localDbQueries/batchTransfer';
+import {getInventoryLogs} from '../localDbQueries/inventoryLogs';
+import ItemLogListItem from '../components/items/ItemLogListItem';
 import TransferStatusBadge, {
   STATUS_COLORS,
 } from '../components/batchTransfer/TransferStatusBadge';
@@ -237,12 +240,22 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     getBranches({per_page: 100}),
   );
   // Stock Transfer In logs for the "View Transfer In Logs" modal (RECEIVED only).
-  // These rows live on the destination's DB; fetched lazily when the modal opens.
-  const {data: transferInLogs = []} = useQuery(
-    ['batchTransferInLogs', {groupId}],
-    getTransferInLogs,
+  // Reuse getInventoryLogs filtered on batch_transfer_group_id so the rows carry
+  // the exact same shape ItemLogListItem renders elsewhere. These rows live on
+  // the destination's DB (confirmTransferReceived writes them there); fetched
+  // lazily when the modal opens.
+  const {data: transferInLogsData, status: transferInLogsStatus} = useQuery(
+    ['batchTransferInventoryLogs', {groupId}],
+    () =>
+      getInventoryLogs({
+        queryKey: [
+          'inventoryLogs',
+          {filter: {'inventory_logs.batch_transfer_group_id': groupId}},
+        ],
+      }),
     {enabled: !!groupId && transferInLogsVisible},
   );
+  const transferInLogs = transferInLogsData?.result ?? [];
 
   const branchById = useMemo(() => {
     const rows = branchesData?.data?.data ?? branchesData?.data ?? [];
@@ -1082,57 +1095,57 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           </Dialog.Actions>
         </Dialog>
 
-        {/* Stock Transfer In logs list (RECEIVED, destination only) */}
-        <Dialog
+        {/* Stock Transfer In logs list (RECEIVED, destination only).
+            Full-width Modal (matches the Create User modal width — no
+            horizontal margin), rendering this branch's inventory_logs for the
+            transfer with the same ItemLogListItem as the main Logs list; tapping
+            a row navigates to Log Details (LogView). */}
+        <Modal
           visible={transferInLogsVisible}
           onDismiss={() => setTransferInLogsVisible(false)}
-          style={styles.confirmDialog}>
-          <Dialog.Title style={styles.dialogTitle}>
-            Stock Transfer In Logs
-          </Dialog.Title>
-          <Dialog.Content style={styles.logsDialogContent}>
-            <Text style={[styles.dialogHelper, {color: colors.neutralTint1}]}>
-              Stock added to your branch from this transfer
-              {transferInLogs.length
-                ? ` (${transferInLogs.length})`
-                : ''}
-              .
-            </Text>
-            {transferInLogs.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={{opacity: 0.7}}>No Transfer In logs found.</Text>
-              </View>
-            ) : (
-              <ScrollView style={styles.logsScroll}>
-                {transferInLogs.map(log => (
-                  <View key={log.id} style={styles.logRow}>
-                    <View style={styles.logHeader}>
-                      <Text style={styles.logItemName} numberOfLines={2}>
-                        {log.item_name}
-                      </Text>
-                      <Text style={[styles.logQty, {color: '#43A047'}]}>
-                        +{parseFloat(log.adjustment_qty)}{' '}
-                        {formatUOM(log.item_uom_abbrev)}
-                      </Text>
-                    </View>
-                    {log.item_sku ? (
-                      <Text style={styles.logMeta}>SKU {log.item_sku}</Text>
-                    ) : null}
-                    <Text style={styles.logMeta}>
-                      {formatDate(log.adjustment_date)}
-                    </Text>
-                    {log.remarks ? (
-                      <Text style={styles.logRemark}>• {log.remarks}</Text>
-                    ) : null}
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-          </Dialog.Content>
-          <Dialog.Actions style={styles.dialogActions}>
-            <Button onPress={() => setTransferInLogsVisible(false)}>Close</Button>
-          </Dialog.Actions>
-        </Dialog>
+          contentContainerStyle={styles.logsModal}>
+          <Title style={styles.logsModalTitle}>Stock Transfer In Logs</Title>
+          <Text
+            style={[
+              styles.dialogHelper,
+              styles.logsHelper,
+              {color: colors.neutralTint1},
+            ]}>
+            Stock added to your branch from this transfer
+            {transferInLogs.length ? ` (${transferInLogs.length})` : ''}.
+          </Text>
+          {transferInLogsStatus === 'loading' ? (
+            <View style={styles.empty}>
+              <ActivityIndicator />
+            </View>
+          ) : transferInLogs.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={{opacity: 0.7}}>No Transfer In logs found.</Text>
+            </View>
+          ) : (
+            <ScrollView style={styles.logsScroll}>
+              {transferInLogs.map(log => (
+                <ItemLogListItem
+                  key={log.id}
+                  item={log}
+                  onPressItem={() => {
+                    setTransferInLogsVisible(false);
+                    navigation.navigate(routes.logView(), {
+                      log_id: log.id,
+                      item_id: log.item_id,
+                    });
+                  }}
+                />
+              ))}
+            </ScrollView>
+          )}
+          <Button
+            mode="outlined"
+            onPress={() => setTransferInLogsVisible(false)}
+            style={styles.logsCloseButton}>
+            Close
+          </Button>
+        </Modal>
 
         {/* Generic confirmation dialog (app-styled replacement for Alert.alert) */}
         <Dialog
@@ -1291,18 +1304,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   confirmDialog: {borderRadius: 12, backgroundColor: 'white'},
-  logsDialogContent: {paddingBottom: 0},
-  logsScroll: {maxHeight: 360},
-  logRow: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E0E0E0',
-    paddingVertical: 10,
-  },
-  logHeader: {flexDirection: 'row', alignItems: 'flex-start'},
-  logItemName: {flex: 1, fontSize: 15, fontWeight: '500'},
-  logQty: {fontSize: 14, fontWeight: '700', marginLeft: 8},
-  logMeta: {fontSize: 11, opacity: 0.6, marginTop: 2},
-  logRemark: {fontSize: 12, fontStyle: 'italic', opacity: 0.85, marginTop: 4},
+  // Full-width modal (no horizontal margin) to match the Create User modal.
+  // Only vertical padding here so the ItemLogListItem rows stay edge-to-edge
+  // like the main Logs list; the title/helper/close button are padded inline.
+  logsModal: {backgroundColor: 'white', maxHeight: '90%', paddingVertical: 20},
+  logsModalTitle: {textAlign: 'center', marginBottom: 8, paddingHorizontal: 20},
+  logsHelper: {paddingHorizontal: 20},
+  // RN default flexShrink is 0; set it so only the list scrolls and the close
+  // button stays pinned below within the 90%-height cap.
+  logsScroll: {flexShrink: 1},
+  logsCloseButton: {marginTop: 16, marginHorizontal: 20, borderRadius: 8},
   dialogTitle: {fontSize: 18},
   dialogHelper: {marginBottom: 14, fontSize: 13, lineHeight: 18},
   dialogInput: {marginBottom: 10, backgroundColor: 'white'},
