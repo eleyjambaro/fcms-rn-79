@@ -12,6 +12,8 @@ import {
   IconButton,
   Dialog,
   Paragraph,
+  Checkbox,
+  TouchableRipple,
   useTheme,
   ActivityIndicator,
 } from 'react-native-paper';
@@ -44,6 +46,7 @@ const CloudRoles = () => {
 
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
   const [focusedRole, setFocusedRole] = useState(null);
   const [serverError, setServerError] = useState('');
   // Latest set of checked permission keys reported by the editor, and a seed
@@ -157,6 +160,7 @@ const CloudRoles = () => {
               onPress={() => {
                 setFocusedRole(item);
                 setServerError('');
+                setDeleteConfirmed(false);
                 setDeleteDialogVisible(true);
               }}
             />
@@ -283,6 +287,20 @@ const CloudRoles = () => {
               Are you sure you want to delete "{focusedRole?.name}"? Accounts
               assigned this role will lose their role assignment.
             </Paragraph>
+            <Paragraph style={[styles.warning, {color: colors.error}]}>
+              Warning: team members without a role can still sign in, but will
+              see an empty home screen until a role is reassigned to them.
+            </Paragraph>
+            <TouchableRipple
+              onPress={() => setDeleteConfirmed(confirmed => !confirmed)}>
+              <View style={styles.confirmRow}>
+                <Checkbox
+                  status={deleteConfirmed ? 'checked' : 'unchecked'}
+                  color={colors.error}
+                />
+                <Text style={styles.confirmLabel}>Delete the role anyway?</Text>
+              </View>
+            </TouchableRipple>
             {serverError ? (
               <HelperText type="error">{serverError}</HelperText>
             ) : null}
@@ -293,6 +311,7 @@ const CloudRoles = () => {
               icon="delete-outline"
               onPress={handleDeleteConfirm}
               textColor={colors.error}
+              disabled={!deleteConfirmed || deleteMutation.isLoading}
               loading={deleteMutation.isLoading}>
               Delete
             </Button>
@@ -365,6 +384,19 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     marginTop: 8,
+  },
+  warning: {
+    marginTop: 10,
+  },
+  confirmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  confirmLabel: {
+    flex: 1,
+    marginLeft: 4,
+    fontWeight: '600',
   },
 });
 
