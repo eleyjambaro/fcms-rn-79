@@ -202,4 +202,9 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RolePermissionEditor;
+// Memoized: this editor lives inside Formik's render-prop tree, so without this
+// it would re-render its ~26-accordion subtree on every keystroke in the role
+// name field (making typing laggy and swallowing taps on Cancel/Create). Its
+// props (initialConfig, onChange) are referentially stable during an open
+// session, so memoizing skips those unrelated re-renders entirely.
+export default React.memo(RolePermissionEditor);

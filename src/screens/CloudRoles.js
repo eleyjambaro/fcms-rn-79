@@ -1,5 +1,5 @@
-import React, {useState, useMemo} from 'react';
-import {View, FlatList, StyleSheet} from 'react-native';
+import React, {useState, useMemo, useEffect} from 'react';
+import {View, FlatList, StyleSheet, InteractionManager} from 'react-native';
 import {
   Button,
   Card,
@@ -30,7 +30,10 @@ import {
 } from '../serverDbQueries/v2/roles';
 import RolePermissionEditor from '../components/roles/RolePermissionEditor';
 import AssignRoleToMembersModal from '../components/modals/AssignRoleToMembersModal';
-import {serializeRoleConfig} from '../permissions/serializeRoleConfig';
+import {
+  serializeRoleConfig,
+  loadCheckedSet,
+} from '../permissions/serializeRoleConfig';
 import useRoleAccess from '../hooks/useRoleAccess';
 
 const DEFAULT_ROLE_CONFIG = {enable: ['*'], disable: []};
@@ -56,6 +59,11 @@ const CloudRoles = () => {
   // that forces the editor to re-initialize each time the modal is opened.
   const [checkedSet, setCheckedSet] = useState(new Set());
   const [editorSeed, setEditorSeed] = useState(0);
+  // The permission editor mounts a large subtree (~26 accordions). Mounting it
+  // synchronously with the modal blocks the JS thread for a beat and swallows
+  // the first taps on "Create Role". Defer it until the open animation settles
+  // so the name field and submit button are interactive immediately.
+  const [editorReady, setEditorReady] = useState(false);
 
   const originalConfig = useMemo(() => {
     if (focusedRole) {
@@ -67,6 +75,21 @@ const CloudRoles = () => {
     }
     return DEFAULT_ROLE_CONFIG;
   }, [focusedRole]);
+
+  // Seed the parent's checked set immediately (so an early submit serializes the
+  // right permissions) and mount the heavy editor only after interactions.
+  useEffect(() => {
+    if (!formModalVisible) {
+      setEditorReady(false);
+      return;
+    }
+    setCheckedSet(loadCheckedSet(originalConfig));
+    setEditorReady(false);
+    const task = InteractionManager.runAfterInteractions(() =>
+      setEditorReady(true),
+    );
+    return () => task.cancel();
+  }, [formModalVisible, originalConfig]);
 
   const {data, status, refetch, isRefetching} = useQuery(
     ['cloudRoles'],
@@ -228,24 +251,28 @@ const CloudRoles = () => {
           <Title style={styles.modalTitle}>
             {focusedRole ? 'Edit Role' : 'Create Role'}
           </Title>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <Formik
-              initialValues={{
-                name: focusedRole?.name ?? '',
-              }}
-              validationSchema={schema}
-              onSubmit={handleFormSubmit}
-              enableReinitialize>
-              {({
-                handleChange,
-                handleBlur,
-                handleSubmit,
-                values,
-                errors,
-                touched,
-                isSubmitting,
-              }) => (
-                <>
+          <Formik
+            initialValues={{
+              name: focusedRole?.name ?? '',
+            }}
+            validationSchema={schema}
+            onSubmit={handleFormSubmit}
+            enableReinitialize>
+            {({
+              handleChange,
+              handleBlur,
+              handleSubmit,
+              values,
+              errors,
+              touched,
+              isSubmitting,
+            }) => (
+              <>
+                {/* Scrollable content */}
+                <ScrollView
+                  style={styles.modalScroll}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled">
                   <TextInput
                     label="Role Name"
                     value={values.name}
@@ -260,16 +287,24 @@ const CloudRoles = () => {
                   ) : null}
 
                   <Text style={styles.sectionLabel}>Permissions</Text>
-                  <RolePermissionEditor
-                    key={`${focusedRole?.id ?? 'new'}-${editorSeed}`}
-                    initialConfig={originalConfig}
-                    onChange={setCheckedSet}
-                  />
+                  {editorReady ? (
+                    <RolePermissionEditor
+                      key={`${focusedRole?.id ?? 'new'}-${editorSeed}`}
+                      initialConfig={originalConfig}
+                      onChange={setCheckedSet}
+                    />
+                  ) : (
+                    <ActivityIndicator style={styles.editorLoader} />
+                  )}
 
                   {serverError ? (
                     <HelperText type="error">{serverError}</HelperText>
                   ) : null}
+                </ScrollView>
 
+                {/* Fixed footer — kept outside the ScrollView so a tap right
+                    after scrolling isn't eaten by the scroll gesture. */}
+                <View style={styles.modalFooter}>
                   <Button
                     mode="contained"
                     onPress={handleSubmit}
@@ -283,10 +318,10 @@ const CloudRoles = () => {
                     style={styles.cancelButton}>
                     Cancel
                   </Button>
-                </>
-              )}
-            </Formik>
-          </ScrollView>
+                </View>
+              </>
+            )}
+          </Formik>
         </Modal>
       </Portal>
 
@@ -387,6 +422,14 @@ const styles = StyleSheet.create({
     padding: 20,
     maxHeight: '90%',
   },
+  modalScroll: {
+    // Shrink to fit between the title and the fixed footer; only this area
+    // scrolls. (RN default flexShrink is 0, so it must be set explicitly.)
+    flexShrink: 1,
+  },
+  modalFooter: {
+    paddingTop: 8,
+  },
   modalTitle: {
     textAlign: 'center',
     marginBottom: 12,
@@ -398,6 +441,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
     fontWeight: 'bold',
+  },
+  editorLoader: {
+    marginVertical: 24,
   },
   saveButton: {
     marginTop: 12,

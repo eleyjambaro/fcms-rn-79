@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {StyleSheet} from 'react-native';
+import {StyleSheet, View, InteractionManager} from 'react-native';
 import {
   Button,
   Modal,
@@ -8,6 +8,7 @@ import {
   TextInput,
   HelperText,
   Text,
+  ActivityIndicator,
   useTheme,
 } from 'react-native-paper';
 import {Formik} from 'formik';
@@ -17,7 +18,10 @@ import {ScrollView} from 'react-native-gesture-handler';
 
 import {createCloudRole} from '../../serverDbQueries/v2/roles';
 import RolePermissionEditor from '../roles/RolePermissionEditor';
-import {serializeRoleConfig} from '../../permissions/serializeRoleConfig';
+import {
+  serializeRoleConfig,
+  loadCheckedSet,
+} from '../../permissions/serializeRoleConfig';
 
 const DEFAULT_ROLE_CONFIG = {enable: ['*'], disable: []};
 
@@ -40,21 +44,32 @@ const CreateRoleModal = ({visible, onDismiss, onCreated}) => {
   const {colors} = useTheme();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState('');
-  // Latest set of checked permission keys reported by the editor, and a seed
-  // that forces the editor to re-initialize each time the modal is opened.
+  // Latest set of checked permission keys reported by the editor.
   const [checkedSet, setCheckedSet] = useState(new Set());
-  const [editorSeed, setEditorSeed] = useState(0);
+  // The editor mounts a large subtree; mounting it synchronously with the modal
+  // blocks the JS thread and swallows the first taps on "Create Role". Defer it
+  // until interactions settle so the name field and button respond immediately.
+  const [editorReady, setEditorReady] = useState(false);
 
   const createMutation = useMutation(createCloudRole, {
     onSuccess: () => queryClient.invalidateQueries(['cloudRoles']),
   });
 
-  // Re-seed the editor and clear errors each time the modal becomes visible.
+  // Clear errors, seed the checked set immediately (so an early submit
+  // serializes the right permissions), and mount the heavy editor only after
+  // the open animation/interactions complete.
   useEffect(() => {
-    if (visible) {
-      setServerError('');
-      setEditorSeed(seed => seed + 1);
+    if (!visible) {
+      setEditorReady(false);
+      return;
     }
+    setServerError('');
+    setCheckedSet(loadCheckedSet(DEFAULT_ROLE_CONFIG));
+    setEditorReady(false);
+    const task = InteractionManager.runAfterInteractions(() =>
+      setEditorReady(true),
+    );
+    return () => task.cancel();
   }, [visible]);
 
   const handleFormSubmit = async (values, actions) => {
@@ -86,22 +101,26 @@ const CreateRoleModal = ({visible, onDismiss, onCreated}) => {
         onDismiss={onDismiss}
         contentContainerStyle={[styles.modal, {backgroundColor: colors.surface}]}>
         <Title style={styles.modalTitle}>Create Role</Title>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <Formik
-            initialValues={{name: ''}}
-            validationSchema={schema}
-            onSubmit={handleFormSubmit}
-            enableReinitialize>
-            {({
-              handleChange,
-              handleBlur,
-              handleSubmit,
-              values,
-              errors,
-              touched,
-              isSubmitting,
-            }) => (
-              <>
+        <Formik
+          initialValues={{name: ''}}
+          validationSchema={schema}
+          onSubmit={handleFormSubmit}
+          enableReinitialize>
+          {({
+            handleChange,
+            handleBlur,
+            handleSubmit,
+            values,
+            errors,
+            touched,
+            isSubmitting,
+          }) => (
+            <>
+              {/* Scrollable content */}
+              <ScrollView
+                style={styles.modalScroll}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled">
                 <TextInput
                   label="Role Name"
                   value={values.name}
@@ -116,16 +135,23 @@ const CreateRoleModal = ({visible, onDismiss, onCreated}) => {
                 ) : null}
 
                 <Text style={styles.sectionLabel}>Permissions</Text>
-                <RolePermissionEditor
-                  key={`new-${editorSeed}`}
-                  initialConfig={DEFAULT_ROLE_CONFIG}
-                  onChange={setCheckedSet}
-                />
+                {editorReady ? (
+                  <RolePermissionEditor
+                    initialConfig={DEFAULT_ROLE_CONFIG}
+                    onChange={setCheckedSet}
+                  />
+                ) : (
+                  <ActivityIndicator style={styles.editorLoader} />
+                )}
 
                 {serverError ? (
                   <HelperText type="error">{serverError}</HelperText>
                 ) : null}
+              </ScrollView>
 
+              {/* Fixed footer — kept outside the ScrollView so a tap right
+                  after scrolling isn't eaten by the scroll gesture. */}
+              <View style={styles.modalFooter}>
                 <Button
                   mode="contained"
                   onPress={handleSubmit}
@@ -137,10 +163,10 @@ const CreateRoleModal = ({visible, onDismiss, onCreated}) => {
                 <Button onPress={onDismiss} style={styles.cancelButton}>
                   Cancel
                 </Button>
-              </>
-            )}
-          </Formik>
-        </ScrollView>
+              </View>
+            </>
+          )}
+        </Formik>
       </Modal>
     </Portal>
   );
@@ -151,6 +177,14 @@ const styles = StyleSheet.create({
     padding: 20,
     margin: 20,
     maxHeight: '90%',
+  },
+  modalScroll: {
+    // Shrink to fit between the title and the fixed footer; only this area
+    // scrolls. (RN default flexShrink is 0, so it must be set explicitly.)
+    flexShrink: 1,
+  },
+  modalFooter: {
+    paddingTop: 8,
   },
   modalTitle: {
     textAlign: 'center',
@@ -163,6 +197,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
     fontWeight: 'bold',
+  },
+  editorLoader: {
+    marginVertical: 24,
   },
   saveButton: {
     marginTop: 12,

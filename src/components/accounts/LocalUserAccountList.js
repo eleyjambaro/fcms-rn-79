@@ -311,7 +311,9 @@ const LocalUserAccountList = props => {
           <Title style={{marginBottom: 15, textAlign: 'center'}}>
             Edit User
           </Title>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
             <LocalUserAccountForm
               editMode={true}
               userAccountUID={focusedItem?.account_uid}

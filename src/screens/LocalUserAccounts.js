@@ -114,7 +114,9 @@ function LocalUserAccounts(props) {
           <Title style={{marginBottom: 15, textAlign: 'center'}}>
             Create User
           </Title>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
             <LocalUserAccountForm
               authUser={authUser}
               currentBranchId={currentBranchId}
