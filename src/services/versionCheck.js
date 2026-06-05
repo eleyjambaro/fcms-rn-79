@@ -12,9 +12,10 @@ const STORE_URLS = {
 
 const getLatestVersion = async () => {
   let latestVersions = {
-    ios: '0.0.0',
-    android: '1.0.7',
-    minimumSupported: '1.0.0',
+    ios_version: '0.0.0',
+    android_version: '1.0.7',
+    ios_minimum_supported: '1.0.0',
+    android_minimum_supported: '1.0.0',
   };
 
   try {
@@ -42,8 +43,15 @@ export const checkVersion = async () => {
     const currentVersion = DeviceInfo.getVersion();
     const platform = Platform.OS;
 
-    const {ios, android, minimumSupported} = await getLatestVersion();
-    const latestVersion = platform === 'ios' ? ios : android;
+    const {
+      ios_version,
+      android_version,
+      ios_minimum_supported,
+      android_minimum_supported,
+    } = await getLatestVersion();
+    const latestVersion = platform === 'ios' ? ios_version : android_version;
+    const minimumSupported =
+      platform === 'ios' ? ios_minimum_supported : android_minimum_supported;
 
     const needsUpdate = semver.lt(currentVersion, latestVersion);
     const isForceUpdate = semver.lt(currentVersion, minimumSupported);
