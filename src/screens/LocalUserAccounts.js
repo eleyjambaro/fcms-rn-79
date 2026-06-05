@@ -13,7 +13,6 @@ import {useQueryClient, useMutation} from '@tanstack/react-query';
 import LocalUserAccountList from '../components/accounts/LocalUserAccountList';
 import LocalUserAccountForm from '../components/forms/LocalUserAccountForm';
 import useSearchbarContext from '../hooks/useSearchbarContext';
-import {ScrollView} from 'react-native-gesture-handler';
 import {createCloudSubAccount} from '../serverDbQueries/v2/accounts';
 import {syncCloudBranchAccountAssignments} from '../serverDbQueries/v2/branchAccountAssignments';
 import {syncCloudDeviceAccountAssignments} from '../serverDbQueries/v2/deviceAccountAssignments';
@@ -110,21 +109,21 @@ function LocalUserAccounts(props) {
         <Modal
           visible={createLocalUserAccountModalVisible}
           onDismiss={() => setCreateLocalUserAccountModalVisible(() => false)}
-          contentContainerStyle={{backgroundColor: 'white', padding: 20}}>
+          contentContainerStyle={{
+            backgroundColor: 'white',
+            padding: 20,
+            maxHeight: '90%',
+          }}>
           <Title style={{marginBottom: 15, textAlign: 'center'}}>
             Create User
           </Title>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled">
-            <LocalUserAccountForm
-              authUser={authUser}
-              currentBranchId={currentBranchId}
-              currentDeviceId={currentDeviceId}
-              onSubmit={handleSubmit}
-              onCancel={handleCancel}
-            />
-          </ScrollView>
+          <LocalUserAccountForm
+            authUser={authUser}
+            currentBranchId={currentBranchId}
+            currentDeviceId={currentDeviceId}
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+          />
         </Modal>
       </Portal>
       <ErrorMessageModal

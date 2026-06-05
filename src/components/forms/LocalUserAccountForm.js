@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {View, StyleSheet} from 'react-native';
+import {ScrollView} from 'react-native-gesture-handler';
 import {
   TextInput,
   Button,
@@ -147,15 +148,21 @@ const LocalUserAccountForm = props => {
         deviceAssignmentsStatus === 'loading'));
 
   if (isInitialDataLoading) {
-    return <DefaultLoadingScreen />;
+    return (
+      <View style={styles.stateScreen}>
+        <DefaultLoadingScreen />
+      </View>
+    );
   }
 
   if (getRolesStatus === 'error') {
     return (
-      <DefaultErrorScreen
-        errorTitle="Oops!"
-        errorMessage="Something went wrong"
-      />
+      <View style={styles.stateScreen}>
+        <DefaultErrorScreen
+          errorTitle="Oops!"
+          errorMessage="Something went wrong"
+        />
+      </View>
     );
   }
 
@@ -221,6 +228,11 @@ const LocalUserAccountForm = props => {
 
         return (
           <>
+            {/* Scrollable content */}
+            <ScrollView
+              style={styles.formScroll}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled">
             <FormRequiredFieldHelperText containerStyle={{marginBottom: 10}} />
             <TextInput
               label={
@@ -377,17 +389,22 @@ const LocalUserAccountForm = props => {
                 {errors.device_ids}
               </HelperText>
             ) : null}
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              disabled={!dirty || !isValid || isSubmitting || isDisabled()}
-              loading={isSubmitting}
-              style={{marginTop: 20}}>
-              {submitButtonTitle}
-            </Button>
-            <Button onPress={onCancel} style={{marginTop: 10}}>
-              Cancel
-            </Button>
+            </ScrollView>
+
+            {/* Fixed footer — kept outside the ScrollView so a tap right after
+                scrolling isn't eaten by the scroll gesture. */}
+            <View style={styles.formFooter}>
+              <Button
+                mode="contained"
+                onPress={handleSubmit}
+                disabled={!dirty || !isValid || isSubmitting || isDisabled()}
+                loading={isSubmitting}>
+                {submitButtonTitle}
+              </Button>
+              <Button onPress={onCancel} style={styles.cancelButton}>
+                Cancel
+              </Button>
+            </View>
           </>
         );
       }}
@@ -396,6 +413,21 @@ const LocalUserAccountForm = props => {
 };
 
 const styles = StyleSheet.create({
+  formScroll: {
+    // Shrink to fit between the title and the fixed footer; only this area
+    // scrolls. (RN default flexShrink is 0, so it must be set explicitly.)
+    flexShrink: 1,
+  },
+  formFooter: {
+    paddingTop: 12,
+  },
+  cancelButton: {
+    marginTop: 10,
+  },
+  stateScreen: {
+    minHeight: 220,
+    justifyContent: 'center',
+  },
   sectionDivider: {
     marginTop: 20,
     marginBottom: 12,

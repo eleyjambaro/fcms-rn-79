@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   BackHandler,
   RefreshControl,
-  ScrollView,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {
@@ -307,31 +306,31 @@ const LocalUserAccountList = props => {
         <Modal
           visible={updateLocalUserAccountModalVisible}
           onDismiss={() => setUpdateLocalUserAccountModalVisible(() => false)}
-          contentContainerStyle={{backgroundColor: 'white', padding: 20}}>
+          contentContainerStyle={{
+            backgroundColor: 'white',
+            padding: 20,
+            maxHeight: '90%',
+          }}>
           <Title style={{marginBottom: 15, textAlign: 'center'}}>
             Edit User
           </Title>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled">
-            <LocalUserAccountForm
-              editMode={true}
-              userAccountUID={focusedItem?.account_uid}
-              userAccountId={focusedItem?.id}
-              authUser={authUser}
-              currentBranchId={currentBranchId}
-              currentDeviceId={currentDeviceId}
-              initialValues={{
-                first_name: focusedItem?.first_name || '',
-                last_name: focusedItem?.last_name || '',
-                email: focusedItem?.email || '',
-                role_id: focusedItem?.role_id || '',
-              }}
-              submitButtonTitle="Update"
-              onSubmit={handleSubmit}
-              onCancel={handleCancel}
-            />
-          </ScrollView>
+          <LocalUserAccountForm
+            editMode={true}
+            userAccountUID={focusedItem?.account_uid}
+            userAccountId={focusedItem?.id}
+            authUser={authUser}
+            currentBranchId={currentBranchId}
+            currentDeviceId={currentDeviceId}
+            initialValues={{
+              first_name: focusedItem?.first_name || '',
+              last_name: focusedItem?.last_name || '',
+              email: focusedItem?.email || '',
+              role_id: focusedItem?.role_id || '',
+            }}
+            submitButtonTitle="Update"
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+          />
         </Modal>
       </Portal>
       <Portal>
