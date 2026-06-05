@@ -645,22 +645,6 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
       }
       if (isSource && canTransferOut) {
         buttons.unshift(
-          <View
-            key="ready-notice"
-            style={[
-              styles.readyNotice,
-              {backgroundColor: colors.primary + '14'},
-            ]}>
-            <Text style={styles.readyNoticeHint}>
-              Not ready to transfer yet? You can come back here anytime to start
-              the transfer.
-            </Text>
-            <Text style={styles.readyNoticeTitle}>
-              Are all items ready? Tap "Transfer Now".
-            </Text>
-          </View>,
-        );
-        buttons.push(
           <Button
             key="transfer"
             mode="contained"
@@ -676,6 +660,22 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
             }>
             Transfer Now
           </Button>,
+        );
+        buttons.unshift(
+          <View
+            key="ready-notice"
+            style={[
+              styles.readyNotice,
+              {backgroundColor: colors.primary + '14'},
+            ]}>
+            <Text style={styles.readyNoticeHint}>
+              Not ready to transfer yet? You can come back here anytime to start
+              the transfer.
+            </Text>
+            <Text style={styles.readyNoticeTitle}>
+              Are all items ready? Tap "Transfer Now".
+            </Text>
+          </View>,
         );
         buttons.push(
           <Button key="back" mode="text" onPress={() => navigation.goBack()}>
