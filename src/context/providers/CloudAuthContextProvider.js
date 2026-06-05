@@ -231,10 +231,45 @@ const CloudAuthContextProvider = ({children}) => {
           await createDefaultTaxes();
         }
 
+        // Refresh the signed-in account via /auth/me BEFORE showing the app, so
+        // any role/permission change made server-side since the last sign-in is
+        // applied up front. Done synchronously (awaited) on purpose: a stale —
+        // and possibly more permissive — cached role_config would otherwise
+        // briefly render mutation controls the user no longer has, then hide
+        // them once a fire-and-forget refresh landed (the "button shows, works,
+        // then disappears" bug). Falls back to the cached account on
+        // offline/slow/error so offline startup is never blocked — a real
+        // network failure rejects fast; the timeout only caps a reachable-but-
+        // slow server.
+        let restoredAuthUser = authUser;
+        if (authToken && authUser?.account) {
+          try {
+            const response = await Promise.race([
+              getMe(),
+              new Promise((_, reject) =>
+                setTimeout(
+                  () => reject(new Error('auth refresh timeout')),
+                  8000,
+                ),
+              ),
+            ]);
+            const account = response?.data?.account ?? null;
+            if (account) {
+              restoredAuthUser = {...authUser, account};
+              await saveItem(cloudV2AuthUser, restoredAuthUser);
+            }
+          } catch (refreshError) {
+            console.debug(
+              '[CloudAuthContextProvider] auth refresh on restore failed; using cached account:',
+              refreshError?.message,
+            );
+          }
+        }
+
         dispatch({
           type: 'RESTORE',
           authToken,
-          authUser,
+          authUser: restoredAuthUser,
           deviceId,
           deviceToken,
           designatedBranch,
@@ -256,20 +291,6 @@ const CloudAuthContextProvider = ({children}) => {
             .catch(() => {});
         }
 
-        // Fire-and-forget: refresh the signed-in account via /auth/me so
-        // server-side changes (role name, role_config/permissions, etc.) made
-        // since the last sign-in propagate without requiring a re-login.
-        if (authToken && authUser?.account) {
-          getMe()
-            .then(async response => {
-              const account = response?.data?.account ?? null;
-              if (!account) return;
-              const nextAuthUser = {...authUser, account};
-              await saveItem(cloudV2AuthUser, nextAuthUser);
-              dispatch({type: 'SET_AUTH_USER', authUser: nextAuthUser});
-            })
-            .catch(() => {});
-        }
       } catch (error) {
         console.debug('[CloudAuthContextProvider] restore error:', error);
         await setActiveCompanyDb(null);
