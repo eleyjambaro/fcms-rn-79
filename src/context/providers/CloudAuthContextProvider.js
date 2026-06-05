@@ -1,4 +1,11 @@
-import React, {useState, useEffect, useReducer, useMemo} from 'react';
+import React, {
+  useState,
+  useEffect,
+  useReducer,
+  useMemo,
+  useRef,
+} from 'react';
+import {AppState} from 'react-native';
 import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 
 import {CloudAuthContext} from '../types';
@@ -306,6 +313,54 @@ const CloudAuthContextProvider = ({children}) => {
     };
 
     restore();
+  }, []);
+
+  // Refs so the AppState listener (subscribed once) always reads the current
+  // auth state without re-subscribing on every change — and so an in-flight
+  // refresh can detect a sign-out / user switch and bail.
+  const authTokenRef = useRef(state.authToken);
+  const authUserRef = useRef(state.authUser);
+  authTokenRef.current = state.authToken;
+  authUserRef.current = state.authUser;
+
+  // Refresh role/permissions when the app returns to the foreground so a
+  // server-side role change applies on resume, not only on a cold start (the
+  // restore() effect above handles the cold-start case). Fire-and-forget: the
+  // app is already visible, so the fresh permissions land as a live update.
+  useEffect(() => {
+    const appState = {current: AppState.currentState};
+
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      const isForeground =
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active';
+      appState.current = nextAppState;
+
+      if (!isForeground) return;
+
+      const authToken = authTokenRef.current;
+      const authUser = authUserRef.current;
+      if (!authToken || !authUser?.account) return;
+
+      getMe()
+        .then(async response => {
+          const account = response?.data?.account ?? null;
+          if (!account) return;
+          // Bail if the session changed while the request was in flight
+          // (sign-out / user switch) so we never revive stale auth state.
+          if (authTokenRef.current !== authToken) return;
+
+          const base = authUserRef.current ?? authUser;
+          const nextAuthUser = {...base, account};
+          await saveItem(cloudV2AuthUser, nextAuthUser);
+
+          if (authTokenRef.current !== authToken) return;
+          dispatch({type: 'SET_AUTH_USER', authUser: nextAuthUser});
+        })
+        .catch(() => {});
+    });
+
+    return () => subscription.remove();
   }, []);
 
   const authActions = useMemo(
