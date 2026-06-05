@@ -62,6 +62,18 @@ export const formatTransferUOMAbbrev = uomAbbrev => {
   return String(uomAbbrev).toUpperCase();
 };
 
+/**
+ * Short, human-facing reference number for a Batch Transfer request, derived
+ * from the (UUID) batch_transfer_group id — the first 8 characters. This is the
+ * single source of the value shown as "#xxxxxxxx" on Batch Transfer screens and
+ * stored on inventory_logs.batch_transfer_ref_no. The "#" prefix is NOT included
+ * here; callers add it when displaying.
+ */
+export const formatBatchTransferRefNo = groupId => {
+  if (!groupId) return '';
+  return String(groupId).slice(0, 8);
+};
+
 export const formatUOM = (
   uomAbbrev,
   nounForm = 'singular',

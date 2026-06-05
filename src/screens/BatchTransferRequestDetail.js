@@ -43,7 +43,10 @@ import TransferStatusBadge, {
   STATUS_COLORS,
 } from '../components/batchTransfer/TransferStatusBadge';
 import TransferStatusTimeline from '../components/batchTransfer/TransferStatusTimeline';
-import {formatTransferUOMAbbrev} from '../utils/stringHelpers';
+import {
+  formatTransferUOMAbbrev,
+  formatBatchTransferRefNo,
+} from '../utils/stringHelpers';
 import useRoleAccess from '../hooks/useRoleAccess';
 import {TRANSFER_PERMISSIONS} from '../constants/transferPermissions';
 
@@ -724,7 +727,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               ) : null}
             </View>
             <Text style={styles.uuid} numberOfLines={1}>
-              #{String(group.id).slice(0, 8)}
+              #{formatBatchTransferRefNo(group.id)}
             </Text>
           </View>
 

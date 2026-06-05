@@ -26,6 +26,7 @@ import {
   OPERATION_DEFAULT_UUIDS,
 } from '../localDb';
 import {scheduleSyncSoon} from '../services/syncService';
+import {formatBatchTransferRefNo} from '../utils/stringHelpers';
 
 // ============================================================================
 // Helpers
@@ -835,6 +836,7 @@ export const confirmTransferReceived = async ({
          adjustment_unit_cost, adjustment_unit_cost_net,
          adjustment_qty, adjustment_date,
          batch_transfer_group_id,
+         batch_transfer_ref_no,
          adjusted_by_account_uid,
          remarks,
          device_id, branch_id, updated_at
@@ -845,6 +847,7 @@ export const confirmTransferReceived = async ({
          ${unitCost}, ${unitCost},
          ${qty}, datetime('now', 'localtime'),
          ${sqlStr(groupId)},
+         ${sqlStr(formatBatchTransferRefNo(groupId))},
          ${sqlStr(initiatorAccountUid)},
          ${sqlStr(remarks)},
          ${sqlStr(deviceId)}, ${sqlStr(branchId)}, CURRENT_TIMESTAMP
@@ -1064,15 +1067,15 @@ const resolveDestCategoryId = async ({db, categoryName, deviceId, branchId}) => 
   return fallback?.id ?? null;
 };
 
+// The transfer reference number is no longer embedded in the log remarks — it
+// is stored on inventory_logs.batch_transfer_ref_no and surfaced by the "Transfer
+// Details" section in Log Details. Remarks now carry ONLY the user's own remark
+// (the per-entry note typed on the request), or null when none was given.
 const buildTransferLogRemark = (entry, direction) => {
-  const shortId = entry.batch_transfer_group_id?.slice(0, 8) ?? '';
-  const label =
-    direction === 'in' ? 'Transfer In' : 'Transfer Out';
   const userRemark =
     direction === 'in' ? entry.dest_remarks : entry.source_remarks;
-  const base = `${label} (#${shortId})`;
-  if (!userRemark) return base.slice(0, 120);
-  return `${base}: ${userRemark}`.slice(0, 120);
+  if (!userRemark) return null;
+  return String(userRemark).slice(0, 120);
 };
 
 // ============================================================================
@@ -1226,6 +1229,7 @@ export const materializeReceivedTransferLogs = async () => {
              adjustment_unit_cost, adjustment_unit_cost_net,
              adjustment_qty, adjustment_date,
              batch_transfer_group_id,
+             batch_transfer_ref_no,
              remarks,
              device_id, branch_id, updated_at
            ) VALUES (
@@ -1235,6 +1239,7 @@ export const materializeReceivedTransferLogs = async () => {
              ${unitCost}, ${unitCost},
              ${qty}, ${adjustmentDate},
              ${sqlStr(group.id)},
+             ${sqlStr(formatBatchTransferRefNo(group.id))},
              ${sqlStr(remarks)},
              ${sqlStr(deviceId)}, ${sqlStr(branchId)}, CURRENT_TIMESTAMP
            )`,

@@ -30,7 +30,11 @@ import {
   getYieldStockInventoryLogByYieldRefId,
 } from '../../localDbQueries/inventoryLogs';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
-import {formatUOM, formatUOMAbbrev} from '../../utils/stringHelpers';
+import {
+  formatUOM,
+  formatUOMAbbrev,
+  formatBatchTransferRefNo,
+} from '../../utils/stringHelpers';
 import DashedDivider from '../dividers/DashedDivider';
 
 const ItemLogDetails = props => {
@@ -472,6 +476,76 @@ const ItemLogDetails = props => {
     );
   };
 
+  // Shown for inventory logs created by a branch-to-branch Batch Transfer
+  // (Stock Transfer In / Out). The ref number is read from the stamped
+  // batch_transfer_ref_no, falling back to deriving it from the synced
+  // batch_transfer_group_id for rows pulled on a sibling device (where the
+  // local-only ref column is NULL). The ref is a pressable link to the
+  // originating Batch Transfer Request.
+  const renderTransferDetails = () => {
+    const groupId = log.batch_transfer_group_id;
+    if (!groupId) return null;
+
+    const refNo =
+      log.batch_transfer_ref_no || formatBatchTransferRefNo(groupId);
+
+    return (
+      <>
+        <Divider style={{marginTop: 15}} />
+
+        <View style={styles.detailsContainer}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: 4,
+              marginBottom: 10,
+            }}>
+            <MaterialCommunityIcons
+              name="swap-horizontal-bold"
+              size={25}
+              color={log.voided === 1 ? colors.notification : colors.dark}
+            />
+            <Subheading
+              style={[
+                {marginLeft: 5, fontWeight: 'bold'},
+                log.voided === 1 && {color: colors.notification},
+              ]}>
+              {'Transfer Details'}
+            </Subheading>
+          </View>
+          <View style={[styles.detailsListItem]}>
+            <Text style={{fontWeight: 'bold'}}>{`Transfer Ref ID:`}</Text>
+            <Pressable
+              onPress={() =>
+                navigation.navigate(routes.batchTransferRequestDetail(), {
+                  groupId,
+                })
+              }>
+              <Text
+                style={{
+                  marginLeft: 7,
+                  fontWeight: 'bold',
+                  color: colors.primary,
+                }}>
+                {`#${refNo}`}
+              </Text>
+            </Pressable>
+          </View>
+          <Text
+            style={{
+              marginLeft: 15,
+              marginTop: 2,
+              fontStyle: 'italic',
+              color: colors.neutralTint2,
+            }}>
+            {'Tap the ref ID to view the batch transfer request.'}
+          </Text>
+        </View>
+      </>
+    );
+  };
+
   const renderRemovedStockQtySubtext = () => {
     if (
       log.operation_type === 'remove_stock' &&
@@ -798,6 +872,8 @@ const ItemLogDetails = props => {
           )}
           {renderVendor(getVendorStatus, getVendorData)}
         </View>
+
+        {renderTransferDetails()}
 
         {renderYieldDetails()}
 

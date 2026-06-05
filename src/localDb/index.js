@@ -2140,6 +2140,26 @@ export const alterTables = async currentAppVersion => {
       );
     }
 
+    // Short, human-facing transfer reference number (first 8 chars of the
+    // batch_transfer_group id) stamped on the transfer-in/out inventory log at
+    // creation, so Log Details can show a "Transfer Details" section with the
+    // ref without re-deriving it. Client-only/derived value — not synced; rows
+    // pulled on a sibling device fall back to deriving it from the synced
+    // batch_transfer_group_id at display time.
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'inventory_logs',
+        'batch_transfer_ref_no',
+        `ALTER TABLE inventory_logs ADD COLUMN batch_transfer_ref_no TEXT DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding inventory_logs.batch_transfer_ref_no:',
+        error,
+      );
+    }
+
     // Denormalized source category name on a batch transfer entry. When the
     // destination branch receives a transfer for an item it doesn't yet have,
     // we auto-create the local item; without a category_id the item's

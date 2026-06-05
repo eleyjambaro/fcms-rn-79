@@ -143,6 +143,8 @@ export const getInventoryLog = async ({queryKey}) => {
     inventory_logs.recipe_id,
     inventory_logs.yield_ref_id,
     inventory_logs.idt_import_id,
+    inventory_logs.batch_transfer_group_id,
+    inventory_logs.batch_transfer_ref_no,
     operations.type AS operation_type,
     operations.name AS operation_name,
     operations.code AS operation_code,
