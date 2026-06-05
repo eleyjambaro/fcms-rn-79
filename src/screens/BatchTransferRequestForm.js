@@ -276,10 +276,16 @@ const BatchTransferRequestForm = ({navigation}) => {
               )}
             </View>
 
-            <Pressable onPress={handleSwap} style={styles.swapBtn}>
+            <Pressable
+              onPress={handleSwap}
+              android_ripple={{color: colors.neutralTint5, borderless: true}}
+              style={({pressed}) => [
+                styles.swapBtn,
+                pressed && styles.swapBtnPressed,
+              ]}>
               <MaterialCommunityIcons
                 name="swap-vertical"
-                size={26}
+                size={24}
                 color={colors.text}
               />
             </Pressable>
@@ -381,7 +387,18 @@ const styles = StyleSheet.create({
     width: 44,
     marginRight: 4,
   },
-  swapBtn: {padding: 8, marginLeft: 4},
+  swapBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#fff',
+  },
+  swapBtnPressed: {backgroundColor: '#f0f0f0'},
   badgeRow: {flexDirection: 'row', justifyContent: 'center', marginTop: 8},
   directionBadge: {
     alignSelf: 'center',
