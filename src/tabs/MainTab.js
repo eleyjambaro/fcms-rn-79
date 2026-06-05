@@ -5,9 +5,11 @@ import {createStackNavigator} from '@react-navigation/stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import FeatherIcons from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {useTheme, Avatar, Text} from 'react-native-paper';
+import {useTheme, Avatar, Text, Badge} from 'react-native-paper';
+import {useQuery} from '@tanstack/react-query';
 
 import routes from '../constants/routes';
+import {getBatchTransferUnreadCount} from '../localDbQueries/batchTransfer';
 import Home from '../screens/Home';
 import Items from '../screens/Items';
 import Reports from '../screens/Reports';
@@ -35,8 +37,15 @@ const MemoizedUnauthorizedAccount = React.memo(UnauthorizedAccount);
 const MainTab = React.memo(function MainTab(props) {
   const {navigation} = props;
   const {colors} = useTheme();
-  const {moduleState} = useRoleAccess();
+  const {moduleState, canAccessModule} = useRoleAccess();
   const tabBarBadgeStyle = {fontSize: 10, top: -8};
+
+  const canAccessTransfer = canAccessModule('transfer');
+  const {data: batchTransferUnreadCountData} = useQuery(
+    ['batchTransferUnreadCount'],
+    getBatchTransferUnreadCount,
+    {enabled: canAccessTransfer},
+  );
 
   const renderReportsTabScreen = () => {
     const state = moduleState('reports');
@@ -125,18 +134,40 @@ const MainTab = React.memo(function MainTab(props) {
             />
           ),
           headerRight: () => (
-            <Pressable
-              style={{paddingHorizontal: 15}}
-              onPress={() => {
-                navigation.navigate(routes.account());
-              }}>
-              <Avatar.Icon
-                size={35}
-                icon="account-cog-outline"
-                color={colors.dark}
-                style={{backgroundColor: colors.neutralTint5}}
-              />
-            </Pressable>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+              {canAccessTransfer && (
+                <Pressable
+                  style={{paddingLeft: 15, paddingRight: 5}}
+                  hitSlop={8}
+                  onPress={() => {
+                    navigation.navigate(routes.batchTransferRequestList());
+                  }}>
+                  {batchTransferUnreadCountData > 0 && (
+                    <Badge
+                      style={{position: 'absolute', top: -4, right: -4, zIndex: 1}}>
+                      {batchTransferUnreadCountData}
+                    </Badge>
+                  )}
+                  <MaterialCommunityIcons
+                    name="bell-outline"
+                    size={27}
+                    color={colors.dark}
+                  />
+                </Pressable>
+              )}
+              <Pressable
+                style={{paddingHorizontal: 15}}
+                onPress={() => {
+                  navigation.navigate(routes.account());
+                }}>
+                <Avatar.Icon
+                  size={35}
+                  icon="account-cog-outline"
+                  color={colors.dark}
+                  style={{backgroundColor: colors.neutralTint5}}
+                />
+              </Pressable>
+            </View>
           ),
         }}
       />

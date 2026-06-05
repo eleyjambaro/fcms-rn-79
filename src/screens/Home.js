@@ -35,7 +35,6 @@ import {env} from '../constants/appConfig';
 import {TRANSFER_PERMISSIONS} from '../constants/transferPermissions';
 import {getBatchPurchaseEntriesCount} from '../localDbQueries/batchPurchase';
 import {getBatchStockUsageEntriesCount} from '../localDbQueries/batchStockUsage';
-import {getBatchTransferUnreadCount} from '../localDbQueries/batchTransfer';
 import useCurrentUser from '../hooks/useCurrentUser';
 import useRoleAccess from '../hooks/useRoleAccess';
 import {getLicenseStatus} from '../localDbQueries/license';
@@ -66,10 +65,6 @@ const Home = props => {
   } = useQuery(
     ['batchStockUsageEntriesCount', {}],
     getBatchStockUsageEntriesCount,
-  );
-  const {data: batchTransferUnreadCountData} = useQuery(
-    ['batchTransferUnreadCount'],
-    getBatchTransferUnreadCount,
   );
   const {
     status: getLicenseStatusReqStatus,
@@ -105,17 +100,6 @@ const Home = props => {
           {batchPurchaseEntriesCountData}
         </Badge>
       );
-  };
-
-  const renderBatchTransferNotificationBadge = () => {
-    if (!batchTransferUnreadCountData || batchTransferUnreadCountData <= 0) {
-      return null;
-    }
-    return (
-      <Badge style={styles.notificationBadge}>
-        {batchTransferUnreadCountData}
-      </Badge>
-    );
   };
 
   if (getLicenseStatusReqStatus === 'loading') {
@@ -715,11 +699,7 @@ const Home = props => {
                   backgroundColor: colors.primary,
                 },
               ]}>
-              <View
-                style={[
-                  styles.groupHeader,
-                  {flexDirection: 'row', justifyContent: 'space-between'},
-                ]}>
+              <View style={[styles.groupHeader, {flexDirection: 'row'}]}>
                 <Text
                   style={{
                     marginLeft: 5,
@@ -729,21 +709,6 @@ const Home = props => {
                   }}>
                   {'Inventory Batch Entry'}
                 </Text>
-                {canAccessModule('transfer') && (
-                  <Pressable
-                    style={styles.notificationButton}
-                    hitSlop={8}
-                    onPress={() => {
-                      navigation.navigate(routes.batchTransferRequestList());
-                    }}>
-                    {renderBatchTransferNotificationBadge()}
-                    <MaterialCommunityIcons
-                      name="bell-outline"
-                      size={24}
-                      color={colors.surface}
-                    />
-                  </Pressable>
-                )}
               </View>
               {/* Highlighted first row */}
               <View style={styles.row}>
@@ -818,17 +783,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-  },
-  notificationButton: {
-    paddingHorizontal: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -4,
-    zIndex: 1,
   },
   placeholderButton: {},
 });
