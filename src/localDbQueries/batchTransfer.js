@@ -548,6 +548,51 @@ export const rejectBatchTransferRequest = async ({groupId, reason = null}) => {
 // Source-side dispatch
 // ============================================================================
 
+/**
+ * Compute the SOURCE branch's VAT-stripped moving weighted average unit cost
+ * (`avg_unit_cost_net`) for one of its local items. This mirrors EXACTLY the
+ * formula getItems/getItem expose under the same name: the inventory-log moving
+ * average COALESCEd with a VAT-stripped `unit_cost` fallback (so it's never
+ * NULL even for an item with no inventory history). Uses the `active_*` views
+ * and `voided != 1` like getItems.
+ *
+ * Why this exists: branch-to-branch transfer must log the SOURCE branch's cost
+ * basis on BOTH sides. The snapshot taken at entry creation only reflects the
+ * authoring branch — correct for Out-mode (source authors) but the DESTINATION's
+ * cost for In-mode (the destination authors, picking its own item). We recompute
+ * the source's value at dispatch (confirmTransferOut, source device) so the
+ * corrected snapshot syncs to the destination before it writes its Transfer In
+ * log and before the source materializes its Transfer Out log.
+ */
+const getSourceItemAvgUnitCostNet = async (db, itemId) => {
+  if (!itemId) return null;
+  const row = firstRow(
+    await db.executeSql(
+      `SELECT COALESCE(
+         (totals.total_added_stock_cost_net - totals.total_removed_stock_cost_net)
+           / NULLIF(totals.total_added_stock_qty - totals.total_removed_stock_qty, 0),
+         items.unit_cost / (IFNULL(taxes.rate_percentage, 0) / 100.0 + 1)
+       ) AS avg_unit_cost_net
+       FROM active_items items
+       LEFT JOIN taxes ON taxes.id = items.tax_id
+       LEFT JOIN (
+         SELECT il.item_id AS item_id,
+           IFNULL(SUM(CASE WHEN o.type = 'add_stock' THEN il.adjustment_qty END), 0) AS total_added_stock_qty,
+           IFNULL(SUM(CASE WHEN o.type = 'remove_stock' THEN il.adjustment_qty END), 0) AS total_removed_stock_qty,
+           IFNULL(SUM(CASE WHEN o.type = 'add_stock' THEN il.adjustment_unit_cost_net * il.adjustment_qty END), 0) AS total_added_stock_cost_net,
+           IFNULL(SUM(CASE WHEN o.type = 'remove_stock' THEN il.adjustment_unit_cost_net * il.adjustment_qty END), 0) AS total_removed_stock_cost_net
+         FROM active_inventory_logs il
+         LEFT JOIN operations o ON o.id = il.operation_id
+         WHERE il.voided != 1 AND il.item_id = ${sqlStr(itemId)}
+         GROUP BY il.item_id
+       ) AS totals ON totals.item_id = items.id
+       WHERE items.id = ${sqlStr(itemId)}
+       LIMIT 1`,
+    ),
+  );
+  return row?.avg_unit_cost_net ?? null;
+};
+
 export const updateEntrySourceAdjustment = async ({
   entryId,
   adjustedQty,
@@ -607,6 +652,50 @@ export const confirmTransferOut = async ({groupId}) => {
          AND IFNULL(is_deleted, 0) != 1
          AND adjusted_qty IS NULL`,
   );
+
+  // Re-snapshot each dispatched entry's unit_cost_snapshot from the SOURCE
+  // branch's CURRENT avg_unit_cost_net. The snapshot taken at entry creation
+  // reflects the authoring branch — correct for Out-mode (source authors) but
+  // the DESTINATION's cost for In-mode (the destination authors, picking its
+  // own item). This is the source's device and the dispatch step always runs
+  // before the destination confirms receipt (which writes the Transfer In log
+  // from this snapshot) and before materializeReceivedTransferLogs writes the
+  // source's Transfer Out log — so correcting it here makes BOTH branches log
+  // the source's net cost basis, and the corrected value syncs to the
+  // destination with the transferring-status update.
+  const {deviceId, branchId} = await getCloudSyncParams();
+  const dispatchEntries = allRows(
+    await db.executeSql(
+      `SELECT * FROM active_batch_transfer_entries
+       WHERE batch_transfer_group_id = ${sqlStr(groupId)}
+         AND IFNULL(adjusted_qty, 0) > 0`,
+    ),
+  );
+  for (const entry of dispatchEntries) {
+    // Resolve THIS (source) branch's local item without spawning a duplicate.
+    // createIfMissing:false — dispatch must not create stockless placeholder
+    // items; if the source has no matching item we keep the existing snapshot
+    // (the editor UI already locks an unresolvable line's qty to 0, so it
+    // won't produce a transfer log anyway).
+    const sourceItemId = await resolveLocalItemForEntry({
+      db,
+      entry,
+      side: 'source',
+      deviceId,
+      branchId,
+      createIfMissing: false,
+    });
+    if (!sourceItemId) continue;
+    const avgUnitCostNet = await getSourceItemAvgUnitCostNet(db, sourceItemId);
+    if (avgUnitCostNet == null) continue;
+    await db.executeSql(
+      `UPDATE batch_transfer_entries
+         SET source_item_id = ${sqlStr(sourceItemId)},
+             unit_cost_snapshot = ${sqlNum(avgUnitCostNet)},
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ${sqlStr(entry.id)}`,
+    );
+  }
 
   await db.executeSql(
     `UPDATE batch_transfer_groups
