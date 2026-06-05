@@ -72,12 +72,13 @@ const LocalUserAccountListItem = props => {
           <Text
             style={{
               fontSize: 14,
-              color: colors.neutralTint2,
+              color: item.role_name ? colors.neutralTint2 : colors.notification,
+              fontStyle: item.role_name ? 'normal' : 'italic',
               marginRight: 10,
               flex: 1,
             }}
             numberOfLines={1}>
-            {`${item.role_name}`}
+            {item.role_name ? `${item.role_name}` : 'No role assigned'}
           </Text>
         </View>
       </View>

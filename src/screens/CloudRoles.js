@@ -29,6 +29,7 @@ import {
   deleteCloudRole,
 } from '../serverDbQueries/v2/roles';
 import RolePermissionEditor from '../components/roles/RolePermissionEditor';
+import AssignRoleToMembersModal from '../components/modals/AssignRoleToMembersModal';
 import {serializeRoleConfig} from '../permissions/serializeRoleConfig';
 import useRoleAccess from '../hooks/useRoleAccess';
 
@@ -45,6 +46,8 @@ const CloudRoles = () => {
   const queryClient = useQueryClient();
 
   const [formModalVisible, setFormModalVisible] = useState(false);
+  const [assignMembersModalVisible, setAssignMembersModalVisible] =
+    useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
   const [focusedRole, setFocusedRole] = useState(null);
@@ -145,6 +148,17 @@ const CloudRoles = () => {
           ) : null}
         </View>
         <View style={styles.cardActions}>
+          {canManageRoles ? (
+            <IconButton
+              icon="account-plus-outline"
+              size={20}
+              onPress={() => {
+                setFocusedRole(item);
+                setServerError('');
+                setAssignMembersModalVisible(true);
+              }}
+            />
+          ) : null}
           {canManageRoles ? (
             <IconButton
               icon="pencil-outline"
@@ -318,6 +332,13 @@ const CloudRoles = () => {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+
+      {/* Assign role to team members */}
+      <AssignRoleToMembersModal
+        visible={assignMembersModalVisible}
+        onDismiss={() => setAssignMembersModalVisible(false)}
+        role={focusedRole}
+      />
     </View>
   );
 };
