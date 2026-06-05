@@ -66,6 +66,7 @@ const RequestRow = ({item, branchById, currentBranchId, onPress}) => {
       onPress={() => onPress(item)}
       style={({pressed}) => [
         styles.row,
+        item.is_unread && {backgroundColor: colors.highlighted},
         pressed && {backgroundColor: colors.surface},
       ]}>
       <View style={styles.rowMain}>
