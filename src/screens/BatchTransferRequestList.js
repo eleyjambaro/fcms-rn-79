@@ -21,6 +21,8 @@ import {getBranches} from '../serverDbQueries/v2/branches';
 import {getBatchTransferRequests} from '../localDbQueries/batchTransfer';
 import {getCloudSyncParams} from '../localDb';
 import TransferStatusBadge from '../components/batchTransfer/TransferStatusBadge';
+import useRoleAccess from '../hooks/useRoleAccess';
+import {TRANSFER_PERMISSIONS} from '../constants/transferPermissions';
 
 const TopTab = createMaterialTopTabNavigator();
 
@@ -198,6 +200,7 @@ const TabContent = ({tab, navigation}) => {
 
 const BatchTransferRequestList = ({navigation}) => {
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   return (
     <View style={{flex: 1}}>
       <TopTab.Navigator
@@ -230,18 +233,22 @@ const BatchTransferRequestList = ({navigation}) => {
         </TopTab.Screen>
       </TopTab.Navigator>
 
-      <View
-        style={[
-          styles.bottomBar,
-          {borderTopColor: colors.disabled, backgroundColor: colors.surface},
-        ]}>
-        <Button
-          icon="plus"
-          mode="contained"
-          onPress={() => navigation.navigate(routes.batchTransferRequestForm())}>
-          Request new Batch Transfer
-        </Button>
-      </View>
+      {can(TRANSFER_PERMISSIONS.CREATE) ? (
+        <View
+          style={[
+            styles.bottomBar,
+            {borderTopColor: colors.disabled, backgroundColor: colors.surface},
+          ]}>
+          <Button
+            icon="plus"
+            mode="contained"
+            onPress={() =>
+              navigation.navigate(routes.batchTransferRequestForm())
+            }>
+            Request new Batch Transfer
+          </Button>
+        </View>
+      ) : null}
     </View>
   );
 };

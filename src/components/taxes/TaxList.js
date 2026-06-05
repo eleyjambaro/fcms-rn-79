@@ -39,11 +39,13 @@ import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadin
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import TaxForm from '../forms/TaxForm';
 import {deleteTax, getTaxes, updateTax} from '../../localDbQueries/taxes';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const TaxList = props => {
   const {backAction, viewMode, filter} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -135,24 +137,32 @@ const TaxList = props => {
   };
 
   const taxOptions = [
-    {
-      label: 'Edit',
-      icon: 'pencil-outline',
-      handler: () => {
-        showUpdateTaxModal();
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        showDeleteDialog();
-        closeOptionsBottomSheet();
-      },
-    },
+    ...(can('taxes.edit')
+      ? [
+          {
+            label: 'Edit',
+            icon: 'pencil-outline',
+            handler: () => {
+              showUpdateTaxModal();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
+    ...(can('taxes.delete')
+      ? [
+          {
+            label: 'Delete',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              showDeleteDialog();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
   ];
 
   useEffect(() => {
@@ -245,14 +255,18 @@ const TaxList = props => {
           //   });
           // }
 
-          if (viewMode === 'manage-taxes') {
+          if (viewMode === 'manage-taxes' && can('taxes.edit')) {
             showUpdateTaxModal();
           }
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          taxOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
       />
     );
   };

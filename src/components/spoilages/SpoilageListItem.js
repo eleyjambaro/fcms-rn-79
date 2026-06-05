@@ -94,15 +94,17 @@ const SpoilageListItem = props => {
         </View>
       </View>
 
-      <Pressable
-        style={styles.optionButtonContainer}
-        onPress={onPressItemOptions}>
-        <MaterialCommunityIcons
-          name="chevron-down"
-          size={20}
-          color={colors.dark}
-        />
-      </Pressable>
+      {onPressItemOptions ? (
+        <Pressable
+          style={styles.optionButtonContainer}
+          onPress={onPressItemOptions}>
+          <MaterialCommunityIcons
+            name="chevron-down"
+            size={20}
+            color={colors.dark}
+          />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 };

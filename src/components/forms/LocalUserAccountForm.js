@@ -23,6 +23,8 @@ import {getCloudBranchAccountAssignments} from '../../serverDbQueries/v2/branchA
 import {getCloudDeviceAccountAssignments} from '../../serverDbQueries/v2/deviceAccountAssignments';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
+import CreateRoleModal from '../modals/CreateRoleModal';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const LocalUserAccountValidationSchema = Yup.object().shape({
   edit_mode: Yup.boolean(),
@@ -60,8 +62,10 @@ const LocalUserAccountForm = props => {
     submitButtonTitle = 'Create',
   } = props;
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const userRoleConfig = authUser?.role_config;
   const [showDropDown, setShowDropDown] = useState(false);
+  const [createRoleModalVisible, setCreateRoleModalVisible] = useState(false);
   const {status: getRolesStatus, data: getRolesData} = useQuery(
     ['cloudRoles'],
     getCloudRoles,
@@ -304,6 +308,26 @@ const LocalUserAccountForm = props => {
                 isDisabled() ? {color: colors.disabled} : {}
               }
             />
+            {!isDisabled() && can('userManagement.manageRoles') ? (
+              <Button
+                icon="plus"
+                compact
+                onPress={() => setCreateRoleModalVisible(true)}
+                style={styles.newRoleButton}
+                contentStyle={styles.newRoleButtonContent}>
+                New role
+              </Button>
+            ) : null}
+            <CreateRoleModal
+              visible={createRoleModalVisible}
+              onDismiss={() => setCreateRoleModalVisible(false)}
+              onCreated={role => {
+                if (!role?.id) return;
+                const newRoleId = `${role.id}`;
+                setRoleId(newRoleId);
+                handleChange('role_id')(newRoleId);
+              }}
+            />
             <Divider style={styles.sectionDivider} />
             <Text style={[styles.sectionTitle, {color: colors.dark}]}>
               Manage Branch Access
@@ -379,6 +403,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: 'bold',
+  },
+  newRoleButton: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  newRoleButtonContent: {
+    paddingHorizontal: 0,
   },
   sectionHint: {
     fontStyle: 'italic',

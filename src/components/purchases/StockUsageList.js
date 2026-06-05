@@ -22,6 +22,7 @@ import {
   getBatchStockUsageEntriesCount,
 } from '../../localDbQueries/batchStockUsage';
 import ListEmpty from '../stateIndicators/ListEmpty';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const StockUsageList = props => {
   const {
@@ -35,6 +36,7 @@ const StockUsageList = props => {
   } = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -191,26 +193,28 @@ const StockUsageList = props => {
       </View>
       {renderCategoryGrandTotal()}
       <GrandTotal value={grandTotalData || 0} />
-      <View
-        style={{
-          backgroundColor: 'white',
-          padding: 10,
-        }}>
-        <Button
-          mode="contained"
-          loading={
-            hasCurrentBatchStockUsageGroupStatus === 'loading' ? true : false
-          }
-          disabled={
-            hasCurrentBatchStockUsageGroupStatus === 'loading' ||
-            !hasCurrentBatchStockUsageGroupData
-          }
-          onPress={() => {
-            navigation.navigate(routes.confirmStockUsage());
+      {can('stockUsage.create') ? (
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 10,
           }}>
-          {'Confirm Stock Usage' + stockUsageEntriesCount}
-        </Button>
-      </View>
+          <Button
+            mode="contained"
+            loading={
+              hasCurrentBatchStockUsageGroupStatus === 'loading' ? true : false
+            }
+            disabled={
+              hasCurrentBatchStockUsageGroupStatus === 'loading' ||
+              !hasCurrentBatchStockUsageGroupData
+            }
+            onPress={() => {
+              navigation.navigate(routes.confirmStockUsage());
+            }}>
+            {'Confirm Stock Usage' + stockUsageEntriesCount}
+          </Button>
+        </View>
+      ) : null}
     </>
   );
 };

@@ -44,11 +44,13 @@ import {
   getVendors,
   updateVendor,
 } from '../../localDbQueries/vendors';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const VendorList = props => {
   const {backAction, viewMode, filter} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -141,24 +143,32 @@ const VendorList = props => {
   };
 
   const vendorOptions = [
-    {
-      label: 'Edit',
-      icon: 'pencil-outline',
-      handler: () => {
-        showUpdateVendorModal();
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        showDeleteDialog();
-        closeOptionsBottomSheet();
-      },
-    },
+    ...(can('vendors.edit')
+      ? [
+          {
+            label: 'Edit',
+            icon: 'pencil-outline',
+            handler: () => {
+              showUpdateVendorModal();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
+    ...(can('vendors.delete')
+      ? [
+          {
+            label: 'Delete',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              showDeleteDialog();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
   ];
 
   useEffect(() => {
@@ -251,18 +261,22 @@ const VendorList = props => {
           //   });
           // }
 
-          if (viewMode === 'list') {
-            showUpdateVendorModal();
-          }
-
-          if (viewMode === 'manage-vendors') {
+          // Tapping a row opens the edit modal — only for users who may edit.
+          if (
+            (viewMode === 'list' || viewMode === 'manage-vendors') &&
+            can('vendors.edit')
+          ) {
             showUpdateVendorModal();
           }
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          vendorOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
       />
     );
   };

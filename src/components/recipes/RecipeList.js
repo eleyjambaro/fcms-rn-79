@@ -30,11 +30,13 @@ import ListLoadingFooter from '../stateIndicators/ListLoadingFooter';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
 import {deleteRecipe, getRecipes} from '../../localDbQueries/recipes';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const RecipeList = props => {
   const {filter, backAction} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -69,24 +71,34 @@ const RecipeList = props => {
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
 
   const itemOptions = [
-    {
-      label: 'Edit',
-      icon: 'pencil-outline',
-      handler: () => {
-        navigation.navigate(routes.editRecipe(), {recipe_id: focusedItem.id});
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        showDeleteDialog();
-        closeOptionsBottomSheet();
-      },
-    },
+    ...(can('recipes.edit')
+      ? [
+          {
+            label: 'Edit',
+            icon: 'pencil-outline',
+            handler: () => {
+              navigation.navigate(routes.editRecipe(), {
+                recipe_id: focusedItem.id,
+              });
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
+    ...(can('recipes.delete')
+      ? [
+          {
+            label: 'Delete',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              showDeleteDialog();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
   ];
 
   useEffect(() => {
@@ -197,10 +209,14 @@ const RecipeList = props => {
           setFocusedItem(() => item);
           navigation.navigate(routes.recipeView(), {recipe_id: item.id});
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          itemOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
       />
     );
   };

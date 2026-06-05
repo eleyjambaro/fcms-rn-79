@@ -60,11 +60,13 @@ import {
 import RevenueForm from '../forms/RevenueForm';
 import RevenueGroupForm from '../forms/RevenueGroupForm';
 import ErrorMessageModal from '../modals/ErrorMessageModal';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const RevenueGroupList = props => {
   const {backAction, viewMode = 'list', dateFilter, highlightedItemId} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -217,24 +219,32 @@ const RevenueGroupList = props => {
   // (list) view, per-source amounts are added/edited/deleted directly from the
   // accordion breakdown rows (see RevenueGroupListItem).
   const itemOptions = [
-    {
-      label: `Update ${focusedItem?.name} revenue group`,
-      icon: 'pencil-outline',
-      handler: () => {
-        showUpdateRevenueGroupModal();
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        showDeleteRevenueGroupDialog();
-        closeOptionsBottomSheet();
-      },
-    },
+    ...(can('revenues.edit')
+      ? [
+          {
+            label: `Update ${focusedItem?.name} revenue group`,
+            icon: 'pencil-outline',
+            handler: () => {
+              showUpdateRevenueGroupModal();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
+    ...(can('revenues.delete')
+      ? [
+          {
+            label: 'Delete',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              showDeleteRevenueGroupDialog();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
   ];
 
   const optionsBottomSheetModalRef = useRef(null);
@@ -436,17 +446,23 @@ const RevenueGroupList = props => {
         dateFilter={dateFilter}
         onPress={() => {
           setFocusedItem(() => item);
-          if (viewMode === 'manage-list') {
+          if (viewMode === 'manage-list' && can('revenues.edit')) {
             showUpdateRevenueGroupModal();
           }
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
-        onAddExternalRevenue={handleAddExternalRevenue}
-        onEditEntry={handleEditEntry}
-        onDeleteEntry={handleDeleteEntry}
+        onPressItemOptions={
+          itemOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
+        onAddExternalRevenue={
+          can('revenues.create') ? handleAddExternalRevenue : undefined
+        }
+        onEditEntry={can('revenues.edit') ? handleEditEntry : undefined}
+        onDeleteEntry={can('revenues.delete') ? handleDeleteEntry : undefined}
       />
     );
   };
@@ -664,18 +680,20 @@ const RevenueGroupList = props => {
       {viewMode === 'list' && (
         <GrandTotal value={revenueGroupsGrandTotalData || 0} />
       )}
-      <View
-        style={{
-          backgroundColor: 'white',
-          padding: 10,
-        }}>
-        <Button
-          mode="contained"
-          icon="plus"
-          onPress={showCreateRevenueGroupModal}>
-          Create New Revenue Group
-        </Button>
-      </View>
+      {can('revenues.create') ? (
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 10,
+          }}>
+          <Button
+            mode="contained"
+            icon="plus"
+            onPress={showCreateRevenueGroupModal}>
+            Create New Revenue Group
+          </Button>
+        </View>
+      ) : null}
       <BottomSheetModal
         ref={optionsBottomSheetModalRef}
         index={1}

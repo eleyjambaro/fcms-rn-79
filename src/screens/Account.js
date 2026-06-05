@@ -88,7 +88,7 @@ const Account = props => {
 
   const teamMemberRoleName = authUser?.role_name;
 
-  const {can} = useRoleAccess();
+  const {can, canAccessModule} = useRoleAccess();
   const androidVersion = Platform.constants['Release'];
   const sdkVersion = Platform.Version;
 
@@ -1070,6 +1070,8 @@ const Account = props => {
   };
 
   const renderCompanyDataSection = () => {
+    if (!canAccessModule('items')) return null;
+
     return (
       <Drawer.Section title="Company Data">
         <Drawer.Item
@@ -1127,35 +1129,42 @@ const Account = props => {
       </Drawer.Section>
     );
 
-    if (!can('dataSyncAndBackup')) return null;
+    if (!canAccessModule('dataSyncAndBackup')) return null;
 
     return Component;
   };
 
   const renderInventoryDataTemplateSection = () => {
-    const Component = (
+    if (!canAccessModule('inventoryDataTemplate')) return null;
+
+    const canImport = can('inventoryDataTemplate.import');
+    const canExport = can('inventoryDataTemplate.export');
+
+    return (
       <Drawer.Section title="Inventory Data Template (IDT)">
-        <Drawer.Item
-          icon="file-download-outline"
-          label="Download Empty Inventory Data Template"
-          onPress={handlePressDownloadEmptyInvDataTemplate}
-        />
-        <Drawer.Item
-          icon="file-import-outline"
-          label="Import Inventory Data Template"
-          onPress={handlePressImportInvDataTemplate}
-        />
-        <Drawer.Item
-          icon="file-export-outline"
-          label="Export Inventory as IDT"
-          onPress={handlePressExportInvDataTemplate}
-        />
+        {canExport ? (
+          <Drawer.Item
+            icon="file-download-outline"
+            label="Download Empty Inventory Data Template"
+            onPress={handlePressDownloadEmptyInvDataTemplate}
+          />
+        ) : null}
+        {canImport ? (
+          <Drawer.Item
+            icon="file-import-outline"
+            label="Import Inventory Data Template"
+            onPress={handlePressImportInvDataTemplate}
+          />
+        ) : null}
+        {canExport ? (
+          <Drawer.Item
+            icon="file-export-outline"
+            label="Export Inventory as IDT"
+            onPress={handlePressExportInvDataTemplate}
+          />
+        ) : null}
       </Drawer.Section>
     );
-
-    if (!can('inventoryDataTemplate')) return null;
-
-    return Component;
   };
 
   const renderUsersSection = () => {
@@ -1194,30 +1203,43 @@ const Account = props => {
       );
     }
 
-    if (!can('userManagement')) return null;
+    if (!canAccessModule('userManagement')) return null;
+
+    // "View team members & roles" lets a member open either list (read-only);
+    // the create/edit controls inside those screens are gated separately by
+    // userManagement.manageMembers / userManagement.manageRoles.
+    const canSeeMembers =
+      can('userManagement.viewMembers') || can('userManagement.manageMembers');
+    const canSeeRoles =
+      can('userManagement.viewMembers') || can('userManagement.manageRoles');
 
     return (
       <Drawer.Section title="Security & Privacy">
-        <Drawer.Item
-          icon="account-supervisor-outline"
-          label="Manage Team Members"
-          onPress={() => {
-            navigation.navigate(routes.localUserAccounts());
-          }}
-        />
-        <Drawer.Item
-          icon="shield-account-outline"
-          label="Manage Roles"
-          onPress={() => {
-            navigation.navigate(routes.cloudRoles());
-          }}
-        />
+        {canSeeMembers ? (
+          <Drawer.Item
+            icon="account-supervisor-outline"
+            label="Manage Team Members"
+            onPress={() => {
+              navigation.navigate(routes.localUserAccounts());
+            }}
+          />
+        ) : null}
+        {canSeeRoles ? (
+          <Drawer.Item
+            icon="shield-account-outline"
+            label="Manage Roles"
+            onPress={() => {
+              navigation.navigate(routes.cloudRoles());
+            }}
+          />
+        ) : null}
       </Drawer.Section>
     );
   };
 
   const renderEditCompanyProfileButton = () => {
-    if (!authUser?.is_root_account) return null;
+    // Root always passes; non-root members need the explicit granular permission.
+    if (!can('account.updateCompanyProfile')) return null;
 
     return (
       <ManageListButton
@@ -2246,13 +2268,15 @@ const Account = props => {
           {renderUsersSection()}
 
           <Drawer.Section title="More Options">
-            <Drawer.Item
-              icon="cog-outline"
-              label="Settings"
-              onPress={() => {
-                navigation.navigate(routes.settings());
-              }}
-            />
+            {canAccessModule('settings') ? (
+              <Drawer.Item
+                icon="cog-outline"
+                label="Settings"
+                onPress={() => {
+                  navigation.navigate(routes.settings());
+                }}
+              />
+            ) : null}
             <Drawer.Item
               icon="logout"
               label="Logout"

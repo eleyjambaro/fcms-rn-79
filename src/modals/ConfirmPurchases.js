@@ -51,6 +51,7 @@ import {getVendor} from '../localDbQueries/vendors';
 import ConfirmationCheckbox from '../components/forms/ConfirmationCheckbox';
 import useCurrencySymbol from '../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../utils/stringHelpers';
+import useRoleAccess from '../hooks/useRoleAccess';
 
 const PurchaseFormValidationSchema = Yup.object().shape({
   vendor_id: Yup.string().required('Vendor is required'),
@@ -65,6 +66,7 @@ const ConfirmPurchases = props => {
     route.params?.current_batch_purchase_group_id;
   const initialVendorId = route.params?.vendor_id || '';
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const currencySymbol = useCurrencySymbol();
   const navigation = useNavigation();
   const [date, setDate] = useState(new Date());
@@ -500,16 +502,18 @@ const ConfirmPurchases = props => {
                 value={grandTotalData || 0}
               />
               <View style={{padding: 10}}>
-                <Button
-                  disabled={
-                    !dirty || !isValid || isSubmitting || !confirmDateChecked
-                  }
-                  loading={isSubmitting}
-                  mode="contained"
-                  style={{marginBottom: 10}}
-                  onPress={handleSubmit}>
-                  Confirm & Proceed
-                </Button>
+                {can('batchPurchase.confirm') ? (
+                  <Button
+                    disabled={
+                      !dirty || !isValid || isSubmitting || !confirmDateChecked
+                    }
+                    loading={isSubmitting}
+                    mode="contained"
+                    style={{marginBottom: 10}}
+                    onPress={handleSubmit}>
+                    Confirm & Proceed
+                  </Button>
+                ) : null}
                 <Button
                   onPress={() => {
                     navigation.goBack();

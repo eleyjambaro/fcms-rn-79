@@ -35,11 +35,11 @@ const MemoizedUnauthorizedAccount = React.memo(UnauthorizedAccount);
 const MainTab = React.memo(function MainTab(props) {
   const {navigation} = props;
   const {colors} = useTheme();
-  const {tabState} = useRoleAccess();
+  const {moduleState} = useRoleAccess();
   const tabBarBadgeStyle = {fontSize: 10, top: -8};
 
   const renderReportsTabScreen = () => {
-    const state = tabState('reports');
+    const state = moduleState('reports');
     if (state === 'hidden') return null;
 
     const component =
@@ -49,7 +49,7 @@ const MainTab = React.memo(function MainTab(props) {
   };
 
   const renderSettingsTabScreen = () => {
-    const state = tabState('settings');
+    const state = moduleState('settings');
     if (state === 'hidden') return null;
 
     const component =

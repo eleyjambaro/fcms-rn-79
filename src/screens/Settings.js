@@ -6,12 +6,15 @@ import {useNavigation} from '@react-navigation/native';
 import routes from '../constants/routes';
 import BannerAdComponent from '../components/ads/BannerAdComponent';
 import {adUnitIds} from '../constants/adUnitIds';
+import useRoleAccess from '../hooks/useRoleAccess';
+import PermissionGate from '../components/permissions/PermissionGate';
 
 const Settings = () => {
   const [active, setActive] = React.useState('');
   const {colors} = useTheme();
   const [_authState, {signOut}] = useCurrentUser();
   const navigation = useNavigation();
+  const {can} = useRoleAccess();
 
   return (
     <>
@@ -24,39 +27,47 @@ const Settings = () => {
               navigation.navigate(routes.account());
             }}
           />
-          <Drawer.Item
-            style={styles.itemStyle}
-            label="Company Profile"
-            onPress={() => {
-              navigation.navigate(routes.updateCompany());
-            }}
-          />
-          <Drawer.Item
-            style={[styles.itemStyle]}
-            label="Currency"
-            onPress={() => {
-              navigation.navigate(routes.currencies());
-            }}
-          />
+          <PermissionGate permission="account.updateCompanyProfile">
+            <Drawer.Item
+              style={styles.itemStyle}
+              label="Company Profile"
+              onPress={() => {
+                navigation.navigate(routes.updateCompany());
+              }}
+            />
+          </PermissionGate>
+          <PermissionGate permission="settings.edit">
+            <Drawer.Item
+              style={[styles.itemStyle]}
+              label="Currency"
+              onPress={() => {
+                navigation.navigate(routes.currencies());
+              }}
+            />
+          </PermissionGate>
         </Drawer.Section>
-        <Drawer.Section title="Devices">
-          <Drawer.Item
-            style={styles.itemStyle}
-            label="Printers"
-            onPress={() => {
-              navigation.navigate(routes.printers());
-            }}
-          />
-        </Drawer.Section>
-        <Drawer.Section title="Activation">
-          <Drawer.Item
-            style={styles.itemStyle}
-            label="Activate License"
-            onPress={() => {
-              navigation.navigate(routes.activateLicense());
-            }}
-          />
-        </Drawer.Section>
+        {can('settings.edit') ? (
+          <Drawer.Section title="Devices">
+            <Drawer.Item
+              style={styles.itemStyle}
+              label="Printers"
+              onPress={() => {
+                navigation.navigate(routes.printers());
+              }}
+            />
+          </Drawer.Section>
+        ) : null}
+        {can('settings.edit') ? (
+          <Drawer.Section title="Activation">
+            <Drawer.Item
+              style={styles.itemStyle}
+              label="Activate License"
+              onPress={() => {
+                navigation.navigate(routes.activateLicense());
+              }}
+            />
+          </Drawer.Section>
+        ) : null}
         {/* <Drawer.Section title="Food Costing">
         <Drawer.Item
           style={styles.itemStyle}

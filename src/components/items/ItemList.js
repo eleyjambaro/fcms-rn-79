@@ -118,14 +118,22 @@ const ItemList = props => {
   };
 
   const itemOptions = [
-    {
-      label: 'Manage Stocks',
-      icon: 'text-box-check-outline',
-      handler: () => {
-        navigation.navigate(routes.manageStock(), {item_id: focusedItem.id});
-        closeOptionsBottomSheet();
-      },
-    },
+    // "Manage Stocks" opens the stock adjustment screen, so it requires the
+    // inventory-log adjust permission, not just item visibility.
+    ...(can('logs.adjust')
+      ? [
+          {
+            label: 'Manage Stocks',
+            icon: 'text-box-check-outline',
+            handler: () => {
+              navigation.navigate(routes.manageStock(), {
+                item_id: focusedItem.id,
+              });
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
     /**
      * Uncomment code below to add View Puchase Entries option
      */
@@ -246,10 +254,14 @@ const ItemList = props => {
           setFocusedItem(() => item);
           navigation.navigate(routes.itemView(), {item_id: item.id, viewMode});
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          itemOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
       />
     );
   };

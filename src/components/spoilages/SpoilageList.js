@@ -51,6 +51,7 @@ import {
 } from '../../localDbQueries/spoilages';
 import SpoilageItemForm from '../forms/SpoilageItemForm';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const SpoilageList = props => {
   const {
@@ -66,6 +67,7 @@ const SpoilageList = props => {
     currentCategory,
   } = props;
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const route = useRoute();
   const navigation = useNavigation();
   const currencySymbol = useCurrencySymbol();
@@ -158,24 +160,32 @@ const SpoilageList = props => {
   );
 
   const itemOptions = [
-    {
-      label: 'Edit',
-      icon: 'pencil-outline',
-      handler: () => {
-        setSpoilageModalVisible(() => true);
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Remove',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        setDeleteDialogVisible(() => true);
-        closeOptionsBottomSheet();
-      },
-    },
+    ...(can('spoilage.edit')
+      ? [
+          {
+            label: 'Edit',
+            icon: 'pencil-outline',
+            handler: () => {
+              setSpoilageModalVisible(() => true);
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
+    ...(can('spoilage.delete')
+      ? [
+          {
+            label: 'Remove',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              setDeleteDialogVisible(() => true);
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
   ];
 
   const optionsBottomSheetModalRef = useRef(null);
@@ -274,12 +284,19 @@ const SpoilageList = props => {
         item={item}
         onPressItem={() => {
           setFocusedItem(() => item);
-          setSpoilageModalVisible(() => true);
+          // The detail modal is an edit form — only open it for editors.
+          if (can('spoilage.edit')) {
+            setSpoilageModalVisible(() => true);
+          }
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          itemOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
         monthYearDateFilter={monthYearDateFilter}
       />
     );

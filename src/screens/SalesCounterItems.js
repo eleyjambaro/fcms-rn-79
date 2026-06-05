@@ -6,6 +6,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import routes from '../constants/routes';
 import ItemList from '../components/salesCounter/ItemList';
 import useSearchbarContext from '../hooks/useSearchbarContext';
+import useRoleAccess from '../hooks/useRoleAccess';
 
 const SalesCounterItems = props => {
   const {
@@ -18,8 +19,13 @@ const SalesCounterItems = props => {
     showActionButtons = false,
   } = props;
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const {keyword, setKeyword} = useSearchbarContext();
   const listFilter = filter ? filter : {};
+  const canReview =
+    counterMode === 'sales-order-register'
+      ? can('salesOrders.create')
+      : can('counter.create');
 
   const onChangeSearch = keyword => setKeyword(keyword);
 
@@ -84,7 +90,7 @@ const SalesCounterItems = props => {
         />
       </View>
 
-      {showActionButtons && (
+      {showActionButtons && canReview && (
         <View
           style={{
             backgroundColor: 'white',

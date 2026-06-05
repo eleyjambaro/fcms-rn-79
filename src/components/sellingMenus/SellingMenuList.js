@@ -31,11 +31,13 @@ import {
   getSellingMenus,
 } from '../../localDbQueries/sellingMenus';
 import ListEmpty from '../stateIndicators/ListEmpty';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const SellingMenuList = props => {
   const {filter, backAction} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -70,26 +72,34 @@ const SellingMenuList = props => {
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
 
   const itemOptions = [
-    {
-      label: 'Edit',
-      icon: 'pencil-outline',
-      handler: () => {
-        navigation.navigate(routes.editSellingMenu(), {
-          selling_menu_id: focusedItem.id,
-        });
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        showDeleteDialog();
-        closeOptionsBottomSheet();
-      },
-    },
+    ...(can('sellingMenu.edit')
+      ? [
+          {
+            label: 'Edit',
+            icon: 'pencil-outline',
+            handler: () => {
+              navigation.navigate(routes.editSellingMenu(), {
+                selling_menu_id: focusedItem.id,
+              });
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
+    ...(can('sellingMenu.delete')
+      ? [
+          {
+            label: 'Delete',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              showDeleteDialog();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
   ];
 
   useEffect(() => {
@@ -202,10 +212,14 @@ const SellingMenuList = props => {
             selling_menu_id: item.id,
           });
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          itemOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
       />
     );
   };

@@ -31,10 +31,12 @@ import {
   voidInventoryLog,
 } from '../localDbQueries/inventoryLogs';
 import InventoryLogRemarksForm from '../components/forms/InventoryLogRemarksForm';
+import useRoleAccess from '../hooks/useRoleAccess';
 
 const LogView = props => {
   const {backAction} = props;
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const route = useRoute();
   const logId = route.params?.log_id;
   const itemId = route.params.item_id;
@@ -139,59 +141,70 @@ const LogView = props => {
   const hideUpdateLogRemarksModal = () =>
     setUpdateLogRemarksModalVisible(false);
 
+  const canAdjustLogs = can('logs.adjust');
+  const canVoidLogs = can('logs.void');
+
   const options = [
-    {
-      label: 'Update Log',
-      icon: 'pencil-outline',
-      handler: () => {
-        navigation.navigate(routes.updateInventoryLog(), {
-          log_id: logId,
-          item_id: itemId,
-        });
-        closeOptionsBottomSheet();
-      },
-      disabled: isUpdateLogOptionDisabled,
-      iconColor: isUpdateLogOptionDisabled ? colors.disabled : null,
-    },
-    {
-      label: 'Edit Remarks',
-      icon: 'note-edit-outline',
-      handler: () => {
-        showUpdateLogRemarksModal();
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Void',
-      labelColor: colors.notification,
-      icon: 'delete-alert-outline',
+    ...(canAdjustLogs
+      ? [
+          {
+            label: 'Update Log',
+            icon: 'pencil-outline',
+            handler: () => {
+              navigation.navigate(routes.updateInventoryLog(), {
+                log_id: logId,
+                item_id: itemId,
+              });
+              closeOptionsBottomSheet();
+            },
+            disabled: isUpdateLogOptionDisabled,
+            iconColor: isUpdateLogOptionDisabled ? colors.disabled : null,
+          },
+          {
+            label: 'Edit Remarks',
+            icon: 'note-edit-outline',
+            handler: () => {
+              showUpdateLogRemarksModal();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
+    ...(canVoidLogs
+      ? [
+          {
+            label: 'Void',
+            labelColor: colors.notification,
+            icon: 'delete-alert-outline',
 
-      handler: () => {
-        if (
-          log.operation_type === 'remove_stock' &&
-          log.yield_ref_id &&
-          log.recipe_id &&
-          yieldStockLog
-        ) {
-          if (yieldStockLog.voided) {
-            setVoidDialogVisible(() => true);
-            closeOptionsBottomSheet();
-          } else {
-            setUnableToVoidDialogVisible(() => true);
-            closeOptionsBottomSheet();
-          }
+            handler: () => {
+              if (
+                log.operation_type === 'remove_stock' &&
+                log.yield_ref_id &&
+                log.recipe_id &&
+                yieldStockLog
+              ) {
+                if (yieldStockLog.voided) {
+                  setVoidDialogVisible(() => true);
+                  closeOptionsBottomSheet();
+                } else {
+                  setUnableToVoidDialogVisible(() => true);
+                  closeOptionsBottomSheet();
+                }
 
-          return;
-        }
+                return;
+              }
 
-        setVoidDialogVisible(() => true);
-        closeOptionsBottomSheet();
-      },
-      disabled: isVoidLogOptionDisabled,
-      iconColor: isVoidLogOptionDisabled
-        ? colors.disabled
-        : colors.notification,
-    },
+              setVoidDialogVisible(() => true);
+              closeOptionsBottomSheet();
+            },
+            disabled: isVoidLogOptionDisabled,
+            iconColor: isVoidLogOptionDisabled
+              ? colors.disabled
+              : colors.notification,
+          },
+        ]
+      : []),
   ];
 
   useEffect(() => {
@@ -437,8 +450,12 @@ const LogView = props => {
             log={log}
             idtImport={idtImport}
             containerStyle={{marginBottom: 0}}
-            onPressItemOptions={openOptionsBottomSheet}
-            onPressEditRemarks={showUpdateLogRemarksModal}
+            onPressItemOptions={
+              options.length === 0 ? undefined : openOptionsBottomSheet
+            }
+            onPressEditRemarks={
+              canAdjustLogs ? showUpdateLogRemarksModal : undefined
+            }
           />
         )}
       </View>

@@ -18,6 +18,7 @@ import useAppConfigContext from '../hooks/useAppConfigContext';
 import useSearchbarContext from '../hooks/useSearchbarContext';
 import {createVendor} from '../localDbQueries/vendors';
 import {ScrollView} from 'react-native-gesture-handler';
+import PermissionGate from '../components/permissions/PermissionGate';
 
 function Vendors(props) {
   const {navigation, viewMode} = props;
@@ -108,15 +109,20 @@ function Vendors(props) {
           />
         </View>
 
-        <View
-          style={{
-            backgroundColor: 'white',
-            padding: 10,
-          }}>
-          <Button mode="contained" icon="plus" onPress={showCreateVendorModal}>
-            Create Vendor
-          </Button>
-        </View>
+        <PermissionGate permission="vendors.create">
+          <View
+            style={{
+              backgroundColor: 'white',
+              padding: 10,
+            }}>
+            <Button
+              mode="contained"
+              icon="plus"
+              onPress={showCreateVendorModal}>
+              Create Vendor
+            </Button>
+          </View>
+        </PermissionGate>
       </View>
     </>
   );

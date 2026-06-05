@@ -54,11 +54,13 @@ import {
 } from '../../localDbQueries/expenses';
 import ExpenseForm from '../forms/ExpenseForm';
 import MonthlyExpenseForm from '../forms/MonthlyExpenseForm';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const MonthlyExpenseList = props => {
   const {expenseGroupId, viewMode = 'list', dateFilter} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -193,47 +195,63 @@ const MonthlyExpenseList = props => {
   const itemOptions =
     viewMode === 'list'
       ? [
-          {
-            label: 'Update expense amount',
-            icon: 'pencil-outline',
-            handler: () => {
-              showCreateExpenseModal();
-              closeOptionsBottomSheet();
-            },
-          },
-          {
-            label: 'Delete expense amount',
-            labelColor: colors.notification,
-            icon: 'delete-outline',
-            iconColor: focusedItem?.expense_id
-              ? colors.notification
-              : colors.disabled,
-            disabled: focusedItem?.expense_id ? false : true,
-            handler: () => {
-              showDeleteExpenseDialog();
-              closeOptionsBottomSheet();
-            },
-          },
+          ...(can('expenses.create')
+            ? [
+                {
+                  label: 'Update expense amount',
+                  icon: 'pencil-outline',
+                  handler: () => {
+                    showCreateExpenseModal();
+                    closeOptionsBottomSheet();
+                  },
+                },
+              ]
+            : []),
+          ...(can('expenses.delete')
+            ? [
+                {
+                  label: 'Delete expense amount',
+                  labelColor: colors.notification,
+                  icon: 'delete-outline',
+                  iconColor: focusedItem?.expense_id
+                    ? colors.notification
+                    : colors.disabled,
+                  disabled: focusedItem?.expense_id ? false : true,
+                  handler: () => {
+                    showDeleteExpenseDialog();
+                    closeOptionsBottomSheet();
+                  },
+                },
+              ]
+            : []),
         ]
       : [
-          {
-            label: 'Update',
-            icon: 'pencil-outline',
-            handler: () => {
-              showUpdateMonthlyExpenseModal();
-              closeOptionsBottomSheet();
-            },
-          },
-          {
-            label: 'Delete',
-            labelColor: colors.notification,
-            icon: 'delete-outline',
-            iconColor: colors.notification,
-            handler: () => {
-              showDeleteMonthlyExpenseDialog();
-              closeOptionsBottomSheet();
-            },
-          },
+          ...(can('expenses.edit')
+            ? [
+                {
+                  label: 'Update',
+                  icon: 'pencil-outline',
+                  handler: () => {
+                    showUpdateMonthlyExpenseModal();
+                    closeOptionsBottomSheet();
+                  },
+                },
+              ]
+            : []),
+          ...(can('expenses.delete')
+            ? [
+                {
+                  label: 'Delete',
+                  labelColor: colors.notification,
+                  icon: 'delete-outline',
+                  iconColor: colors.notification,
+                  handler: () => {
+                    showDeleteMonthlyExpenseDialog();
+                    closeOptionsBottomSheet();
+                  },
+                },
+              ]
+            : []),
         ];
 
   const optionsBottomSheetModalRef = useRef(null);
@@ -383,15 +401,21 @@ const MonthlyExpenseList = props => {
           setFocusedItem(() => item);
 
           if (viewMode === 'list') {
-            setCreateExpenseModalVisible(() => true);
-          } else {
+            if (can('expenses.create')) {
+              setCreateExpenseModalVisible(() => true);
+            }
+          } else if (can('expenses.edit')) {
             showUpdateMonthlyExpenseModal();
           }
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          itemOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
       />
     );
   };
@@ -596,15 +620,17 @@ const MonthlyExpenseList = props => {
       {viewMode === 'list' && (
         <GrandTotal value={monthlyExpenseGrandTotalData || 0} />
       )}
-      <View
-        style={{
-          backgroundColor: 'white',
-          padding: 10,
-        }}>
-        <Button mode="contained" onPress={showCreateMonthlyExpenseModal}>
-          Create Monthly Expense
-        </Button>
-      </View>
+      {can('expenses.create') ? (
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 10,
+          }}>
+          <Button mode="contained" onPress={showCreateMonthlyExpenseModal}>
+            Create Monthly Expense
+          </Button>
+        </View>
+      ) : null}
       <BottomSheetModal
         ref={optionsBottomSheetModalRef}
         index={1}

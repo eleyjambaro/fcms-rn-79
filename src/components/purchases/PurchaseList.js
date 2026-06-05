@@ -25,6 +25,7 @@ import {getVendor} from '../../localDbQueries/vendors';
 import ListEmpty from '../stateIndicators/ListEmpty';
 import MoreSelectionButton from '../buttons/MoreSelectionButton';
 import useItemFormContext from '../../hooks/useItemFormContext';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const PurchaseList = props => {
   const {
@@ -39,6 +40,7 @@ const PurchaseList = props => {
   } = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const {setFormikActions} = useItemFormContext();
   const [focusedItem, setFocusedItem] = useState(null);
   const [vendorId, setVendorId] = useState(null);
@@ -267,23 +269,29 @@ const PurchaseList = props => {
           });
         }}
       />
-      <View
-        style={{
-          backgroundColor: 'white',
-          padding: 10,
-        }}>
-        <Button
-          mode="contained"
-          disabled={!currentBatchPurchaseGroupId || purchaseEntriesCount < 1 || !vendorId}
-          onPress={() => {
-            navigation.navigate(routes.confirmPurchases(), {
-              current_batch_purchase_group_id: currentBatchPurchaseGroupId,
-              vendor_id: vendorId,
-            });
+      {can('batchPurchase.create') ? (
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 10,
           }}>
-          {'Confirm Purchase' + purchaseEntriesCount}
-        </Button>
-      </View>
+          <Button
+            mode="contained"
+            disabled={
+              !currentBatchPurchaseGroupId ||
+              purchaseEntriesCount < 1 ||
+              !vendorId
+            }
+            onPress={() => {
+              navigation.navigate(routes.confirmPurchases(), {
+                current_batch_purchase_group_id: currentBatchPurchaseGroupId,
+                vendor_id: vendorId,
+              });
+            }}>
+            {'Confirm Purchase' + purchaseEntriesCount}
+          </Button>
+        </View>
+      ) : null}
     </>
   );
 };

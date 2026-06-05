@@ -20,6 +20,7 @@ import {syncCloudDeviceAccountAssignments} from '../serverDbQueries/v2/deviceAcc
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
 import useCurrentUser from '../hooks/useCurrentUser';
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
+import PermissionGate from '../components/permissions/PermissionGate';
 
 function LocalUserAccounts(props) {
   const {navigation, viewMode} = props;
@@ -150,18 +151,20 @@ function LocalUserAccounts(props) {
           />
         </View>
 
-        <View
-          style={{
-            backgroundColor: 'white',
-            padding: 10,
-          }}>
-          <Button
-            icon="plus"
-            mode="contained"
-            onPress={showCreateLocalUserAccountModal}>
-            Create User
-          </Button>
-        </View>
+        <PermissionGate permission="userManagement.manageMembers">
+          <View
+            style={{
+              backgroundColor: 'white',
+              padding: 10,
+            }}>
+            <Button
+              icon="plus"
+              mode="contained"
+              onPress={showCreateLocalUserAccountModal}>
+              Create User
+            </Button>
+          </View>
+        </PermissionGate>
       </View>
     </>
   );

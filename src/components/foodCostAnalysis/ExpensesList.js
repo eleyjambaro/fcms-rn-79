@@ -55,11 +55,13 @@ import {
 import ExpenseForm from '../forms/ExpenseForm';
 import MonthlyExpenseForm from '../forms/MonthlyExpenseForm';
 import ExpenseListItem from './ExpensesListItem';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const ExpenseList = props => {
   const {expenseGroupId, viewMode = 'list', dateFilter} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -146,24 +148,32 @@ const ExpenseList = props => {
   };
 
   const itemOptions = [
-    {
-      label: 'Update',
-      icon: 'pencil-outline',
-      handler: () => {
-        showUpdateExpenseModal();
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        showDeleteExpenseDialog();
-        closeOptionsBottomSheet();
-      },
-    },
+    ...(can('expenses.edit')
+      ? [
+          {
+            label: 'Update',
+            icon: 'pencil-outline',
+            handler: () => {
+              showUpdateExpenseModal();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
+    ...(can('expenses.delete')
+      ? [
+          {
+            label: 'Delete',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              showDeleteExpenseDialog();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
   ];
 
   const optionsBottomSheetModalRef = useRef(null);
@@ -271,12 +281,18 @@ const ExpenseList = props => {
         item={item}
         onPress={() => {
           setFocusedItem(() => item);
-          setUpdateExpenseModalVisible(() => true);
+          if (can('expenses.edit')) {
+            setUpdateExpenseModalVisible(() => true);
+          }
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          itemOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
       />
     );
   };
@@ -422,15 +438,17 @@ const ExpenseList = props => {
       {viewMode === 'list' && (
         <GrandTotal value={expensesGrandTotalData || 0} />
       )}
-      <View
-        style={{
-          backgroundColor: 'white',
-          padding: 10,
-        }}>
-        <Button mode="contained" onPress={showCreateExpenseModal}>
-          Add Expense
-        </Button>
-      </View>
+      {can('expenses.create') ? (
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 10,
+          }}>
+          <Button mode="contained" onPress={showCreateExpenseModal}>
+            Add Expense
+          </Button>
+        </View>
+      ) : null}
       <BottomSheetModal
         ref={optionsBottomSheetModalRef}
         index={1}

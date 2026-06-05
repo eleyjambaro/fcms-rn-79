@@ -31,9 +31,11 @@ import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScr
 import ListEmpty from '../../components/stateIndicators/ListEmpty';
 import TestModeLimitModal from '../modals/TestModeLimitModal';
 import ErrorMessageModal from '../modals/ErrorMessageModal';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const RevenueSourceList = () => {
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const queryClient = useQueryClient();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
@@ -83,24 +85,32 @@ const RevenueSourceList = () => {
 
   const optionsBottomSheetModalRef = useRef(null);
   const itemOptions = [
-    {
-      label: `Rename ${focusedItem?.name || ''} source`,
-      icon: 'pencil-outline',
-      handler: () => {
-        setUpdateModalVisible(true);
-        optionsBottomSheetModalRef.current?.dismiss();
-      },
-    },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        setDeleteDialogVisible(true);
-        optionsBottomSheetModalRef.current?.dismiss();
-      },
-    },
+    ...(can('revenues.edit')
+      ? [
+          {
+            label: `Rename ${focusedItem?.name || ''} source`,
+            icon: 'pencil-outline',
+            handler: () => {
+              setUpdateModalVisible(true);
+              optionsBottomSheetModalRef.current?.dismiss();
+            },
+          },
+        ]
+      : []),
+    ...(can('revenues.delete')
+      ? [
+          {
+            label: 'Delete',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              setDeleteDialogVisible(true);
+              optionsBottomSheetModalRef.current?.dismiss();
+            },
+          },
+        ]
+      : []),
   ];
   // Two options (rename / delete): 2 * 75 + 30 = 180.
   const optionsBottomSheetSnapPoints = useMemo(() => [120, 180], []);
@@ -177,18 +187,26 @@ const RevenueSourceList = () => {
     }
   };
 
+  const hasItemOptions = itemOptions.length > 0;
+
   const renderItem = ({item}) => {
     return (
       <Pressable
         style={[styles.row, {borderColor: colors.neutralTint5, backgroundColor: colors.surface}]}
-        onPress={() => {
-          setFocusedItem(() => item);
-          optionsBottomSheetModalRef.current?.present();
-        }}>
+        onPress={
+          hasItemOptions
+            ? () => {
+                setFocusedItem(() => item);
+                optionsBottomSheetModalRef.current?.present();
+              }
+            : undefined
+        }>
         <Text style={{fontSize: 14, color: colors.dark, flex: 1}} numberOfLines={1}>
           {item.name}
         </Text>
-        <MaterialIcons name="more-horiz" size={20} color={colors.dark} />
+        {hasItemOptions ? (
+          <MaterialIcons name="more-horiz" size={20} color={colors.dark} />
+        ) : null}
       </Pressable>
     );
   };
@@ -283,12 +301,16 @@ const RevenueSourceList = () => {
         ListFooterComponent={isFetchingNextPage ? <ListLoadingFooter /> : null}
         ListEmptyComponent={
           <ListEmpty
-            actions={[
-              {
-                label: 'Create revenue source',
-                handler: () => setCreateModalVisible(true),
-              },
-            ]}
+            actions={
+              can('revenues.create')
+                ? [
+                    {
+                      label: 'Create revenue source',
+                      handler: () => setCreateModalVisible(true),
+                    },
+                  ]
+                : []
+            }
           />
         }
         refreshControl={
@@ -299,14 +321,16 @@ const RevenueSourceList = () => {
           />
         }
       />
-      <View style={{backgroundColor: 'white', padding: 10}}>
-        <Button
-          mode="contained"
-          icon="plus"
-          onPress={() => setCreateModalVisible(true)}>
-          Create New Revenue Source
-        </Button>
-      </View>
+      {can('revenues.create') ? (
+        <View style={{backgroundColor: 'white', padding: 10}}>
+          <Button
+            mode="contained"
+            icon="plus"
+            onPress={() => setCreateModalVisible(true)}>
+            Create New Revenue Source
+          </Button>
+        </View>
+      ) : null}
       <BottomSheetModal
         ref={optionsBottomSheetModalRef}
         index={1}

@@ -36,6 +36,7 @@ import MoreSelectionButton from '../components/buttons/MoreSelectionButton';
 import FilterHelperText from '../components/foodCostAnalysis/FilterHelperText';
 import CheckboxSelection from '../components/forms/CheckboxSelection';
 import WastageReportFileExport from '../components/reports/WastageReportFileExport';
+import PermissionGate from '../components/permissions/PermissionGate';
 
 const Spoilage = () => {
   const {colors} = useTheme();
@@ -656,29 +657,31 @@ const Spoilage = () => {
           dateRangeFilter={dateRangeFilter}
           monthToDateFilter={monthToDateFilter}
         />
-        <View
-          style={{
-            backgroundColor: 'white',
-            padding: 10,
-          }}>
-          <Button
-            mode="contained"
-            icon="plus"
-            onPress={() => {
-              navigation.navigate(routes.selectSpoilageItem(), {
-                date_filter: dateString, // deprecated
-                selected_date_filter_value: selectedDateFilter?.value,
-                month_year_date_filter: selectedMonthYearDateFilter,
-                exact_date_filter: exactDateFilter,
-                date_range_filter_start: dateRangeFilter?.start,
-                date_range_filter_end: dateRangeFilter?.end,
-                month_to_date_filter_start: monthToDateFilter?.start,
-                month_to_date_filter_end: monthToDateFilter?.end,
-              });
+        <PermissionGate permission="spoilage.create">
+          <View
+            style={{
+              backgroundColor: 'white',
+              padding: 10,
             }}>
-            Add Spoilage / Wastage
-          </Button>
-        </View>
+            <Button
+              mode="contained"
+              icon="plus"
+              onPress={() => {
+                navigation.navigate(routes.selectSpoilageItem(), {
+                  date_filter: dateString, // deprecated
+                  selected_date_filter_value: selectedDateFilter?.value,
+                  month_year_date_filter: selectedMonthYearDateFilter,
+                  exact_date_filter: exactDateFilter,
+                  date_range_filter_start: dateRangeFilter?.start,
+                  date_range_filter_end: dateRangeFilter?.end,
+                  month_to_date_filter_start: monthToDateFilter?.start,
+                  month_to_date_filter_end: monthToDateFilter?.end,
+                });
+              }}>
+              Add Spoilage / Wastage
+            </Button>
+          </View>
+        </PermissionGate>
         <WastageReportFileExport
           filter={listFilters}
           dateFilter={startDatetimeString}

@@ -18,10 +18,12 @@ import BatchPurchaseAddStockForm from '../forms/BatchPurchaseAddStockForm';
 import {createBatchPurchaseEntry} from '../../localDbQueries/batchPurchase';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const PurchaseListItem = props => {
   const {item, onDismiss} = props;
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const currencySymbol = useCurrencySymbol();
   const [detailsDialogVisible, setDetailsDialogVisible] = useState(false);
   const [unitCostModalVisible, setUnitCostModalVisible] = useState(false);
@@ -211,24 +213,28 @@ const PurchaseListItem = props => {
               }`}</Text>
             </Pressable>
           </View>
-          <View style={styles.col}>
-            <View style={styles.colHeader}>
-              <Text style={styles.colHeading}>Add stock</Text>
+          {can('batchPurchase.create') ? (
+            <View style={styles.col}>
+              <View style={styles.colHeader}>
+                <Text style={styles.colHeading}>Add stock</Text>
+              </View>
+              <Button
+                style={{
+                  marginLeft: 5,
+                }}
+                mode="contained"
+                color={item.add_stock_qty > 0 ? colors.accent : colors.primary}
+                onPress={() => {
+                  setAddStockModalVisible(true);
+                }}>
+                {item.add_stock_qty > 0
+                  ? `+ ${item.add_stock_qty} ${formatUOMAbbrev(
+                      item.uom_abbrev,
+                    )}`
+                  : '+'}
+              </Button>
             </View>
-            <Button
-              style={{
-                marginLeft: 5,
-              }}
-              mode="contained"
-              color={item.add_stock_qty > 0 ? colors.accent : colors.primary}
-              onPress={() => {
-                setAddStockModalVisible(true);
-              }}>
-              {item.add_stock_qty > 0
-                ? `+ ${item.add_stock_qty} ${formatUOMAbbrev(item.uom_abbrev)}`
-                : '+'}
-            </Button>
-          </View>
+          ) : null}
         </View>
         <View style={[styles.footer, {backgroundColor: colors.neutralTint5}]}>
           <Text style={{fontWeight: 'bold'}}>Total Cost</Text>

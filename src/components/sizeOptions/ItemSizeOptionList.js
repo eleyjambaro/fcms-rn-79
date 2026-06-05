@@ -45,11 +45,13 @@ import ModifierOptionForm from '../forms/ModifierOptionForm';
 import ListLoadingFooter from '../../components/stateIndicators/ListLoadingFooter';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const ItemSizeOptionList = props => {
   const {filter, itemId, item, listStyle, listContentContainerStyle} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
 
   const [focusedItem, setFocusedItem] = useState(null);
   const [addOptionModalVisible, setAddOptionModalVisible] = useState(false);
@@ -163,16 +165,20 @@ const ItemSizeOptionList = props => {
     //     closeOptionsBottomSheet();
     //   },
     // },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        showDeleteDialog();
-        closeOptionsBottomSheet();
-      },
-    },
+    ...(can('modifiers.delete')
+      ? [
+          {
+            label: 'Delete',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              showDeleteDialog();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
   ];
 
   const optionsBottomSheetModalRef = useRef(null);
@@ -259,10 +265,14 @@ const ItemSizeOptionList = props => {
         onPressItem={() => {
           setFocusedItem(() => item);
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          itemOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
       />
     );
   };
@@ -364,20 +374,22 @@ const ItemSizeOptionList = props => {
           />
         }
       />
-      <View
-        style={{
-          backgroundColor: 'white',
-          padding: 10,
-        }}>
-        <Button
-          mode="contained"
-          icon="plus"
-          onPress={() => {
-            setAddOptionModalVisible(() => true);
+      {can('modifiers.create') ? (
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 10,
           }}>
-          Add Size Option
-        </Button>
-      </View>
+          <Button
+            mode="contained"
+            icon="plus"
+            onPress={() => {
+              setAddOptionModalVisible(() => true);
+            }}>
+            Add Size Option
+          </Button>
+        </View>
+      ) : null}
       <BottomSheetModal
         ref={optionsBottomSheetModalRef}
         index={1}

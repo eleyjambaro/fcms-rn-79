@@ -51,7 +51,7 @@ const Home = props => {
   const isFocused = useIsFocused();
   const {colors} = useTheme();
   const [{}, {signOut}, {expiredAuthTokenDialogVisible}, {}] = useCurrentUser();
-  const {can} = useRoleAccess();
+  const {can, canAccessModule} = useRoleAccess();
   const {isLandscapeMode, width} = useWindowProperties();
   const {
     status: batchPurchaseEntriesCountStatus,
@@ -517,14 +517,15 @@ const Home = props => {
   // The "Inventory Batch Entry" group only contains the highlighted buttons, so
   // hide the whole (primary-colored) container when none of them are accessible.
   const hasEnabledHighlightedFirstRowButtons = highlightedFirstRowButtons.some(
-    rowButton => can(highlightedButtonPermission[rowButton] || rowButton),
+    rowButton =>
+      canAccessModule(highlightedButtonPermission[rowButton] || rowButton),
   );
 
   const renderHighlightedFirstRowButtons = () => {
     let jsxArrayOfButtons = [];
 
     for (let rowButton of highlightedFirstRowButtons) {
-      if (can(highlightedButtonPermission[rowButton] || rowButton)) {
+      if (canAccessModule(highlightedButtonPermission[rowButton] || rowButton)) {
         jsxArrayOfButtons.push(jsxButtons[rowButton]);
       }
     }
@@ -551,7 +552,9 @@ const Home = props => {
   const renderMainButtons = () => {
     let numberOfRows = 0;
 
-    const enabledButtons = allMainButtons.filter(mainButton => can(mainButton));
+    const enabledButtons = allMainButtons.filter(mainButton =>
+      canAccessModule(mainButton),
+    );
 
     let mainButtonsToSplice = [...allMainButtons];
 

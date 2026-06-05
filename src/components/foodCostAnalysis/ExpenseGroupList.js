@@ -56,11 +56,13 @@ import {
   updateExpenseGroup,
 } from '../../localDbQueries/expenses';
 import ExpenseGroupForm from '../forms/ExpenseGroupForm';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const ExpenseGroupList = props => {
   const {backAction, viewMode = 'list', dateFilter} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -185,24 +187,32 @@ const ExpenseGroupList = props => {
   const itemOptions =
     viewMode === 'manage-list'
       ? [
-          {
-            label: 'Update expense group',
-            icon: 'pencil-outline',
-            handler: () => {
-              showUpdateExpenseGroupModal();
-              closeOptionsBottomSheet();
-            },
-          },
-          {
-            label: 'Delete',
-            labelColor: colors.notification,
-            icon: 'delete-outline',
-            iconColor: colors.notification,
-            handler: () => {
-              showDeleteExpenseGroupDialog();
-              closeOptionsBottomSheet();
-            },
-          },
+          ...(can('expenses.edit')
+            ? [
+                {
+                  label: 'Update expense group',
+                  icon: 'pencil-outline',
+                  handler: () => {
+                    showUpdateExpenseGroupModal();
+                    closeOptionsBottomSheet();
+                  },
+                },
+              ]
+            : []),
+          ...(can('expenses.delete')
+            ? [
+                {
+                  label: 'Delete',
+                  labelColor: colors.notification,
+                  icon: 'delete-outline',
+                  iconColor: colors.notification,
+                  handler: () => {
+                    showDeleteExpenseGroupDialog();
+                    closeOptionsBottomSheet();
+                  },
+                },
+              ]
+            : []),
         ]
       : [];
 
@@ -317,14 +327,18 @@ const ExpenseGroupList = props => {
               expense_group_date: dateFilter,
               expense_group_name: item.name,
             });
-          } else {
+          } else if (can('expenses.edit')) {
             showUpdateExpenseGroupModal();
           }
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          itemOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
       />
     );
   };
@@ -456,18 +470,20 @@ const ExpenseGroupList = props => {
       {viewMode === 'list' && (
         <GrandTotal value={expenseGroupsGrandTotalData || 0} />
       )}
-      <View
-        style={{
-          backgroundColor: 'white',
-          padding: 10,
-        }}>
-        <Button
-          mode="contained"
-          icon="plus"
-          onPress={showCreateExpenseGroupModal}>
-          Create New Expense Group
-        </Button>
-      </View>
+      {can('expenses.create') ? (
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 10,
+          }}>
+          <Button
+            mode="contained"
+            icon="plus"
+            onPress={showCreateExpenseGroupModal}>
+            Create New Expense Group
+          </Button>
+        </View>
+      ) : null}
       <BottomSheetModal
         ref={optionsBottomSheetModalRef}
         index={1}

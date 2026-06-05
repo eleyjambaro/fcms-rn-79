@@ -5,6 +5,7 @@ import {Button, Searchbar, useTheme} from 'react-native-paper';
 import routes from '../constants/routes';
 import useSearchbarContext from '../hooks/useSearchbarContext';
 import SellingMenuList from '../components/sellingMenus/SellingMenuList';
+import PermissionGate from '../components/permissions/PermissionGate';
 
 const SellingMenu = props => {
   const {navigation} = props;
@@ -40,15 +41,17 @@ const SellingMenu = props => {
         />
       </View>
 
-      <View
-        style={{
-          backgroundColor: 'white',
-          padding: 10,
-        }}>
-        <Button mode="contained" icon="plus" onPress={handlePressCreate}>
-          Create Menu
-        </Button>
-      </View>
+      <PermissionGate permission="sellingMenu.create">
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 10,
+          }}>
+          <Button mode="contained" icon="plus" onPress={handlePressCreate}>
+            Create Menu
+          </Button>
+        </View>
+      </PermissionGate>
     </View>
   );
 };

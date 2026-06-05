@@ -44,6 +44,8 @@ import TransferStatusBadge, {
 } from '../components/batchTransfer/TransferStatusBadge';
 import TransferStatusTimeline from '../components/batchTransfer/TransferStatusTimeline';
 import {formatTransferUOMAbbrev} from '../utils/stringHelpers';
+import useRoleAccess from '../hooks/useRoleAccess';
+import {TRANSFER_PERMISSIONS} from '../constants/transferPermissions';
 
 const OUT_BADGE_COLOR = '#E53935';
 const IN_BADGE_COLOR = '#1E88E5';
@@ -85,6 +87,7 @@ const EntryRow = ({
   isDest,
   isInitiator,
   isCounterparty,
+  canEdit = true,
   onEdit,
   onRemove,
 }) => {
@@ -108,7 +111,8 @@ const EntryRow = ({
   })();
 
   const editable =
-    (isDraft && isInitiator) || canCounterpartyReview || canSourceAdjust;
+    canEdit &&
+    ((isDraft && isInitiator) || canCounterpartyReview || canSourceAdjust);
 
   return (
     <View style={styles.entry}>
@@ -185,6 +189,11 @@ const EntryRow = ({
 
 const BatchTransferRequestDetail = ({navigation, route}) => {
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
+  const canCreateTransfer = can(TRANSFER_PERMISSIONS.CREATE);
+  const canReviewTransfer = can(TRANSFER_PERMISSIONS.REVIEW);
+  const canTransferOut = can(TRANSFER_PERMISSIONS.TRANSFER_OUT);
+  const canReceiveTransfer = can(TRANSFER_PERMISSIONS.RECEIVE);
   const queryClient = useQueryClient();
   const groupId = route.params?.groupId;
 
@@ -494,7 +503,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     const status = group.status;
     const buttons = [];
 
-    if (status === STATUS.DRAFT && isInitiator) {
+    if (status === STATUS.DRAFT && isInitiator && canCreateTransfer) {
       buttons.push(
         <Button
           key="submit"
@@ -544,7 +553,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
       // already coordinated out-of-band (phone, text, email). Only the source
       // can physically dispatch, so gate on isSource (i.e. the Out direction);
       // an In-mode initiator (the destination) just waits and only sees Cancel.
-      if (isSource) {
+      if (isSource && canTransferOut) {
         buttons.push(
           <View
             key="transfer-now-notice"
@@ -586,17 +595,23 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           </Button>,
         );
       }
-      buttons.push(
-        <Button
-          key="cancel"
-          mode="outlined"
-          color={colors.error}
-          loading={cancelMut.isLoading}
-          onPress={confirmCancelRequest}>
-          Cancel Request
-        </Button>,
-      );
-    } else if (status === STATUS.REQUESTED && isCounterparty) {
+      if (canCreateTransfer) {
+        buttons.push(
+          <Button
+            key="cancel"
+            mode="outlined"
+            color={colors.error}
+            loading={cancelMut.isLoading}
+            onPress={confirmCancelRequest}>
+            Cancel Request
+          </Button>,
+        );
+      }
+    } else if (
+      status === STATUS.REQUESTED &&
+      isCounterparty &&
+      canReviewTransfer
+    ) {
       buttons.push(
         <Button
           key="reject"
@@ -616,7 +631,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
         </Button>,
       );
     } else if (status === STATUS.ACCEPTED) {
-      if (isSource || isInitiator) {
+      if ((isSource || isInitiator) && canCreateTransfer) {
         buttons.push(
           <Button
             key="cancel"
@@ -628,7 +643,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           </Button>,
         );
       }
-      if (isSource) {
+      if (isSource && canTransferOut) {
         buttons.unshift(
           <View
             key="ready-notice"
@@ -668,7 +683,7 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
           </Button>,
         );
       }
-    } else if (status === STATUS.TRANSFERRING && isDest) {
+    } else if (status === STATUS.TRANSFERRING && isDest && canReceiveTransfer) {
       buttons.push(
         <Button
           key="receive"
@@ -920,9 +935,18 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
               isDest={isDest}
               isInitiator={isInitiator}
               isCounterparty={isCounterparty}
+              canEdit={
+                group.status === STATUS.DRAFT
+                  ? canCreateTransfer
+                  : group.status === STATUS.REQUESTED
+                  ? canReviewTransfer
+                  : group.status === STATUS.ACCEPTED
+                  ? canTransferOut
+                  : false
+              }
               onEdit={openEditor}
               onRemove={
-                group.status === STATUS.DRAFT
+                group.status === STATUS.DRAFT && canCreateTransfer
                   ? e => removeEntryMut.mutate({entryId: e.id})
                   : null
               }

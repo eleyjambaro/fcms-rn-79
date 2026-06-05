@@ -601,9 +601,15 @@ const ItemLogDetails = props => {
               justifyContent: 'flex-start',
               height: '100%',
             }}>
-            <Pressable style={{marginLeft: 5}} onPress={onPressItemOptions}>
-              <MaterialIcons name="more-horiz" size={25} color={colors.dark} />
-            </Pressable>
+            {onPressItemOptions ? (
+              <Pressable style={{marginLeft: 5}} onPress={onPressItemOptions}>
+                <MaterialIcons
+                  name="more-horiz"
+                  size={25}
+                  color={colors.dark}
+                />
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
@@ -824,13 +830,15 @@ const ItemLogDetails = props => {
               justifyContent: 'flex-start',
               height: '100%',
             }}>
-            <Pressable style={{marginLeft: 5}} onPress={onPressEditRemarks}>
-              <MaterialCommunityIcons
-                name="pencil-outline"
-                size={25}
-                color={colors.dark}
-              />
-            </Pressable>
+            {onPressEditRemarks ? (
+              <Pressable style={{marginLeft: 5}} onPress={onPressEditRemarks}>
+                <MaterialCommunityIcons
+                  name="pencil-outline"
+                  size={25}
+                  color={colors.dark}
+                />
+              </Pressable>
+            ) : null}
           </View>
         </View>
 

@@ -45,11 +45,13 @@ import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadin
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import CategoryForm from '../forms/CategoryForm';
 import ErrorMessageModal from '../modals/ErrorMessageModal';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const CategoryList = props => {
   const {backAction, viewMode, filter} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const {
     data,
@@ -149,24 +151,32 @@ const CategoryList = props => {
   };
 
   const categoryOptions = [
-    {
-      label: 'Edit',
-      icon: 'pencil-outline',
-      handler: () => {
-        showUpdateCategoryModal();
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        showDeleteDialog();
-        closeOptionsBottomSheet();
-      },
-    },
+    ...(can('categories.edit')
+      ? [
+          {
+            label: 'Edit',
+            icon: 'pencil-outline',
+            handler: () => {
+              showUpdateCategoryModal();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
+    ...(can('categories.delete')
+      ? [
+          {
+            label: 'Delete',
+            labelColor: colors.notification,
+            icon: 'delete-outline',
+            iconColor: colors.notification,
+            handler: () => {
+              showDeleteDialog();
+              closeOptionsBottomSheet();
+            },
+          },
+        ]
+      : []),
   ];
 
   useEffect(() => {
@@ -254,17 +264,28 @@ const CategoryList = props => {
               category_id: item.id,
             });
           } else if (viewMode === 'manage-categories') {
-            showUpdateCategoryModal();
+            // Editing requires the edit permission; otherwise open read-only.
+            if (can('categories.edit')) {
+              showUpdateCategoryModal();
+            } else {
+              navigation.navigate(routes.categoryView(), {
+                category_id: item.id,
+              });
+            }
           } else {
             navigation.navigate(routes.categoryView(), {
               category_id: item.id,
             });
           }
         }}
-        onPressItemOptions={() => {
-          setFocusedItem(() => item);
-          openOptionsBottomSheet();
-        }}
+        onPressItemOptions={
+          categoryOptions.length === 0
+            ? undefined
+            : () => {
+                setFocusedItem(() => item);
+                openOptionsBottomSheet();
+              }
+        }
       />
     );
   };

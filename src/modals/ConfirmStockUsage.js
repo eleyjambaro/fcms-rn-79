@@ -40,9 +40,11 @@ import {
 import routes from '../constants/routes';
 import useCurrencySymbol from '../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../utils/stringHelpers';
+import useRoleAccess from '../hooks/useRoleAccess';
 
 const ConfirmStockUsage = () => {
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const currencySymbol = useCurrencySymbol();
   const navigation = useNavigation();
   const [date, setDate] = useState(new Date());
@@ -322,14 +324,16 @@ const ConfirmStockUsage = () => {
         </DataTable>
         <GrandTotal value={grandTotalData || 0} />
         <View style={{padding: 10}}>
-          <Button
-            disabled={isSubmitting}
-            loading={isSubmitting}
-            mode="contained"
-            style={{marginBottom: 10}}
-            onPress={handleSubmit}>
-            Proceed
-          </Button>
+          {can('stockUsage.confirm') ? (
+            <Button
+              disabled={isSubmitting}
+              loading={isSubmitting}
+              mode="contained"
+              style={{marginBottom: 10}}
+              onPress={handleSubmit}>
+              Proceed
+            </Button>
+          ) : null}
           <Button
             onPress={() => {
               navigation.goBack();

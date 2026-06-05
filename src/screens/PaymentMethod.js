@@ -1,4 +1,4 @@
-import {StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View, ToastAndroid} from 'react-native';
 import React, {useState} from 'react';
 import {useTheme} from 'react-native-paper';
 import {useNavigation} from '@react-navigation/native';
@@ -22,6 +22,7 @@ import TestModeLimitModal from '../components/modals/TestModeLimitModal';
 import useDefaultPrinterContext from '../hooks/useDefaultPrinterContext';
 import {printSalesInvoice} from '../utils/printHelpers';
 import {runSync} from '../services/syncService';
+import useRoleAccess from '../hooks/useRoleAccess';
 
 const PaymentMethod = props => {
   const {route} = props;
@@ -32,6 +33,7 @@ const PaymentMethod = props => {
 
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [{saleTotals, saleItems}, actions] = useSalesCounterContext();
   const {
     isLoading: isLoadingDefaultPrinter,
@@ -250,7 +252,26 @@ const PaymentMethod = props => {
     }
   };
 
+  // Defensive guard: this screen commits the sale/fulfillment, so re-check the
+  // permission here in case it is reached outside the gated entry button.
+  const requiredActionPermission =
+    action === 'proceed-to-sales-invoice'
+      ? 'counter.confirm'
+      : action === 'add-to-sales-order'
+      ? 'salesOrders.create'
+      : action === 'confirm-fulfilling-sales-order'
+      ? 'salesOrders.confirm'
+      : null;
+
   const handleSubmit = (items, paymentFormValues, paymentFormActions) => {
+    if (requiredActionPermission && !can(requiredActionPermission)) {
+      ToastAndroid.show(
+        'You do not have permission to perform this action.',
+        ToastAndroid.SHORT,
+      );
+      return;
+    }
+
     if (action === 'proceed-to-sales-invoice') {
       handleConfirmSaleEntries(items, paymentFormValues, paymentFormActions);
     } else if (action === 'add-to-sales-order') {

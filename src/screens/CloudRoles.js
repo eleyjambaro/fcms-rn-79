@@ -28,6 +28,7 @@ import {
 } from '../serverDbQueries/v2/roles';
 import RolePermissionEditor from '../components/roles/RolePermissionEditor';
 import {serializeRoleConfig} from '../permissions/serializeRoleConfig';
+import useRoleAccess from '../hooks/useRoleAccess';
 
 const DEFAULT_ROLE_CONFIG = {enable: ['*'], disable: []};
 
@@ -37,6 +38,8 @@ const schema = Yup.object({
 
 const CloudRoles = () => {
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
+  const canManageRoles = can('userManagement.manageRoles');
   const queryClient = useQueryClient();
 
   const [formModalVisible, setFormModalVisible] = useState(false);
@@ -139,12 +142,14 @@ const CloudRoles = () => {
           ) : null}
         </View>
         <View style={styles.cardActions}>
-          <IconButton
-            icon="pencil-outline"
-            size={20}
-            onPress={() => openEditModal(item)}
-          />
-          {!item.is_app_default ? (
+          {canManageRoles ? (
+            <IconButton
+              icon="pencil-outline"
+              size={20}
+              onPress={() => openEditModal(item)}
+            />
+          ) : null}
+          {canManageRoles && !item.is_app_default ? (
             <IconButton
               icon="delete-outline"
               size={20}
@@ -185,11 +190,13 @@ const CloudRoles = () => {
         refreshing={isRefetching}
       />
 
-      <View style={styles.footer}>
-        <Button icon="plus" mode="contained" onPress={openCreateModal}>
-          Create Role
-        </Button>
-      </View>
+      {canManageRoles ? (
+        <View style={styles.footer}>
+          <Button icon="plus" mode="contained" onPress={openCreateModal}>
+            Create Role
+          </Button>
+        </View>
+      ) : null}
 
       {/* Create / Edit modal */}
       <Portal>

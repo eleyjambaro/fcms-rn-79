@@ -17,6 +17,7 @@ import TestModeLimitModal from '../components/modals/TestModeLimitModal';
 import useAppConfigContext from '../hooks/useAppConfigContext';
 import useSearchbarContext from '../hooks/useSearchbarContext';
 import {createTax} from '../localDbQueries/taxes';
+import PermissionGate from '../components/permissions/PermissionGate';
 
 function Taxes(props) {
   const {navigation, viewMode} = props;
@@ -102,15 +103,17 @@ function Taxes(props) {
           />
         </View>
 
-        <View
-          style={{
-            backgroundColor: 'white',
-            padding: 10,
-          }}>
-          <Button mode="contained" icon="plus" onPress={showCreateTaxModal}>
-            Create Tax
-          </Button>
-        </View>
+        <PermissionGate permission="taxes.create">
+          <View
+            style={{
+              backgroundColor: 'white',
+              padding: 10,
+            }}>
+            <Button mode="contained" icon="plus" onPress={showCreateTaxModal}>
+              Create Tax
+            </Button>
+          </View>
+        </PermissionGate>
       </View>
     </>
   );

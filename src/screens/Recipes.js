@@ -19,6 +19,7 @@ import useSearchbarContext from '../hooks/useSearchbarContext';
 import RecipeList from '../components/recipes/RecipeList';
 import SubRecipeList from '../components/recipes/SubRecipeList';
 import RecipeReportFileExport from '../components/reports/RecipeReportFileExport';
+import PermissionGate from '../components/permissions/PermissionGate';
 
 const TopTab = createMaterialTopTabNavigator();
 
@@ -81,15 +82,17 @@ function SubRecipes(props) {
           <SubRecipeList />
         </View>
 
-        <View
-          style={{
-            backgroundColor: 'white',
-            padding: 10,
-          }}>
-          <Button mode="contained" icon="plus" onPress={handlePressCreate}>
-            Create Sub Recipe
-          </Button>
-        </View>
+        <PermissionGate permission="recipes.create">
+          <View
+            style={{
+              backgroundColor: 'white',
+              padding: 10,
+            }}>
+            <Button mode="contained" icon="plus" onPress={handlePressCreate}>
+              Create Sub Recipe
+            </Button>
+          </View>
+        </PermissionGate>
       </View>
     </>
   );
@@ -129,15 +132,17 @@ export const ServingRecipes = props => {
         />
       </View>
 
-      <View
-        style={{
-          backgroundColor: 'white',
-          padding: 10,
-        }}>
-        <Button mode="contained" icon="plus" onPress={handlePressCreate}>
-          Create Recipe
-        </Button>
-      </View>
+      <PermissionGate permission="recipes.create">
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 10,
+          }}>
+          <Button mode="contained" icon="plus" onPress={handlePressCreate}>
+            Create Recipe
+          </Button>
+        </View>
+      </PermissionGate>
       <RecipeReportFileExport
       // filter={listFilters}
       // dateFilter={startDatetimeString}

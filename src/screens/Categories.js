@@ -18,6 +18,7 @@ import {createCategory} from '../localDbQueries/categories';
 import useAppConfigContext from '../hooks/useAppConfigContext';
 import useSearchbarContext from '../hooks/useSearchbarContext';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
+import PermissionGate from '../components/permissions/PermissionGate';
 
 function Categories(props) {
   const {navigation, viewMode} = props;
@@ -117,18 +118,20 @@ function Categories(props) {
           />
         </View>
 
-        <View
-          style={{
-            backgroundColor: 'white',
-            padding: 10,
-          }}>
-          <Button
-            mode="contained"
-            icon="plus"
-            onPress={showCreateCategoryModal}>
-            Create Category
-          </Button>
-        </View>
+        <PermissionGate permission="categories.create">
+          <View
+            style={{
+              backgroundColor: 'white',
+              padding: 10,
+            }}>
+            <Button
+              mode="contained"
+              icon="plus"
+              onPress={showCreateCategoryModal}>
+              Create Category
+            </Button>
+          </View>
+        </PermissionGate>
       </View>
     </>
   );

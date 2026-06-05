@@ -61,7 +61,7 @@ const ExpenseGroupListItem = props => {
           </View>
         )}
       </View>
-      {viewMode === 'manage-list' && (
+      {viewMode === 'manage-list' && onPressItemOptions && (
         <Pressable
           style={styles.optionButtonContainer}
           onPress={onPressItemOptions}>

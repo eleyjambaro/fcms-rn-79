@@ -24,9 +24,13 @@ import {
   updateEntryReceivedQty,
 } from '../localDbQueries/batchTransfer';
 import {formatTransferUOMAbbrev} from '../utils/stringHelpers';
+import useRoleAccess from '../hooks/useRoleAccess';
+import {TRANSFER_PERMISSIONS} from '../constants/transferPermissions';
 
 const BatchTransferReceive = ({navigation, route}) => {
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
+  const canReceiveTransfer = can(TRANSFER_PERMISSIONS.RECEIVE);
   const queryClient = useQueryClient();
   const groupId = route.params?.groupId;
   const [localQty, setLocalQty] = useState({});
@@ -180,7 +184,9 @@ const BatchTransferReceive = ({navigation, route}) => {
           onPress={handleConfirm}
           loading={confirmMut.isLoading || persistQtyMut.isLoading}
           disabled={
-            confirmMut.isLoading || persistQtyMut.isLoading
+            !canReceiveTransfer ||
+            confirmMut.isLoading ||
+            persistQtyMut.isLoading
           }>
           Confirm Received
         </Button>

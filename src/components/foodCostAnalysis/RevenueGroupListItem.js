@@ -57,11 +57,13 @@ const RevenueGroupListItem = props => {
             {item.name}
           </Text>
         </View>
-        <Pressable
-          style={styles.optionButtonContainer}
-          onPress={onPressItemOptions}>
-          <MaterialIcons name="more-horiz" size={20} color={colors.dark} />
-        </Pressable>
+        {onPressItemOptions ? (
+          <Pressable
+            style={styles.optionButtonContainer}
+            onPress={onPressItemOptions}>
+            <MaterialIcons name="more-horiz" size={20} color={colors.dark} />
+          </Pressable>
+        ) : null}
       </Pressable>
     );
   }
@@ -98,27 +100,33 @@ const RevenueGroupListItem = props => {
               <Text style={[styles.breakdownAmount, {color: colors.dark}]}>
                 {formatAmount(entry.amount)}
               </Text>
-              <IconButton
-                icon="pencil-outline"
-                size={18}
-                onPress={() => onEditEntry && onEditEntry(item, entry)}
-              />
-              <IconButton
-                icon="delete-outline"
-                size={18}
-                color={colors.notification}
-                onPress={() => onDeleteEntry && onDeleteEntry(item, entry)}
-              />
+              {onEditEntry ? (
+                <IconButton
+                  icon="pencil-outline"
+                  size={18}
+                  onPress={() => onEditEntry(item, entry)}
+                />
+              ) : null}
+              {onDeleteEntry ? (
+                <IconButton
+                  icon="delete-outline"
+                  size={18}
+                  color={colors.notification}
+                  onPress={() => onDeleteEntry(item, entry)}
+                />
+              ) : null}
             </View>
           ))}
 
-        <View style={{paddingHorizontal: 10, paddingTop: 5}}>
-          <Text
-            style={{color: colors.primary, fontWeight: 'bold'}}
-            onPress={() => onAddExternalRevenue && onAddExternalRevenue(item)}>
-            {'+ Add external revenue'}
-          </Text>
-        </View>
+        {onAddExternalRevenue ? (
+          <View style={{paddingHorizontal: 10, paddingTop: 5}}>
+            <Text
+              style={{color: colors.primary, fontWeight: 'bold'}}
+              onPress={() => onAddExternalRevenue(item)}>
+              {'+ Add external revenue'}
+            </Text>
+          </View>
+        ) : null}
 
         <Divider style={{marginVertical: 8}} />
         <View style={styles.breakdownRow}>

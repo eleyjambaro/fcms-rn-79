@@ -21,11 +21,17 @@ import {createBatchPurchaseEntry} from '../../localDbQueries/batchPurchase';
 import {createBatchStockUsageEntry} from '../../localDbQueries/batchStockUsage';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const PurchaseOrUsageListItem = props => {
   const {item, isListRefetching, mode = 'purchase', onDismiss} = props;
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const currencySymbol = useCurrencySymbol();
+  const canMutateEntry =
+    mode === 'purchase'
+      ? can('batchPurchase.create')
+      : can('stockUsage.create');
   const [detailsDialogVisible, setDetailsDialogVisible] = useState(false);
   const [unitCostModalVisible, setUnitCostModalVisible] = useState(false);
   const [addOrRemoveStockModalVisible, setAddOrRemoveStockModalVisible] =
@@ -147,6 +153,8 @@ const PurchaseOrUsageListItem = props => {
       item.add_stock_qty > 0 ? colors.accent : colors.primary;
     const removeStockButtonColor =
       item.remove_stock_qty > 0 ? colors.accent : colors.primary;
+
+    if (!canMutateEntry) return null;
 
     return (
       <>

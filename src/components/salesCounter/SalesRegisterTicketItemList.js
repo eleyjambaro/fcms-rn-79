@@ -49,6 +49,7 @@ import {
   confirmSaleEntries,
 } from '../../localDbQueries/salesCounter';
 import SalesRegisterTicketItemModal from '../modals/SalesRegisterTicketItemModal';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const SalesRegisterTicketItemList = props => {
   const {
@@ -63,6 +64,7 @@ const SalesRegisterTicketItemList = props => {
   } = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
   const [focusedItem, setFocusedItem] = useState(null);
   const [{saleItems, isLocalStateUpdating}, actions] = useSalesCounterContext();
 
@@ -393,6 +395,7 @@ const SalesRegisterTicketItemList = props => {
 
   const renderConfirmButton = () => {
     if (action === 'proceed-to-sales-invoice') {
+      if (!can('counter.confirm')) return null;
       return (
         <Button
           mode="contained"
@@ -411,6 +414,7 @@ const SalesRegisterTicketItemList = props => {
         </Button>
       );
     } else if (action === 'add-to-sales-order') {
+      if (!can('salesOrders.create')) return null;
       return (
         <Button
           mode="contained"
@@ -423,6 +427,7 @@ const SalesRegisterTicketItemList = props => {
         </Button>
       );
     } else if (action === 'confirm-fulfilling-sales-order') {
+      if (!can('salesOrders.confirm')) return null;
       return (
         <Button
           mode="contained"

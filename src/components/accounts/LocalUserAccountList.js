@@ -50,11 +50,14 @@ import {syncCloudDeviceAccountAssignments} from '../../serverDbQueries/v2/device
 import ErrorMessageModal from '../modals/ErrorMessageModal';
 import useCurrentUser from '../../hooks/useCurrentUser';
 import useCloudAuthContext from '../../hooks/useCloudAuthContext';
+import useRoleAccess from '../../hooks/useRoleAccess';
 
 const LocalUserAccountList = props => {
   const {backAction, viewMode, filter} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {can} = useRoleAccess();
+  const canManageMembers = can('userManagement.manageMembers');
   const [authState] = useCurrentUser();
   const authUser = authState?.authUser;
   const [cloudAuthState] = useCloudAuthContext();
@@ -154,42 +157,44 @@ const LocalUserAccountList = props => {
     return null;
   };
 
-  const localUserAccountOptions = [
-    {
-      label: 'Edit',
-      icon: 'pencil-outline',
-      handler: () => {
-        showUpdateLocalUserAccountModal();
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Manage Device Access',
-      icon: 'cellphone-lock',
-      handler: () => {
-        setManageDevicesModalVisible(true);
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Manage Branch Access',
-      icon: 'source-branch',
-      handler: () => {
-        setManageBranchesModalVisible(true);
-        closeOptionsBottomSheet();
-      },
-    },
-    {
-      label: 'Delete',
-      labelColor: colors.notification,
-      icon: 'delete-outline',
-      iconColor: colors.notification,
-      handler: () => {
-        showDeleteDialog();
-        closeOptionsBottomSheet();
-      },
-    },
-  ];
+  const localUserAccountOptions = canManageMembers
+    ? [
+        {
+          label: 'Edit',
+          icon: 'pencil-outline',
+          handler: () => {
+            showUpdateLocalUserAccountModal();
+            closeOptionsBottomSheet();
+          },
+        },
+        {
+          label: 'Manage Device Access',
+          icon: 'cellphone-lock',
+          handler: () => {
+            setManageDevicesModalVisible(true);
+            closeOptionsBottomSheet();
+          },
+        },
+        {
+          label: 'Manage Branch Access',
+          icon: 'source-branch',
+          handler: () => {
+            setManageBranchesModalVisible(true);
+            closeOptionsBottomSheet();
+          },
+        },
+        {
+          label: 'Delete',
+          labelColor: colors.notification,
+          icon: 'delete-outline',
+          iconColor: colors.notification,
+          handler: () => {
+            showDeleteDialog();
+            closeOptionsBottomSheet();
+          },
+        },
+      ]
+    : [];
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -263,15 +268,15 @@ const LocalUserAccountList = props => {
     return (
       <LocalUserAccountListItem
         item={item}
-        showOptionButton={authUser?.is_root_account ? true : false}
+        showOptionButton={canManageMembers}
         onPressItem={() => {
           setFocusedItem(() => item);
 
-          if (viewMode === 'list') {
-            showUpdateLocalUserAccountModal();
-          }
-
-          if (viewMode === 'manage-users') {
+          // Opening a member opens the edit form — gate behind manage access.
+          if (
+            (viewMode === 'list' || viewMode === 'manage-users') &&
+            canManageMembers
+          ) {
             showUpdateLocalUserAccountModal();
           }
         }}
