@@ -1,13 +1,9 @@
 import {Platform} from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import semver from 'semver';
-import axios from 'axios';
 
-import {
-  versionCheckUrl,
-  iosStoreUrl,
-  androidStoreUrl,
-} from '../config/env';
+import cloudApiV2 from '../api/cloudApiV2';
+import {env, iosStoreUrl, androidStoreUrl} from '../config/env';
 
 const STORE_URLS = {
   ios: iosStoreUrl,
@@ -22,15 +18,14 @@ const getLatestVersion = async () => {
   };
 
   try {
-    const {data} = await axios.get(versionCheckUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const {data} = await cloudApiV2.get('/api/v2/app-version', {
+      params: {env},
     });
 
-    if (!data) throw Error('Invalid data response.');
+    const versions = data?.data;
+    if (!versions) throw Error('Invalid data response.');
 
-    latestVersions = data;
+    latestVersions = versions;
     return latestVersions;
   } catch (error) {
     console.warn(

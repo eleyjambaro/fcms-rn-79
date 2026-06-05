@@ -26,9 +26,6 @@ export const isDev = env === 'dev';
 export const isProd = env === 'prod';
 
 export const cloudApiV2BaseUrl = read('CLOUD_API_V2_BASE_URL');
-export const versionCheckUrl =
-  Config.VERSION_CHECK_URL ||
-  'https://uxi-fcms-developers.github.io/app-version/version.json';
 export const iosStoreUrl = Config.IOS_STORE_URL || '';
 export const androidStoreUrl =
   Config.ANDROID_STORE_URL ||
