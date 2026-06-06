@@ -48,7 +48,14 @@ import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScr
 import useRoleAccess from '../../hooks/useRoleAccess';
 
 const ItemSizeOptionList = props => {
-  const {filter, itemId, item, listStyle, listContentContainerStyle} = props;
+  const {
+    filter,
+    itemId,
+    item,
+    listStyle,
+    listContentContainerStyle,
+    ListHeaderComponent,
+  } = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
   const {can} = useRoleAccess();
@@ -349,11 +356,13 @@ const ItemSizeOptionList = props => {
       <FlatList
         contentContainerStyle={listContentContainerStyle}
         style={[{backgroundColor: colors.surface}, listStyle]}
+        keyboardShouldPersistTaps="handled"
         data={getAllPagesData()}
         keyExtractor={item => item.option_id}
         renderItem={renderItem}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
+        ListHeaderComponent={ListHeaderComponent}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <View

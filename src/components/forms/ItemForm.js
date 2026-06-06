@@ -1393,45 +1393,42 @@ const ItemForm = props => {
   const renderSellingDetailsFields = formikProps => {
     const {values} = formikProps;
 
-    // Add mode: the whole section (size options + markup/SRP + sales tax) is
-    // gated behind the toggle. Edit mode has no toggle — the heading navigates
-    // to the selling size options screen instead — but the markup/SRP + sales
-    // tax are still edited inline here, so they must always render.
-    if (!editMode && !isSellingDetailsFieldsVisible) return null;
+    // Add mode only. The toggle gates the whole section; order is markup/SRP →
+    // sales tax → selling size options (the "Add Selling Size Option" button
+    // sits below the Sales Tax). In edit mode this whole section instead lives
+    // on the Size Options screen that the pressable "Update Selling Price & Tax"
+    // heading navigates to, so nothing renders inline here.
+    if (editMode || !isSellingDetailsFieldsVisible) return null;
 
     return (
       <>
-        {!editMode && (
-          <>
-            <ItemSellingSizeOptions
-              listItems={values.selling_size_options}
-              listItemKey="option_id"
-              containerStyle={{marginTop: 10}}
-              onPressItem={() => {}}
-              onPressDeleteListItem={listItem => {
-                setFocusedSellingSizeOption(listItem);
-                setConfirmDeleteSellingSizeOptionDialogVisible(true);
-              }}
-            />
-
-            <Button
-              icon="plus"
-              mode="outlined"
-              style={{marginTop: 10}}
-              onPress={() => {
-                if (!values.uom_abbrev) {
-                  setUnitOfMeasurementRequiredDialogVisible(true);
-                  return;
-                }
-                setAddOptionModalVisible(true);
-              }}>
-              Add Selling Size Option
-            </Button>
-          </>
-        )}
-
         {renderMarkupFields(formikProps)}
         {renderSalesTaxButton(formikProps)}
+
+        <ItemSellingSizeOptions
+          listItems={values.selling_size_options}
+          listItemKey="option_id"
+          containerStyle={{marginTop: 10}}
+          onPressItem={() => {}}
+          onPressDeleteListItem={listItem => {
+            setFocusedSellingSizeOption(listItem);
+            setConfirmDeleteSellingSizeOptionDialogVisible(true);
+          }}
+        />
+
+        <Button
+          icon="plus"
+          mode="outlined"
+          style={{marginTop: 10}}
+          onPress={() => {
+            if (!values.uom_abbrev) {
+              setUnitOfMeasurementRequiredDialogVisible(true);
+              return;
+            }
+            setAddOptionModalVisible(true);
+          }}>
+          Add Selling Size Option
+        </Button>
       </>
     );
   };

@@ -1875,6 +1875,56 @@ export const updateItem = async ({
   }
 };
 
+/**
+ * Focused update of an item's selling-side fields only: markup %/amount and the
+ * per-item Sales Tax. Used by the Size Options screen's inline editor (Edit Item
+ * flow), where the full item form is not mounted. A targeted UPDATE avoids the
+ * whole-row rewrite in `updateItem` (which, given partial values, would clobber
+ * name/uom/category/etc.). `sales_tax_id` of '0'/empty means None (NULL) —
+ * downstream sales calc then falls back to the item's cost tax. Sets
+ * `updated_at` so the change participates in delta sync.
+ */
+export const updateItemSellingPriceAndTax = async ({
+  id,
+  markup_percentage,
+  markup_amount,
+  sales_tax_id,
+}) => {
+  try {
+    const db = await getDBConnection();
+
+    if (await isMutationDisabled()) {
+      console.debug(
+        'Failed to update item selling price & tax, mutation is disabled.',
+      );
+
+      return;
+    }
+
+    // '0' or empty => None (null)
+    const salesTaxId =
+      sales_tax_id && sales_tax_id !== '0' ? `'${sales_tax_id}'` : 'null';
+
+    const query = `
+      UPDATE items
+      SET markup_percentage = ${parseFloat(markup_percentage || 0)},
+      markup_amount = ${parseFloat(markup_amount || 0)},
+      sales_tax_id = ${salesTaxId},
+      updated_at = CURRENT_TIMESTAMP
+      WHERE id = '${id}'
+    `;
+
+    const result = await db.executeSql(query);
+
+    scheduleSyncSoon();
+
+    return result;
+  } catch (error) {
+    console.debug(error);
+    throw Error('Failed to update item selling price and tax.');
+  }
+};
+
 export const deleteItem = async ({id}) => {
   try {
     const db = await getDBConnection();

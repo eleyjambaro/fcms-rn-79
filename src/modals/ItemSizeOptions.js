@@ -8,6 +8,7 @@ import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingSc
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
 import {getItem} from '../localDbQueries/items';
 import ItemSizeOptionList from '../components/sizeOptions/ItemSizeOptionList';
+import ItemSellingPriceTaxEditor from '../components/items/ItemSellingPriceTaxEditor';
 
 const ItemSizeOptions = _props => {
   const route = useRoute();
@@ -42,7 +43,13 @@ const ItemSizeOptions = _props => {
           hideReportSummary={true}
         />
       )}
-      <ItemSizeOptionList itemId={itemId} item={item} />
+      <ItemSizeOptionList
+        itemId={itemId}
+        item={item}
+        ListHeaderComponent={
+          item ? <ItemSellingPriceTaxEditor item={item} /> : null
+        }
+      />
     </View>
   );
 };
