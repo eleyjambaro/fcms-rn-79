@@ -390,6 +390,8 @@ const createItemsTableQuery = `
     current_stock_qty REAL,
     low_stock_level REAL,
     unit_selling_price REAL,
+    markup_percentage REAL DEFAULT 0,
+    markup_amount REAL DEFAULT 0,
     packaging_type VARCHAR,
     sku VARCHAR DEFAULT NULL,
     master_item_sync_id VARCHAR(36) DEFAULT NULL,
@@ -935,6 +937,8 @@ const createRecipesTableQuery = `
     uom_abbrev VARCHAR,
     uom_abbrev_per_piece VARCHAR,
     qty_per_piece REAL,
+    markup_percentage REAL DEFAULT 0,
+    markup_amount REAL DEFAULT 0,
     date_created DATETIME DEFAULT CURRENT_TIMESTAMP,
     date_saved DATETIME,
     device_id VARCHAR DEFAULT NULL,
@@ -1827,6 +1831,52 @@ export const alterTables = async currentAppVersion => {
         db,
         'revenues',
         'revenue_source_id',
+        addNewTableColumnsQuery,
+      );
+
+      /**
+       * Markup-driven Suggested Retail Price (SRP) for items and recipes.
+       * Both columns are plain values (no FK) so they sync by identical name.
+       * markup_percentage is the canonical driver (SRP = net cost * (1 + %/100));
+       * markup_amount stores the user-entered snapshot.
+       */
+      addNewTableColumnsQuery = `
+        ALTER TABLE items ADD COLUMN markup_percentage REAL DEFAULT 0;
+      `;
+      await executeSqlIfColumnNotExist(
+        db,
+        'items',
+        'markup_percentage',
+        addNewTableColumnsQuery,
+      );
+
+      addNewTableColumnsQuery = `
+        ALTER TABLE items ADD COLUMN markup_amount REAL DEFAULT 0;
+      `;
+      await executeSqlIfColumnNotExist(
+        db,
+        'items',
+        'markup_amount',
+        addNewTableColumnsQuery,
+      );
+
+      addNewTableColumnsQuery = `
+        ALTER TABLE recipes ADD COLUMN markup_percentage REAL DEFAULT 0;
+      `;
+      await executeSqlIfColumnNotExist(
+        db,
+        'recipes',
+        'markup_percentage',
+        addNewTableColumnsQuery,
+      );
+
+      addNewTableColumnsQuery = `
+        ALTER TABLE recipes ADD COLUMN markup_amount REAL DEFAULT 0;
+      `;
+      await executeSqlIfColumnNotExist(
+        db,
+        'recipes',
+        'markup_amount',
         addNewTableColumnsQuery,
       );
 

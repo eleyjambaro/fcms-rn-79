@@ -29,6 +29,7 @@ import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScr
 import {getVendor} from '../../localDbQueries/vendors';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import {computeSrpFromPercentage} from '../../utils/markupHelpers';
 import ItemQRCode from './ItemQRCode';
 
 const ItemDetails = props => {
@@ -246,6 +247,16 @@ const ItemDetails = props => {
     ? selectedMonthGrandTotalCostNet /
       (item.selected_month_grand_total_qty || 0)
     : 0;
+  // SRP = net cost + markup (no VAT). Base off the moving weighted-average net
+  // cost from getItem (robust fallback) and recompute live from the canonical
+  // markup_percentage so SRP tracks cost changes.
+  const srpNetCostBase =
+    parseFloat(item?.avg_unit_cost_net) > 0
+      ? parseFloat(item.avg_unit_cost_net)
+      : parseFloat(avgUnitCostNet || 0);
+  const markupPercentage = parseFloat(item?.markup_percentage || 0);
+  const markupAmount = parseFloat(item?.markup_amount || 0);
+  const srp = computeSrpFromPercentage(srpNetCostBase, markupPercentage);
 
   return (
     <>
@@ -492,6 +503,46 @@ const ItemDetails = props => {
                 {`${currencySymbol} ${commaNumber(
                   parseFloat(avgUnitCostNet || 0).toFixed(2),
                 )}`}
+              </Text>
+              <Text
+                style={{
+                  marginLeft: 5,
+                  color: colors.dark,
+                }}>
+                {`/ ${formatUOMAbbrev(item.item_uom_abbrev)}`}
+              </Text>
+            </View>
+
+            <View style={styles.detailsListItem}>
+              <Text style={{fontWeight: 'bold'}}>Markup:</Text>
+              <Text
+                style={{
+                  marginLeft: 7,
+                  fontWeight: 'bold',
+                  color: colors.dark,
+                }}>
+                {`${commaNumber(markupPercentage.toFixed(2))}%`}
+              </Text>
+              <Text
+                style={{
+                  marginLeft: 5,
+                  color: colors.dark,
+                }}>
+                {`(${currencySymbol} ${commaNumber(markupAmount.toFixed(2))})`}
+              </Text>
+            </View>
+
+            <View style={styles.detailsListItem}>
+              <Text style={{fontWeight: 'bold'}}>
+                Suggested Retail Price (SRP):
+              </Text>
+              <Text
+                style={{
+                  marginLeft: 7,
+                  fontWeight: 'bold',
+                  color: 'green',
+                }}>
+                {`${currencySymbol} ${commaNumber(srp.toFixed(2))}`}
               </Text>
               <Text
                 style={{

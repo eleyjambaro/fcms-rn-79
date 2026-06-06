@@ -49,6 +49,13 @@ import PreventGoBack from '../utils/PreventGoBack';
 import UnitOrTotalCostRadioButtonWrapper from './UnitOrTotalCostRadioButtonWrapper';
 import {PACKAGING_TYPE_OPTIONS} from '../../constants/itemForm';
 import {getMasterItems} from '../../serverDbQueries/v2/masterItems';
+import commaNumber from 'comma-number';
+import useCurrencySymbol from '../../hooks/useCurrencySymbol';
+import {
+  computeMarkupAmount,
+  computeMarkupPercentage,
+  computeSrpFromAmount,
+} from '../../utils/markupHelpers';
 
 // ---------------------------------------------------------------------------
 // Validation schema
@@ -84,6 +91,8 @@ const ItemValidationSchema = Yup.object({
     otherwise: () => Yup.string().notRequired(),
   }),
   selling_size_options: Yup.array(),
+  markup_percentage: Yup.string().notRequired(),
+  markup_amount: Yup.string().notRequired(),
   packaging_type: Yup.string().notRequired(),
   sku: Yup.string()
     .trim()
@@ -118,6 +127,8 @@ const getDefaultInitialValues = item => ({
   initial_stock_vendor_id: '',
   official_receipt_number: '',
   unit_selling_price: '',
+  markup_percentage: '',
+  markup_amount: '',
   sales_tax_id: '',
   selling_size_options: [],
   adjustment_qty: '',
@@ -267,6 +278,7 @@ const ItemForm = props => {
   const {colors} = useTheme();
   const navigation = useNavigation();
   const {setFormikActions} = useItemFormContext();
+  const currencySymbol = useCurrencySymbol();
   const [{authUser}] = useCurrentUser();
   // Only the root account may edit master items (the server returns 403 for
   // sub-accounts), so the tappable "edit on the Master Item List screen"
@@ -1365,6 +1377,75 @@ const ItemForm = props => {
     );
   };
 
+  /**
+   * Markup / Suggested Retail Price section. The user enters either a markup %
+   * or an exact markup amount and the other derives from the current net cost
+   * (`avg_unit_cost_net` in edit mode, else the net of the entered unit cost).
+   * SRP = net cost + markup (no VAT). markup_percentage is the canonical driver.
+   */
+  const renderMarkupFields = formikProps => {
+    const {setFieldValue, handleBlur, values} = formikProps;
+
+    const avgNet = parseFloat(item?.avg_unit_cost_net);
+    const grossUnitCost = parseFloat(values.unit_cost || 0);
+    const initRate = parseFloat(
+      getInitStockAppliedTaxData?.result?.rate_percentage || 0,
+    );
+    const derivedNet =
+      initRate > 0 ? grossUnitCost / (1 + initRate / 100) : grossUnitCost;
+    const netCostBase =
+      Number.isFinite(avgNet) && avgNet > 0 ? avgNet : derivedNet;
+
+    const srp = computeSrpFromAmount(netCostBase, values.markup_amount);
+
+    return (
+      <View style={{marginTop: 5}}>
+        <HelperText type="info">
+          {`Net Unit Cost: ${currencySymbol} ${commaNumber(
+            netCostBase.toFixed(2),
+          )} (SRP = net cost + markup, no VAT)`}
+        </HelperText>
+        <View style={{flexDirection: 'row'}}>
+          <TextInput
+            style={[styles.textInput, {flex: 1}]}
+            label={<TextInputLabel label="Markup %" />}
+            value={values.markup_percentage}
+            keyboardType="numeric"
+            right={<TextInput.Affix text="%" />}
+            onChangeText={value => {
+              setFieldValue('markup_percentage', value);
+              setFieldValue(
+                'markup_amount',
+                computeMarkupAmount(netCostBase, value).toFixed(2),
+              );
+            }}
+            onBlur={handleBlur('markup_percentage')}
+          />
+          <TextInput
+            style={[styles.textInput, {flex: 1, marginLeft: 10}]}
+            label={<TextInputLabel label="Markup Amount" />}
+            value={values.markup_amount}
+            keyboardType="numeric"
+            left={<TextInput.Affix text={currencySymbol} />}
+            onChangeText={value => {
+              setFieldValue('markup_amount', value);
+              setFieldValue(
+                'markup_percentage',
+                computeMarkupPercentage(netCostBase, value).toFixed(2),
+              );
+            }}
+            onBlur={handleBlur('markup_amount')}
+          />
+        </View>
+        <HelperText type="info" style={{fontWeight: 'bold'}}>
+          {`Suggested Retail Price (SRP): ${currencySymbol} ${commaNumber(
+            srp.toFixed(2),
+          )}`}
+        </HelperText>
+      </View>
+    );
+  };
+
   // -------------------------------------------------------------------------
   // Derive initial formik values from props + query data
   // -------------------------------------------------------------------------
@@ -1450,6 +1531,8 @@ const ItemForm = props => {
       initial_stock_vendor_id: initialStockVendorId,
       official_receipt_number: initialStockOfficialReceiptNumber,
       unit_selling_price: initialValues.unit_selling_price?.toString() || '0',
+      markup_percentage: initialValues.markup_percentage?.toString() || '0',
+      markup_amount: initialValues.markup_amount?.toString() || '0',
       sales_tax_id: initialValues.sales_tax_id?.toString() || '',
       selling_size_options: sellingSizeOptions,
       remarks: initialStockRemarks,
@@ -1978,6 +2061,12 @@ const ItemForm = props => {
         />
       )}
       {renderSellingDetailsFields(formik)}
+
+      <SectionHeading
+        headingText="Markup / Suggested Retail Price"
+        containerStyle={{marginTop: 20}}
+      />
+      {renderMarkupFields(formik)}
       <Button
         mode="contained"
         onPress={handleSubmit}

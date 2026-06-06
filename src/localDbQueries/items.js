@@ -567,6 +567,8 @@ export const registerItem = async ({
       uom_abbrev,
       unit_cost,
       unit_selling_price,
+      markup_percentage,
+      markup_amount,
       uom_abbrev_per_piece,
       qty_per_piece,
       barcode,
@@ -594,6 +596,8 @@ export const registerItem = async ({
       '${escapeSql(variantUomAbbrev)}',
       ${unitCost},
       ${parseFloat(item.unit_selling_price || 0)},
+      ${parseFloat(item.markup_percentage || 0)},
+      ${parseFloat(item.markup_amount || 0)},
       '${escapeSql(variantUomAbbrevPerPiece)}',
       ${variantQtyPerPiece},
       '${escapeSql(variantBarcode)}',
@@ -1489,6 +1493,8 @@ export const updateItem = async ({
       qty_per_piece = ${parseFloat(updatedValues.qty_per_piece || 0)},
       barcode = '${updatedValues.barcode || ''}',
       unit_selling_price = ${parseFloat(updatedValues.unit_selling_price || 0)},
+      markup_percentage = ${parseFloat(updatedValues.markup_percentage || 0)},
+      markup_amount = ${parseFloat(updatedValues.markup_amount || 0)},
       low_stock_level = ${parseFloat(updatedValues.low_stock_level)},
       packaging_type = '${
         updatedValues.packaging_type

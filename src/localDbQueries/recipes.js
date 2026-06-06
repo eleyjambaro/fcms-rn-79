@@ -101,6 +101,8 @@ export const saveRecipe = async ({
     group_name,
     name,
     yield,
+    markup_percentage,
+    markup_amount,
     date_saved,
     device_id,
     branch_id,
@@ -115,6 +117,8 @@ export const saveRecipe = async ({
     ${groupName},
     '${values.name.replace(/\'/g, "''")}',
     ${parseFloat(values.yield || 1)},
+    ${parseFloat(values.markup_percentage || 0)},
+    ${parseFloat(values.markup_amount || 0)},
     datetime('now'),
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
@@ -151,6 +155,8 @@ export const saveRecipe = async ({
         group_name = '${values.group_name.replace(/\'/g, "''")}',
         name = '${values.name.replace(/\'/g, "''")}',
         yield = ${parseFloat(values.yield || 1)},
+        markup_percentage = ${parseFloat(values.markup_percentage || 0)},
+        markup_amount = ${parseFloat(values.markup_amount || 0)},
         date_saved = datetime('now'),
         updated_at = CURRENT_TIMESTAMP
         WHERE id = '${currentRecipeId}'
@@ -558,6 +564,8 @@ export const updateRecipe = async ({id, updatedValues}) => {
     SET group_name = ${groupName},
     name = '${updatedValues.name.replace(/\'/g, "''")}',
     yield = ${parseFloat(updatedValues.yield || 1)},
+    markup_percentage = ${parseFloat(updatedValues.markup_percentage || 0)},
+    markup_amount = ${parseFloat(updatedValues.markup_amount || 0)},
     updated_at = CURRENT_TIMESTAMP
     WHERE id = '${id}'
   `;
