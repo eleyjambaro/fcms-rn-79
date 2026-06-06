@@ -1391,36 +1391,47 @@ const ItemForm = props => {
   };
 
   const renderSellingDetailsFields = formikProps => {
-    const {setFieldValue, values} = formikProps;
+    const {values} = formikProps;
 
-    if (!isSellingDetailsFieldsVisible) return null;
+    // Add mode: the whole section (size options + markup/SRP + sales tax) is
+    // gated behind the toggle. Edit mode has no toggle — the heading navigates
+    // to the selling size options screen instead — but the markup/SRP + sales
+    // tax are still edited inline here, so they must always render.
+    if (!editMode && !isSellingDetailsFieldsVisible) return null;
 
     return (
       <>
-        <ItemSellingSizeOptions
-          listItems={values.selling_size_options}
-          listItemKey="option_id"
-          containerStyle={{marginTop: 10}}
-          onPressItem={() => {}}
-          onPressDeleteListItem={listItem => {
-            setFocusedSellingSizeOption(listItem);
-            setConfirmDeleteSellingSizeOptionDialogVisible(true);
-          }}
-        />
+        {!editMode && (
+          <>
+            <ItemSellingSizeOptions
+              listItems={values.selling_size_options}
+              listItemKey="option_id"
+              containerStyle={{marginTop: 10}}
+              onPressItem={() => {}}
+              onPressDeleteListItem={listItem => {
+                setFocusedSellingSizeOption(listItem);
+                setConfirmDeleteSellingSizeOptionDialogVisible(true);
+              }}
+            />
 
-        <Button
-          icon="plus"
-          mode="outlined"
-          style={{marginTop: 10}}
-          onPress={() => {
-            if (!values.uom_abbrev) {
-              setUnitOfMeasurementRequiredDialogVisible(true);
-              return;
-            }
-            setAddOptionModalVisible(true);
-          }}>
-          Add Selling Size Option
-        </Button>
+            <Button
+              icon="plus"
+              mode="outlined"
+              style={{marginTop: 10}}
+              onPress={() => {
+                if (!values.uom_abbrev) {
+                  setUnitOfMeasurementRequiredDialogVisible(true);
+                  return;
+                }
+                setAddOptionModalVisible(true);
+              }}>
+              Add Selling Size Option
+            </Button>
+          </>
+        )}
+
+        {renderMarkupFields(formikProps)}
+        {renderSalesTaxButton(formikProps)}
       </>
     );
   };
@@ -1629,8 +1640,8 @@ const ItemForm = props => {
     : `Input Pre-${appDefaults.appDisplayName} Stock Cost & Tax`;
 
   const sellingDetailsHeadingText = editMode
-    ? 'Update Selling Price'
-    : 'Input Selling Price';
+    ? 'Update Selling Price & Tax'
+    : 'Input Selling Price & Tax';
 
   // -------------------------------------------------------------------------
   // Early returns for loading / error states
@@ -2123,12 +2134,6 @@ const ItemForm = props => {
       )}
       {renderSellingDetailsFields(formik)}
 
-      <SectionHeading
-        headingText="Markup / Suggested Retail Price"
-        containerStyle={{marginTop: 20}}
-      />
-      {renderMarkupFields(formik)}
-      {renderSalesTaxButton(formik)}
       <Button
         mode="contained"
         onPress={handleSubmit}
