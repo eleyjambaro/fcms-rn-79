@@ -200,10 +200,8 @@ const FinishedProductForm = props => {
   });
   const {hasError, hasInsufficientStock, isError, requiredIngredients} =
     ingredientsValidator;
-  const [
-    confirmInsufficientStockYield,
-    setConfirmInsufficientStockYield,
-  ] = useState(false);
+  const [confirmInsufficientStockYield, setConfirmInsufficientStockYield] =
+    useState(false);
 
   // Re-require confirmation whenever the insufficient-stock condition clears,
   // so the user must explicitly re-confirm if it reappears (e.g. after
@@ -803,9 +801,7 @@ const FinishedProductForm = props => {
             }}
             text="I confirm I'm producing this yield even though some ingredients have insufficient stock for the total yield I'm producing. This will result in negative stock for those ingredients in the inventory."
             onPress={() => {
-              setConfirmInsufficientStockYield(
-                prevConfirm => !prevConfirm,
-              );
+              setConfirmInsufficientStockYield(prevConfirm => !prevConfirm);
             }}
           />
         </View>
@@ -1075,7 +1071,7 @@ const FinishedProductForm = props => {
   let itemDetailsHeadingText = editMode
     ? 'Finished Product Details'
     : recipeRegisteredFinishedProduct
-    ? 'Linked Finished Product Details'
+    ? 'Linked Registered Finished Product'
     : 'Finished Product Details';
 
   let initStockSectionHeadingText = editMode
