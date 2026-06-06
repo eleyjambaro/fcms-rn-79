@@ -77,6 +77,7 @@ const GROUP_A_ENTITIES = [
       recipe_id: 'recipe_sync_id',
       sub_recipe_id: 'sub_recipe_sync_id',
       tax_id: 'tax_sync_id',
+      sales_tax_id: 'sales_tax_sync_id',
       preferred_vendor_id: 'preferred_vendor_sync_id',
     },
   },

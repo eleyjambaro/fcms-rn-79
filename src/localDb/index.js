@@ -385,6 +385,7 @@ const createItemsTableQuery = `
     uom_abbrev_per_piece VARCHAR,
     qty_per_piece REAL,
     tax_id TEXT,
+    sales_tax_id TEXT,
     preferred_vendor_id TEXT,
     initial_stock_qty REAL,
     current_stock_qty REAL,
@@ -1877,6 +1878,22 @@ export const alterTables = async currentAppVersion => {
         db,
         'recipes',
         'markup_amount',
+        addNewTableColumnsQuery,
+      );
+
+      /**
+       * Per-item Sales Tax — distinct from the cost/purchase tax (`tax_id`).
+       * Plain column (no FK) so it syncs by identical name and matches new DBs;
+       * remapped to `sales_tax_sync_id` on push via syncService GROUP_A_ENTITIES.
+       * NULL means "fall back to the item's cost tax" downstream.
+       */
+      addNewTableColumnsQuery = `
+        ALTER TABLE items ADD COLUMN sales_tax_id TEXT DEFAULT NULL;
+      `;
+      await executeSqlIfColumnNotExist(
+        db,
+        'items',
+        'sales_tax_id',
         addNewTableColumnsQuery,
       );
 

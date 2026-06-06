@@ -70,6 +70,17 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
       items.name AS name,
       taxes.name AS tax_name,
       taxes.rate_percentage AS tax_rate_percentage,
+      /*
+       * Sales tax (selling side). Distinct from the cost tax above. The
+       * "effective" fields fall back to the cost tax (tax_id) when the item has
+       * no sales_tax_id, so existing items behave exactly as before. Downstream
+       * (POS, cart totals) reads the sales_* fields for the selling price; the
+       * cost tax_* fields keep driving cost/inventory math.
+       */
+      items.sales_tax_id AS sales_tax_id,
+      COALESCE(sales_taxes.id, taxes.id) AS sales_tax_id_effective,
+      COALESCE(sales_taxes.name, taxes.name) AS sales_tax_name,
+      COALESCE(sales_taxes.rate_percentage, taxes.rate_percentage) AS sales_tax_rate_percentage,
 
       (
         SELECT COUNT(*)
@@ -148,6 +159,7 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
       ON inventory_logs_added_and_removed_totals.item_id = items.id
 
       LEFT JOIN taxes ON taxes.id = items.tax_id
+      LEFT JOIN taxes sales_taxes ON sales_taxes.id = items.sales_tax_id
 
       ${queryFilter}
 
@@ -330,6 +342,25 @@ export const registerItem = async ({
       }
     }
 
+    // Sales tax (selling-side, distinct from the cost tax above). '0'/empty =>
+    // None (stays null); downstream falls back to the cost tax at read time.
+    let salesTax = {
+      id: null,
+      name: '',
+      rate_percentage: 0,
+    };
+
+    if (item.sales_tax_id) {
+      const getSalesTaxResult = await db.executeSql(
+        `SELECT * FROM taxes WHERE id = '${item.sales_tax_id}'`,
+      );
+      const fetchedSalesTax = getSalesTaxResult[0].rows.item(0);
+
+      if (fetchedSalesTax) {
+        salesTax = fetchedSalesTax;
+      }
+    }
+
     let initStockTax = {
       id: null,
       name: '',
@@ -442,6 +473,10 @@ export const registerItem = async ({
     let initStockTaxName = initStockTax.name
       ? `'${initStockTax.name?.replace(/\'/g, "''")}'`
       : 'null';
+
+    // Sales tax id literal for the items insert (selling side; kept even for
+    // finished products since they are still sold with VAT).
+    let salesTaxId = salesTax.id ? `'${salesTax.id}'` : 'null';
 
     let initStockVendorId = initStockVendor.id
       ? `'${initStockVendor.id}'`
@@ -562,6 +597,7 @@ export const registerItem = async ({
       recipe_id,
       yield_ref_id,
       tax_id,
+      sales_tax_id,
       preferred_vendor_id,
       name,
       uom_abbrev,
@@ -591,6 +627,7 @@ export const registerItem = async ({
       ${recipeId ? `'${recipeId}'` : 'null'},
       '${yieldRefId || ''}',
       ${initStockTaxId},
+      ${salesTaxId},
       ${initStockVendorId},
       '${escapeSql(variantName)}',
       '${escapeSql(variantUomAbbrev)}',
@@ -1048,6 +1085,11 @@ export const getItem = async ({queryKey}) => {
       (SELECT mi.description FROM active_master_items mi WHERE mi.sku = items.sku LIMIT 1)
     ) AS master_item_description,
     categories.name AS category_name,
+    /* Sales tax (selling side); effective fields fall back to the cost tax. See getItems. */
+    items.sales_tax_id AS sales_tax_id,
+    COALESCE(sales_taxes.id, taxes.id) AS sales_tax_id_effective,
+    COALESCE(sales_taxes.name, taxes.name) AS sales_tax_name,
+    COALESCE(sales_taxes.rate_percentage, taxes.rate_percentage) AS sales_tax_rate_percentage,
     (SELECT beginning_inventory_date FROM inventory_logs WHERE voided != 1 AND item_id = '${id}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')) AS beginning_inventory_date,
 
     (
@@ -1119,6 +1161,7 @@ export const getItem = async ({queryKey}) => {
     ON inventory_logs_added_and_removed_totals.item_id = items.id
     LEFT JOIN categories ON categories.id = items.category_id
     LEFT JOIN taxes ON taxes.id = items.tax_id
+    LEFT JOIN taxes sales_taxes ON sales_taxes.id = items.sales_tax_id
     LEFT JOIN revenue_categories ON revenue_categories.id = items.category_id
     LEFT JOIN revenue_groups ON revenue_groups.id = revenue_categories.revenue_group_id
     WHERE items.id = '${id}'
@@ -1276,6 +1319,39 @@ export const updateItem = async ({
           // throw new Error('Failed to update item. New default tax not found.');
         } else {
           tax = fetchedUpdatedDefaultTax;
+        }
+      }
+    }
+
+    /**
+     * Sales tax (selling side). Baseline from the item's current value, then
+     * apply the form's update. '0' => None (null); downstream falls back to the
+     * cost tax at read time.
+     */
+    let salesTax = defaultTaxEmptyValue;
+
+    if (normalizeId(item.sales_tax_id)) {
+      const getItemSalesTaxResult = await db.executeSql(
+        `SELECT * FROM taxes WHERE id = '${item.sales_tax_id}'`,
+      );
+      const fetchedItemSalesTax = getItemSalesTaxResult[0].rows.item(0);
+
+      if (fetchedItemSalesTax) {
+        salesTax = fetchedItemSalesTax;
+      }
+    }
+
+    if (updatedValues.sales_tax_id) {
+      if (updatedValues.sales_tax_id === '0') {
+        salesTax = defaultTaxEmptyValue;
+      } else {
+        const getUpdatedSalesTaxResult = await db.executeSql(
+          `SELECT * FROM taxes WHERE id = '${updatedValues.sales_tax_id}'`,
+        );
+        const fetchedUpdatedSalesTax = getUpdatedSalesTaxResult[0].rows.item(0);
+
+        if (fetchedUpdatedSalesTax) {
+          salesTax = fetchedUpdatedSalesTax;
         }
       }
     }
@@ -1457,6 +1533,7 @@ export const updateItem = async ({
     const unitCostNet = unitCost / (taxRatePercentage / 100 + 1);
     const unitCostTax = unitCost - unitCostNet;
     const defaultTaxId = tax.id ? `'${tax.id}'` : 'null';
+    const salesTaxId = salesTax.id ? `'${salesTax.id}'` : 'null';
     const defaultVendorId = vendor.id ? `'${vendor.id}'` : 'null';
     const initStockTaxId = initStockTax.id ? `'${initStockTax.id}'` : 'null';
     const initStockTaxName = initStockTax.name
@@ -1486,6 +1563,7 @@ export const updateItem = async ({
         updatedValues.category_id ? `'${updatedValues.category_id}'` : 'null'
       },
       tax_id = ${defaultTaxId},
+      sales_tax_id = ${salesTaxId},
       preferred_vendor_id = ${defaultVendorId},
       name = '${updatedValues.name.replace(/\'/g, "''")}',
       uom_abbrev = '${updatedValues.uom_abbrev}',

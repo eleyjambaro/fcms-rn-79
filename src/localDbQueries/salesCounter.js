@@ -204,8 +204,14 @@ export const confirmSaleEntries = async ({
         unitSellingPrice = parseFloat(item.option_selling_price || 0);
       }
 
+      // Selling side uses the item's sales tax (effective value falls back to
+      // the cost tax when unset); the cost side below keeps the cost tax.
+      const salesTaxRatePercentage = parseFloat(
+        item.sales_tax_rate_percentage ?? item.tax_rate_percentage ?? 0,
+      );
+
       const unitSellingPriceNet =
-        unitSellingPrice / (taxRatePercentage / 100 + 1);
+        unitSellingPrice / (salesTaxRatePercentage / 100 + 1);
       const unitSellingPriceTax = unitSellingPrice - unitSellingPriceNet;
 
       const unitCost = parseFloat(item.unit_cost || 0);
@@ -215,6 +221,16 @@ export const confirmSaleEntries = async ({
       const taxId = item.tax_id ? `'${item.tax_id}'` : 'null';
       const taxName = item.tax_name ? `'${item.tax_name}'` : 'null';
 
+      // Effective sales tax recorded on the sale log (ref_tax_id / name).
+      const salesRefTaxId =
+        item.sales_tax_id_effective || item.tax_id
+          ? `'${item.sales_tax_id_effective || item.tax_id}'`
+          : 'null';
+      const salesTaxName =
+        item.sales_tax_name || item.tax_name
+          ? `'${item.sales_tax_name || item.tax_name}'`
+          : 'null';
+
       /**
        * Sale logs
        */
@@ -223,7 +239,7 @@ export const confirmSaleEntries = async ({
       insertSaleLogsQuery += `(
         '${newSaleLogId}',
         '${item.id}',
-        ${taxId},
+        ${salesRefTaxId},
         ${customerId},
         ${unitSellingPrice},
         ${unitSellingPriceNet},
@@ -231,8 +247,8 @@ export const confirmSaleEntries = async ({
         ${saleSizeName},
         ${inSizeQty},
         '${inSizeQtyUOMAbbrev}',
-        ${taxRatePercentage},
-        ${taxName},
+        ${salesTaxRatePercentage},
+        ${salesTaxName},
         ${qty},
         ${salesInvoiceDate},
         '${createdInvoiceId}',
@@ -643,8 +659,14 @@ export const confirmFulfillingSalesOrders = async ({
         unitSellingPrice = parseFloat(item.order_unit_selling_price || 0);
       }
 
+      // Selling side uses the item's sales tax (effective value falls back to
+      // the cost tax when unset); the cost side below keeps the cost tax.
+      const salesTaxRatePercentage = parseFloat(
+        item.sales_tax_rate_percentage ?? item.tax_rate_percentage ?? 0,
+      );
+
       const unitSellingPriceNet =
-        unitSellingPrice / (taxRatePercentage / 100 + 1);
+        unitSellingPrice / (salesTaxRatePercentage / 100 + 1);
       const unitSellingPriceTax = unitSellingPrice - unitSellingPriceNet;
 
       const unitCost = parseFloat(item.unit_cost || 0);
@@ -654,6 +676,16 @@ export const confirmFulfillingSalesOrders = async ({
       const taxId = item.tax_id ? `'${item.tax_id}'` : 'null';
       const taxName = item.tax_name ? `'${item.tax_name}'` : 'null';
 
+      // Effective sales tax recorded on the sale log (ref_tax_id / name).
+      const salesRefTaxId =
+        item.sales_tax_id_effective || item.tax_id
+          ? `'${item.sales_tax_id_effective || item.tax_id}'`
+          : 'null';
+      const salesTaxName =
+        item.sales_tax_name || item.tax_name
+          ? `'${item.sales_tax_name || item.tax_name}'`
+          : 'null';
+
       /**
        * Sale logs
        */
@@ -662,7 +694,7 @@ export const confirmFulfillingSalesOrders = async ({
       insertSaleLogsQuery += `(
         '${newSaleLogId}',
         '${item.id}',
-        ${taxId},
+        ${salesRefTaxId},
         ${customerId},
         ${unitSellingPrice},
         ${unitSellingPriceNet},
@@ -670,8 +702,8 @@ export const confirmFulfillingSalesOrders = async ({
         ${saleSizeName},
         ${inSizeQty},
         '${inSizeQtyUOMAbbrev}',
-        ${taxRatePercentage},
-        ${taxName},
+        ${salesTaxRatePercentage},
+        ${salesTaxName},
         ${qty},
         ${salesInvoiceDate},
         '${createdInvoiceId}',
@@ -1053,7 +1085,11 @@ export const addSaleEntriesToSalesOrders = async ({
       let inSizeQtyUOMAbbrev = item.uom_abbrev;
       let unitSellingPrice = parseFloat(item.unit_selling_price || 0);
       let qty = parseFloat(item.saleQty || 0);
-      const taxRatePercentage = parseFloat(item.tax_rate_percentage || 0);
+      // Sales orders have no cost side, so the recorded tax IS the item's sales
+      // tax (effective value falls back to the cost tax when unset).
+      const taxRatePercentage = parseFloat(
+        item.sales_tax_rate_percentage ?? item.tax_rate_percentage ?? 0,
+      );
 
       if (item.item_modifier_options_count > 0) {
         inSizeQty = parseFloat(item.in_option_qty);
@@ -1065,8 +1101,14 @@ export const addSaleEntriesToSalesOrders = async ({
         unitSellingPrice / (taxRatePercentage / 100 + 1);
       const unitSellingPriceTax = unitSellingPrice - unitSellingPriceNet;
 
-      const taxId = item.tax_id ? `'${item.tax_id}'` : 'null';
-      const taxName = item.tax_name ? `'${item.tax_name}'` : 'null';
+      const taxId =
+        item.sales_tax_id_effective || item.tax_id
+          ? `'${item.sales_tax_id_effective || item.tax_id}'`
+          : 'null';
+      const taxName =
+        item.sales_tax_name || item.tax_name
+          ? `'${item.sales_tax_name || item.tax_name}'`
+          : 'null';
 
       const newSalesOrderId = uuid.v4();
       insertSalesOrdersQuery += `(

@@ -27,7 +27,7 @@ import MoreSelectionButton from '../buttons/MoreSelectionButton';
 import useItemFormContext from '../../hooks/useItemFormContext';
 import useCurrentUser from '../../hooks/useCurrentUser';
 import {getCategory} from '../../localDbQueries/categories';
-import {getTax} from '../../localDbQueries/taxes';
+import {getTax, getTaxes} from '../../localDbQueries/taxes';
 import routes from '../../constants/routes';
 import TaxCalculation from '../taxes/TaxCalculation';
 import {getVendor} from '../../localDbQueries/vendors';
@@ -478,6 +478,13 @@ const ItemForm = props => {
     ['salesTax', {id: salesTaxId}],
     getTax,
     {enabled: !!salesTaxId},
+  );
+
+  // App default tax (VAT) — used to default the per-item Sales Tax on new items.
+  const {data: getDefaultSalesTaxData} = useQuery(
+    ['taxes', {filter: {is_app_default: 1}}],
+    getTaxes,
+    {enabled: !editMode},
   );
 
   const {
@@ -986,6 +993,50 @@ const ItemForm = props => {
     );
   };
 
+  // Per-item Sales Tax (selling side). Mirrors the Pre-FCMS Stock Applied Tax
+  // picker. Visible in both add & edit; new items default to the app default
+  // tax (VAT) and "None" falls back to the item's cost tax at sale time.
+  const renderSalesTaxButton = formikProps => {
+    const {
+      handleChange,
+      setFieldValue,
+      values,
+      errors,
+      touched,
+      setFieldTouched,
+      setFieldError,
+    } = formikProps;
+
+    return (
+      <MoreSelectionButton
+        containerStyle={{marginTop: -1}}
+        placeholder="Select Tax"
+        label="Sales Tax"
+        renderValueCurrentValue={values.sales_tax_id}
+        renderValue={(_value, renderingValueProps) => {
+          if (!salesTaxId) return null;
+          return renderTaxValue(
+            getSalesTaxStatus,
+            getSalesTaxData,
+            renderingValueProps,
+          );
+        }}
+        onChangeValue={currentValue => {
+          handleSalesTaxChange(currentValue);
+          handleChange('sales_tax_id')(currentValue);
+        }}
+        onPress={() =>
+          navigateWithFormikActions(
+            {setFieldValue, setFieldTouched, setFieldError},
+            routes.itemTax(),
+            {tax_id: values.sales_tax_id, tax_id_field_key: 'sales_tax_id'},
+          )
+        }
+        error={!!(errors.sales_tax_id && touched.sales_tax_id)}
+      />
+    );
+  };
+
   const renderTaxCalculation = values => (
     <TaxCalculation
       item={values}
@@ -1251,9 +1302,6 @@ const ItemForm = props => {
           onChangeValue={currentValue => {
             handleInitStockAppliedTaxChange(currentValue);
             handleChange('initial_stock_applied_tax_id')(currentValue);
-            if (currentValue && currentValue !== '0') {
-              handleChange('sales_tax_id')(currentValue);
-            }
           }}
           onPress={() =>
             makeFormikNav(routes.itemTax())({
@@ -1558,6 +1606,19 @@ const ItemForm = props => {
     setFieldError,
     setValues,
   } = formik;
+
+  // Default the Sales Tax to the app default tax (VAT) on NEW items only, once
+  // it loads and only if the user has not already picked one. Edit mode keeps
+  // the item's saved value (NULL => falls back to the cost tax at sale time).
+  useEffect(() => {
+    if (editMode) return;
+    if (values.sales_tax_id) return;
+
+    const defaultSalesTax = getDefaultSalesTaxData?.result?.[0];
+    if (defaultSalesTax?.id) {
+      setFieldValue('sales_tax_id', defaultSalesTax.id.toString());
+    }
+  }, [editMode, values.sales_tax_id, getDefaultSalesTaxData, setFieldValue]);
 
   // -------------------------------------------------------------------------
   // Section heading texts
@@ -2067,6 +2128,7 @@ const ItemForm = props => {
         containerStyle={{marginTop: 20}}
       />
       {renderMarkupFields(formik)}
+      {renderSalesTaxButton(formik)}
       <Button
         mode="contained"
         onPress={handleSubmit}
