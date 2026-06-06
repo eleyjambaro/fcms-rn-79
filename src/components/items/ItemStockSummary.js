@@ -29,6 +29,7 @@ import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadin
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import {computeSrpFromPercentage} from '../../utils/markupHelpers';
 import ItemQRCode from './ItemQRCode';
 
 const ItemStockSummary = props => {
@@ -326,6 +327,56 @@ const ItemStockSummary = props => {
       <View style={styles.detailsListItem}>
         <Text style={{fontWeight: 'bold'}}>Cost Percentage:</Text>
         {renderCostPercentageValue()}
+      </View>
+
+      <View style={styles.detailsListItem}>
+        <View>
+          <Text style={{fontWeight: 'bold', marginBottom: 5}}>
+            Suggested Retail Price (SRP):
+          </Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              marginLeft: 10,
+              alignItems: 'center',
+            }}>
+            <Text
+              style={{
+                marginLeft: 7,
+                fontWeight: 'bold',
+                color: 'green',
+                fontSize: 16,
+              }}>
+              {`${currencySymbol} ${commaNumber(
+                computeSrpFromPercentage(
+                  parseFloat(item?.avg_unit_cost_net || 0),
+                  parseFloat(item?.markup_percentage || 0),
+                ).toFixed(2),
+              )}`}
+            </Text>
+            <Text
+              style={{
+                marginLeft: 5,
+                color: colors.dark,
+                fontSize: 16,
+              }}>
+              {`/ ${formatUOMAbbrev(item.uom_abbrev)}`}
+            </Text>
+          </View>
+          <Text
+            style={{
+              marginLeft: 17,
+              marginTop: 4,
+              color: colors.dark,
+              fontStyle: 'italic',
+            }}>
+            {`Markup: ${commaNumber(
+              parseFloat(item?.markup_percentage || 0).toFixed(2),
+            )}% (${currencySymbol} ${commaNumber(
+              parseFloat(item?.markup_amount || 0).toFixed(2),
+            )})`}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.detailsListItem}>
