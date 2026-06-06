@@ -29,7 +29,10 @@ import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadin
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
-import {computeSrpFromPercentage} from '../../utils/markupHelpers';
+import {
+  computeSrpFromPercentage,
+  computeSrpWithTax,
+} from '../../utils/markupHelpers';
 import ItemQRCode from './ItemQRCode';
 
 const ItemStockSummary = props => {
@@ -318,6 +321,8 @@ const ItemStockSummary = props => {
           <Text style={[styles.balloonLabel, {marginBottom: 5}]}>
             Suggested Retail Price (SRP):
           </Text>
+
+          {/* Before tax: net cost + markup (no VAT) */}
           <View style={styles.balloonValueRow}>
             <Text style={[styles.balloonValue, {color: 'green'}]}>
               {`${currencySymbol} ${commaNumber(
@@ -330,7 +335,38 @@ const ItemStockSummary = props => {
             <Text style={[styles.balloonUnit, {color: colors.dark}]}>
               {`/ ${formatUOMAbbrev(item.uom_abbrev)}`}
             </Text>
+            <Text style={[styles.balloonInlineNote, {color: colors.dark}]}>
+              Before Tax
+            </Text>
           </View>
+
+          {/* With tax: SRP + effective sales tax (same rate the POS uses) */}
+          <View style={[styles.balloonValueRow, {marginTop: 6}]}>
+            <Text style={[styles.balloonValue, {color: 'green'}]}>
+              {`${currencySymbol} ${commaNumber(
+                computeSrpWithTax(
+                  computeSrpFromPercentage(
+                    parseFloat(item?.avg_unit_cost_net || 0),
+                    parseFloat(item?.markup_percentage || 0),
+                  ),
+                  parseFloat(item?.sales_tax_rate_percentage || 0),
+                ).toFixed(2),
+              )}`}
+            </Text>
+            <Text style={[styles.balloonUnit, {color: colors.dark}]}>
+              {`/ ${formatUOMAbbrev(item.uom_abbrev)}`}
+            </Text>
+            <Text style={[styles.balloonInlineNote, {color: colors.dark}]}>
+              {`With ${
+                parseFloat(item?.sales_tax_rate_percentage || 0) > 0
+                  ? `${commaNumber(
+                      parseFloat(item?.sales_tax_rate_percentage || 0),
+                    )}% `
+                  : ''
+              }Tax`}
+            </Text>
+          </View>
+
           <Text style={[styles.balloonNote, {color: colors.dark}]}>
             {`Markup: ${commaNumber(
               parseFloat(item?.markup_percentage || 0).toFixed(2),
@@ -472,9 +508,16 @@ const ItemStockSummary = props => {
                 alignItems: 'center',
                 marginBottom: item.category_name ? 10 : 0,
               }}>
-              <Headline numberOfLines={3} style={{flex: 1, marginRight: 10}}>
+              <Text
+                numberOfLines={3}
+                style={{
+                  flex: 1,
+                  marginRight: 10,
+                  fontWeight: 'bold',
+                  fontSize: 20,
+                }}>
                 {item.name}
-              </Headline>
+              </Text>
               <View
                 style={{
                   flexDirection: 'row',
@@ -636,16 +679,23 @@ const styles = StyleSheet.create({
   balloonValue: {
     marginLeft: 7,
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 15,
   },
   balloonUnit: {
     marginLeft: 5,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
   },
   balloonNote: {
     marginLeft: 17,
     marginTop: 4,
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  // Qualifier (e.g. "Before Tax", "With 12% Tax") shown inline to the right of a
+  // value row. The generous left margin keeps it clear of the price + unit.
+  balloonInlineNote: {
+    marginLeft: 10,
     fontStyle: 'italic',
   },
 });

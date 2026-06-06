@@ -29,7 +29,10 @@ import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScr
 import {getVendor} from '../../localDbQueries/vendors';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
-import {computeSrpFromPercentage} from '../../utils/markupHelpers';
+import {
+  computeSrpFromPercentage,
+  computeSrpWithTax,
+} from '../../utils/markupHelpers';
 import ItemQRCode from './ItemQRCode';
 
 const ItemDetails = props => {
@@ -257,6 +260,10 @@ const ItemDetails = props => {
   const markupPercentage = parseFloat(item?.markup_percentage || 0);
   const markupAmount = parseFloat(item?.markup_amount || 0);
   const srp = computeSrpFromPercentage(srpNetCostBase, markupPercentage);
+  // SRP with tax adds the effective selling-side sales tax (per-item Sales Tax,
+  // falling back to the cost tax) on top of the net SRP — same rate the POS uses.
+  const salesTaxRate = parseFloat(item?.sales_tax_rate_percentage || 0);
+  const srpWithTax = computeSrpWithTax(srp, salesTaxRate);
 
   return (
     <>
@@ -533,9 +540,7 @@ const ItemDetails = props => {
             </View>
 
             <View style={styles.detailsListItem}>
-              <Text style={{fontWeight: 'bold'}}>
-                Suggested Retail Price (SRP):
-              </Text>
+              <Text style={{fontWeight: 'bold'}}>SRP (Before Tax):</Text>
               <Text
                 style={{
                   marginLeft: 7,
@@ -543,6 +548,29 @@ const ItemDetails = props => {
                   color: 'green',
                 }}>
                 {`${currencySymbol} ${commaNumber(srp.toFixed(2))}`}
+              </Text>
+              <Text
+                style={{
+                  marginLeft: 5,
+                  color: colors.dark,
+                }}>
+                {`/ ${formatUOMAbbrev(item.item_uom_abbrev)}`}
+              </Text>
+            </View>
+
+            <View style={styles.detailsListItem}>
+              <Text style={{fontWeight: 'bold'}}>
+                {`SRP (With ${
+                  salesTaxRate > 0 ? `${commaNumber(salesTaxRate)}% ` : ''
+                }Tax):`}
+              </Text>
+              <Text
+                style={{
+                  marginLeft: 7,
+                  fontWeight: 'bold',
+                  color: 'green',
+                }}>
+                {`${currencySymbol} ${commaNumber(srpWithTax.toFixed(2))}`}
               </Text>
               <Text
                 style={{

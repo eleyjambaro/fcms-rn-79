@@ -1085,6 +1085,10 @@ export const getItem = async ({queryKey}) => {
       (SELECT mi.description FROM active_master_items mi WHERE mi.sku = items.sku LIMIT 1)
     ) AS master_item_description,
     categories.name AS category_name,
+    /* Cost tax (tax_id). Aliased explicitly so callers get a clean rate even
+       through the SELECT * column collisions (matches getItems). */
+    taxes.name AS tax_name,
+    taxes.rate_percentage AS tax_rate_percentage,
     /* Sales tax (selling side); effective fields fall back to the cost tax. See getItems. */
     items.sales_tax_id AS sales_tax_id,
     COALESCE(sales_taxes.id, taxes.id) AS sales_tax_id_effective,

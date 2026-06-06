@@ -17,6 +17,7 @@ import {
   computeMarkupAmount,
   computeMarkupPercentage,
   computeSrpFromAmount,
+  computeSrpWithTax,
 } from '../../utils/markupHelpers';
 
 /**
@@ -65,6 +66,13 @@ const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
 
   const netCostBase = parseFloat(item?.avg_unit_cost_net) || 0;
   const srp = computeSrpFromAmount(netCostBase, markupAmount);
+  // Effective selling-side sales tax rate, recomputed live from the current
+  // picker selection: the picked tax's rate, or the item's cost tax when None
+  // ('0') is selected (mirrors the sales_tax_rate_percentage COALESCE / POS).
+  const effectiveSalesTaxRate = normalizedSalesTaxId
+    ? parseFloat(salesTaxData?.result?.rate_percentage || 0)
+    : parseFloat(item?.tax_rate_percentage || 0);
+  const srpWithTax = computeSrpWithTax(srp, effectiveSalesTaxRate);
 
   const numChanged = (a, b) => parseFloat(a || 0) !== parseFloat(b || 0);
   const isDirty =
@@ -140,9 +148,14 @@ const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
         />
       </View>
       <HelperText type="info" style={styles.srpText}>
-        {`Suggested Retail Price (SRP): ${currencySymbol} ${commaNumber(
-          srp.toFixed(2),
-        )}`}
+        {`SRP (Before Tax): ${currencySymbol} ${commaNumber(srp.toFixed(2))}`}
+      </HelperText>
+      <HelperText type="info" style={styles.srpText}>
+        {`SRP (With ${
+          effectiveSalesTaxRate > 0
+            ? `${commaNumber(effectiveSalesTaxRate)}% `
+            : ''
+        }Tax): ${currencySymbol} ${commaNumber(srpWithTax.toFixed(2))}`}
       </HelperText>
 
       <MoreSelectionButton

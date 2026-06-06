@@ -47,3 +47,17 @@ export function computeSrpFromPercentage(netCost, markupPercentage) {
 export function computeSrpFromAmount(netCost, markupAmount) {
   return toNumber(netCost) + toNumber(markupAmount);
 }
+
+/**
+ * SRP inclusive of the selling-side Sales Tax. SRP itself is net (VAT-exclusive,
+ * = net cost + markup); the effective sales tax is added on top to get the
+ * tax-inclusive retail price a customer pays. A 0 / missing rate returns the
+ * net SRP unchanged.
+ *
+ * `taxRatePercentage` must be the *effective* selling tax rate — the per-item
+ * Sales Tax, falling back to the cost tax when none is set — i.e. the same
+ * `sales_tax_rate_percentage` the POS uses (see salesCounter.js).
+ */
+export function computeSrpWithTax(srp, taxRatePercentage) {
+  return toNumber(srp) * (1 + toNumber(taxRatePercentage) / 100);
+}

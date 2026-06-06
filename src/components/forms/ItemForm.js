@@ -55,6 +55,7 @@ import {
   computeMarkupAmount,
   computeMarkupPercentage,
   computeSrpFromAmount,
+  computeSrpWithTax,
 } from '../../utils/markupHelpers';
 
 // ---------------------------------------------------------------------------
@@ -1453,6 +1454,14 @@ const ItemForm = props => {
       Number.isFinite(avgNet) && avgNet > 0 ? avgNet : derivedNet;
 
     const srp = computeSrpFromAmount(netCostBase, values.markup_amount);
+    // Effective selling-side sales tax rate for the live "with tax" SRP: the
+    // chosen Sales Tax, or the cost tax (the Pre-app stock applied tax) when
+    // None is selected — same effective rate the POS uses.
+    const hasSelectedSalesTax = !!(salesTaxId && salesTaxId !== '0');
+    const sellingTaxRate = hasSelectedSalesTax
+      ? parseFloat(getSalesTaxData?.result?.rate_percentage || 0)
+      : initRate;
+    const srpWithTax = computeSrpWithTax(srp, sellingTaxRate);
 
     return (
       <View style={{marginTop: 5}}>
@@ -1494,9 +1503,12 @@ const ItemForm = props => {
           />
         </View>
         <HelperText type="info" style={{fontWeight: 'bold'}}>
-          {`Suggested Retail Price (SRP): ${currencySymbol} ${commaNumber(
-            srp.toFixed(2),
-          )}`}
+          {`SRP (Before Tax): ${currencySymbol} ${commaNumber(srp.toFixed(2))}`}
+        </HelperText>
+        <HelperText type="info" style={{fontWeight: 'bold'}}>
+          {`SRP (With ${
+            sellingTaxRate > 0 ? `${commaNumber(sellingTaxRate)}% ` : ''
+          }Tax): ${currencySymbol} ${commaNumber(srpWithTax.toFixed(2))}`}
         </HelperText>
       </View>
     );
@@ -1625,6 +1637,9 @@ const ItemForm = props => {
     const defaultSalesTax = getDefaultSalesTaxData?.result?.[0];
     if (defaultSalesTax?.id) {
       setFieldValue('sales_tax_id', defaultSalesTax.id.toString());
+      // Mirror into the query-driving state so the Sales Tax button renders the
+      // default and the live "SRP (With Tax)" can read its rate immediately.
+      setSalesTaxId(defaultSalesTax.id.toString());
     }
   }, [editMode, values.sales_tax_id, getDefaultSalesTaxData, setFieldValue]);
 
