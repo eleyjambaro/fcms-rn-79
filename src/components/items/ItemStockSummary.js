@@ -143,7 +143,7 @@ const ItemStockSummary = props => {
               fontWeight: '500',
               fontStyle: 'italic',
             }}>
-            {`${formatUOMAbbrev(item.uom_abbrev_per_piece)}`}
+            {`${formatUOMAbbrev(item.uom_abbrev_per_piece)} (in total)`}
           </Text>
         </View>
       );
@@ -274,7 +274,7 @@ const ItemStockSummary = props => {
           size={25}
           color={colors.dark}
         />
-        <Subheading style={{marginLeft: 8, fontWeight: 'bold'}}>
+        <Subheading style={{marginLeft: 8, fontSize: 14, fontWeight: 'bold'}}>
           Report Summary
         </Subheading>
 
@@ -291,32 +291,16 @@ const ItemStockSummary = props => {
 
       <View style={styles.detailsListItem}>
         <View>
-          <Text style={{fontWeight: 'bold', marginBottom: 5}}>
+          <Text style={[styles.balloonLabel, {marginBottom: 5}]}>
             Average Unit Cost:
           </Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              marginLeft: 10,
-              alignItems: 'center',
-            }}>
-            <Text
-              style={{
-                marginLeft: 7,
-                fontWeight: 'bold',
-                color: colors.dark,
-                fontSize: 16,
-              }}>
+          <View style={styles.balloonValueRow}>
+            <Text style={[styles.balloonValue, {color: colors.dark}]}>
               {`${currencySymbol} ${commaNumber(
                 parseFloat(item?.avg_unit_cost_net || 0).toFixed(2),
               )}`}
             </Text>
-            <Text
-              style={{
-                marginLeft: 5,
-                color: colors.dark,
-                fontSize: 16,
-              }}>
+            <Text style={[styles.balloonUnit, {color: colors.dark}]}>
               {`/ ${formatUOMAbbrev(item.uom_abbrev)}`}
             </Text>
           </View>
@@ -325,28 +309,17 @@ const ItemStockSummary = props => {
         </View>
       </View>
       <View style={styles.detailsListItem}>
-        <Text style={{fontWeight: 'bold'}}>Cost Percentage:</Text>
+        <Text style={styles.balloonLabel}>Cost Percentage:</Text>
         {renderCostPercentageValue()}
       </View>
 
       <View style={styles.detailsListItem}>
         <View>
-          <Text style={{fontWeight: 'bold', marginBottom: 5}}>
+          <Text style={[styles.balloonLabel, {marginBottom: 5}]}>
             Suggested Retail Price (SRP):
           </Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              marginLeft: 10,
-              alignItems: 'center',
-            }}>
-            <Text
-              style={{
-                marginLeft: 7,
-                fontWeight: 'bold',
-                color: 'green',
-                fontSize: 16,
-              }}>
+          <View style={styles.balloonValueRow}>
+            <Text style={[styles.balloonValue, {color: 'green'}]}>
               {`${currencySymbol} ${commaNumber(
                 computeSrpFromPercentage(
                   parseFloat(item?.avg_unit_cost_net || 0),
@@ -354,22 +327,11 @@ const ItemStockSummary = props => {
                 ).toFixed(2),
               )}`}
             </Text>
-            <Text
-              style={{
-                marginLeft: 5,
-                color: colors.dark,
-                fontSize: 16,
-              }}>
+            <Text style={[styles.balloonUnit, {color: colors.dark}]}>
               {`/ ${formatUOMAbbrev(item.uom_abbrev)}`}
             </Text>
           </View>
-          <Text
-            style={{
-              marginLeft: 17,
-              marginTop: 4,
-              color: colors.dark,
-              fontStyle: 'italic',
-            }}>
+          <Text style={[styles.balloonNote, {color: colors.dark}]}>
             {`Markup: ${commaNumber(
               parseFloat(item?.markup_percentage || 0).toFixed(2),
             )}% (${currencySymbol} ${commaNumber(
@@ -381,31 +343,19 @@ const ItemStockSummary = props => {
 
       <View style={styles.detailsListItem}>
         <View>
-          <Text style={{fontWeight: 'bold'}}>Current Stock Quantity:</Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              marginLeft: 10,
-              alignItems: 'center',
-            }}>
-            <Text
-              style={{
-                marginLeft: 7,
-                fontWeight: 'bold',
-                color: colors.dark,
-                fontSize: 16,
-              }}>
+          <Text style={styles.balloonLabel}>Current Stock Quantity:</Text>
+          <View style={styles.balloonValueRow}>
+            <Text style={[styles.balloonValue, {color: colors.dark}]}>
               {`${commaNumber(
                 parseFloat(item.current_stock_qty || 0).toFixed(2),
               )}`}
             </Text>
-            <Text
-              style={{
-                marginLeft: 5,
-                color: colors.dark,
-                fontWeight: 'bold',
-              }}>
-              {`${formatUOMAbbrev(item.uom_abbrev)}`}
+            <Text style={[styles.balloonUnit, {color: colors.dark}]}>
+              {`${formatUOMAbbrev(item.uom_abbrev)}${
+                item.packaging_type
+                  ? ` (${item.packaging_type.toUpperCase()})`
+                  : ''
+              }`}
             </Text>
           </View>
 
@@ -660,7 +610,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   detailsContainer: {
-    marginTop: 5,
     marginBottom: 10,
   },
   detailsListItem: {
@@ -672,6 +621,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECECEC',
     padding: 10,
     borderRadius: 15,
+  },
+  // Shared text styles for the balloon (detailsListItem) rows. Change these in
+  // one place to restyle every balloon's label / value / unit / note. The
+  // theme `color` is applied per-use (e.g. green for SRP) via an array style.
+  balloonLabel: {
+    fontWeight: 'bold',
+  },
+  balloonValueRow: {
+    flexDirection: 'row',
+    marginLeft: 10,
+    alignItems: 'center',
+  },
+  balloonValue: {
+    marginLeft: 7,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  balloonUnit: {
+    marginLeft: 5,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  balloonNote: {
+    marginLeft: 17,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
 
