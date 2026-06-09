@@ -1,3 +1,26 @@
+// Fields that are NOT offered when exporting a current-inventory snapshot.
+// They are per-purchase-log columns (only meaningful for a new purchase/transfer
+// row on import), so they are always left blank on a populated export.
+export const IDT_EXPORT_EXCLUDED_FIELDS = [
+  'official_receipt_number',
+  'remarks',
+  'purchase_date',
+  'transfer_in_date',
+];
+
+// Exportable fields the user MAY deselect on a populated export. Every other
+// exportable column is locked-required-on-export (pre-selected and not
+// deselectable) — not because the DB requires it, but so the exported IDT
+// always carries these values; that lets us verify them when the file is later
+// re-imported.
+export const IDT_EXPORT_OPTIONAL_FIELDS = [
+  'initial_stock_qty', // Total Stock Qty
+  'unit_cost', // Unit Cost (Gross)
+  'total_cost', // Total Cost (Gross)
+  'vendor_name', // Stock Vendor
+  'barcode', // Barcode
+];
+
 export const normalizeHeader = s =>
   String(s ?? '')
     .toLowerCase()

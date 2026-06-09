@@ -12,14 +12,11 @@ import * as Yup from 'yup';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import SelectionButtonList from '../buttons/SelectionButtonList';
-import {IDT_COLUMNS} from '../../constants/inventoryDataTemplate';
-
-const PER_LOG_FIELDS = [
-  'official_receipt_number',
-  'remarks',
-  'purchase_date',
-  'transfer_in_date',
-];
+import {
+  IDT_COLUMNS,
+  IDT_EXPORT_EXCLUDED_FIELDS,
+  IDT_EXPORT_OPTIONAL_FIELDS,
+} from '../../constants/inventoryDataTemplate';
 
 const EmptyFileExportValidationSchema = Yup.object().shape({
   fileName: Yup.string().max(100, 'Too Long!').required('Required'),
@@ -41,16 +38,19 @@ const InventoryDataTemplateFileExportForm = props => {
   } = props;
   const {colors} = useTheme();
 
-  const requiredFields = IDT_COLUMNS.filter(c => c.required).map(c => c.field);
   const exportableColumns = IDT_COLUMNS.filter(
-    c => !PER_LOG_FIELDS.includes(c.field),
+    c => !IDT_EXPORT_EXCLUDED_FIELDS.includes(c.field),
   );
+  // Every exportable column except the optional ones is locked-on for export.
+  const lockedFields = exportableColumns
+    .filter(c => !IDT_EXPORT_OPTIONAL_FIELDS.includes(c.field))
+    .map(c => c.field);
 
   const resolvedInitialValues =
     mode === 'populated'
       ? {
           fileName: initialValues?.fileName ?? '',
-          columns: initialValues?.columns ?? requiredFields,
+          columns: initialValues?.columns ?? exportableColumns.map(c => c.field),
         }
       : {
           fileName: initialValues?.fileName ?? '',
@@ -132,14 +132,14 @@ const InventoryDataTemplateFileExportForm = props => {
       <>
         <Subheading style={{marginTop: 20, marginBottom: 15}}>
           {
-            'Select columns to include in the export (required columns are pre-selected):'
+            'All columns are exported with values. You may deselect Total Stock Qty, Unit Cost, Total Cost, Stock Vendor, or Barcode to leave them blank:'
           }
         </Subheading>
         <SelectionButtonList
           selections={columnSelections}
           selectMany
           defaultValue={values.columns}
-          disabledValues={requiredFields}
+          disabledValues={lockedFields}
           onChange={value => {
             handleColumnsSelectionChange(value, {
               setFieldValue,

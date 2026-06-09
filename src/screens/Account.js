@@ -64,6 +64,7 @@ import InventoryDataTemplateFileImportForm from '../components/forms/InventoryDa
 import {adUnitIds} from '../constants/adUnitIds';
 import {
   IDT_COLUMNS,
+  IDT_EXPORT_EXCLUDED_FIELDS,
   normalizeHeader,
 } from '../constants/inventoryDataTemplate';
 import BannerAdComponent from '../components/ads/BannerAdComponent';
@@ -498,14 +499,17 @@ const Account = props => {
   const exportInventoryAsIdt = async values => {
     try {
       const items = await getAllItemsForExport();
-      const selectedColumns = IDT_COLUMNS.filter(c =>
-        values.columns.includes(c.field),
-      );
+      // Always export every column so the file matches the empty IDT format.
+      // Columns the user didn't select are written with a blank value.
+      const selectedFields = new Set(values.columns);
 
-      const headerRow = selectedColumns.map(c => c.header);
+      const headerRow = IDT_COLUMNS.map(c => c.header);
 
       const dataRows = items.map((item, idx) =>
-        selectedColumns.map(c => {
+        IDT_COLUMNS.map(c => {
+          if (!selectedFields.has(c.field)) {
+            return '';
+          }
           switch (c.field) {
             case 'count':
               return String(idx + 1);
@@ -549,7 +553,7 @@ const Account = props => {
 
       const workbook = XLSX.utils.book_new();
       const itemsWorksheet = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
-      itemsWorksheet['!cols'] = selectedColumns.map(c => ({wch: c.width}));
+      itemsWorksheet['!cols'] = IDT_COLUMNS.map(c => ({wch: c.width}));
       XLSX.utils.book_append_sheet(
         workbook,
         itemsWorksheet,
@@ -1325,13 +1329,17 @@ const Account = props => {
   const renderExportPopulatedOptionsModalContent = () => {
     const dateStamp = moment().format('YYYY-MM-DD');
     const fileName = `${appDefaults.appDisplayName} Inventory ${dateStamp}`;
-    const requiredFields = IDT_COLUMNS.filter(c => c.required).map(
-      c => c.field,
-    );
+    // Pre-select every exportable column so a full inventory snapshot exports
+    // with values by default. PER_LOG_FIELDS are not exportable here (they are
+    // per-purchase-log fields, not part of a current-inventory snapshot) and
+    // the form excludes them. Users can deselect any column to blank it.
+    const exportableFields = IDT_COLUMNS.filter(
+      c => !IDT_EXPORT_EXCLUDED_FIELDS.includes(c.field),
+    ).map(c => c.field);
 
     const formInitialValues = {
       fileName,
-      columns: requiredFields,
+      columns: exportableFields,
     };
 
     return (
