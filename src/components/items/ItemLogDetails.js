@@ -228,8 +228,13 @@ const ItemLogDetails = props => {
   const renderImportDetails = () => {
     if (!idtImport) return null;
 
+    // imported_at is an audit timestamp stored in UTC (CURRENT_TIMESTAMP) on a
+    // delta-synced table, so it must be read as UTC and converted to the
+    // device's local time for display. Plain moment() would parse the
+    // space-separated UTC string as local wall-clock and show the time off by
+    // the device's timezone offset.
     const importedAt = idtImport.imported_at
-      ? moment(idtImport.imported_at).format('MMM DD, YYYY hh:mm A')
+      ? moment.utc(idtImport.imported_at).local().format('MMM DD, YYYY hh:mm A')
       : '—';
 
     return (
