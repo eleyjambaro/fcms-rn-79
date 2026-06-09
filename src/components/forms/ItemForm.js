@@ -1469,7 +1469,7 @@ const ItemForm = props => {
         <HelperText type="info">
           {`Net Unit Cost: ${currencySymbol} ${commaNumber(
             netCostBase.toFixed(2),
-          )} (SRP = net cost + markup, and VAT)`}
+          )} (SRP = net cost + markup, and tax)`}
         </HelperText>
         <View style={{flexDirection: 'row'}}>
           <TextInput

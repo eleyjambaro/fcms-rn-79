@@ -120,7 +120,7 @@ const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
       <HelperText type="info">
         {`Net Unit Cost: ${currencySymbol} ${commaNumber(
           netCostBase.toFixed(2),
-        )} (SRP = net cost + markup, and VAT)`}
+        )} (SRP = net cost + markup, and tax)`}
       </HelperText>
       <View style={styles.markupRow}>
         <TextInput

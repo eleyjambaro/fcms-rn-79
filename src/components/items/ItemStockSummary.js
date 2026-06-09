@@ -146,7 +146,7 @@ const ItemStockSummary = props => {
               fontWeight: '500',
               fontStyle: 'italic',
             }}>
-            {`${formatUOMAbbrev(item.uom_abbrev_per_piece)} (in total)`}
+            {`${formatUOMAbbrev(item.uom_abbrev_per_piece)}`}
           </Text>
         </View>
       );
