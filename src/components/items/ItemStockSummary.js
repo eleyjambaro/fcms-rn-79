@@ -642,12 +642,13 @@ const ItemStockSummary = props => {
             {/* ACTIONS */}
             {renderAddNewYieldButton()}
             <GestureDetector gesture={reportSummaryActionsPanGesture}>
+              <View>
               <View
                 style={[
                   styles.actionsContainer,
                   {flexDirection: 'row', justifyContent: 'flex-end'},
                 ]}>
-              {showActions && (
+              {showActions ? (
                 <Button
                   style={{flex: 1, marginRight: 10}}
                   mode={item?.is_finished_product ? 'outlined' : 'contained'}
@@ -658,6 +659,16 @@ const ItemStockSummary = props => {
                   }}>
                   Manage Stock
                 </Button>
+              ) : (
+                // No action button: fill the empty left space with a hint that
+                // points users to the swipe/handle gesture.
+                <Text
+                  style={[styles.actionsHelperText, {color: colors.dark}]}
+                  numberOfLines={2}>
+                  {showDetails
+                    ? 'Swipe up or tap the handle to hide the item report summary'
+                    : 'Swipe down or pull the handle to view the item report summary'}
+                </Text>
               )}
               <Pressable
                 style={{
@@ -678,6 +689,20 @@ const ItemStockSummary = props => {
                 </Animated.View>
               </Pressable>
               </View>
+              {/* Grabber: signals the summary can be pulled open/closed
+                  (swipe up/down, or tap to toggle). Shown in both states. */}
+              <Pressable
+                onPress={toggleDetails}
+                hitSlop={10}
+                style={styles.handleContainer}>
+                <View
+                  style={[
+                    styles.handleBar,
+                    {backgroundColor: colors.neutralTint3},
+                  ]}
+                />
+              </Pressable>
+              </View>
             </GestureDetector>
           </>
         )}
@@ -694,6 +719,27 @@ const styles = StyleSheet.create({
   },
   headerQRCode: {
     marginRight: 12,
+  },
+  // Collapsed-state grabber centered under the actions row. The rounded ends
+  // read as a "pull down to expand" affordance, mirroring a sheet handle.
+  handleContainer: {
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
+  handleBar: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+  },
+  // Hint shown in the actions row when no action button is present, so the
+  // left space isn't empty and the swipe/handle gesture is discoverable.
+  actionsHelperText: {
+    flex: 1,
+    marginRight: 10,
+    fontSize: 12,
+    fontStyle: 'italic',
+    alignSelf: 'center',
   },
   detailsContainer: {
     marginBottom: 10,

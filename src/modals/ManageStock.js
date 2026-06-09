@@ -148,6 +148,7 @@ const ManageStock = props => {
             borderBottomWidth: 2,
             borderBottomColor: colors.neutralTint5,
           }}
+          tabLabelStyle={{fontWeight: 'bold'}}
           disableSwipe={fromEndingInventory ? true : false}
           onChangeIndex={handleTabChange}>
           <TabScreen label="Add" icon="plus-box-outline">
