@@ -567,7 +567,20 @@ export const getAllSellingMenuItems = async () => {
     items.name AS item_name,
     selling_menus.id AS menu_id,
     selling_menus.name AS menu_name,
-    modifier_options.id AS option_id
+    modifier_options.id AS option_id,
+    /*
+     * Sales tax (selling side) of the underlying product item. Surfaced here so
+     * the Sales Register / Review Sales legend (T/E) and VAT math treat a menu
+     * the same as a regular item. Reflects ONLY the item's own sales_tax_id —
+     * no fallback to the cost tax (tax_id); a menu whose item has no sales tax
+     * sells tax-exempt. Mirrors getItems in localDbQueries/items.js. Subqueries
+     * (not a join) are used so the SELECT * wildcard above stays unaffected —
+     * a joined taxes table would clobber the row's sync_id/updated_at/is_deleted.
+     */
+    items.sales_tax_id AS sales_tax_id,
+    (SELECT t.id FROM taxes t WHERE t.id = items.sales_tax_id) AS sales_tax_id_effective,
+    (SELECT t.name FROM taxes t WHERE t.id = items.sales_tax_id) AS sales_tax_name,
+    (SELECT t.rate_percentage FROM taxes t WHERE t.id = items.sales_tax_id) AS sales_tax_rate_percentage
     FROM active_selling_menu_items selling_menu_items
 
     INNER JOIN active_items items

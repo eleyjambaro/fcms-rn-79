@@ -123,7 +123,9 @@ const SalesRegisterTicketItemListItem = props => {
           parseFloat(item?.saleSubtotal || 0).toFixed(2),
         )}`}</Text>
         <Text style={{marginLeft: 5}}>{`${
-          item?.tax_id ? costMarkers.taxable : costMarkers.taxExempt
+          item?.sales_tax_id_effective
+            ? costMarkers.taxable
+            : costMarkers.taxExempt
         }`}</Text>
       </View>
     );
