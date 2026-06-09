@@ -23,9 +23,10 @@ export const confirmSaleEntries = async ({
     : `datetime('now', 'localtime')`;
 
   let createdInvoiceId = null;
+  let db;
 
   try {
-    const db = await getDBConnection();
+    db = await getDBConnection();
 
     if (await isMutationDisabled()) {
       onLimitReached &&
@@ -274,19 +275,22 @@ export const confirmSaleEntries = async ({
       let itemQtyPerPiece = item.qty_per_piece;
       let qtyBasedOnItemUom;
 
+      // Use the resolved size qty/UOM (defaults to 1 / the item's own UOM for
+      // items with no selling size option), not the raw item.in_option_qty
+      // which is undefined for non-option items and crashes convert().
       if (item.use_measurement_per_piece) {
         const convertedQtyBasedOnItemUOMPerPiece = convert(
-          parseFloat(item.in_option_qty),
+          parseFloat(inSizeQty),
         )
-          .from(item.in_option_qty_uom_abbrev)
+          .from(inSizeQtyUOMAbbrev)
           .to(itemUOMAbbrevPerPiece);
 
         const qtyInPiece =
           parseFloat(convertedQtyBasedOnItemUOMPerPiece) / itemQtyPerPiece;
         qtyBasedOnItemUom = qtyInPiece;
       } else {
-        qtyBasedOnItemUom = convert(parseFloat(item.in_option_qty))
-          .from(item.in_option_qty_uom_abbrev)
+        qtyBasedOnItemUom = convert(parseFloat(inSizeQty))
+          .from(inSizeQtyUOMAbbrev)
           .to(itemUOMAbbrev);
       }
 
@@ -487,9 +491,10 @@ export const confirmFulfillingSalesOrders = async ({
     : `datetime('now', 'localtime')`;
 
   let createdInvoiceId = null;
+  let db;
 
   try {
-    const db = await getDBConnection();
+    db = await getDBConnection();
 
     if (await isMutationDisabled()) {
       onLimitReached &&
@@ -943,9 +948,10 @@ export const addSaleEntriesToSalesOrders = async ({
     : `datetime('now', 'localtime')`;
 
   let createdSalesOrderGroupId = null;
+  let db;
 
   try {
-    const db = await getDBConnection();
+    db = await getDBConnection();
     const {deviceId: salesOrderDeviceId, branchId: salesOrderBranchId} =
       await getCloudSyncParams();
 
