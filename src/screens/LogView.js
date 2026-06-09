@@ -32,11 +32,14 @@ import {
 } from '../localDbQueries/inventoryLogs';
 import InventoryLogRemarksForm from '../components/forms/InventoryLogRemarksForm';
 import useRoleAccess from '../hooks/useRoleAccess';
+import useCurrentUser from '../hooks/useCurrentUser';
+import {getCloudSubAccounts} from '../serverDbQueries/v2/accounts';
 
 const LogView = props => {
   const {backAction} = props;
   const {colors} = useTheme();
   const {can} = useRoleAccess();
+  const [{authUser: currentAccount}] = useCurrentUser();
   const route = useRoute();
   const logId = route.params?.log_id;
   const itemId = route.params.item_id;
@@ -44,6 +47,21 @@ const LogView = props => {
   const {status, data} = useQuery(
     ['inventoryLog', {id: logId}],
     getInventoryLog,
+  );
+
+  const importedByAccountId = data?.idtImport?.imported_by_account_id ?? null;
+  // The accounts list is permission-gated server-side and excludes the root
+  // account, so only fetch it when the viewer can view members and the
+  // importer isn't already the signed-in user (whose details we have locally).
+  const needsSubAccountLookup =
+    !!importedByAccountId &&
+    importedByAccountId !== currentAccount?.id &&
+    can('userManagement.viewMembers');
+
+  const {data: subAccountsData} = useQuery(
+    ['cloudV2SubAccounts'],
+    getCloudSubAccounts,
+    {enabled: needsSubAccountLookup},
   );
 
   const [yieldStockLogYieldRefId, setYieldStockLogYieldRefId] = useState(null);
@@ -377,6 +395,17 @@ const LogView = props => {
   const idtImport = data?.idtImport ?? null;
   const yieldStockLog = getYieldStockLogData?.result;
 
+  let importedByUser = null;
+  if (importedByAccountId) {
+    if (currentAccount?.id === importedByAccountId) {
+      importedByUser = currentAccount;
+    } else {
+      const subAccounts = subAccountsData?.data ?? [];
+      importedByUser =
+        subAccounts.find(account => account.id === importedByAccountId) ?? null;
+    }
+  }
+
   if (!log) return null;
 
   const remarksFormInitialValues = {
@@ -449,6 +478,7 @@ const LogView = props => {
           <ItemLogDetails
             log={log}
             idtImport={idtImport}
+            importedByUser={importedByUser}
             containerStyle={{marginBottom: 0}}
             onPressItemOptions={
               options.length === 0 ? undefined : openOptionsBottomSheet

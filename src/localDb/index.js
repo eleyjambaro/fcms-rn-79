@@ -1267,6 +1267,9 @@ const createInventoryDataTemplateImportsTableQuery = `
   CREATE TABLE IF NOT EXISTS inventory_data_template_imports (
     id TEXT PRIMARY KEY NOT NULL,
     imported_by_account_id VARCHAR,
+    imported_by_first_name VARCHAR DEFAULT NULL,
+    imported_by_last_name VARCHAR DEFAULT NULL,
+    imported_by_email VARCHAR DEFAULT NULL,
     imported_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     device_id VARCHAR DEFAULT NULL,
     branch_id VARCHAR DEFAULT NULL,
@@ -2162,6 +2165,42 @@ export const alterTables = async currentAppVersion => {
     } catch (error) {
       console.debug(
         '[alterTables] Error adding master_items dedup columns:',
+        error,
+      );
+    }
+
+    /**
+     * Denormalized importer identity on the IDT import audit row. Stored at
+     * import time so every device can show "Imported By: <name> <email>"
+     * without an accounts lookup (the /api/v2/accounts endpoint is gated by
+     * userManagement permission and excludes the root account, so a live
+     * lookup can't resolve the owner for other viewers). Synced across the
+     * branch. Schema parity invariant: server migration
+     * 2024_01_01_000023 adds these columns + the model $fillable +
+     * SyncController allowedFields.
+     */
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'inventory_data_template_imports',
+        'imported_by_first_name',
+        `ALTER TABLE inventory_data_template_imports ADD COLUMN imported_by_first_name VARCHAR DEFAULT NULL;`,
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'inventory_data_template_imports',
+        'imported_by_last_name',
+        `ALTER TABLE inventory_data_template_imports ADD COLUMN imported_by_last_name VARCHAR DEFAULT NULL;`,
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'inventory_data_template_imports',
+        'imported_by_email',
+        `ALTER TABLE inventory_data_template_imports ADD COLUMN imported_by_email VARCHAR DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding inventory_data_template_imports importer columns:',
         error,
       );
     }

@@ -32,6 +32,27 @@ const loadCurrentAccountId = async () => {
   }
 };
 
+// Full identity of the signed-in account, denormalized onto the IDT import
+// audit row so every device can show the importer's name/email without an
+// accounts lookup (the accounts endpoint is permission-gated and excludes the
+// root account). Returns nulls when no one is signed in.
+const loadCurrentAccountIdentity = async () => {
+  try {
+    const has = await SecureStorage.hasItem(rnStorageKeys.cloudV2AuthUser);
+    if (!has) return {id: null, firstName: null, lastName: null, email: null};
+    const raw = await SecureStorage.getItem(rnStorageKeys.cloudV2AuthUser);
+    const account = (raw ? JSON.parse(raw) : null)?.account ?? null;
+    return {
+      id: account?.id ?? null,
+      firstName: account?.first_name ?? null,
+      lastName: account?.last_name ?? null,
+      email: account?.email ?? null,
+    };
+  } catch {
+    return {id: null, firstName: null, lastName: null, email: null};
+  }
+};
+
 /**
  * Parse date values from Excel/CSV into JavaScript Date objects.
  * Handles: Excel serial numbers, MM/DD/YYYY strings, YYYY-MM-DD strings.
@@ -249,7 +270,12 @@ export const insertTemplateDataToDb = async ({
   try {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
-    const importedByAccountId = await loadCurrentAccountId();
+    const {
+      id: importedByAccountId,
+      firstName: importedByFirstName,
+      lastName: importedByLastName,
+      email: importedByEmail,
+    } = await loadCurrentAccountIdentity();
     const idtImportId = uuid.v4();
     const appConfig = await getAppConfig();
     const {insertLimit, insertCategoryLimit, insertItemLimitPerCategory} =
@@ -1474,10 +1500,15 @@ export const insertTemplateDataToDb = async ({
        * below stamps the same idt_import_id so the UI can group logs by the
        * import that produced them and surface importer + date provenance.
        */
+      const toSqlText = value =>
+        value ? `'${String(value).replace(/'/g, "''")}'` : 'NULL';
       const insertIdtImportQuery = `
         INSERT INTO inventory_data_template_imports (
           id,
           imported_by_account_id,
+          imported_by_first_name,
+          imported_by_last_name,
+          imported_by_email,
           imported_at,
           device_id,
           branch_id,
@@ -1486,6 +1517,9 @@ export const insertTemplateDataToDb = async ({
         ) VALUES (
           '${idtImportId}',
           ${importedByAccountId ? `'${importedByAccountId}'` : 'NULL'},
+          ${toSqlText(importedByFirstName)},
+          ${toSqlText(importedByLastName)},
+          ${toSqlText(importedByEmail)},
           CURRENT_TIMESTAMP,
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},

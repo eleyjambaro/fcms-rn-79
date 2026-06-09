@@ -194,7 +194,8 @@ export const getInventoryLog = async ({queryKey}) => {
     let idtImport = null;
     if (log?.idt_import_id) {
       const idtImportResult = await db.executeSql(
-        `SELECT id, sync_id, imported_by_account_id, imported_at
+        `SELECT id, sync_id, imported_by_account_id, imported_by_first_name,
+                imported_by_last_name, imported_by_email, imported_at
          FROM active_inventory_data_template_imports
          WHERE id = '${log.idt_import_id}'
          LIMIT 1;`,

@@ -41,6 +41,7 @@ const ItemLogDetails = props => {
   const {
     log,
     idtImport,
+    importedByUser,
     containerStyle,
     onPressItemOptions,
     onPressEditRemarks,
@@ -283,22 +284,71 @@ const ItemLogDetails = props => {
               {importedAt}
             </Text>
           </View>
-          <View style={[styles.detailsListItem]}>
+          <View style={[styles.detailsListItem, {alignItems: 'flex-start'}]}>
             <Text style={{fontWeight: 'bold'}}>{`Imported By:`}</Text>
-            <Text
-              numberOfLines={1}
-              style={{
-                flex: 1,
-                marginLeft: 7,
-                fontWeight: 'bold',
-                fontSize: 11,
-                color: colors.dark,
-              }}>
-              {idtImport.imported_by_account_id || '—'}
-            </Text>
+            {renderImportedBy()}
           </View>
         </View>
       </>
+    );
+  };
+
+  const renderImportedBy = () => {
+    // Prefer the importer identity denormalized onto the import row at import
+    // time — it syncs across devices and resolves for the root account and for
+    // viewers without the accounts permission. Fall back to the live account
+    // lookup (older imports made before the denormalized columns existed).
+    const firstName =
+      idtImport.imported_by_first_name || importedByUser?.first_name;
+    const lastName =
+      idtImport.imported_by_last_name || importedByUser?.last_name;
+    const email = idtImport.imported_by_email || importedByUser?.email;
+    const importedByName = [firstName, lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    // No resolved user — fall back to the raw account id (or em dash).
+    if (!importedByName) {
+      return (
+        <Text
+          numberOfLines={1}
+          style={{
+            flex: 1,
+            marginLeft: 7,
+            fontWeight: 'bold',
+            fontSize: 11,
+            color: colors.dark,
+          }}>
+          {idtImport.imported_by_account_id || '—'}
+        </Text>
+      );
+    }
+
+    const roleLabel = importedByUser?.is_root_account
+      ? 'Owner'
+      : importedByUser?.role_name;
+
+    return (
+      <View style={{flex: 1, marginLeft: 7}}>
+        <Text
+          numberOfLines={1}
+          style={{fontWeight: 'bold', color: colors.dark}}>
+          {importedByName}
+          {roleLabel ? (
+            <Text style={{fontWeight: 'normal', color: colors.dark}}>
+              {` (${roleLabel})`}
+            </Text>
+          ) : null}
+        </Text>
+        {email ? (
+          <Text
+            numberOfLines={1}
+            style={{fontSize: 11, color: colors.dark, opacity: 0.7}}>
+            {email}
+          </Text>
+        ) : null}
+      </View>
     );
   };
 
