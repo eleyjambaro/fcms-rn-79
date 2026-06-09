@@ -611,9 +611,10 @@ export const insertTemplateDataToDb = async ({
     );
 
     /**
-     * Get all categories from db
+     * Get all categories from db (active only — soft-deleted rows must not
+     * count as existing, or imports would link to / skip deleted records).
      */
-    let categoriesFromDb = await getAllDataFromDb('categories');
+    let categoriesFromDb = await getAllDataFromDb('active_categories');
 
     /**
      * Compare each unique category name from template to each category from db
@@ -706,7 +707,7 @@ export const insertTemplateDataToDb = async ({
      * Get all categories from db once again. This time, we assume that all
      * categories we inserted from template were already in the database
      */
-    categoriesFromDb = await getAllDataFromDb('categories');
+    categoriesFromDb = await getAllDataFromDb('active_categories');
 
     /**
      * create categoriesIdMap & categoriesByIdMap
@@ -729,9 +730,9 @@ export const insertTemplateDataToDb = async ({
     const uniqueTaxes = removeDuplicatesFromArray(templateTaxes, 'tax_name');
 
     /**
-     * Get all taxes from db
+     * Get all taxes from db (active only)
      */
-    let taxesFromDb = await getAllDataFromDb('taxes');
+    let taxesFromDb = await getAllDataFromDb('active_taxes');
 
     /**
      * Compare each unique tax name from template to each tax from db
@@ -829,7 +830,7 @@ export const insertTemplateDataToDb = async ({
      * Get all taxes from db once again. This time, we assume that all
      * taxes we inserted from template were already in the database
      */
-    taxesFromDb = await getAllDataFromDb('taxes');
+    taxesFromDb = await getAllDataFromDb('active_taxes');
 
     /**
      * create taxesIdMap & taxesByIdMap
@@ -856,9 +857,9 @@ export const insertTemplateDataToDb = async ({
     const uniqueVendorsName = removeDuplicatesFromArray(templateVendorsName);
 
     /**
-     * Get all vendors from db
+     * Get all vendors from db (active only)
      */
-    let vendorsFromDb = await getAllDataFromDb('vendors');
+    let vendorsFromDb = await getAllDataFromDb('active_vendors');
 
     /**
      * Compare each unique vendor name from template to each vendor from db
@@ -955,7 +956,7 @@ export const insertTemplateDataToDb = async ({
      * Get all vendors from db once again. This time, we assume that all
      * vendors we inserted from template were already in the database
      */
-    vendorsFromDb = await getAllDataFromDb('vendors');
+    vendorsFromDb = await getAllDataFromDb('active_vendors');
 
     /**
      * create vendorsIdMap & vendorsByIdMap
@@ -978,9 +979,11 @@ export const insertTemplateDataToDb = async ({
     const uniqueItems = removeDuplicatesFromArray(templateItems, 'item_name');
 
     /**
-     * Get all items from db
+     * Get all items from db (active only — a soft-deleted item must NOT be
+     * treated as already existing, otherwise re-importing a previously deleted
+     * item is skipped as a duplicate).
      */
-    let itemsFromDb = await getAllDataFromDb('items');
+    let itemsFromDb = await getAllDataFromDb('active_items');
 
     /**
      * Compare each unique item name from template to each item from db
@@ -1446,7 +1449,7 @@ export const insertTemplateDataToDb = async ({
     /**
      * Get all inserted items from db.
      */
-    const insertedItemsFromDb = await getAllDataFromDb('items', {
+    const insertedItemsFromDb = await getAllDataFromDb('active_items', {
       '%IN': {key: 'name', value: insertingItemsName},
     });
 
