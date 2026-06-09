@@ -108,6 +108,9 @@ const ItemSizeOptionList = props => {
         ]);
         // Also invalidate the item query to update modifier count
         queryClient.invalidateQueries(['item', {id: itemId}]);
+        // Invalidate the items list (e.g. Sales Register) so size options
+        // appear without a manual pull-to-refresh
+        queryClient.invalidateQueries(['items']);
       },
     },
   );
@@ -125,6 +128,7 @@ const ItemSizeOptionList = props => {
           {filter, itemId},
         ]);
         queryClient.invalidateQueries(['item', {id: itemId}]);
+        queryClient.invalidateQueries(['items']);
       },
     },
   );
