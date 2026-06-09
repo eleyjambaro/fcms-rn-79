@@ -205,10 +205,20 @@ export const confirmSaleEntries = async ({
         unitSellingPrice = parseFloat(item.option_selling_price || 0);
       }
 
-      // Selling side uses the item's sales tax (effective value falls back to
-      // the cost tax when unset); the cost side below keeps the cost tax.
+      // The product item id to record on sale_logs/inventory_logs. For a
+      // selling-menu sale item, item.id is the selling_menu_items row id (from
+      // getAllSellingMenuItems' `selling_menu_items.id AS id`), so the actual
+      // product id lives in item.item_id; regular items carry the product id in
+      // item.id. Using item.id directly for menu items would write a non-
+      // existent item_id, hiding the line from the invoice view (its INNER JOIN
+      // on items drops it) and misrecording stock usage.
+      const resolvedItemId = item.menu_id ? item.item_id : item.id;
+
+      // Selling side uses the item's own sales tax only — no fallback to the
+      // cost tax when unset (an item without a sales tax sells tax-exempt); the
+      // cost side below keeps the cost tax.
       const salesTaxRatePercentage = parseFloat(
-        item.sales_tax_rate_percentage ?? item.tax_rate_percentage ?? 0,
+        item.sales_tax_rate_percentage ?? 0,
       );
 
       const unitSellingPriceNet =
@@ -222,15 +232,13 @@ export const confirmSaleEntries = async ({
       const taxId = item.tax_id ? `'${item.tax_id}'` : 'null';
       const taxName = item.tax_name ? `'${item.tax_name}'` : 'null';
 
-      // Effective sales tax recorded on the sale log (ref_tax_id / name).
-      const salesRefTaxId =
-        item.sales_tax_id_effective || item.tax_id
-          ? `'${item.sales_tax_id_effective || item.tax_id}'`
-          : 'null';
-      const salesTaxName =
-        item.sales_tax_name || item.tax_name
-          ? `'${item.sales_tax_name || item.tax_name}'`
-          : 'null';
+      // Sales tax recorded on the sale log (ref_tax_id / name).
+      const salesRefTaxId = item.sales_tax_id_effective
+        ? `'${item.sales_tax_id_effective}'`
+        : 'null';
+      const salesTaxName = item.sales_tax_name
+        ? `'${item.sales_tax_name}'`
+        : 'null';
 
       /**
        * Sale logs
@@ -239,7 +247,7 @@ export const confirmSaleEntries = async ({
       const newSaleLogId = uuid.v4();
       insertSaleLogsQuery += `(
         '${newSaleLogId}',
-        '${item.id}',
+        '${resolvedItemId}',
         ${salesRefTaxId},
         ${customerId},
         ${unitSellingPrice},
@@ -305,7 +313,7 @@ export const confirmSaleEntries = async ({
       insertInventoryLogsQuery += `(
         '${newInvLogId}',
         (SELECT id FROM operations WHERE code = 'stock_usage'),
-        '${item.id}',
+        '${resolvedItemId}',
         ${taxId},
         ${unitCost},
         ${unitCostNet},
@@ -664,10 +672,11 @@ export const confirmFulfillingSalesOrders = async ({
         unitSellingPrice = parseFloat(item.order_unit_selling_price || 0);
       }
 
-      // Selling side uses the item's sales tax (effective value falls back to
-      // the cost tax when unset); the cost side below keeps the cost tax.
+      // Selling side uses the item's own sales tax only — no fallback to the
+      // cost tax when unset (an item without a sales tax sells tax-exempt); the
+      // cost side below keeps the cost tax.
       const salesTaxRatePercentage = parseFloat(
-        item.sales_tax_rate_percentage ?? item.tax_rate_percentage ?? 0,
+        item.sales_tax_rate_percentage ?? 0,
       );
 
       const unitSellingPriceNet =
@@ -681,15 +690,13 @@ export const confirmFulfillingSalesOrders = async ({
       const taxId = item.tax_id ? `'${item.tax_id}'` : 'null';
       const taxName = item.tax_name ? `'${item.tax_name}'` : 'null';
 
-      // Effective sales tax recorded on the sale log (ref_tax_id / name).
-      const salesRefTaxId =
-        item.sales_tax_id_effective || item.tax_id
-          ? `'${item.sales_tax_id_effective || item.tax_id}'`
-          : 'null';
-      const salesTaxName =
-        item.sales_tax_name || item.tax_name
-          ? `'${item.sales_tax_name || item.tax_name}'`
-          : 'null';
+      // Sales tax recorded on the sale log (ref_tax_id / name).
+      const salesRefTaxId = item.sales_tax_id_effective
+        ? `'${item.sales_tax_id_effective}'`
+        : 'null';
+      const salesTaxName = item.sales_tax_name
+        ? `'${item.sales_tax_name}'`
+        : 'null';
 
       /**
        * Sale logs
@@ -1092,9 +1099,9 @@ export const addSaleEntriesToSalesOrders = async ({
       let unitSellingPrice = parseFloat(item.unit_selling_price || 0);
       let qty = parseFloat(item.saleQty || 0);
       // Sales orders have no cost side, so the recorded tax IS the item's sales
-      // tax (effective value falls back to the cost tax when unset).
+      // tax only — no fallback to the cost tax when unset (tax-exempt if none).
       const taxRatePercentage = parseFloat(
-        item.sales_tax_rate_percentage ?? item.tax_rate_percentage ?? 0,
+        item.sales_tax_rate_percentage ?? 0,
       );
 
       if (item.item_modifier_options_count > 0) {
@@ -1107,14 +1114,12 @@ export const addSaleEntriesToSalesOrders = async ({
         unitSellingPrice / (taxRatePercentage / 100 + 1);
       const unitSellingPriceTax = unitSellingPrice - unitSellingPriceNet;
 
-      const taxId =
-        item.sales_tax_id_effective || item.tax_id
-          ? `'${item.sales_tax_id_effective || item.tax_id}'`
-          : 'null';
-      const taxName =
-        item.sales_tax_name || item.tax_name
-          ? `'${item.sales_tax_name || item.tax_name}'`
-          : 'null';
+      const taxId = item.sales_tax_id_effective
+        ? `'${item.sales_tax_id_effective}'`
+        : 'null';
+      const taxName = item.sales_tax_name
+        ? `'${item.sales_tax_name}'`
+        : 'null';
 
       const newSalesOrderId = uuid.v4();
       insertSalesOrdersQuery += `(

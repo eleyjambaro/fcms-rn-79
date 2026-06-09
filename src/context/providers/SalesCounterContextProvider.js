@@ -44,15 +44,16 @@ const SalesCounterContextProvider = props => {
         grandTotalAmount += itemSaleSubtotal;
       }
 
-      // Use the item's effective sales tax (falls back to the cost tax when no
-      // sales tax is set) so on-screen VAT matches what the sale records.
-      const effectiveSalesTaxId = item?.sales_tax_id_effective || item?.tax_id;
+      // Use the item's own sales tax only — no fallback to the cost tax when no
+      // sales tax is set (it sells tax-exempt) so on-screen VAT matches what the
+      // sale records.
+      const effectiveSalesTaxId = item?.sales_tax_id_effective;
 
       if (effectiveSalesTaxId && itemSaleSubtotal) {
         totalTaxableAmount += itemSaleSubtotal;
 
         let taxRatePercentage = parseFloat(
-          item?.sales_tax_rate_percentage ?? item?.tax_rate_percentage ?? 0,
+          item?.sales_tax_rate_percentage ?? 0,
         );
         let itemSubtotalNet = itemSaleSubtotal / (taxRatePercentage / 100 + 1);
         let itemSubtotalTax = itemSaleSubtotal - itemSubtotalNet;

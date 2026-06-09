@@ -71,16 +71,17 @@ export const getItems = async ({queryKey, pageParam = 1}) => {
       taxes.name AS tax_name,
       taxes.rate_percentage AS tax_rate_percentage,
       /*
-       * Sales tax (selling side). Distinct from the cost tax above. The
-       * "effective" fields fall back to the cost tax (tax_id) when the item has
-       * no sales_tax_id, so existing items behave exactly as before. Downstream
-       * (POS, cart totals) reads the sales_* fields for the selling price; the
-       * cost tax_* fields keep driving cost/inventory math.
+       * Sales tax (selling side). Distinct from the cost tax above. These
+       * fields reflect ONLY the item's own sales_tax_id — they do NOT fall back
+       * to the cost tax (tax_id). When the item has no sales_tax_id the selling
+       * side is treated as tax-exempt (NULL rate). Downstream (POS, cart totals)
+       * reads the sales_* fields for the selling price; the cost tax_* fields
+       * keep driving cost/inventory math.
        */
       items.sales_tax_id AS sales_tax_id,
-      COALESCE(sales_taxes.id, taxes.id) AS sales_tax_id_effective,
-      COALESCE(sales_taxes.name, taxes.name) AS sales_tax_name,
-      COALESCE(sales_taxes.rate_percentage, taxes.rate_percentage) AS sales_tax_rate_percentage,
+      sales_taxes.id AS sales_tax_id_effective,
+      sales_taxes.name AS sales_tax_name,
+      sales_taxes.rate_percentage AS sales_tax_rate_percentage,
 
       (
         SELECT COUNT(*)
@@ -1089,11 +1090,11 @@ export const getItem = async ({queryKey}) => {
        through the SELECT * column collisions (matches getItems). */
     taxes.name AS tax_name,
     taxes.rate_percentage AS tax_rate_percentage,
-    /* Sales tax (selling side); effective fields fall back to the cost tax. See getItems. */
+    /* Sales tax (selling side); reflects only sales_tax_id, no cost-tax fallback. See getItems. */
     items.sales_tax_id AS sales_tax_id,
-    COALESCE(sales_taxes.id, taxes.id) AS sales_tax_id_effective,
-    COALESCE(sales_taxes.name, taxes.name) AS sales_tax_name,
-    COALESCE(sales_taxes.rate_percentage, taxes.rate_percentage) AS sales_tax_rate_percentage,
+    sales_taxes.id AS sales_tax_id_effective,
+    sales_taxes.name AS sales_tax_name,
+    sales_taxes.rate_percentage AS sales_tax_rate_percentage,
     (SELECT beginning_inventory_date FROM inventory_logs WHERE voided != 1 AND item_id = '${id}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')) AS beginning_inventory_date,
 
     (
