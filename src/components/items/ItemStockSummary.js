@@ -89,6 +89,12 @@ const ItemStockSummary = props => {
     progress.value = withTiming(0, {duration: 250});
   };
 
+  const expandDetails = () => {
+    if (showDetails) return;
+    setShowDetails(true);
+    progress.value = withTiming(1, {duration: 250});
+  };
+
   // Swiping up inside the Report Summary boundary (the gesture you'd make to
   // scroll the page down) collapses the accordion to get it out of the way.
   // `activeOffsetY` keeps taps on "View Report" / the chevron working.
@@ -97,6 +103,19 @@ const ItemStockSummary = props => {
     .onEnd(e => {
       'worklet';
       if (e.translationY < -20) {
+        runOnJS(collapseDetails)();
+      }
+    });
+
+  // The actions/chevron row stays visible when collapsed, so attach the inverse
+  // swipe here: drag down to expand, drag up to collapse.
+  const reportSummaryActionsPanGesture = Gesture.Pan()
+    .activeOffsetY([-15, 15])
+    .onEnd(e => {
+      'worklet';
+      if (e.translationY > 20) {
+        runOnJS(expandDetails)();
+      } else if (e.translationY < -20) {
         runOnJS(collapseDetails)();
       }
     });
@@ -622,11 +641,12 @@ const ItemStockSummary = props => {
 
             {/* ACTIONS */}
             {renderAddNewYieldButton()}
-            <View
-              style={[
-                styles.actionsContainer,
-                {flexDirection: 'row', justifyContent: 'flex-end'},
-              ]}>
+            <GestureDetector gesture={reportSummaryActionsPanGesture}>
+              <View
+                style={[
+                  styles.actionsContainer,
+                  {flexDirection: 'row', justifyContent: 'flex-end'},
+                ]}>
               {showActions && (
                 <Button
                   style={{flex: 1, marginRight: 10}}
@@ -657,7 +677,8 @@ const ItemStockSummary = props => {
                   />
                 </Animated.View>
               </Pressable>
-            </View>
+              </View>
+            </GestureDetector>
           </>
         )}
       </View>
