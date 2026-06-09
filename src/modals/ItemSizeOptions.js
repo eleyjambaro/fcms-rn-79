@@ -9,6 +9,7 @@ import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen
 import {getItem} from '../localDbQueries/items';
 import ItemSizeOptionList from '../components/sizeOptions/ItemSizeOptionList';
 import ItemSellingPriceTaxEditor from '../components/items/ItemSellingPriceTaxEditor';
+import SectionHeading from '../components/headings/SectionHeading';
 
 const ItemSizeOptions = _props => {
   const route = useRoute();
@@ -47,7 +48,12 @@ const ItemSizeOptions = _props => {
         itemId={itemId}
         item={item}
         ListHeaderComponent={
-          item ? <ItemSellingPriceTaxEditor item={item} /> : null
+          item ? (
+            <>
+              <ItemSellingPriceTaxEditor item={item} />
+              <SectionHeading headingText="Selling Size" />
+            </>
+          ) : null
         }
       />
     </View>

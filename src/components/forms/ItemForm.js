@@ -233,8 +233,7 @@ const ItemForm = props => {
   // any edge case where master_item_sync_id wasn't set (e.g. legacy rows from
   // a partial-migration window where the column was added late).
   const isMasterLocked =
-    !!masterItem ||
-    (editMode && (!!item?.master_item_sync_id || !!item?.sku));
+    !!masterItem || (editMode && (!!item?.master_item_sync_id || !!item?.sku));
 
   // Company-wide master description, shown read-only on the branch Edit Item
   // screen. From the picked master in add-from-master mode, otherwise from the
@@ -790,7 +789,9 @@ const ItemForm = props => {
               }
             />
             {isMasterLocked
-              ? renderMasterItemNote('Variant fields locked to Master Item List')
+              ? renderMasterItemNote(
+                  'Variant fields locked to Master Item List',
+                )
               : null}
           </>
         )}
@@ -1468,7 +1469,7 @@ const ItemForm = props => {
         <HelperText type="info">
           {`Net Unit Cost: ${currencySymbol} ${commaNumber(
             netCostBase.toFixed(2),
-          )} (SRP = net cost + markup, no VAT)`}
+          )} (SRP = net cost + markup, and VAT)`}
         </HelperText>
         <View style={{flexDirection: 'row'}}>
           <TextInput

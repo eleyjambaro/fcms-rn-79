@@ -6,6 +6,7 @@ import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import commaNumber from 'comma-number';
 
 import SectionHeading from '../headings/SectionHeading';
+import SrpSummaryCard from './SrpSummaryCard';
 import MoreSelectionButton from '../buttons/MoreSelectionButton';
 import TextInputLabel from '../forms/TextInputLabel';
 import routes from '../../constants/routes';
@@ -119,7 +120,7 @@ const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
       <HelperText type="info">
         {`Net Unit Cost: ${currencySymbol} ${commaNumber(
           netCostBase.toFixed(2),
-        )} (SRP = net cost + markup, no VAT)`}
+        )} (SRP = net cost + markup, and VAT)`}
       </HelperText>
       <View style={styles.markupRow}>
         <TextInput
@@ -147,17 +148,6 @@ const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
           }}
         />
       </View>
-      <HelperText type="info" style={styles.srpText}>
-        {`SRP (Before Tax): ${currencySymbol} ${commaNumber(srp.toFixed(2))}`}
-      </HelperText>
-      <HelperText type="info" style={styles.srpText}>
-        {`SRP (With ${
-          effectiveSalesTaxRate > 0
-            ? `${commaNumber(effectiveSalesTaxRate)}% `
-            : ''
-        }Tax): ${currencySymbol} ${commaNumber(srpWithTax.toFixed(2))}`}
-      </HelperText>
-
       <MoreSelectionButton
         placeholder="Select Tax"
         label="Sales Tax"
@@ -175,6 +165,13 @@ const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
           );
         }}
         onPress={handlePressSalesTax}
+      />
+
+      <SrpSummaryCard
+        srp={srp}
+        srpWithTax={srpWithTax}
+        salesTaxRate={effectiveSalesTaxRate}
+        style={styles.srpCard}
       />
 
       <Button
@@ -199,6 +196,7 @@ const styles = StyleSheet.create({
   markupRow: {
     flexDirection: 'row',
     paddingHorizontal: 12,
+    marginBottom: 4,
   },
   markupInput: {
     flex: 1,
@@ -206,11 +204,13 @@ const styles = StyleSheet.create({
   markupInputRight: {
     marginLeft: 10,
   },
-  srpText: {
-    fontWeight: 'bold',
+  srpCard: {
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 4,
   },
   updateButton: {
-    marginTop: 15,
+    marginTop: 16,
     marginBottom: 10,
     marginHorizontal: 12,
   },

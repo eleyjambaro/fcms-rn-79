@@ -14,6 +14,11 @@ import {getItem} from '../../localDbQueries/items';
 import ConfirmationCheckbox from './ConfirmationCheckbox';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
 import TextInputLabel from './TextInputLabel';
+import SrpSummaryCard from '../items/SrpSummaryCard';
+import {
+  computeSrpFromPercentage,
+  computeSrpWithTax,
+} from '../../utils/markupHelpers';
 
 const ModifierOptionValidationSchema = Yup.object({
   use_measurement_per_piece: Yup.boolean(),
@@ -207,6 +212,18 @@ const ModifierOptionForm = props => {
     setFieldError,
   } = formik;
 
+  // Item-level SRP reference shown above the Selling Price input. Derived from
+  // the item's net unit cost + stored markup % (so it tracks the current net
+  // cost), with the effective selling-side sales tax added for the with-tax line.
+  const netCostBase = parseFloat(item?.avg_unit_cost_net) || 0;
+  const effectiveSalesTaxRate =
+    parseFloat(item?.sales_tax_rate_percentage) || 0;
+  const itemSrp = computeSrpFromPercentage(
+    netCostBase,
+    item?.markup_percentage,
+  );
+  const itemSrpWithTax = computeSrpWithTax(itemSrp, effectiveSalesTaxRate);
+
   return (
     <>
       <TextInput
@@ -274,6 +291,14 @@ const ModifierOptionForm = props => {
         dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
       />
       {renderUseMeasurementPerPieceCheckbox(formik)}
+      {item ? (
+        <SrpSummaryCard
+          srp={itemSrp}
+          srpWithTax={itemSrpWithTax}
+          salesTaxRate={effectiveSalesTaxRate}
+          style={styles.srpCard}
+        />
+      ) : null}
       <View style={{flexDirection: 'row'}}>
         <TextInput
           style={[styles.textInput, {flex: 1}]}
@@ -330,6 +355,10 @@ const ModifierOptionForm = props => {
 
 const styles = StyleSheet.create({
   textInput: {},
+  srpCard: {
+    marginTop: 6,
+    marginBottom: 12,
+  },
   modalContentContainer: {
     flexDirection: 'column',
     justifyContent: 'center',

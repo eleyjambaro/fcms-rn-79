@@ -261,7 +261,7 @@ const RecipeForm = props => {
                     <HelperText type="info">
                       {`Net Cost / Serving: ${currencySymbol} ${commaNumber(
                         netCostPerServing.toFixed(2),
-                      )} (SRP = net cost + markup, no VAT)`}
+                      )} (SRP = net cost + markup, and VAT)`}
                     </HelperText>
                     <View style={{flexDirection: 'row'}}>
                       <TextInput
