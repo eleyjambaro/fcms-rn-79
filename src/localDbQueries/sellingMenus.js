@@ -473,13 +473,9 @@ export const isUnsavedSellingMenuHasSellingMenuItems = async () => {
 };
 
 export const createSellingMenuItem = async ({values, sellingMenuId}) => {
-  const getSellingMenuQuery = `SELECT * FROM active_selling_menus selling_menus WHERE id = '${parseInt(
-    sellingMenuId,
-  )}'`;
+  const getSellingMenuQuery = `SELECT * FROM active_selling_menus selling_menus WHERE id = '${sellingMenuId}'`;
 
-  const getItemQuery = `SELECT * FROM active_items items WHERE id = '${parseInt(
-    values.item_id,
-  )}'`;
+  const getItemQuery = `SELECT * FROM active_items items WHERE id = '${values.item_id}'`;
 
   try {
     const db = await getDBConnection();
@@ -500,7 +496,9 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
 
     const {deviceId, branchId} = await getCloudSyncParams();
     const getSellingMenuItemQuery = `SELECT * FROM active_selling_menu_items selling_menu_items WHERE item_id = '${item.id}' AND selling_menu_id = '${sellingMenu.id}';`;
+    const newSellingMenuItemId = uuid.v4();
     const createSellingMenuItemQuery = `INSERT INTO selling_menu_items (
+      id,
       selling_menu_id,
       item_id,
       modifier_option_id,
@@ -512,13 +510,14 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
     )
 
     VALUES(
+      '${newSellingMenuItemId}',
       '${sellingMenu.id}',
       '${values.item_id}',
       ${values.size_option_id ? `'${values.size_option_id}'` : 'null'},
       ${parseFloat(values.in_menu_qty)},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
-      '${uuid.v4()}',
+      '${newSellingMenuItemId}',
       CURRENT_TIMESTAMP
     );`;
 
