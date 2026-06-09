@@ -734,11 +734,25 @@ const FinishedProductForm = props => {
       .slice(0, limit)
       .map(ingredient => {
         return (
-          <View
+          <Pressable
             key={ingredient.item_id}
-            style={{flexDirection: 'row', marginVertical: 2}}>
+            onPress={() =>
+              navigation.navigate(routes.itemView(), {
+                item_id: ingredient.item_id,
+              })
+            }
+            style={({pressed}) => [
+              {
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 8,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.neutralTint5,
+              },
+              pressed && {backgroundColor: colors.neutralTint5},
+            ]}>
             <Text
-              style={{flex: 1, fontWeight: 'bold', color: colors.neutralTint2}}
+              style={{flex: 1, fontWeight: 'bold', color: colors.primary}}
               numberOfLines={1}>
               {ingredient.name}
             </Text>
@@ -757,7 +771,12 @@ const FinishedProductForm = props => {
                 )} ${formatUOMAbbrev(ingredient.in_recipe_uom_abbrev)}`}
               </Text>
             </View>
-          </View>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={22}
+              color={colors.neutralTint3}
+            />
+          </Pressable>
         );
       });
 

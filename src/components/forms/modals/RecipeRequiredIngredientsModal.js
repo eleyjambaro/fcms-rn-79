@@ -20,9 +20,11 @@ import {
 } from 'react-native-paper';
 import commaNumber from 'comma-number';
 import {Tabs, TabScreen} from 'react-native-paper-tabs';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import useCurrencySymbol from '../../../hooks/useCurrencySymbol';
 import {formatUOMAbbrev} from '../../../utils/stringHelpers';
+import routes from '../../../constants/routes';
 
 const RecipeRequiredIngredientsModal = props => {
   const {visible, onDismiss, contentContainerStyle, ingredientsValidator} =
@@ -50,11 +52,26 @@ const RecipeRequiredIngredientsModal = props => {
 
     const requiredIngredientsList = requiredIngredients.map(ingredient => {
       return (
-        <View
+        <Pressable
           key={ingredient.item_id}
-          style={{flexDirection: 'row', marginVertical: 2}}>
+          onPress={() => {
+            onDismiss && onDismiss();
+            navigation.navigate(routes.itemView(), {
+              item_id: ingredient.item_id,
+            });
+          }}
+          style={({pressed}) => [
+            {
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 8,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.neutralTint5,
+            },
+            pressed && {backgroundColor: colors.neutralTint5},
+          ]}>
           <Text
-            style={{flex: 1, fontWeight: 'bold', color: colors.neutralTint2}}
+            style={{flex: 1, fontWeight: 'bold', color: colors.primary}}
             numberOfLines={1}>
             {ingredient.name}
           </Text>
@@ -73,7 +90,12 @@ const RecipeRequiredIngredientsModal = props => {
               )} ${formatUOMAbbrev(ingredient.in_recipe_uom_abbrev)}`}
             </Text>
           </View>
-        </View>
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={22}
+            color={colors.neutralTint3}
+          />
+        </Pressable>
       );
     });
 
