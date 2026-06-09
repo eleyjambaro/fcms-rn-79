@@ -325,9 +325,11 @@ const ItemLogDetails = props => {
       );
     }
 
-    const roleLabel = importedByUser?.is_root_account
-      ? 'Owner'
-      : importedByUser?.role_name;
+    // Root flag is denormalized onto the import row (synced), so it resolves on
+    // every device; fall back to the live lookup for older imports.
+    const isRoot =
+      idtImport.imported_by_is_root === 1 || importedByUser?.is_root_account;
+    const roleLabel = isRoot ? 'Root User' : importedByUser?.role_name;
 
     return (
       <View style={{flex: 1, marginLeft: 7}}>

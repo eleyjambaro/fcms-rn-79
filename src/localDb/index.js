@@ -1270,6 +1270,7 @@ const createInventoryDataTemplateImportsTableQuery = `
     imported_by_first_name VARCHAR DEFAULT NULL,
     imported_by_last_name VARCHAR DEFAULT NULL,
     imported_by_email VARCHAR DEFAULT NULL,
+    imported_by_is_root INTEGER DEFAULT NULL,
     imported_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     device_id VARCHAR DEFAULT NULL,
     branch_id VARCHAR DEFAULT NULL,
@@ -2197,6 +2198,12 @@ export const alterTables = async currentAppVersion => {
         'inventory_data_template_imports',
         'imported_by_email',
         `ALTER TABLE inventory_data_template_imports ADD COLUMN imported_by_email VARCHAR DEFAULT NULL;`,
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'inventory_data_template_imports',
+        'imported_by_is_root',
+        `ALTER TABLE inventory_data_template_imports ADD COLUMN imported_by_is_root INTEGER DEFAULT NULL;`,
       );
     } catch (error) {
       console.debug(

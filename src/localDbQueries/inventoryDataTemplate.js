@@ -47,9 +47,16 @@ const loadCurrentAccountIdentity = async () => {
       firstName: account?.first_name ?? null,
       lastName: account?.last_name ?? null,
       email: account?.email ?? null,
+      isRoot: account?.is_root_account ?? null,
     };
   } catch {
-    return {id: null, firstName: null, lastName: null, email: null};
+    return {
+      id: null,
+      firstName: null,
+      lastName: null,
+      email: null,
+      isRoot: null,
+    };
   }
 };
 
@@ -275,6 +282,7 @@ export const insertTemplateDataToDb = async ({
       firstName: importedByFirstName,
       lastName: importedByLastName,
       email: importedByEmail,
+      isRoot: importedByIsRoot,
     } = await loadCurrentAccountIdentity();
     const idtImportId = uuid.v4();
     const appConfig = await getAppConfig();
@@ -1509,6 +1517,7 @@ export const insertTemplateDataToDb = async ({
           imported_by_first_name,
           imported_by_last_name,
           imported_by_email,
+          imported_by_is_root,
           imported_at,
           device_id,
           branch_id,
@@ -1520,6 +1529,7 @@ export const insertTemplateDataToDb = async ({
           ${toSqlText(importedByFirstName)},
           ${toSqlText(importedByLastName)},
           ${toSqlText(importedByEmail)},
+          ${importedByIsRoot ? 1 : 0},
           CURRENT_TIMESTAMP,
           ${deviceId ? `'${deviceId}'` : 'NULL'},
           ${branchId ? `'${branchId}'` : 'NULL'},
