@@ -7,9 +7,7 @@ import {
   useTheme,
   Subheading,
   ActivityIndicator,
-  HelperText,
 } from 'react-native-paper';
-import commaNumber from 'comma-number';
 import {useNavigation} from '@react-navigation/native';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
@@ -31,15 +29,8 @@ import AddedIngredientList from '../recipes/AddedIngredientList';
 import {
   isRecipeHasIngredient,
   updateRecipe,
-  getRecipeTotalCost,
 } from '../../localDbQueries/recipes';
 import {getRecipeKind} from '../../localDbQueries/recipeKinds';
-import useCurrencySymbol from '../../hooks/useCurrencySymbol';
-import {
-  computeMarkupAmount,
-  computeMarkupPercentage,
-  computeSrpFromAmount,
-} from '../../utils/markupHelpers';
 
 const RecipeValidationSchema = Yup.object().shape({
   name: Yup.string().required('Required'),
@@ -62,15 +53,9 @@ const RecipeForm = props => {
   } = props;
   const {colors} = useTheme();
   const navigation = useNavigation();
-  const currencySymbol = useCurrencySymbol();
   const {setFormikActions} = useRecipeFormContext();
   const {addedIngredients} = useAddedIngredientsContext();
   const [recipeKindId, setRecipeKindId] = useState(null);
-  const {data: recipeTotalCostData} = useQuery(
-    ['recipeTotalCost', {recipeId}],
-    getRecipeTotalCost,
-    {enabled: !!recipeId},
-  );
   const {status, data} = useQuery(
     ['recipeKind', {id: recipeKindId}],
     getRecipeKind,
@@ -164,8 +149,6 @@ const RecipeForm = props => {
         group_name: initialValues.group_name || '',
         name: initialValues.name || '',
         yield: initialValues.yield?.toString() || '1',
-        markup_percentage: initialValues.markup_percentage?.toString() || '0',
-        markup_amount: initialValues.markup_amount?.toString() || '0',
       }}
       onSubmit={onSubmit}
       validationSchema={RecipeValidationSchema}
@@ -181,7 +164,6 @@ const RecipeForm = props => {
           dirty,
           isValid,
           isSubmitting,
-          setFieldValue,
         } = props;
 
         return (
@@ -235,78 +217,6 @@ const RecipeForm = props => {
                 error={errors.yield && touched.yield ? true : false}
                 keyboardType="numeric"
               />
-
-              {(() => {
-                const totalCostNet = parseFloat(
-                  recipeTotalCostData?.totalCostNet || 0,
-                );
-                const yieldQty = parseFloat(values.yield || 1) || 1;
-                const netCostPerServing = totalCostNet / yieldQty;
-                const srp = computeSrpFromAmount(
-                  netCostPerServing,
-                  values.markup_amount,
-                );
-
-                return (
-                  <View style={{marginTop: 5}}>
-                    <Text
-                      style={{
-                        marginTop: 15,
-                        marginBottom: 5,
-                        fontSize: 16,
-                        fontWeight: 'bold',
-                      }}>
-                      {'Markup / Suggested Retail Price'}
-                    </Text>
-                    <HelperText type="info">
-                      {`Net Cost / Serving: ${currencySymbol} ${commaNumber(
-                        netCostPerServing.toFixed(2),
-                      )} (SRP = net cost + markup)`}
-                    </HelperText>
-                    <View style={{flexDirection: 'row'}}>
-                      <TextInput
-                        style={{flex: 1}}
-                        label="Markup %"
-                        value={values.markup_percentage}
-                        keyboardType="numeric"
-                        right={<TextInput.Affix text="%" />}
-                        onChangeText={value => {
-                          setFieldValue('markup_percentage', value);
-                          setFieldValue(
-                            'markup_amount',
-                            computeMarkupAmount(
-                              netCostPerServing,
-                              value,
-                            ).toFixed(2),
-                          );
-                        }}
-                      />
-                      <TextInput
-                        style={{flex: 1, marginLeft: 10}}
-                        label="Markup Amount"
-                        value={values.markup_amount}
-                        keyboardType="numeric"
-                        left={<TextInput.Affix text={currencySymbol} />}
-                        onChangeText={value => {
-                          setFieldValue('markup_amount', value);
-                          setFieldValue(
-                            'markup_percentage',
-                            computeMarkupPercentage(
-                              netCostPerServing,
-                              value,
-                            ).toFixed(2),
-                          );
-                        }}
-                      />
-                    </View>
-                    <HelperText type="info" style={{fontWeight: 'bold'}}>
-                      {`SRP / Serving: ${currencySymbol} ${commaNumber(
-                        srp.toFixed(2),
-                      )}`}
-                    </HelperText>
-                  </View>
-                );
-              })()}
             </View>
 
             <View style={{flex: 1}}>

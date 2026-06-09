@@ -8,7 +8,6 @@ import {useNavigation} from '@react-navigation/native';
 
 import {ingredients} from '../../__dummyData';
 import {getRecipeTotalCost} from '../../localDbQueries/recipes';
-import {computeSrpFromPercentage} from '../../utils/markupHelpers';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
@@ -30,14 +29,6 @@ const RecipeSummary = props => {
   const totalCostNetPerServing = totalCostNet / recipe.yield;
   const totalCost = recipeTotalCostData?.totalCost;
   const totalCostPerServing = totalCost / recipe.yield;
-
-  // SRP = net cost per serving + markup (no VAT). Recomputed live from the
-  // canonical markup_percentage so SRP tracks the recipe's ingredient cost.
-  const markupPercentage = parseFloat(recipe.markup_percentage || 0);
-  const srpPerServing = computeSrpFromPercentage(
-    totalCostNetPerServing,
-    markupPercentage,
-  );
 
   const renderRecipeDetails = () => {
     if (recipeTotalCostStatus === 'loading') {
@@ -127,44 +118,6 @@ const RecipeSummary = props => {
                 {`${currencySymbol} ${commaNumber(
                   totalCostNetPerServing.toFixed(2),
                 )}`}
-              </Text>
-              <Text
-                style={{
-                  marginLeft: 5,
-                  color: colors.dark,
-                }}>
-                {`/ Serving`}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.detailsListItem}>
-          <View>
-            <Text style={{fontWeight: 'bold', marginBottom: 5}}>
-              {`Markup: ${commaNumber(markupPercentage.toFixed(2))}%`}
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                marginLeft: 10,
-                alignItems: 'center',
-              }}>
-              <Text
-                style={{
-                  marginLeft: 7,
-                  fontWeight: 'bold',
-                }}>
-                SRP:
-              </Text>
-              <Text
-                style={{
-                  marginLeft: 7,
-                  fontWeight: 'bold',
-                  color: 'green',
-                  fontSize: 16,
-                }}>
-                {`${currencySymbol} ${commaNumber(srpPerServing.toFixed(2))}`}
               </Text>
               <Text
                 style={{
