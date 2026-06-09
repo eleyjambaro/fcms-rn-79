@@ -143,7 +143,7 @@ const Home = props => {
     ...mainFirstRowButtons,
     ...mainSecondRowButtons,
     ...mainThirdRowButtons,
-    // ...mainFourthRowButtons, // temporily remove selling menu
+    ...mainFourthRowButtons, // temporily remove selling menu
   ];
 
   // Remove disabled features
