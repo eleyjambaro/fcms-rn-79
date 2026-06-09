@@ -21,7 +21,9 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   interpolate,
+  runOnJS,
 } from 'react-native-reanimated';
+import {GestureDetector, Gesture} from 'react-native-gesture-handler';
 
 import routes from '../../constants/routes';
 import {getItemCostPercentage} from '../../localDbQueries/inventoryLogs';
@@ -80,6 +82,24 @@ const ItemStockSummary = props => {
     setShowDetails(next);
     progress.value = withTiming(next ? 1 : 0, {duration: 250});
   };
+
+  const collapseDetails = () => {
+    if (!showDetails) return;
+    setShowDetails(false);
+    progress.value = withTiming(0, {duration: 250});
+  };
+
+  // Swiping up inside the Report Summary boundary (the gesture you'd make to
+  // scroll the page down) collapses the accordion to get it out of the way.
+  // `activeOffsetY` keeps taps on "View Report" / the chevron working.
+  const reportSummaryPanGesture = Gesture.Pan()
+    .activeOffsetY([-15, 15])
+    .onEnd(e => {
+      'worklet';
+      if (e.translationY < -20) {
+        runOnJS(collapseDetails)();
+      }
+    });
 
   const renderCostPerPackage = () => {
     if (item.uom_abbrev_per_piece && item.qty_per_piece) {
@@ -594,9 +614,11 @@ const ItemStockSummary = props => {
             </View>
 
             {/* ✅ ANIMATED CONTENT */}
-            <Animated.View style={animatedStyle}>
-              {renderDetailsContent()}
-            </Animated.View>
+            <GestureDetector gesture={reportSummaryPanGesture}>
+              <Animated.View style={animatedStyle}>
+                {renderDetailsContent()}
+              </Animated.View>
+            </GestureDetector>
 
             {/* ACTIONS */}
             {renderAddNewYieldButton()}
