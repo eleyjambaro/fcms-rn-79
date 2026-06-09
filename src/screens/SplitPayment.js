@@ -86,15 +86,18 @@ const SplitPayment = props => {
         onSuccess: () => {
           actions?.resetSalesCounter();
 
-          // Pass and merge params back to previous screen
-          navigation.navigate({
-            name: routeToGoBack || routes.counter(),
+          // Pop back to the previous screen (e.g. Sales Register) and merge
+          // params. popTo (not navigate) removes the payment screens from the
+          // stack; in React Navigation v7 navigate would PUSH a new instance
+          // on top, leaving them underneath so Back returns to them.
+          navigation.popTo(
+            routeToGoBack || routes.counter(),
             // pass date instead of boolean in
             // order to run useEffect due to different
             // Date.now value
-            params: {salesConfirmationSuccess: Date.now().toString()},
-            merge: true,
-          });
+            {salesConfirmationSuccess: Date.now().toString()},
+            {merge: true},
+          );
         },
       });
     } catch (error) {
@@ -131,15 +134,9 @@ const SplitPayment = props => {
             params.salesConfirmationSuccess = dateNowString;
           }
 
-          // Pass and merge params back to previous screen
-          navigation.navigate({
-            name: routeToGoBack,
-            // pass date instead of boolean in
-            // order to run useEffect due to different
-            // Date.now value
-            params,
-            merge: true,
-          });
+          // Pop back to the previous screen and merge params (see note above —
+          // popTo removes the payment screens, navigate would push duplicates).
+          navigation.popTo(routeToGoBack, params, {merge: true});
         },
       });
     } catch (error) {

@@ -154,15 +154,19 @@ const PaymentMethod = props => {
 
           await printReceipt({salesInvoice, salesInvoiceItems: items});
 
-          // Pass and merge params back to previous screen
-          navigation.navigate({
-            name: routeToGoBack || routes.counter(),
+          // Pop back to the previous screen (e.g. Sales Register) and merge
+          // params. popTo (not navigate) removes this PaymentMethod screen and
+          // the Review Sales screen from the stack; in React Navigation v7
+          // navigate would instead PUSH a new instance on top, leaving
+          // PaymentMethod underneath so Back returns to it.
+          navigation.popTo(
+            routeToGoBack || routes.counter(),
             // pass date instead of boolean in
             // order to run useEffect due to different
             // Date.now value
-            params: {salesConfirmationSuccess: Date.now().toString()},
-            merge: true,
-          });
+            {salesConfirmationSuccess: Date.now().toString()},
+            {merge: true},
+          );
           runSync().catch(console.warn);
         },
       });
@@ -186,15 +190,17 @@ const PaymentMethod = props => {
         onSuccess: () => {
           actions?.resetSalesCounter();
 
-          // Pass and merge params back to previous screen
-          navigation.navigate({
-            name: routeToGoBack,
+          // Pop back to the previous screen and merge params (see note in
+          // handleConfirmSaleEntries — popTo removes this screen from the
+          // stack, navigate would push a duplicate on top).
+          navigation.popTo(
+            routeToGoBack,
             // pass date instead of boolean in
             // order to run useEffect due to different
             // Date.now value
-            params: {addSalesOrdersSuccess: Date.now().toString()},
-            merge: true,
-          });
+            {addSalesOrdersSuccess: Date.now().toString()},
+            {merge: true},
+          );
           runSync().catch(console.warn);
         },
       });
@@ -232,15 +238,10 @@ const PaymentMethod = props => {
             params.salesConfirmationSuccess = dateNowString;
           }
 
-          // Pass and merge params back to previous screen
-          navigation.navigate({
-            name: routeToGoBack,
-            // pass date instead of boolean in
-            // order to run useEffect due to different
-            // Date.now value
-            params,
-            merge: true,
-          });
+          // Pop back to the previous screen and merge params (see note in
+          // handleConfirmSaleEntries — popTo removes this screen from the
+          // stack, navigate would push a duplicate on top).
+          navigation.popTo(routeToGoBack, params, {merge: true});
           runSync().catch(console.warn);
         },
       });
