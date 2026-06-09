@@ -34,8 +34,6 @@ const SalesInvoiceView = () => {
   const route = useRoute();
   const invoiceId = route.params?.invoice_id;
 
-  if (!invoiceId) return null;
-
   const {status: salesInvoiceStatus, data: salesInvoiceData} = useQuery(
     ['salesInvoice', {id: invoiceId}],
     getSalesInvoice,
@@ -92,6 +90,11 @@ const SalesInvoiceView = () => {
     printText,
     enableBluetoothDirectly,
   } = useDefaultPrinterContext();
+
+  // Early return AFTER all hooks so hook call order stays stable across renders
+  // (React rules-of-hooks). The queries above are keyed on invoiceId and no-op
+  // safely when it is missing; nothing below renders in that case.
+  if (!invoiceId) return null;
 
   const loadMore = () => {
     if (hasNextPage && !isFetchingNextPage) {
