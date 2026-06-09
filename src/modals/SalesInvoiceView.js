@@ -10,7 +10,7 @@ import {
   useMutation,
 } from '@tanstack/react-query';
 
-import GrandTotal from '../components/purchases/GrandTotal';
+import SalesInvoiceTotals from '../components/salesCounter/SalesInvoiceTotals';
 import SalesInvoiceDetails from '../components/salesInvoices/SalesInvoiceDetails';
 import {
   getSalesInvoice,
@@ -46,6 +46,10 @@ const SalesInvoiceView = () => {
   } = useQuery(
     ['salesInvoiceGrandTotal', {id: invoiceId}],
     getSalesInvoiceGrandTotal,
+  );
+  const {data: salesInvoiceTotalsData} = useQuery(
+    ['salesInvoiceTotals', {id: invoiceId}],
+    getSalesInvoiceTotals,
   );
   const {
     data: salesInvoiceItemsData,
@@ -249,7 +253,13 @@ const SalesInvoiceView = () => {
           }
         />
       </View>
-      <GrandTotal value={salesInvoiceGrandTotalData || 0} />
+      <SalesInvoiceTotals
+        saleTotals={
+          salesInvoiceTotalsData || {
+            grandTotalAmount: salesInvoiceGrandTotalData || 0,
+          }
+        }
+      />
     </View>
   );
 };

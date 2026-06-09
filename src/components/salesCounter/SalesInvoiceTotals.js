@@ -12,11 +12,15 @@ const SalesInvoiceTotals = props => {
     containerStyle,
     labelStyle = {},
     valueStyle = {},
+    // Optional override. When provided (e.g. a recorded invoice), the totals are
+    // read from here instead of the live Sales Register context — so this
+    // component can render outside SalesCounterContextProvider.
+    saleTotals: saleTotalsProp,
   } = props;
   const {colors} = useTheme();
   const currencySymbol = useCurrencySymbol();
-  const [{saleTotals, isLocalStateUpdating}, actions] =
-    useSalesCounterContext();
+  const ctx = useSalesCounterContext();
+  const saleTotals = saleTotalsProp ?? ctx?.[0]?.saleTotals ?? {};
 
   const costMarkers = useMemo(
     () => ({

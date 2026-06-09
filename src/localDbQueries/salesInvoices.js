@@ -187,6 +187,61 @@ export const getSalesInvoiceGrandTotal = async ({queryKey}) => {
   }
 };
 
+/**
+ * Grand Total + Taxable / Tax-Exempt / Tax breakdown for a recorded invoice,
+ * mirroring the live Sales Register breakdown (see SalesCounterContextProvider /
+ * SalesInvoiceTotals). Classification keys off the sale log's recorded
+ * `ref_tax_id` (the item's sales tax at sale time; NULL/'' = tax-exempt):
+ *   - Taxable (T)    → net of taxable lines    (sale_unit_selling_price_net)
+ *   - Tax-Exempt (E) → gross of exempt lines   (sale_unit_selling_price)
+ *   - Tax            → VAT of taxable lines     (sale_unit_selling_price_tax)
+ * T(net) + Tax + E(gross) == Grand Total, so the breakdown reconciles with the
+ * grand total. No voided/is_refunded filter — matches getSalesInvoiceGrandTotal
+ * so the displayed grand total and breakdown stay consistent.
+ */
+export const getSalesInvoiceTotals = async ({queryKey}) => {
+  const [_key, {id}] = queryKey;
+
+  const emptyTotals = {
+    grandTotalAmount: 0,
+    totalTaxableNetAmount: 0,
+    totalTaxExemptAmount: 0,
+    totalTaxAmount: 0,
+  };
+
+  if (!id) return emptyTotals;
+
+  try {
+    const db = await getDBConnection();
+    const query = `
+      SELECT
+        SUM(sale_logs.sale_unit_selling_price * sale_logs.sale_qty) AS grandTotalAmount,
+        SUM(CASE WHEN IFNULL(sale_logs.ref_tax_id, '') != ''
+          THEN sale_logs.sale_unit_selling_price_net * sale_logs.sale_qty ELSE 0 END) AS totalTaxableNetAmount,
+        SUM(CASE WHEN IFNULL(sale_logs.ref_tax_id, '') = ''
+          THEN sale_logs.sale_unit_selling_price * sale_logs.sale_qty ELSE 0 END) AS totalTaxExemptAmount,
+        SUM(CASE WHEN IFNULL(sale_logs.ref_tax_id, '') != ''
+          THEN sale_logs.sale_unit_selling_price_tax * sale_logs.sale_qty ELSE 0 END) AS totalTaxAmount
+      FROM invoices
+      INNER JOIN sale_logs ON sale_logs.invoice_id = invoices.id
+      WHERE invoices.id = '${id}'
+    ;`;
+
+    const result = await db.executeSql(query);
+    const row = result?.[0]?.rows?.item(0) || {};
+
+    return {
+      grandTotalAmount: row.grandTotalAmount || 0,
+      totalTaxableNetAmount: row.totalTaxableNetAmount || 0,
+      totalTaxExemptAmount: row.totalTaxExemptAmount || 0,
+      totalTaxAmount: row.totalTaxAmount || 0,
+    };
+  } catch (error) {
+    console.debug(error);
+    throw Error('Failed to get sales invoice totals.');
+  }
+};
+
 export const getSalesInvoiceItems = async ({queryKey, pageParam = 1}) => {
   const [_key, {invoiceId, filter}] = queryKey;
   const limit = 1000000000;
