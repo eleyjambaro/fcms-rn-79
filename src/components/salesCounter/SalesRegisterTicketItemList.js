@@ -226,15 +226,18 @@ const SalesRegisterTicketItemList = props => {
         onSuccess: () => {
           actions?.resetSalesCounter();
 
-          // Pass and merge params back to previous screen
-          navigation.navigate({
-            name: routeToGoBack || routes.counter(),
+          // Pop back to the previous screen (e.g. Sales Register) and merge
+          // params. popTo (not navigate) removes the review screen from the
+          // stack; in React Navigation v7 navigate would PUSH a new instance
+          // on top, leaving it underneath so Back returns to it.
+          navigation.popTo(
+            routeToGoBack || routes.counter(),
             // pass date instead of boolean in
             // order to run useEffect due to different
             // Date.now value
-            params: {salesConfirmationSuccess: Date.now().toString()},
-            merge: true,
-          });
+            {salesConfirmationSuccess: Date.now().toString()},
+            {merge: true},
+          );
         },
       });
     } catch (error) {
@@ -257,15 +260,17 @@ const SalesRegisterTicketItemList = props => {
         onSuccess: () => {
           actions?.resetSalesCounter();
 
-          // Pass and merge params back to previous screen
-          navigation.navigate({
-            name: routeToGoBack,
+          // Pop back to the previous screen and merge params (see note in
+          // handleConfirmSaleEntries — popTo removes the review screen,
+          // navigate would push a duplicate on top).
+          navigation.popTo(
+            routeToGoBack,
             // pass date instead of boolean in
             // order to run useEffect due to different
             // Date.now value
-            params: {addSalesOrdersSuccess: Date.now().toString()},
-            merge: true,
-          });
+            {addSalesOrdersSuccess: Date.now().toString()},
+            {merge: true},
+          );
         },
       });
     } catch (error) {
@@ -297,15 +302,10 @@ const SalesRegisterTicketItemList = props => {
             params.salesConfirmationSuccess = dateNowString;
           }
 
-          // Pass and merge params back to previous screen
-          navigation.navigate({
-            name: routeToGoBack,
-            // pass date instead of boolean in
-            // order to run useEffect due to different
-            // Date.now value
-            params,
-            merge: true,
-          });
+          // Pop back to the previous screen and merge params (see note in
+          // handleConfirmSaleEntries — popTo removes the review screen,
+          // navigate would push a duplicate on top).
+          navigation.popTo(routeToGoBack, params, {merge: true});
         },
       });
     } catch (error) {

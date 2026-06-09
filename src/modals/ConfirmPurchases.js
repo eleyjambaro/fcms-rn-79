@@ -196,15 +196,18 @@ const ConfirmPurchases = props => {
           setLimitReachedMessage(() => message);
         },
         onSuccess: () => {
-          // Pass and merge params back to previous screen
-          navigation.navigate({
-            name: routes.purchaseEntryList(),
+          // Pop back to the purchase entry list and merge params. popTo (not
+          // navigate) removes this confirmation screen from the stack; in
+          // React Navigation v7 navigate would PUSH a new entry-list instance
+          // on top, leaving this screen underneath so Back returns to it.
+          navigation.popTo(
+            routes.purchaseEntryList(),
             // pass date instead of boolean in
             // order to run useEffect due to different
             // Date.now value
-            params: {batchPurchaseSuccess: Date.now().toString()},
-            merge: true,
-          });
+            {batchPurchaseSuccess: Date.now().toString()},
+            {merge: true},
+          );
         },
       });
     } catch (error) {

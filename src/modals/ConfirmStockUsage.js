@@ -168,15 +168,18 @@ const ConfirmStockUsage = () => {
     } finally {
       setIsSubmitting(() => false);
 
-      // Pass and merge params back to previous screen
-      navigation.navigate({
-        name: routes.stockUsageEntryList(),
+      // Pop back to the stock usage entry list and merge params. popTo (not
+      // navigate) removes this confirmation screen from the stack; in React
+      // Navigation v7 navigate would PUSH a new entry-list instance on top,
+      // leaving this screen underneath so Back returns to it.
+      navigation.popTo(
+        routes.stockUsageEntryList(),
         // pass date instead of boolean in
         // order to run useEffect due to different
         // Date.now value
-        params: {batchStockUsageSuccess: Date.now().toString()},
-        merge: true,
-      });
+        {batchStockUsageSuccess: Date.now().toString()},
+        {merge: true},
+      );
     }
   };
 
