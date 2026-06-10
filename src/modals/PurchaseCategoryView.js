@@ -40,7 +40,7 @@ function PurchaseCategoryView(props) {
   }, []);
 
   const handlePressRegisterItem = () => {
-    navigation.navigate(routes.addItem(), {category_id: categoryId});
+    navigation.navigate(routes.selectAddItemMode(), {category_id: categoryId});
   };
 
   if (!categoryId) return null;

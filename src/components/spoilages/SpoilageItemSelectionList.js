@@ -437,7 +437,7 @@ const SpoilageItemSelectionList = props => {
                 label: 'Register Item',
                 handler: () => {
                   navigation.navigate(
-                    routes.addItem(),
+                    routes.selectAddItemMode(),
                     filter?.['items.category_id'] && {
                       category_id: filter['items.category_id'],
                     },
