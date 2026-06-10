@@ -28,19 +28,40 @@ import {
 } from '../../localDbQueries/printers';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
 import useCurrentUser from '../../hooks/useCurrentUser';
+import useCloudAuthContext from '../../hooks/useCloudAuthContext';
 
 const DefaultPrinterContextProvider = props => {
   const {children} = props;
   const [authState] = useCurrentUser();
+
+  // The default printer lives in the company+branch-scoped DB (it is read via
+  // getDefaultPrinter → getDBConnection). That DB only becomes active AFTER
+  // CloudAuthContextProvider.restore() awaits setActiveCompanyDb and dispatches
+  // these ids; until then getDBConnection() returns the unauthenticated FCMS.db
+  // fallback. Because this provider is mounted unconditionally (above the auth
+  // gate in index.js), an un-gated query would run on cold start against that
+  // fallback DB, cache a null default (staleTime 5m, refetchOnWindowFocus off),
+  // and never re-read — so the default printer appeared lost on every app
+  // restart until manually re-set. Gate the query on the active company+branch
+  // and key it by them so it (a) waits for the real DB and (b) refetches when
+  // the branch changes (the default printer is per-branch data).
+  const [cloudAuthState] = useCloudAuthContext();
+  const activeCompanyId = cloudAuthState?.authUser?.company?.id ?? null;
+  const activeBranchId = cloudAuthState?.designatedBranch?.id ?? null;
   const getDefaultPrinterResult = useQuery(
-    ['defaultPrinter'],
+    ['defaultPrinter', {companyId: activeCompanyId, branchId: activeBranchId}],
     getDefaultPrinter,
+    {enabled: Boolean(activeCompanyId && activeBranchId)},
   );
   const {
-    status: getDefaultPrinterStatus,
     data: getDefaultPrinterData,
     isRefetching: isRefetchingDefaultPrinter,
-    isLoading: isLoadingDefaultPrinter,
+    // Use isInitialLoading, NOT `isLoading`/`status === 'loading'`: in React
+    // Query v4 a DISABLED query still reports status 'loading' (isLoading true),
+    // which would otherwise keep the loading dialog stuck while this query is
+    // gated off (signed in but no branch selected yet). isInitialLoading is
+    // (isLoading && isFetching), so it is false whenever the query is disabled.
+    isInitialLoading: isInitialLoadingDefaultPrinter,
   } = getDefaultPrinterResult;
   const [enableBluetoothDialogVisible, setEnableBluetoothDialogVisible] =
     useState(false);
@@ -414,7 +435,7 @@ const DefaultPrinterContextProvider = props => {
     if (!defaultPrinter || !PrinterController) return;
 
     let isLoading =
-      getDefaultPrinterStatus === 'loading' ||
+      isInitialLoadingDefaultPrinter ||
       printerState === 'initializing' ||
       printerState === 'connecting' ||
       bluetoothState === 'Resetting';
@@ -428,10 +449,10 @@ const DefaultPrinterContextProvider = props => {
     } else {
       setLoadingDialogVisible(() => false);
     }
-  }, [getDefaultPrinterStatus, printerState, bluetoothState]);
+  }, [isInitialLoadingDefaultPrinter, printerState, bluetoothState]);
 
   let isLoading =
-    getDefaultPrinterStatus === 'loading' ||
+    isInitialLoadingDefaultPrinter ||
     printerState === 'initializing' ||
     printerState === 'connecting' ||
     bluetoothState === 'Resetting';

@@ -19,17 +19,28 @@ import TestModeLimitModal from '../components/modals/TestModeLimitModal';
 import useAppConfigContext from '../hooks/useAppConfigContext';
 import useSearchbarContext from '../hooks/useSearchbarContext';
 import useDefaultPrinterContext from '../hooks/useDefaultPrinterContext';
+import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import {createPrinter, getDefaultPrinter} from '../localDbQueries/printers';
 import {ScrollView} from 'react-native-gesture-handler';
 
 function Printers(props) {
   const {navigation, viewMode} = props;
+  // Key the default-printer query by the active company+branch so it shares the
+  // single cache entry used by DefaultPrinterContextProvider (the default
+  // printer is per-branch data; see the provider for the cold-start rationale).
+  const [cloudAuthState] = useCloudAuthContext();
+  const activeCompanyId = cloudAuthState?.authUser?.company?.id ?? null;
+  const activeBranchId = cloudAuthState?.designatedBranch?.id ?? null;
   const {
     status: getDefaultPrinterStatus,
     data: getDefaultPrinterData,
     isRefetching,
     isLoading,
-  } = useQuery(['defaultPrinter'], getDefaultPrinter);
+  } = useQuery(
+    ['defaultPrinter', {companyId: activeCompanyId, branchId: activeBranchId}],
+    getDefaultPrinter,
+    {enabled: Boolean(activeCompanyId && activeBranchId)},
+  );
   const {
     isLoading: isLoadingDefaultPrinter,
     bluetoothState,

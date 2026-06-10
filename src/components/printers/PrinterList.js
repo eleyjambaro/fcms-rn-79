@@ -87,7 +87,12 @@ const PrinterList = props => {
   });
   const setDefaultPrinterMutation = useMutation(setDefaultPrinter, {
     onSuccess: () => {
-      queryClient.invalidateQueries('defaultPrinter');
+      // Array (not bare-string) key: in React Query v4 a string first arg is
+      // parsed as the filters object, leaving queryKey undefined so it matches
+      // ALL queries. The array prefix-matches the real key
+      // (['defaultPrinter', {companyId, branchId}]) used by the screen and
+      // DefaultPrinterContextProvider, refetching just the default printer.
+      queryClient.invalidateQueries(['defaultPrinter']);
     },
   });
 
