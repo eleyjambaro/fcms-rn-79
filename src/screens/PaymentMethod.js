@@ -35,14 +35,8 @@ const PaymentMethod = props => {
   const {colors} = useTheme();
   const {can} = useRoleAccess();
   const [{saleTotals, saleItems}, actions] = useSalesCounterContext();
-  const {
-    isLoading: isLoadingDefaultPrinter,
-    bluetoothState,
-    printerState,
-    initializeAndConnectToPrinter,
-    printText,
-    enableBluetoothDirectly,
-  } = useDefaultPrinterContext();
+  const {isLoading: isLoadingDefaultPrinter, printText} =
+    useDefaultPrinterContext();
 
   const {status: getCompanyStatus, data: getCompanyData} = useQuery(
     ['company'],
@@ -109,30 +103,16 @@ const PaymentMethod = props => {
 
     const company = getCompanyData?.result;
 
-    try {
-      if (bluetoothState === 'PoweredOff') {
-        enableBluetoothDirectly();
-      } else if (
-        bluetoothState === 'PoweredOn' &&
-        printerState !== 'connected'
-      ) {
-        initializeAndConnectToPrinter();
-      } else if (
-        bluetoothState === 'PoweredOn' &&
-        printerState === 'connected'
-      ) {
-        printText(
-          printSalesInvoice({
-            salesInvoice,
-            salesInvoiceItems,
-            salesInvoiceTotals: saleTotals,
-            company,
-          }),
-        );
-      }
-    } catch (error) {
-      console.error(error);
-    }
+    // printText is self-sufficient: it ensures Bluetooth is on and the printer
+    // is connected (reading the live BT state), then prints.
+    await printText(
+      printSalesInvoice({
+        salesInvoice,
+        salesInvoiceItems,
+        salesInvoiceTotals: saleTotals,
+        company,
+      }),
+    );
   };
 
   const handleConfirmSaleEntries = async (

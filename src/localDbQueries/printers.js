@@ -1,4 +1,4 @@
-import {getDBConnection, getLocalAccountDBConnection, getCloudSyncParams} from '../localDb';
+import {getDBConnection, getCloudSyncParams} from '../localDb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createQueryFilter,
@@ -194,12 +194,26 @@ export const getDefaultPrinter = async () => {
 };
 
 export const setDefaultPrinter = async ({id}) => {
-  const query = `UPDATE settings SET value = '${parseInt(
-    id,
+  // Store the id verbatim. `saved_printers.id` is a TEXT UUID (createTables +
+  // createPrinter's uuid.v4()), so the previous `parseInt(id)` corrupted it to
+  // 'NaN' (or a truncated number when the UUID led with a digit). That value
+  // never matched any saved_printers.id, so getDefaultPrinter's lookup found no
+  // row and returned null — triggering the same `!defaultPrinter` no-op
+  // described below on every context-based print.
+  const query = `UPDATE settings SET value = '${String(id).replace(
+    /\'/g,
+    "''",
   )}' WHERE name = 'default_printer_id'`;
 
   try {
-    const db = await getLocalAccountDBConnection();
+    // The `default_printer_id` setting lives in the COMPANY DB (it is read back
+    // via getSettings/getDefaultPrinter, both on getDBConnection). Writing it to
+    // the account DB here meant the company DB's row was never set, so
+    // getDefaultPrinter always returned null and every context-based print
+    // (Sales Register / Sales Invoice) silently no-op'd on the `!defaultPrinter`
+    // guard — while the create-printer screen's own test kept working because it
+    // talks to BLEPrinter directly.
+    const db = await getDBConnection();
     await db.executeSql(query);
   } catch (error) {
     console.debug(error);

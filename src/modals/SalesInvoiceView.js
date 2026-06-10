@@ -82,14 +82,8 @@ const SalesInvoiceView = () => {
     getCompany,
   );
 
-  const {
-    isLoading: isLoadingDefaultPrinter,
-    bluetoothState,
-    printerState,
-    initializeAndConnectToPrinter,
-    printText,
-    enableBluetoothDirectly,
-  } = useDefaultPrinterContext();
+  const {isLoading: isLoadingDefaultPrinter, printText} =
+    useDefaultPrinterContext();
 
   // Early return AFTER all hooks so hook call order stays stable across renders
   // (React rules-of-hooks). The queries above are keyed on invoiceId and no-op
@@ -136,33 +130,26 @@ const SalesInvoiceView = () => {
 
     const salesInvoice = salesInvoiceData.result;
     const grandTotal = salesInvoiceGrandTotalData || 0;
-    const salesInvoiceTotals = {grandTotalAmount: grandTotal};
+    // Mirror the on-screen breakdown on the printout. printSalesInvoice expects
+    // `totalTaxableAmount`; our Taxable line is the net of taxable sales.
+    const salesInvoiceTotals = {
+      grandTotalAmount: salesInvoiceTotalsData?.grandTotalAmount ?? grandTotal,
+      totalTaxableAmount: salesInvoiceTotalsData?.totalTaxableNetAmount ?? 0,
+      totalTaxExemptAmount: salesInvoiceTotalsData?.totalTaxExemptAmount ?? 0,
+      totalTaxAmount: salesInvoiceTotalsData?.totalTaxAmount ?? 0,
+    };
     const company = getCompanyData?.result;
 
-    try {
-      if (bluetoothState === 'PoweredOff') {
-        enableBluetoothDirectly();
-      } else if (
-        bluetoothState === 'PoweredOn' &&
-        printerState !== 'connected'
-      ) {
-        initializeAndConnectToPrinter();
-      } else if (
-        bluetoothState === 'PoweredOn' &&
-        printerState === 'connected'
-      ) {
-        printText(
-          printSalesInvoice({
-            salesInvoice,
-            salesInvoiceItems: getAllPagesData(),
-            salesInvoiceTotals,
-            company,
-          }),
-        );
-      }
-    } catch (error) {
-      console.error(error);
-    }
+    // printText is self-sufficient: it ensures Bluetooth is on and the printer
+    // is connected (reading the live BT state), then prints.
+    await printText(
+      printSalesInvoice({
+        salesInvoice,
+        salesInvoiceItems: getAllPagesData(),
+        salesInvoiceTotals,
+        company,
+      }),
+    );
   };
 
   const renderFooter = () => {

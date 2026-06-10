@@ -93,8 +93,10 @@ const DefaultPrinterContextProvider = props => {
     }
   }
 
+  // Returns true when the printer is connected (so callers can connect-then-
+  // print in a single action), false otherwise.
   async function connectToPrinter() {
-    if (!defaultPrinter || !PrinterController) return;
+    if (!defaultPrinter || !PrinterController) return false;
 
     // connect to printer
     try {
@@ -114,6 +116,8 @@ const DefaultPrinterContextProvider = props => {
         0,
         200,
       );
+
+      return true;
     } catch (error) {
       setPrinterState('connection-failed');
       if (connectToPrinterDialogVisible) {
@@ -122,21 +126,27 @@ const DefaultPrinterContextProvider = props => {
 
       setConnectToPrinterFailedDialogVisible(() => true);
       console.error('Connection to the default printer failed!');
+
+      return false;
     }
   }
 
+  // Returns true when the printer ends up connected, false otherwise.
   async function initializeAndConnectToPrinter() {
-    if (!defaultPrinter || !PrinterController) return;
+    if (!defaultPrinter || !PrinterController) return false;
 
     await initializePrinter();
-    await connectToPrinter();
+    return await connectToPrinter();
   }
 
   async function printTest() {
     if (!defaultPrinter || !PrinterController) return;
 
     try {
-      switch (bluetoothState) {
+      // Live state, not the cached `bluetoothState` (which may be stale/Unknown).
+      const liveBluetoothState = await BluetoothStateManager.getState();
+
+      switch (liveBluetoothState) {
         case 'PoweredOff':
           console.debug('Bluetooth is powered off');
           setEnableBluetoothDialogVisible(() => true);
@@ -147,6 +157,7 @@ const DefaultPrinterContextProvider = props => {
           const alignLeft = '\x1b\x61\x00'; // ESC a 0: Left
           const alignCenter = '\x1b\x61\x01'; // ESC a 1: Center
           const alignRight = '\x1b\x61\x02'; // ESC a 2: Right
+          const dashedDivider = '-'.repeat(32);
 
           // receipt header
           let receiptText = `${dashedDivider}\n`;
@@ -164,13 +175,40 @@ const DefaultPrinterContextProvider = props => {
     return;
   }
 
+  // Self-sufficient print: ensures Bluetooth is on and the printer is connected,
+  // then prints — so a single call from any screen "just works".
   async function printText(text) {
-    if (!defaultPrinter || !PrinterController) return;
+    if (!defaultPrinter || !PrinterController) return false;
 
     try {
+      const isBluetooth = defaultPrinter.interface_type === 'bluetooth';
+
+      if (isBluetooth) {
+        // Read the LIVE Bluetooth state rather than the cached `bluetoothState`,
+        // which can still be 'Unknown' if its state listener hasn't emitted yet.
+        // That stale value silently blocked Sales Register / Sales Invoice
+        // printing even though Bluetooth was on and the printer was reachable
+        // (the create-printer screen worked precisely because it reads the live
+        // state each time).
+        const liveBluetoothState = await BluetoothStateManager.getState();
+
+        if (liveBluetoothState !== 'PoweredOn') {
+          setEnableBluetoothDialogVisible(() => true);
+          return false;
+        }
+      }
+
+      // Connect first when not already connected, then print in one action.
+      if (printerState !== 'connected') {
+        const connected = await initializeAndConnectToPrinter();
+        if (!connected) return false;
+      }
+
       PrinterController.printText(text);
+      return true;
     } catch (error) {
       console.error(error);
+      return false;
     }
   }
 
@@ -355,7 +393,7 @@ const DefaultPrinterContextProvider = props => {
             </Button>
             <Button
               onPress={async () => {
-                handleEnablePress();
+                enableBluetoothDirectly();
               }}>
               Enable
             </Button>
