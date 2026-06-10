@@ -308,6 +308,7 @@ const PrinterList = props => {
                 display_name: focusedItem?.display_name || '',
                 device_name: focusedItem?.device_name || '',
                 inner_mac_address: focusedItem?.inner_mac_address || '',
+                auto_connect: focusedItem?.auto_connect,
               }}
               submitButtonTitle="Update"
               onSubmit={handleSubmit}

@@ -10,6 +10,7 @@ import {
   Paragraph,
   Modal,
   Title,
+  Checkbox,
 } from 'react-native-paper';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
@@ -191,6 +192,11 @@ const PrinterForm = props => {
           display_name: initialValues.display_name || '',
           device_name: initialValues.device_name || '',
           inner_mac_address: initialValues.inner_mac_address || '',
+          // Default to ON for new printers; for edits, reflect the stored 1/0.
+          auto_connect:
+            initialValues.auto_connect === undefined
+              ? true
+              : !!initialValues.auto_connect,
         }}
         validationSchema={PrinterValidationSchema}
         onSubmit={onSubmit}>
@@ -200,6 +206,7 @@ const PrinterForm = props => {
             handleBlur,
             handleSubmit,
             setValues,
+            setFieldValue,
             values,
             errors,
             touched,
@@ -296,6 +303,22 @@ const PrinterForm = props => {
                     Search
                   </Button>
                 </View>
+
+                <Checkbox.Item
+                  label="Auto-reconnect to this printer"
+                  status={values.auto_connect ? 'checked' : 'unchecked'}
+                  position="leading"
+                  onPress={() =>
+                    setFieldValue('auto_connect', !values.auto_connect)
+                  }
+                  style={{paddingHorizontal: 0, marginTop: 10}}
+                  labelStyle={{textAlign: 'left'}}
+                />
+                <Text style={{color: colors.dark, marginBottom: 5}}>
+                  {
+                    'When on, the app reconnects to this printer automatically. When off, it asks first.'
+                  }
+                </Text>
 
                 <Button
                   mode="outlined"

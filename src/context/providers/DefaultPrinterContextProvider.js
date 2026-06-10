@@ -11,6 +11,7 @@ import {
   useTheme,
   Card,
   ActivityIndicator,
+  Checkbox,
 } from 'react-native-paper';
 import {useQuery, useQueryClient, useMutation} from '@tanstack/react-query';
 import {
@@ -21,7 +22,10 @@ import {
 import {BluetoothStateManager} from 'react-native-bluetooth-state-manager';
 
 import {DefaultPrinterContext} from '../types';
-import {getDefaultPrinter} from '../../localDbQueries/printers';
+import {
+  getDefaultPrinter,
+  setPrinterAutoConnect,
+} from '../../localDbQueries/printers';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
 import useCurrentUser from '../../hooks/useCurrentUser';
 
@@ -49,11 +53,21 @@ const DefaultPrinterContextProvider = props => {
     setConnectToPrinterFailedDialogVisible,
   ] = useState(false);
   const [printerState, setPrinterState] = useState('unknown'); // 'unknown' | 'initializing' | 'connecting' | 'connected' | 'disconnected' | 'connection-failed'
+  // Local mirror of the default printer's auto_connect, used by the checkbox in
+  // the "Connect to default printer?" dialog so it toggles instantly.
+  const [autoReconnectChecked, setAutoReconnectChecked] = useState(false);
 
   // Mirror printerState in a ref so the AppState listener (registered once) can
   // read the current value without re-subscribing on every state change.
   const printerStateRef = useRef(printerState);
   const appStateRef = useRef(AppState.currentState);
+
+  const queryClient = useQueryClient();
+  const setPrinterAutoConnectMutation = useMutation(setPrinterAutoConnect, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(['defaultPrinter']);
+    },
+  });
 
   const defaultPrinter = getDefaultPrinterData?.result;
   const PrinterController = getPrinterControllerByInterface(defaultPrinter);
@@ -100,7 +114,12 @@ const DefaultPrinterContextProvider = props => {
 
   // Returns true when the printer is connected (so callers can connect-then-
   // print in a single action), false otherwise.
-  async function connectToPrinter() {
+  //
+  // `showFailureDialog` lets silent/auto attempts (app foreground, Bluetooth
+  // powered on) fail quietly instead of popping the "Connection failed" dialog
+  // on every return to the app when the printer happens to be off. Explicit
+  // user actions (tapping Connect, printing) keep the default (true).
+  async function connectToPrinter({showFailureDialog = true} = {}) {
     if (!defaultPrinter || !PrinterController) return false;
 
     // connect to printer
@@ -129,7 +148,9 @@ const DefaultPrinterContextProvider = props => {
         setConnectToPrinterDialogVisible(() => false);
       }
 
-      setConnectToPrinterFailedDialogVisible(() => true);
+      if (showFailureDialog) {
+        setConnectToPrinterFailedDialogVisible(() => true);
+      }
       console.error('Connection to the default printer failed!');
 
       return false;
@@ -137,11 +158,30 @@ const DefaultPrinterContextProvider = props => {
   }
 
   // Returns true when the printer ends up connected, false otherwise.
-  async function initializeAndConnectToPrinter() {
+  async function initializeAndConnectToPrinter(options = {}) {
     if (!defaultPrinter || !PrinterController) return false;
 
     await initializePrinter();
-    return await connectToPrinter();
+    return await connectToPrinter(options);
+  }
+
+  // Decide what to do when the default printer is found disconnected on a
+  // passive trigger (Bluetooth turned on, app brought to foreground):
+  //   - Auto-reconnect ON  -> reconnect silently (no dialog; failures are quiet).
+  //   - Auto-reconnect OFF -> ask first via the "Connect to default printer?"
+  //     dialog, which also offers a checkbox to turn auto-reconnect back on.
+  // Callers are responsible for any Bluetooth-state gating before calling this.
+  function reconnectOrPromptForDefaultPrinter() {
+    if (!defaultPrinter || !PrinterController) return;
+    if (printerStateRef.current === 'connected') return;
+
+    if (defaultPrinter.auto_connect) {
+      initializeAndConnectToPrinter({showFailureDialog: false});
+    } else {
+      // Seed the dialog's checkbox from the stored value as we open it.
+      setAutoReconnectChecked(() => !!defaultPrinter.auto_connect);
+      setConnectToPrinterDialogVisible(() => true);
+    }
   }
 
   async function printTest() {
@@ -245,6 +285,26 @@ const DefaultPrinterContextProvider = props => {
     printerStateRef.current = printerState;
   }, [printerState]);
 
+  // Toggle + persist the default printer's auto-reconnect preference from the
+  // connect dialog. Optimistically flips the local checkbox so it feels instant.
+  async function handleToggleAutoReconnect() {
+    if (!defaultPrinter) return;
+
+    const nextValue = !autoReconnectChecked;
+    setAutoReconnectChecked(() => nextValue);
+
+    try {
+      await setPrinterAutoConnectMutation.mutateAsync({
+        id: defaultPrinter.id,
+        autoConnect: nextValue,
+      });
+    } catch (error) {
+      // Revert on failure so the checkbox reflects what's actually stored.
+      setAutoReconnectChecked(() => !nextValue);
+      console.debug(error);
+    }
+  }
+
   useEffect(() => {
     if (!defaultPrinter || !PrinterController) return;
 
@@ -254,14 +314,15 @@ const DefaultPrinterContextProvider = props => {
     return remove;
   }, [defaultPrinter, PrinterController]);
 
-  // Reconnect prompt on app foreground.
+  // Reconnect the default printer on app foreground.
   //
   // Backgrounding the app drops the BLE socket to the printer while Bluetooth
   // itself stays powered on, so the PoweredOff -> PoweredOn listener above never
-  // fires on return and the now-stale 'connected' printerState suppresses the
-  // reconnect prompt. (Previously the prompt only reappeared as a side effect of
-  // a mutation triggering a print.) Handle the foreground/background transition
-  // explicitly: drop the dead connection on background, and re-prompt on return.
+  // fires on return and the now-stale 'connected' printerState suppresses any
+  // reconnect. (Previously a reconnect only happened as a side effect of a
+  // mutation triggering a print.) Handle the foreground/background transition
+  // explicitly: drop the dead connection on background, and on return either
+  // reconnect silently (auto-reconnect on) or prompt (auto-reconnect off).
   useEffect(() => {
     if (!defaultPrinter || !PrinterController) return;
 
@@ -293,17 +354,18 @@ const DefaultPrinterContextProvider = props => {
       }
 
       if (comingForeground) {
-        if (!defaultPrinter.auto_connect) return;
         if (printerStateRef.current === 'connected') return;
 
-        // Only Bluetooth printers need Bluetooth powered on; for those, skip the
-        // prompt when Bluetooth is off (the PoweredOn listener will handle it).
+        // Only Bluetooth printers need Bluetooth powered on; for those, do
+        // nothing when Bluetooth is off (the PoweredOn listener handles it once
+        // the user turns it back on).
         if (defaultPrinter.interface_type === 'bluetooth') {
           const liveBluetoothState = await BluetoothStateManager.getState();
           if (liveBluetoothState !== 'PoweredOn') return;
         }
 
-        setConnectToPrinterDialogVisible(() => true);
+        // Auto-reconnect on -> connect silently; off -> prompt with the dialog.
+        reconnectOrPromptForDefaultPrinter();
       }
     });
 
@@ -323,9 +385,10 @@ const DefaultPrinterContextProvider = props => {
         200,
       );
 
-      // prompt user to connect to the default printer anytime the bluetooth turns on
-      if (printerState !== 'connected' && defaultPrinter.auto_connect) {
-        setConnectToPrinterDialogVisible(() => true);
+      // Reconnect to the default printer whenever Bluetooth turns on: silently
+      // when auto-reconnect is on, otherwise prompt.
+      if (printerState !== 'connected') {
+        reconnectOrPromptForDefaultPrinter();
       }
     } else if (bluetoothState === 'PoweredOff') {
       if (printerState === 'connected') {
@@ -392,6 +455,14 @@ const DefaultPrinterContextProvider = props => {
             <Paragraph>
               {'Do you want to connect to your default printer?'}
             </Paragraph>
+            <Checkbox.Item
+              label="Auto-reconnect to this printer"
+              status={autoReconnectChecked ? 'checked' : 'unchecked'}
+              position="leading"
+              onPress={handleToggleAutoReconnect}
+              style={{paddingHorizontal: 0, marginTop: 8}}
+              labelStyle={{textAlign: 'left'}}
+            />
           </Dialog.Content>
           <Dialog.Actions style={{justifyContent: 'space-around'}}>
             <Button

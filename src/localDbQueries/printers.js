@@ -13,11 +13,20 @@ export const createPrinter = async ({values, onInsertLimitReached}) => {
     const db = await getDBConnection();
     const {deviceId, branchId} = await getCloudSyncParams();
     const newPrinterId = uuid.v4();
+    // Auto-reconnect defaults to ON (mirrors the column's DEFAULT 1) when the
+    // caller doesn't specify it; the create form passes an explicit boolean.
+    const autoConnect =
+      values.auto_connect === undefined || values.auto_connect === null
+        ? 1
+        : values.auto_connect
+        ? 1
+        : 0;
     const createPrinterQuery = `INSERT INTO saved_printers (
     id,
     display_name,
     device_name,
     inner_mac_address,
+    auto_connect,
     device_id,
     branch_id
   )
@@ -27,6 +36,7 @@ export const createPrinter = async ({values, onInsertLimitReached}) => {
     '${values.display_name.replace(/\'/g, "''")}',
     '${values.device_name.replace(/\'/g, "''")}',
     '${values.inner_mac_address.replace(/\'/g, "''")}',
+    ${autoConnect},
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'}
   );`;
@@ -136,10 +146,21 @@ export const getPrinter = async ({queryKey}) => {
 };
 
 export const updatePrinter = async ({id, updatedValues}) => {
+  // Only touch auto_connect when the caller provided it, so callers that update
+  // just the printer's name/device don't clobber the existing preference.
+  const autoConnectSet =
+    updatedValues.auto_connect === undefined ||
+    updatedValues.auto_connect === null
+      ? ''
+      : `,
+  auto_connect = ${updatedValues.auto_connect ? 1 : 0}`;
   const query = `UPDATE saved_printers
   SET display_name = '${updatedValues.display_name.replace(/\'/g, "''")}',
   device_name = '${updatedValues.device_name.replace(/\'/g, "''")}',
-  inner_mac_address = '${updatedValues.inner_mac_address.replace(/\'/g, "''")}'
+  inner_mac_address = '${updatedValues.inner_mac_address.replace(
+    /\'/g,
+    "''",
+  )}'${autoConnectSet}
   WHERE id = '${id}'`;
 
   try {
@@ -148,6 +169,23 @@ export const updatePrinter = async ({id, updatedValues}) => {
   } catch (error) {
     console.debug(error);
     throw Error('Failed to update printer.');
+  }
+};
+
+// Toggle just the auto-reconnect preference (used by the "Connect to default
+// printer?" dialog). saved_printers is an excluded, non-sync table, so a plain
+// UPDATE is correct here — no soft-delete / updated_at handling needed.
+export const setPrinterAutoConnect = async ({id, autoConnect}) => {
+  const query = `UPDATE saved_printers SET auto_connect = ${
+    autoConnect ? 1 : 0
+  } WHERE id = '${String(id).replace(/\'/g, "''")}'`;
+
+  try {
+    const db = await getDBConnection();
+    return await db.executeSql(query);
+  } catch (error) {
+    console.debug(error);
+    throw Error('Failed to update printer auto-reconnect setting.');
   }
 };
 
