@@ -88,6 +88,7 @@ export const getLicenseStatus = async ({queryKey} = {queryKey: ['licenseStatus',
     let licenseKey = await readSecureItem(rnStorageKeys.licenseKey);
     const licenseToken = await readSecureItem(rnStorageKeys.licenseToken);
     const currentBranchId = await readDesignatedBranchId();
+    const currentDeviceId = await readSecureItem(rnStorageKeys.cloudV2DeviceId);
 
     let appConfigFromLicense = null;
     let metadata = {};
@@ -143,16 +144,21 @@ export const getLicenseStatus = async ({queryKey} = {queryKey: ['licenseStatus',
       licenseKey = maskLicenseKey(licenseKey);
     }
 
-    // Entitlement is PER-BRANCH: a valid, non-expired token only grants full
-    // (licensed) access on the branches it was activated on. On any other
-    // branch the app falls back to the free tier and the license gate is
-    // prompted — even though a token exists. The user is free to create and
-    // switch branches; they activate the license per branch up to maxBranches.
+    // Entitlement is PER-DEVICE *and* PER-BRANCH: a valid, non-expired token
+    // only grants full (licensed) access when BOTH the current device is in
+    // the license's device allowlist AND the current branch is in its branch
+    // allowlist. On any unlicensed device or branch the app falls back to the
+    // free tier and the license gate is prompted — even though a token exists.
+    // The user is free to sign in/out, switch accounts, create and switch
+    // branches; they activate the license per device (up to maxDevices) and
+    // per branch (up to maxBranches).
+    const tokenUsable = !!licenseToken && !isLicenseExpired;
+    const isCurrentDeviceLicensed =
+      tokenUsable && !!currentDeviceId && allowedDeviceIds.includes(currentDeviceId);
     const isCurrentBranchLicensed =
-      !!licenseToken &&
-      !isLicenseExpired &&
-      !!currentBranchId &&
-      allowedBranchIds.includes(currentBranchId);
+      tokenUsable && !!currentBranchId && allowedBranchIds.includes(currentBranchId);
+    const isCurrentlyLicensed =
+      isCurrentDeviceLicensed && isCurrentBranchLicensed;
 
     return {
       result: {
@@ -169,7 +175,10 @@ export const getLicenseStatus = async ({queryKey} = {queryKey: ['licenseStatus',
         maxBranches,
         plan,
         currentBranchId,
+        currentDeviceId,
+        isCurrentDeviceLicensed,
         isCurrentBranchLicensed,
+        isCurrentlyLicensed,
       },
     };
   } catch (error) {

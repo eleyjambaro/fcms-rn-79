@@ -73,12 +73,24 @@ export async function getAppConfig() {
     const {payload, appConfig: appConfigFromLicense} =
       verifyLicenseToken(licenseToken);
 
-    // Entitlement is PER-BRANCH. Even with a valid token, the upgraded config
-    // only applies on a branch the license was activated on; on any other
-    // branch the user gets the free tier (the license gate is prompted).
+    // Entitlement is PER-DEVICE and PER-BRANCH. Even with a valid token, the
+    // upgraded config only applies when BOTH the current device and the
+    // current branch were activated on the license; otherwise the user gets
+    // the free tier (the license gate is prompted).
+    const currentDeviceId = await SecureStorage.hasItem(
+      rnStorageKeys.cloudV2DeviceId,
+    )
+      ? await SecureStorage.getItem(rnStorageKeys.cloudV2DeviceId)
+      : null;
     const currentBranchId = await readDesignatedBranchId();
+    const allowedDeviceIds = payload?.allowed_device_ids ?? [];
     const allowedBranchIds = payload?.allowed_branch_ids ?? [];
-    if (!currentBranchId || !allowedBranchIds.includes(currentBranchId)) {
+    if (
+      !currentDeviceId ||
+      !allowedDeviceIds.includes(currentDeviceId) ||
+      !currentBranchId ||
+      !allowedBranchIds.includes(currentBranchId)
+    ) {
       return freeTierAppConfig();
     }
 

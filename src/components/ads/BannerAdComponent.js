@@ -14,9 +14,10 @@ const BannerAdComponent = props => {
 
   const licenseStatus = licenseStatusData?.result;
 
-  // Hide ads only on branches where the license is activated. Entitlement is
-  // per-branch, so a licensed user still sees ads on an unlicensed branch.
-  if (licenseStatus?.isCurrentBranchLicensed) {
+  // Hide ads only where the license is fully active — i.e. both the current
+  // device and the current branch are licensed. Entitlement is per-device and
+  // per-branch, so ads still show on an unlicensed device or branch.
+  if (licenseStatus?.isCurrentlyLicensed) {
     return null;
   }
 

@@ -73,10 +73,11 @@ const ActivateLicense = props => {
     }
   };
 
-  // Activate the already-stored license on the CURRENT branch. Reuses the
-  // saved license key (entitlement is per-branch, so the user re-activates
-  // the same key on each branch they want licensed, up to max_branches).
-  const handleActivateCurrentBranch = async () => {
+  // Activate the already-stored license on the CURRENT device + branch.
+  // Reuses the saved license key (entitlement is per-device and per-branch, so
+  // the user re-activates the same key on each device/branch they want
+  // licensed, up to max_devices / max_branches).
+  const handleActivateHere = async () => {
     try {
       const {result: completeKey} = await getLicenseKey({
         queryKey: ['licenseKey', {returnCompleteKey: true}],
@@ -100,7 +101,7 @@ const ActivateLicense = props => {
 
   const renderContent = () => {
     const licenseStatus = getLicenseStatusReqData?.result;
-    const {licenseKey, metadata, isLicenseExpired, isCurrentBranchLicensed} =
+    const {licenseKey, metadata, isLicenseExpired, isCurrentlyLicensed} =
       licenseStatus;
     const {expirationDateInMs} = metadata;
     const expirationDate = new Date(expirationDateInMs);
@@ -164,10 +165,11 @@ const ActivateLicense = props => {
       );
     }
 
-    // License key is saved and not expired, but this branch is not one of the
-    // licensed branches. Entitlement is per-branch — prompt the user to
-    // activate the license on the current branch (capped by max_branches).
-    if (licenseKey && !isCurrentBranchLicensed) {
+    // License key is saved and not expired, but this device+branch is not yet
+    // fully licensed. Entitlement is per-device and per-branch — prompt the
+    // user to activate the license here (capped by max_devices / max_branches;
+    // the server rejects with a clear message if either cap is reached).
+    if (licenseKey && !isCurrentlyLicensed) {
       return (
         <>
           <View
@@ -190,10 +192,10 @@ const ActivateLicense = props => {
                 textAlign: 'center',
                 color: colors.dark,
               }}>
-              {'Activate license on this branch'}
+              {'Activate license here'}
             </Subheading>
             <Text style={[styles.text]}>
-              {`Your ${appDefaults.appDisplayName} license is not yet active on this branch, so it currently runs with FREE and limited feature access. Activate your license here to unlock full access on this branch.`}
+              {`Your ${appDefaults.appDisplayName} license is not yet active on this device and branch, so it currently runs with FREE and limited feature access. Activate your license here to unlock full access.`}
             </Text>
           </View>
           {changeLicenseKeyFormVisible ? (
@@ -209,8 +211,8 @@ const ActivateLicense = props => {
                 mode="contained"
                 loading={activateLicenseMutation.isLoading}
                 disabled={activateLicenseMutation.isLoading}
-                onPress={handleActivateCurrentBranch}>
-                Activate on this branch
+                onPress={handleActivateHere}>
+                Activate here
               </Button>
               <Button
                 icon="key-remove"
