@@ -38,6 +38,31 @@ const costMarkers = {
   taxExempt: 'E',
 };
 
+// Thermal printers render only their active single-byte code page, so a
+// multi-byte Unicode currency glyph prints as garbage (the printer decodes its
+// UTF-8 bytes with a built-in, often CJK, code page — e.g. ₱ U+20B1 came out as
+// a Chinese character). Map known non-ASCII symbols to an ASCII-safe label,
+// pass ASCII symbols (e.g. "$") through unchanged, and drop any other non-ASCII
+// symbol rather than print garbage.
+const printerSafeCurrencyMap = {
+  '₱': 'P', // Philippine peso — not present in any standard ESC/POS code page
+};
+
+const toPrinterSafeCurrencySymbol = symbol => {
+  if (!symbol) {
+    return '';
+  }
+  if (printerSafeCurrencyMap[symbol]) {
+    return printerSafeCurrencyMap[symbol];
+  }
+  // ASCII symbols (e.g. "$") print fine as-is.
+  if (/^[\x20-\x7E]+$/.test(symbol)) {
+    return symbol;
+  }
+  // Unknown non-ASCII symbol: better blank than garbage.
+  return '';
+};
+
 export const printSalesInvoice = ({
   printer: _printer,
   salesInvoice,
@@ -217,9 +242,11 @@ export const printSalesInvoice = ({
       }
     }
 
-    // Currency symbol is intentionally shown on the TOTAL line only.
+    // Currency symbol is intentionally shown on the TOTAL line only, and is
+    // sanitized for the printer's code page (see toPrinterSafeCurrencySymbol).
+    const printableCurrencySymbol = toPrinterSafeCurrencySymbol(currencySymbol);
     receiptText += `${alignments.right}TOTAL: <D>${
-      currencySymbol ? `${currencySymbol} ` : ''
+      printableCurrencySymbol ? `${printableCurrencySymbol} ` : ''
     }${commaNumber(parseFloat(grandTotalAmount || 0).toFixed(2))}</D>\n`;
   }
 
