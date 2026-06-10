@@ -87,6 +87,7 @@ export const getLicenseStatus = async ({queryKey} = {queryKey: ['licenseStatus',
 
     let licenseKey = await readSecureItem(rnStorageKeys.licenseKey);
     const licenseToken = await readSecureItem(rnStorageKeys.licenseToken);
+    const currentBranchId = await readDesignatedBranchId();
 
     let appConfigFromLicense = null;
     let metadata = {};
@@ -142,6 +143,17 @@ export const getLicenseStatus = async ({queryKey} = {queryKey: ['licenseStatus',
       licenseKey = maskLicenseKey(licenseKey);
     }
 
+    // Entitlement is PER-BRANCH: a valid, non-expired token only grants full
+    // (licensed) access on the branches it was activated on. On any other
+    // branch the app falls back to the free tier and the license gate is
+    // prompted — even though a token exists. The user is free to create and
+    // switch branches; they activate the license per branch up to maxBranches.
+    const isCurrentBranchLicensed =
+      !!licenseToken &&
+      !isLicenseExpired &&
+      !!currentBranchId &&
+      allowedBranchIds.includes(currentBranchId);
+
     return {
       result: {
         hasLicenseKey: !!licenseKey,
@@ -156,6 +168,8 @@ export const getLicenseStatus = async ({queryKey} = {queryKey: ['licenseStatus',
         maxDevices,
         maxBranches,
         plan,
+        currentBranchId,
+        isCurrentBranchLicensed,
       },
     };
   } catch (error) {

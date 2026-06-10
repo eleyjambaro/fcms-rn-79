@@ -29,10 +29,6 @@ import {
 import {getCloudCompany} from '../../serverDbQueries/v2/companies';
 import {getDeviceCompanyInfo} from '../../serverDbQueries/v2/devices';
 import {getMe} from '../../serverDbQueries/v2/auth';
-import {
-  addLicenseBranch,
-  getLicenseStatus,
-} from '../../localDbQueries/license';
 
 const {
   cloudV2AuthToken,
@@ -521,32 +517,14 @@ const CloudAuthContextProvider = ({children}) => {
       },
 
       setDesignatedBranch: async branch => {
-        // License branch-switch gate. Runs BEFORE BEGIN_SWITCH_BRANCH so
-        // a blocked switch leaves the UI untouched (no Splash flash).
-        //   - No license / expired → free tier, no gating
-        //   - Active license, branch already in allowlist → pass through
-        //   - Active license, branch not in allowlist + under cap → auto add
-        //     (server reissues the JWT with the expanded list)
-        //   - Active license, branch not in allowlist + at cap → block
-        try {
-          const licenseStatus = (await getLicenseStatus()).result;
-          if (licenseStatus.hasLicenseToken && !licenseStatus.isLicenseExpired) {
-            const allowed = licenseStatus.allowedBranchIds ?? [];
-            const cap = licenseStatus.maxBranches ?? 0;
-            const targetId = branch?.id;
-            if (targetId && !allowed.includes(targetId)) {
-              if (cap > 0 && allowed.length >= cap) {
-                throw new Error(
-                  `Branch limit reached for your license (${cap}). Upgrade to add more branches.`,
-                );
-              }
-              await addLicenseBranch({branchId: targetId});
-            }
-          }
-        } catch (gateError) {
-          console.debug('[CloudAuthContextProvider] branch gate:', gateError);
-          throw gateError;
-        }
+        // Branch switching is always free — the user may create and switch
+        // between any number of branches without consuming a license slot.
+        // License entitlement is enforced PER-BRANCH instead: a branch that
+        // is not in the license's allowed_branch_ids runs on the free tier
+        // and the license gate is prompted (see getLicenseStatus /
+        // getAppConfig). Activating the license on a branch is an explicit
+        // user action (ActivateLicense screen), capped server-side by
+        // max_branches. We intentionally do NOT auto-add the branch here.
 
         // Flag a switch-in-progress so App.js holds on Splash until we finish.
         // Without this the user briefly sees the previous branch's stale UI

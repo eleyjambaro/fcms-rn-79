@@ -39,19 +39,48 @@ const devAppConfig = {
   enableExportInventoryDataTemplate: true,
 };
 
+const freeTierAppConfig = () => (env === 'dev' ? devAppConfig : defaultAppConfig);
+
+const readDesignatedBranchId = async () => {
+  try {
+    const has = await SecureStorage.hasItem(
+      rnStorageKeys.cloudV2DesignatedBranch,
+    );
+    if (!has) {
+      return null;
+    }
+    const raw = await SecureStorage.getItem(
+      rnStorageKeys.cloudV2DesignatedBranch,
+    );
+    return raw ? JSON.parse(raw)?.id ?? null : null;
+  } catch {
+    return null;
+  }
+};
+
 export async function getAppConfig() {
   try {
     const hasLicenseToken = await SecureStorage.hasItem(
       rnStorageKeys.licenseToken,
     );
     if (!hasLicenseToken) {
-      return env === 'dev' ? devAppConfig : defaultAppConfig;
+      return freeTierAppConfig();
     }
 
     const licenseToken = await SecureStorage.getItem(
       rnStorageKeys.licenseToken,
     );
-    const {appConfig: appConfigFromLicense} = verifyLicenseToken(licenseToken);
+    const {payload, appConfig: appConfigFromLicense} =
+      verifyLicenseToken(licenseToken);
+
+    // Entitlement is PER-BRANCH. Even with a valid token, the upgraded config
+    // only applies on a branch the license was activated on; on any other
+    // branch the user gets the free tier (the license gate is prompted).
+    const currentBranchId = await readDesignatedBranchId();
+    const allowedBranchIds = payload?.allowed_branch_ids ?? [];
+    if (!currentBranchId || !allowedBranchIds.includes(currentBranchId)) {
+      return freeTierAppConfig();
+    }
 
     if (
       !appConfigFromLicense ||

@@ -15,6 +15,7 @@ import moment from 'moment';
 import LicenseForm from '../components/forms/LicenseForm';
 import {
   activateLicense,
+  getLicenseKey,
   getLicenseStatus,
 } from '../localDbQueries/license';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
@@ -72,9 +73,35 @@ const ActivateLicense = props => {
     }
   };
 
+  // Activate the already-stored license on the CURRENT branch. Reuses the
+  // saved license key (entitlement is per-branch, so the user re-activates
+  // the same key on each branch they want licensed, up to max_branches).
+  const handleActivateCurrentBranch = async () => {
+    try {
+      const {result: completeKey} = await getLicenseKey({
+        queryKey: ['licenseKey', {returnCompleteKey: true}],
+      });
+
+      if (!completeKey) {
+        setErrorMessage(() => 'No saved license key found.');
+        return;
+      }
+
+      await activateLicenseMutation.mutateAsync({
+        values: {license_key: completeKey},
+      });
+    } catch (error) {
+      console.debug(error);
+      setErrorMessage(() =>
+        error?.message ? `${error.message}` : 'License activation failed!',
+      );
+    }
+  };
+
   const renderContent = () => {
     const licenseStatus = getLicenseStatusReqData?.result;
-    const {licenseKey, metadata, isLicenseExpired} = licenseStatus;
+    const {licenseKey, metadata, isLicenseExpired, isCurrentBranchLicensed} =
+      licenseStatus;
     const {expirationDateInMs} = metadata;
     const expirationDate = new Date(expirationDateInMs);
 
@@ -133,6 +160,70 @@ const ActivateLicense = props => {
               </Button>
             )}
           </View>
+        </>
+      );
+    }
+
+    // License key is saved and not expired, but this branch is not one of the
+    // licensed branches. Entitlement is per-branch — prompt the user to
+    // activate the license on the current branch (capped by max_branches).
+    if (licenseKey && !isCurrentBranchLicensed) {
+      return (
+        <>
+          <View
+            style={{
+              width: '100%',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 30,
+            }}>
+            <Avatar.Icon
+              icon="shield-key-outline"
+              size={100}
+              color={colors.surface}
+            />
+          </View>
+          <View style={{marginBottom: 25}}>
+            <Subheading
+              style={{
+                fontWeight: 'bold',
+                textAlign: 'center',
+                color: colors.dark,
+              }}>
+              {'Activate license on this branch'}
+            </Subheading>
+            <Text style={[styles.text]}>
+              {`Your ${appDefaults.appDisplayName} license is not yet active on this branch, so it currently runs with FREE and limited feature access. Activate your license here to unlock full access on this branch.`}
+            </Text>
+          </View>
+          {changeLicenseKeyFormVisible ? (
+            <LicenseForm
+              autoFocus
+              onSubmit={handleSubmit}
+              onCancel={() => setChangeLicenseKeyFormVisible(() => false)}
+            />
+          ) : (
+            <>
+              <Button
+                icon="shield-key"
+                mode="contained"
+                loading={activateLicenseMutation.isLoading}
+                disabled={activateLicenseMutation.isLoading}
+                onPress={handleActivateCurrentBranch}>
+                Activate on this branch
+              </Button>
+              <Button
+                icon="key-remove"
+                mode="text"
+                disabled={activateLicenseMutation.isLoading}
+                onPress={() => {
+                  setChangeLicenseKeyFormVisible(() => true);
+                }}
+                style={{marginTop: 15}}>
+                Change license key
+              </Button>
+            </>
+          )}
         </>
       );
     }

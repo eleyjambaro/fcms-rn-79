@@ -13,11 +13,10 @@ const BannerAdComponent = props => {
   );
 
   const licenseStatus = licenseStatusData?.result;
-  const hasActiveLicense =
-    licenseStatus?.hasLicenseToken && !licenseStatus?.isLicenseExpired;
 
-  // Hide ads for users with an active (non-expired) license.
-  if (hasActiveLicense) {
+  // Hide ads only on branches where the license is activated. Entitlement is
+  // per-branch, so a licensed user still sees ads on an unlicensed branch.
+  if (licenseStatus?.isCurrentBranchLicensed) {
     return null;
   }
 
