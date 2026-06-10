@@ -18,11 +18,11 @@ import {
   getSalesInvoiceGrandTotal,
   getSalesInvoiceTotals,
 } from '../localDbQueries/salesInvoices';
-import {getCompany} from '../localDbQueries/companies';
 import ListLoadingFooter from '../components/stateIndicators/ListLoadingFooter';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
 import useCurrencySymbol from '../hooks/useCurrencySymbol';
+import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import useDefaultPrinterContext from '../hooks/useDefaultPrinterContext';
 import {formatUOMAbbrev} from '../utils/stringHelpers';
 import SalesInvoiceItemListItem from '../components/salesInvoices/SalesInvoiceItemListItem';
@@ -31,6 +31,7 @@ import {printSalesInvoice} from '../utils/printHelpers';
 const SalesInvoiceView = () => {
   const {colors} = useTheme();
   const currencySymbol = useCurrencySymbol();
+  const [cloudAuthState] = useCloudAuthContext();
   const route = useRoute();
   const invoiceId = route.params?.invoice_id;
 
@@ -77,11 +78,6 @@ const SalesInvoiceView = () => {
     },
   );
 
-  const {status: getCompanyStatus, data: getCompanyData} = useQuery(
-    ['company'],
-    getCompany,
-  );
-
   const {isLoading: isLoadingDefaultPrinter, printText} =
     useDefaultPrinterContext();
 
@@ -113,8 +109,7 @@ const SalesInvoiceView = () => {
       isLoadingDefaultPrinter ||
       salesInvoiceStatus === 'loading' ||
       salesInvoiceItemsStatus === 'loading' ||
-      salesInvoiceGrandTotalStatus === 'loading' ||
-      getCompanyStatus === 'loading'
+      salesInvoiceGrandTotalStatus === 'loading'
     ) {
       return;
     }
@@ -122,8 +117,7 @@ const SalesInvoiceView = () => {
     if (
       salesInvoiceStatus === 'error' ||
       salesInvoiceItemsStatus === 'error' ||
-      salesInvoiceGrandTotalStatus === 'error' ||
-      getCompanyStatus === 'error'
+      salesInvoiceGrandTotalStatus === 'error'
     ) {
       return;
     }
@@ -138,7 +132,14 @@ const SalesInvoiceView = () => {
       totalTaxExemptAmount: salesInvoiceTotalsData?.totalTaxExemptAmount ?? 0,
       totalTaxAmount: salesInvoiceTotalsData?.totalTaxAmount ?? 0,
     };
-    const company = getCompanyData?.result;
+    // Receipt header sourced from cloud auth context (offline-safe, from secure
+    // storage): full company name, branch name, and branch address.
+    const {authUser, designatedBranch, deviceCompanyInfo} = cloudAuthState;
+    const company = {
+      name: deviceCompanyInfo?.name ?? authUser?.company?.name ?? '',
+      branch_name: designatedBranch?.name ?? '',
+      branch_address: designatedBranch?.address ?? '',
+    };
 
     // printText is self-sufficient: it ensures Bluetooth is on and the printer
     // is connected (reading the live BT state), then prints.
@@ -148,6 +149,7 @@ const SalesInvoiceView = () => {
         salesInvoiceItems: getAllPagesData(),
         salesInvoiceTotals,
         company,
+        currencySymbol,
       }),
     );
   };
@@ -185,16 +187,14 @@ const SalesInvoiceView = () => {
 
   if (
     salesInvoiceStatus === 'loading' ||
-    salesInvoiceItemsStatus === 'loading' ||
-    getCompanyStatus === 'loading'
+    salesInvoiceItemsStatus === 'loading'
   ) {
     return <DefaultLoadingScreen />;
   }
 
   if (
     salesInvoiceStatus === 'error' ||
-    salesInvoiceItemsStatus === 'error' ||
-    getCompanyStatus === 'error'
+    salesInvoiceItemsStatus === 'error'
   ) {
     return (
       <DefaultErrorScreen

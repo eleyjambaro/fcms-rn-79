@@ -52,18 +52,19 @@ export const printSalesInvoice = ({
   const dividers = getDividers();
   let receiptText = '';
 
-  // receipt header
+  // receipt header — company name, then branch name, then branch address
+  // (mirrors the test-print layout: "My Store" / "123 Main Street" / ...).
   if (company && Object.keys(company)?.length > 0) {
-    if (company.company_display_name) {
-      receiptText += `${alignments.center}<D>${company.company_display_name}</D>\n`;
-
-      if (company.branch) {
-        receiptText += `${alignments.center}${company.branch}\n`;
-      }
+    if (company.name) {
+      receiptText += `${alignments.center}<D>${company.name}</D>\n`;
     }
 
-    if (company.company_address) {
-      receiptText += `${alignments.center}${company.company_address}\n`;
+    if (company.branch_name) {
+      receiptText += `${alignments.center}${company.branch_name}\n`;
+    }
+
+    if (company.branch_address) {
+      receiptText += `${alignments.center}${company.branch_address}\n`;
     }
 
     receiptText += `\n`;
@@ -216,9 +217,10 @@ export const printSalesInvoice = ({
       }
     }
 
-    receiptText += `${alignments.right}TOTAL: <D>${commaNumber(
-      parseFloat(grandTotalAmount || 0).toFixed(2),
-    )}</D>\n`;
+    // Currency symbol is intentionally shown on the TOTAL line only.
+    receiptText += `${alignments.right}TOTAL: <D>${
+      currencySymbol ? `${currencySymbol} ` : ''
+    }${commaNumber(parseFloat(grandTotalAmount || 0).toFixed(2))}</D>\n`;
   }
 
   // receipt details

@@ -3,7 +3,6 @@ import React, {useState} from 'react';
 import {useTheme} from 'react-native-paper';
 import {useNavigation} from '@react-navigation/native';
 import {
-  useQuery,
   useInfiniteQuery,
   useQueryClient,
   useMutation,
@@ -16,10 +15,11 @@ import {
   confirmFulfillingSalesOrders,
   confirmSaleEntries,
 } from '../localDbQueries/salesCounter';
-import {getCompany} from '../localDbQueries/companies';
 import routes from '../constants/routes';
 import TestModeLimitModal from '../components/modals/TestModeLimitModal';
 import useDefaultPrinterContext from '../hooks/useDefaultPrinterContext';
+import useCloudAuthContext from '../hooks/useCloudAuthContext';
+import useCurrencySymbol from '../hooks/useCurrencySymbol';
 import {printSalesInvoice} from '../utils/printHelpers';
 import {runSync} from '../services/syncService';
 import useRoleAccess from '../hooks/useRoleAccess';
@@ -37,11 +37,8 @@ const PaymentMethod = props => {
   const [{saleTotals, saleItems}, actions] = useSalesCounterContext();
   const {isLoading: isLoadingDefaultPrinter, printText} =
     useDefaultPrinterContext();
-
-  const {status: getCompanyStatus, data: getCompanyData} = useQuery(
-    ['company'],
-    getCompany,
-  );
+  const [cloudAuthState] = useCloudAuthContext();
+  const currencySymbol = useCurrencySymbol();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [limitReachedMessage, setLimitReachedMessage] = useState('');
@@ -93,15 +90,18 @@ const PaymentMethod = props => {
   };
 
   const printReceipt = async ({salesInvoice, salesInvoiceItems}) => {
-    if (isLoadingDefaultPrinter || getCompanyStatus === 'loading') {
+    if (isLoadingDefaultPrinter) {
       return;
     }
 
-    if (getCompanyStatus === 'error') {
-      return;
-    }
-
-    const company = getCompanyData?.result;
+    // Receipt header sourced from cloud auth context (offline-safe, from secure
+    // storage): full company name, branch name, and branch address.
+    const {authUser, designatedBranch, deviceCompanyInfo} = cloudAuthState;
+    const company = {
+      name: deviceCompanyInfo?.name ?? authUser?.company?.name ?? '',
+      branch_name: designatedBranch?.name ?? '',
+      branch_address: designatedBranch?.address ?? '',
+    };
 
     // printText is self-sufficient: it ensures Bluetooth is on and the printer
     // is connected (reading the live BT state), then prints.
@@ -111,6 +111,7 @@ const PaymentMethod = props => {
         salesInvoiceItems,
         salesInvoiceTotals: saleTotals,
         company,
+        currencySymbol,
       }),
     );
   };
