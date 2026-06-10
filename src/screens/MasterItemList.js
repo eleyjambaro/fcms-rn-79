@@ -14,7 +14,7 @@ import {
   HelperText,
   useTheme,
 } from 'react-native-paper';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {
   useInfiniteQuery,
   useMutation,
@@ -29,6 +29,7 @@ import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen
 import ItemQRCode from '../components/items/ItemQRCode';
 import useCurrentUser from '../hooks/useCurrentUser';
 import routes from '../constants/routes';
+import {flushPendingSync} from '../services/syncService';
 
 // Some users are unfamiliar with "EA" and recognize "PC" (piece) instead;
 // render it as "EA (PC)" wherever a UoM abbreviation is displayed here.
@@ -83,6 +84,7 @@ const MasterItemList = () => {
 
   const [deleting, setDeleting] = useState(null);
   const [actionError, setActionError] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const {
     data,
@@ -104,6 +106,36 @@ const MasterItemList = () => {
         return current_page < total_pages ? current_page + 1 : undefined;
       },
     },
+  );
+
+  // This list is server-backed, but a just-registered item lands in the local
+  // `master_items` table first and only reaches the server on the next sync
+  // (item registration schedules a 2s-debounced push). Without forcing that
+  // push here, a newly registered item is missing from this company-wide list
+  // until the next background sync, and React Query's stale cache keeps showing
+  // the old list on revisit. So on focus (and pull-to-refresh) we flush any
+  // pending local changes to the server, then refetch — mirroring the
+  // sync-before-show the SelectMasterItem picker already does.
+  const syncAndRefetch = React.useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      await flushPendingSync();
+    } catch (e) {
+      // Non-fatal — fall through and show whatever the server currently has.
+      console.debug('[MasterItemList] sync error:', e?.message ?? e);
+    }
+    try {
+      await refetch();
+    } catch (_) {
+      // ignore — the list keeps its last good state
+    }
+    setIsSyncing(false);
+  }, [refetch]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      syncAndRefetch();
+    }, [syncAndRefetch]),
   );
 
   const deleteMutation = useMutation(deleteMasterItem, {
@@ -140,7 +172,7 @@ const MasterItemList = () => {
         style={styles.searchbar}
       />
 
-      {isLoading ? (
+      {isLoading || (isSyncing && items.length === 0) ? (
         <View style={styles.loadingState}>
           <ActivityIndicator animating color={colors.primary} />
         </View>
@@ -177,8 +209,8 @@ const MasterItemList = () => {
           onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching && !isFetchingNextPage}
-              onRefresh={refetch}
+              refreshing={isSyncing || (isRefetching && !isFetchingNextPage)}
+              onRefresh={syncAndRefetch}
               colors={[colors.primary]}
             />
           }
