@@ -1,5 +1,5 @@
-import React, {useState, useEffect} from 'react';
-import {View, Text, ToastAndroid} from 'react-native';
+import React, {useState, useEffect, useRef} from 'react';
+import {View, Text, ToastAndroid, AppState} from 'react-native';
 import {
   Button,
   Modal,
@@ -49,6 +49,11 @@ const DefaultPrinterContextProvider = props => {
     setConnectToPrinterFailedDialogVisible,
   ] = useState(false);
   const [printerState, setPrinterState] = useState('unknown'); // 'unknown' | 'initializing' | 'connecting' | 'connected' | 'disconnected' | 'connection-failed'
+
+  // Mirror printerState in a ref so the AppState listener (registered once) can
+  // read the current value without re-subscribing on every state change.
+  const printerStateRef = useRef(printerState);
+  const appStateRef = useRef(AppState.currentState);
 
   const defaultPrinter = getDefaultPrinterData?.result;
   const PrinterController = getPrinterControllerByInterface(defaultPrinter);
@@ -237,12 +242,72 @@ const DefaultPrinterContextProvider = props => {
   }
 
   useEffect(() => {
+    printerStateRef.current = printerState;
+  }, [printerState]);
+
+  useEffect(() => {
     if (!defaultPrinter || !PrinterController) return;
 
     const remove = BluetoothStateManager.addListener(state => {
       setBluetoothState(() => state);
     });
     return remove;
+  }, [defaultPrinter, PrinterController]);
+
+  // Reconnect prompt on app foreground.
+  //
+  // Backgrounding the app drops the BLE socket to the printer while Bluetooth
+  // itself stays powered on, so the PoweredOff -> PoweredOn listener above never
+  // fires on return and the now-stale 'connected' printerState suppresses the
+  // reconnect prompt. (Previously the prompt only reappeared as a side effect of
+  // a mutation triggering a print.) Handle the foreground/background transition
+  // explicitly: drop the dead connection on background, and re-prompt on return.
+  useEffect(() => {
+    if (!defaultPrinter || !PrinterController) return;
+
+    const subscription = AppState.addEventListener('change', async nextAppState => {
+      const goingBackground =
+        appStateRef.current === 'active' &&
+        nextAppState.match(/inactive|background/);
+      const comingForeground =
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active';
+
+      appStateRef.current = nextAppState;
+
+      if (goingBackground) {
+        // Tear down the (now-dead) connection so the next foreground check
+        // reflects reality instead of a stale 'connected' state.
+        if (printerStateRef.current === 'connected') {
+          try {
+            await PrinterController.closeConn();
+          } catch (error) {
+            console.warn(
+              'Failed to close printer connection on app background',
+              error,
+            );
+          }
+          setPrinterState(() => 'disconnected');
+        }
+        return;
+      }
+
+      if (comingForeground) {
+        if (!defaultPrinter.auto_connect) return;
+        if (printerStateRef.current === 'connected') return;
+
+        // Only Bluetooth printers need Bluetooth powered on; for those, skip the
+        // prompt when Bluetooth is off (the PoweredOn listener will handle it).
+        if (defaultPrinter.interface_type === 'bluetooth') {
+          const liveBluetoothState = await BluetoothStateManager.getState();
+          if (liveBluetoothState !== 'PoweredOn') return;
+        }
+
+        setConnectToPrinterDialogVisible(() => true);
+      }
+    });
+
+    return () => subscription.remove();
   }, [defaultPrinter, PrinterController]);
 
   useEffect(() => {
@@ -322,7 +387,7 @@ const DefaultPrinterContextProvider = props => {
         <Dialog
           visible={connectToPrinterDialogVisible}
           onDismiss={() => setConnectToPrinterDialogVisible(() => false)}>
-          <Dialog.Title>Bluetooth powered on!</Dialog.Title>
+          <Dialog.Title>Connect to default printer?</Dialog.Title>
           <Dialog.Content>
             <Paragraph>
               {'Do you want to connect to your default printer?'}
