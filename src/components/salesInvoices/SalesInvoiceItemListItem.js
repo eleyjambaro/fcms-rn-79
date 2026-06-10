@@ -10,7 +10,7 @@ import {
   getItemCurrentStockQuantity,
 } from '../../localDbQueries/inventoryLogs';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
-import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import {formatUOMAbbrev, isSalesTaxable} from '../../utils/stringHelpers';
 
 const SalesInvoiceItemListItem = props => {
   const {
@@ -118,7 +118,7 @@ const SalesInvoiceItemListItem = props => {
           parseFloat(item?.subtotal_amount || 0).toFixed(2),
         )}`}</Text>
         <Text style={{marginLeft: 5}}>{`${
-          item?.tax_id ? costMarkers.taxable : costMarkers.taxExempt
+          isSalesTaxable(item) ? costMarkers.taxable : costMarkers.taxExempt
         }`}</Text>
       </View>
     );

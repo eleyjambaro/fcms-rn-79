@@ -1,6 +1,42 @@
 import convert from 'convert-units';
 import commaNumber from 'comma-number';
 
+// Normalize an id column value to a real null. Mirrors normalizeId in
+// localDbQueries/items.js — a legacy double-quoting bug wrote the literal
+// strings 'null'/'undefined' into id columns, and those are truthy.
+const normalizeTaxId = value => {
+  if (value === null || value === undefined) return null;
+  const trimmed = String(value).trim();
+  if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') {
+    return null;
+  }
+  return value;
+};
+
+/**
+ * Sales-side taxability for the T/E legend shown next to a sale line's price.
+ *
+ * The legend reflects the SELLING tax, never the cost tax (`tax_id`). Source of
+ * truth differs by row shape:
+ *   - A recorded sale_log row carries `ref_tax_id` — the item's sales tax AT
+ *     SALE TIME (NULL/'' = sold tax-exempt). This is authoritative even if the
+ *     item's current `sales_tax_id` later changed, so it is preferred whenever
+ *     the column is present (Sales Invoice screen + recorded receipt prints).
+ *   - A live cart row (Sales Register / checkout print) has no `ref_tax_id`; it
+ *     carries the item's current `sales_tax_id_effective` / `sales_tax_id`.
+ *
+ * Using `tax_id` (the cost tax) here is the bug this helper replaces.
+ */
+export const isSalesTaxable = item => {
+  if (!item) return false;
+  if ('ref_tax_id' in item) {
+    return Boolean(normalizeTaxId(item.ref_tax_id));
+  }
+  return Boolean(
+    normalizeTaxId(item.sales_tax_id_effective ?? item.sales_tax_id),
+  );
+};
+
 export const trimTextLength = (value, lengthLimit = 12) => {
   if (!value) {
     return '';

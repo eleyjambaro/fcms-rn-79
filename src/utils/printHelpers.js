@@ -1,7 +1,7 @@
 import commaNumber from 'comma-number';
 import moment from 'moment';
 
-import {formatUOMAbbrev, padNumber} from './stringHelpers';
+import {formatUOMAbbrev, padNumber, isSalesTaxable} from './stringHelpers';
 
 const getAlignments = () => {
   return {
@@ -112,7 +112,7 @@ export const printSalesInvoice = ({
 
       let subTotal = `${commaNumber(
         parseFloat(item?.subtotal_amount || 0).toFixed(2),
-      )} ${item?.tax_id ? costMarkers.taxable : costMarkers.taxExempt}`;
+      )} ${isSalesTaxable(item) ? costMarkers.taxable : costMarkers.taxExempt}`;
 
       let leftText = `${saleQty}  ${unitSellingPrice}`;
       let rightText = `${subTotal}`;
