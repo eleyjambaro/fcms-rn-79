@@ -2010,6 +2010,41 @@ export const alterTables = async currentAppVersion => {
     }
 
     /**
+     * saved_printers.auto_connect / auto_print_receipt.
+     *
+     * These two columns only ever existed in createTables (so only fresh DBs and
+     * the one-time UUID rebuild have them) — there was never an ALTER for them.
+     * An install whose saved_printers table predates them reads auto_connect back
+     * as `undefined`, which silently behaves as "prompt, don't auto-connect", and
+     * worse: createPrinter's INSERT lists auto_connect, so creating a printer
+     * would fail outright on such a DB. Add them idempotently (executeSqlIfColumn-
+     * NotExist is a no-op when the column already exists). DEFAULT 1 mirrors
+     * createTables so existing printers default to auto-connect = ON.
+     * auto_print_receipt is unused by app code today but is migrated alongside its
+     * sibling so the table can't be left half-migrated (the UUID rebuild's INSERT
+     * also SELECTs it).
+     */
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'saved_printers',
+        'auto_connect',
+        'ALTER TABLE saved_printers ADD COLUMN auto_connect INTEGER DEFAULT 1;',
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'saved_printers',
+        'auto_print_receipt',
+        'ALTER TABLE saved_printers ADD COLUMN auto_print_receipt INTEGER DEFAULT 1;',
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding saved_printers auto_connect/auto_print_receipt columns:',
+        error,
+      );
+    }
+
+    /**
      * New column: operations.code — stable string identifier for default operations.
      * Replaces hardcoded integer ID comparisons throughout the codebase.
      */
