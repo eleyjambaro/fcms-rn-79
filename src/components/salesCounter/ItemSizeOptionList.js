@@ -38,8 +38,16 @@ import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadin
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 
 const ItemSizeOptionList = props => {
-  const {filter, itemId, item, listStyle, listContentContainerStyle, onChange} =
-    props;
+  const {
+    filter,
+    itemId,
+    item,
+    listStyle,
+    listContentContainerStyle,
+    onChange,
+    onOptionsLoaded,
+    emptyText = 'No data to display',
+  } = props;
   const {colors} = useTheme();
 
   const [focusedItem, setFocusedItem] = useState(null);
@@ -90,14 +98,18 @@ const ItemSizeOptionList = props => {
     return pagesData;
   };
 
-  // Auto-select if there's only one option
+  // Auto-select if there's only one option, and report the loaded count so a
+  // parent form can tell when the item has no selling size option at all.
   useEffect(() => {
+    if (status !== 'success') return;
+
     const allData = getAllPagesData();
     if (allData.length === 1 && onChange) {
       setFocusedItem(allData[0]);
       onChange(allData[0]);
     }
-  }, [data?.pages]);
+    onOptionsLoaded && onOptionsLoaded(allData.length);
+  }, [data?.pages, status]);
 
   const renderFooter = () => {
     if (isFetchingNextPage) {
@@ -154,7 +166,7 @@ const ItemSizeOptionList = props => {
               justifyContent: 'center',
               alignItems: 'center',
             }}>
-            <Text>No data to display</Text>
+            <Text style={{textAlign: 'center'}}>{emptyText}</Text>
           </View>
         }
         refreshControl={

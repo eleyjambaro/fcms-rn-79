@@ -650,8 +650,8 @@ export const getSellingMenuItems = async ({queryKey, pageParam = 1}) => {
       SELECT *,
       selling_menu_items.id AS id,
       selling_menu_items.item_id AS item_id,
-      modifier_options.in_option_qty_uom_abbrev AS in_menu_qty_uom_abbrev,
-      modifier_options.option_selling_price * selling_menu_items.in_menu_qty AS total_selling_price
+      COALESCE(modifier_options.in_option_qty_uom_abbrev, items.uom_abbrev) AS in_menu_qty_uom_abbrev,
+      COALESCE(modifier_options.option_selling_price, items.unit_selling_price) * selling_menu_items.in_menu_qty AS total_selling_price
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
@@ -660,7 +660,9 @@ export const getSellingMenuItems = async ({queryKey, pageParam = 1}) => {
       INNER JOIN active_items items
       ON items.id = selling_menu_items.item_id
 
-      INNER JOIN active_modifier_options modifier_options
+      -- LEFT JOIN: items without a selling size option have a NULL
+      -- modifier_option_id and fall back to the item's base unit_selling_price.
+      LEFT JOIN active_modifier_options modifier_options
       ON modifier_options.id = selling_menu_items.modifier_option_id
 
       ${queryFilter}
@@ -769,9 +771,10 @@ export const getSellingMenuTotalSellingPrice = async ({queryKey}) => {
     const db = await getDBConnection();
 
     const query = `
-      SELECT SUM(modifier_options.option_selling_price * selling_menu_items.in_menu_qty) as totalPrice
+      SELECT SUM(COALESCE(modifier_options.option_selling_price, items.unit_selling_price) * selling_menu_items.in_menu_qty) as totalPrice
       FROM active_selling_menu_items selling_menu_items
-      INNER JOIN active_modifier_options modifier_options ON modifier_options.id = selling_menu_items.modifier_option_id
+      INNER JOIN active_items items ON items.id = selling_menu_items.item_id
+      LEFT JOIN active_modifier_options modifier_options ON modifier_options.id = selling_menu_items.modifier_option_id
       WHERE selling_menu_items.selling_menu_id = '${sellingMenuId}'
     `;
 

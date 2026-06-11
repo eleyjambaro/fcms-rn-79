@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useCallback} from 'react';
 import {View, Pressable, StyleSheet} from 'react-native';
 import {TextInput, Button, Text, useTheme} from 'react-native-paper';
 import {useFormik} from 'formik';
@@ -9,9 +9,13 @@ import commaNumber from 'comma-number';
 import {extractNumber, formatUOMAbbrev} from '../../utils/stringHelpers';
 import ItemSizeOptionList from '../salesCounter/ItemSizeOptionList';
 
+// size_option_id is intentionally optional here: items without any selling
+// size option are sold at the item's base unit_selling_price. The "a size
+// option must be picked when options exist" rule is enforced via canSubmit
+// below, not the schema.
 const SellingMenuItemValidationSchema = Yup.object().shape({
   item_id: Yup.string().required('Required'),
-  size_option_id: Yup.string().required('Required'),
+  size_option_id: Yup.string().nullable(),
   in_menu_qty: Yup.string()
     .min(1, 'Too Short!')
     .max(50, 'Too Long!')
@@ -30,6 +34,12 @@ const SellingMenuItemForm = props => {
     onCancel,
   } = props;
   const {colors} = useTheme();
+
+  // null = size options not loaded yet, 0 = item has no selling size option
+  const [sizeOptionsCount, setSizeOptionsCount] = useState(null);
+  const handleSizeOptionsLoaded = useCallback(count => {
+    setSizeOptionsCount(count);
+  }, []);
 
   const formik = useFormik({
     initialValues: {
@@ -69,6 +79,16 @@ const SellingMenuItemForm = props => {
   const buttonWidth = 57;
   const buttonHeight = 57;
 
+  const hasSizeOptions = sizeOptionsCount > 0;
+  // Enable Enter once options are known to be loaded. When the item has size
+  // options the user must pick one (and change the form); when it has none we
+  // submit with a null size option and rely on the item's base selling price.
+  const canSubmit =
+    sizeOptionsCount !== null &&
+    isValid &&
+    !isSubmitting &&
+    (hasSizeOptions ? dirty && !!values.size_option_id : true);
+
   if (!item) return null;
 
   return (
@@ -82,6 +102,8 @@ const SellingMenuItemForm = props => {
         itemId={item?.item_id || item?.id}
         item={item}
         onChange={handleSizeOptionChange}
+        onOptionsLoaded={handleSizeOptionsLoaded}
+        emptyText="This item has no selling size option. It will use its base selling price."
         listContentContainerStyle={{marginBottom: 20}}
       />
       <View
@@ -176,7 +198,7 @@ const SellingMenuItemForm = props => {
 
             handleSubmit();
           }}
-          disabled={!dirty || (dirty && !isValid) || isSubmitting}
+          disabled={!canSubmit}
           loading={isSubmitting}>
           {'Enter'}
         </Button>
