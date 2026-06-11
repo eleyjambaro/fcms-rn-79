@@ -5,6 +5,7 @@ import useSalesCounterContext from '../../hooks/useSalesCounterContext';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import PreventGoBackSalesCounter from '../utils/PreventGoBackSalesCounter';
 import SalesRegisterGrandTotal from '../salesCounter/SaleRegisterGrandTotal';
+import SalesRegisterUserBar from '../salesCounter/SalesRegisterUserBar';
 
 const SalesRegisterHeader = () => {
   const navigation = useNavigation();
@@ -77,6 +78,7 @@ const SalesRegisterHeader = () => {
         navigation={navigation}
         hasUnsavedChanges={hasUnsavedChanges}
       />
+      <SalesRegisterUserBar />
       <SalesRegisterGrandTotal />
     </>
   );
