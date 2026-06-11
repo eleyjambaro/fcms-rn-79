@@ -22,9 +22,9 @@ export const activateLicense = async ({license_key, device_id, branch_id}) => {
   return data;
 };
 
-export const getLicenseMe = async ({device_id}) => {
+export const getLicenseMe = async ({device_id, branch_id}) => {
   const {data} = await cloudApiV2.get('/api/v2/licenses/me', {
-    params: {device_id},
+    params: {device_id, ...(branch_id ? {branch_id} : {})},
     headers: await getAuthHeaders(),
   });
   return data;

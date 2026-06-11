@@ -1,4 +1,10 @@
-import {StyleSheet, View} from 'react-native';
+import {
+  StyleSheet,
+  View,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import {
   Button,
   Text,
@@ -10,6 +16,7 @@ import {
 import React, {useState} from 'react';
 import {Formik} from 'formik';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
+import {useHeaderHeight} from '@react-navigation/elements';
 import moment from 'moment';
 
 import LicenseForm from '../components/forms/LicenseForm';
@@ -24,6 +31,7 @@ import {adUnitIds} from '../constants/adUnitIds';
 const ActivateLicense = props => {
   const {navigation} = props;
   const {colors} = useTheme();
+  const headerHeight = useHeaderHeight();
   const {
     status: getLicenseStatusReqStatus,
     data: getLicenseStatusReqData,
@@ -297,9 +305,17 @@ const ActivateLicense = props => {
           setErrorMessage(() => '');
         }}
       />
-      <View style={[styles.container, {backgroundColor: colors.surface}]}>
-        {renderContent()}
-      </View>
+      <KeyboardAvoidingView
+        style={[styles.flex, {backgroundColor: colors.surface}]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={headerHeight}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive">
+          {renderContent()}
+        </ScrollView>
+      </KeyboardAvoidingView>
       <View>
         <BannerAdComponent unitId={adUnitIds.activateLicenseScreenBanner} />
       </View>
@@ -308,8 +324,11 @@ const ActivateLicense = props => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 10,
     justifyContent: 'center',
   },

@@ -1,7 +1,10 @@
 import SecureStorage from 'react-native-fast-secure-storage';
 
 import packageJson from '../../package.json';
-import {rnStorageKeys} from './rnSecureStorageKeys';
+import {
+  rnStorageKeys,
+  branchLicenseTokenStorageKey,
+} from './rnSecureStorageKeys';
 import {verifyLicenseToken} from '../utils/licenseTokenVerifier';
 import {env} from '../config/env';
 
@@ -60,16 +63,24 @@ const readDesignatedBranchId = async () => {
 
 export async function getAppConfig() {
   try {
-    const hasLicenseToken = await SecureStorage.hasItem(
-      rnStorageKeys.licenseToken,
-    );
-    if (!hasLicenseToken) {
+    // License key + token are stored per branch (a company may activate a
+    // different key on each branch). Read the current branch's token, falling
+    // back to the legacy single slot for users who activated before per-branch
+    // storage existed.
+    const currentBranchId = await readDesignatedBranchId();
+    const perBranchTokenKey = branchLicenseTokenStorageKey(currentBranchId);
+    let storedTokenKey = null;
+    if (currentBranchId && (await SecureStorage.hasItem(perBranchTokenKey))) {
+      storedTokenKey = perBranchTokenKey;
+    } else if (await SecureStorage.hasItem(rnStorageKeys.licenseToken)) {
+      storedTokenKey = rnStorageKeys.licenseToken;
+    }
+
+    if (!storedTokenKey) {
       return freeTierAppConfig();
     }
 
-    const licenseToken = await SecureStorage.getItem(
-      rnStorageKeys.licenseToken,
-    );
+    const licenseToken = await SecureStorage.getItem(storedTokenKey);
     const {payload, appConfig: appConfigFromLicense} =
       verifyLicenseToken(licenseToken);
 
@@ -82,7 +93,6 @@ export async function getAppConfig() {
     )
       ? await SecureStorage.getItem(rnStorageKeys.cloudV2DeviceId)
       : null;
-    const currentBranchId = await readDesignatedBranchId();
     const allowedDeviceIds = payload?.allowed_device_ids ?? [];
     const allowedBranchIds = payload?.allowed_branch_ids ?? [];
     if (

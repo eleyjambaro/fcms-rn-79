@@ -1,6 +1,10 @@
 import SecureStorage, {ACCESSIBLE} from 'react-native-fast-secure-storage';
 
-import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
+import {
+  rnStorageKeys,
+  branchLicenseKeyStorageKey,
+  branchLicenseTokenStorageKey,
+} from '../constants/rnSecureStorageKeys';
 import {
   activateLicense as activateLicenseApi,
   addLicenseBranch as addLicenseBranchApi,
@@ -34,47 +38,77 @@ const readDesignatedBranchId = async () => {
 
 // ============================================================================
 // Storage primitives
+//
+// License key + token are stored PER BRANCH (keyed by branch id) so a company
+// can activate a different license key on each of its branches. The read path
+// prefers the current branch's slot and falls back to the legacy single slot
+// for users who activated before per-branch storage existed. Writes always go
+// to the per-branch slot.
 // ============================================================================
 
+const removeSecureItem = async key => {
+  if (await SecureStorage.hasItem(key)) {
+    await SecureStorage.removeItem(key);
+  }
+};
+
+// Read the license key for a branch, falling back to the legacy single slot.
+const readBranchLicenseKey = async branchId => {
+  if (branchId) {
+    const perBranch = await readSecureItem(branchLicenseKeyStorageKey(branchId));
+    if (perBranch) return perBranch;
+  }
+  return await readSecureItem(rnStorageKeys.licenseKey);
+};
+
+// Read the license token for a branch, falling back to the legacy single slot.
+const readBranchLicenseToken = async branchId => {
+  if (branchId) {
+    const perBranch = await readSecureItem(
+      branchLicenseTokenStorageKey(branchId),
+    );
+    if (perBranch) return perBranch;
+  }
+  return await readSecureItem(rnStorageKeys.licenseToken);
+};
+
 export const hasLicenseKey = async () => {
-  const has = await SecureStorage.hasItem(rnStorageKeys.licenseKey);
-  return {result: !!has};
+  const branchId = await readDesignatedBranchId();
+  const key = await readBranchLicenseKey(branchId);
+  return {result: !!key};
 };
 
 export const getLicenseKey = async ({queryKey}) => {
   const [, {returnCompleteKey = false} = {}] = queryKey ?? ['licenseKey', {}];
-  const raw = await readSecureItem(rnStorageKeys.licenseKey);
+  const branchId = await readDesignatedBranchId();
+  const raw = await readBranchLicenseKey(branchId);
   return {result: raw ? (returnCompleteKey ? raw : maskLicenseKey(raw)) : null};
 };
 
-export const saveLicenseKey = async licenseKey => {
+export const saveLicenseKey = async (licenseKey, branchId) => {
   if (!licenseKey) throw new Error('Missing licenseKey parameter');
   await SecureStorage.setItem(
-    rnStorageKeys.licenseKey,
+    branchLicenseKeyStorageKey(branchId),
     licenseKey,
     ACCESSIBLE.WHEN_UNLOCKED,
   );
 };
 
-export const removeLicenseKey = async () => {
-  if (await SecureStorage.hasItem(rnStorageKeys.licenseKey)) {
-    await SecureStorage.removeItem(rnStorageKeys.licenseKey);
-  }
+export const removeLicenseKey = async branchId => {
+  await removeSecureItem(branchLicenseKeyStorageKey(branchId));
 };
 
-export const saveLicenseToken = async token => {
+export const saveLicenseToken = async (token, branchId) => {
   if (!token) throw new Error('Missing license token');
   await SecureStorage.setItem(
-    rnStorageKeys.licenseToken,
+    branchLicenseTokenStorageKey(branchId),
     token,
     ACCESSIBLE.WHEN_UNLOCKED,
   );
 };
 
-export const removeLicenseToken = async () => {
-  if (await SecureStorage.hasItem(rnStorageKeys.licenseToken)) {
-    await SecureStorage.removeItem(rnStorageKeys.licenseToken);
-  }
+export const removeLicenseToken = async branchId => {
+  await removeSecureItem(branchLicenseTokenStorageKey(branchId));
 };
 
 // ============================================================================
@@ -85,9 +119,9 @@ export const getLicenseStatus = async ({queryKey} = {queryKey: ['licenseStatus',
   try {
     const [, {returnCompleteKey = false} = {}] = queryKey;
 
-    let licenseKey = await readSecureItem(rnStorageKeys.licenseKey);
-    const licenseToken = await readSecureItem(rnStorageKeys.licenseToken);
     const currentBranchId = await readDesignatedBranchId();
+    let licenseKey = await readBranchLicenseKey(currentBranchId);
+    const licenseToken = await readBranchLicenseToken(currentBranchId);
     const currentDeviceId = await readSecureItem(rnStorageKeys.cloudV2DeviceId);
 
     let appConfigFromLicense = null;
@@ -235,8 +269,11 @@ export const activateLicense = async ({values}) => {
   // — surface that early instead of letting it look like a generic gate failure.
   verifyLicenseToken(token);
 
-  await saveLicenseKey(licenseKey);
-  await saveLicenseToken(token);
+  // Store under the branch this key was activated for. Activating a different
+  // key on this same branch replaces this branch's stored key/token; other
+  // branches' slots are untouched.
+  await saveLicenseKey(licenseKey, branchId);
+  await saveLicenseToken(token, branchId);
 
   return response.data;
 };
@@ -245,9 +282,11 @@ export const refreshLicense = async () => {
   const deviceId = await readSecureItem(rnStorageKeys.cloudV2DeviceId);
   if (!deviceId) throw new Error('Device is not registered.');
 
+  const branchId = await readDesignatedBranchId();
+
   let response;
   try {
-    response = await refreshLicenseApi({device_id: deviceId});
+    response = await refreshLicenseApi({device_id: deviceId, branch_id: branchId});
   } catch (error) {
     throw unwrapApiError(error);
   }
@@ -255,7 +294,7 @@ export const refreshLicense = async () => {
   const token = response?.data?.token;
   if (token) {
     verifyLicenseToken(token);
-    await saveLicenseToken(token);
+    await saveLicenseToken(token, branchId);
   }
   return response.data;
 };
@@ -263,6 +302,8 @@ export const refreshLicense = async () => {
 export const addLicenseDevice = async () => {
   const deviceId = await readSecureItem(rnStorageKeys.cloudV2DeviceId);
   if (!deviceId) throw new Error('Device is not registered.');
+
+  const branchId = await readDesignatedBranchId();
 
   let response;
   try {
@@ -274,7 +315,7 @@ export const addLicenseDevice = async () => {
   const token = response?.data?.token;
   if (token) {
     verifyLicenseToken(token);
-    await saveLicenseToken(token);
+    await saveLicenseToken(token, branchId);
   }
   return response.data;
 };
@@ -299,7 +340,7 @@ export const addLicenseBranch = async ({branchId} = {}) => {
   const token = response?.data?.token;
   if (token) {
     verifyLicenseToken(token);
-    await saveLicenseToken(token);
+    await saveLicenseToken(token, targetBranch);
   }
   return response.data;
 };
