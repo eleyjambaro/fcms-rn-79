@@ -1,7 +1,11 @@
 import commaNumber from 'comma-number';
 import moment from 'moment';
 
-import {formatUOMAbbrev, padNumber, isSalesTaxable} from './stringHelpers';
+import {
+  formatUOMAbbrev,
+  isSalesTaxable,
+  getInvoiceReceiptNumber,
+} from './stringHelpers';
 
 const getAlignments = () => {
   return {
@@ -258,7 +262,7 @@ export const printSalesInvoice = ({
 
     receiptText += `${dividers.dashed}\n`;
     receiptText += `Date: ${datetime}\n`;
-    receiptText += `OR Number: ${padNumber(salesInvoice.id)}\n`;
+    receiptText += `OR Number: ${getInvoiceReceiptNumber(salesInvoice)}\n`;
     receiptText += `${dividers.dashed}`;
   }
 

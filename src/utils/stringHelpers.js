@@ -254,6 +254,53 @@ export const padNumber = (num = 0, pad = '0000000000') => {
 };
 
 /**
+ * Official receipt (OR) number support.
+ *
+ * A branch can have multiple POS devices ringing up sales while offline, so an
+ * OR number must be generated locally (the receipt prints at sale time with no
+ * server round-trip) yet stay collision-free across devices that later sync
+ * into the same branch dataset. We achieve that with a per-device sequence
+ * prefixed by a short, stable code derived from the device's UUID:
+ *
+ *   OR-7K2A-0000123
+ *      ^^^^ device code (deterministic from device_id)
+ *           ^^^^^^^ zero-padded per-device sequence
+ *
+ * The final string is stored on invoices.official_receipt_number (an immutable,
+ * synced receipt identifier) and rendered verbatim everywhere.
+ */
+
+// Deterministic 4-char uppercase base36 code from a device UUID. Same device →
+// same code forever, so the prefix stays constant for a device's whole OR
+// sequence (which is what makes a lexicographic MAX of the stored string equal
+// the numeric max of its zero-padded suffix). Falls back to '0000' when the
+// device id is unknown.
+export const getDeviceShortCode = deviceId => {
+  if (!deviceId) return '0000';
+
+  let hash = 0;
+  for (let i = 0; i < deviceId.length; i++) {
+    hash = (hash * 31 + deviceId.charCodeAt(i)) >>> 0;
+  }
+
+  return hash.toString(36).toUpperCase().padStart(4, '0').slice(-4);
+};
+
+// Builds the OR number string from a device code and a numeric sequence.
+export const formatOfficialReceiptNumber = (deviceCode, seq) =>
+  `OR-${deviceCode}-${padNumber(seq, '0000000')}`;
+
+// Display value for an invoice. Uses the stored OR number when present, and
+// falls back to the legacy short id form for pre-OR-number invoices so nothing
+// breaks on historical records.
+export const getInvoiceReceiptNumber = invoice => {
+  if (!invoice) return '';
+  if (invoice.official_receipt_number) return invoice.official_receipt_number;
+
+  return `SI-${padNumber(invoice.id)}`;
+};
+
+/**
  * Extracts timestamp from backup file name
  * Supports both old format: fcms_data_${timestamp}.db
  * and new format: fcms_data_YYYY_MM_DD__HH-mm-A_${timestamp}.db

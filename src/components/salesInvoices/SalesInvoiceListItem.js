@@ -19,7 +19,7 @@ import commaNumber from 'comma-number';
 import moment from 'moment';
 
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
-import {padNumber} from '../../utils/stringHelpers';
+import {padNumber, getInvoiceReceiptNumber} from '../../utils/stringHelpers';
 
 const SalesInvoicesListItem = props => {
   const {item, onPress} = props;
@@ -129,7 +129,7 @@ const SalesInvoicesListItem = props => {
                 marginLeft: 10,
                 color: colors.neutralTint1,
                 fontSize: 16,
-              }}>{`SI-${padNumber(item.id)}`}</Headline>
+              }}>{getInvoiceReceiptNumber(item)}</Headline>
             {renderFulfilledSalesOrderGroupId()}
             <Text
               style={{

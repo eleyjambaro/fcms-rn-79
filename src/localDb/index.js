@@ -726,6 +726,7 @@ const createInvoicesTableQuery = `
     sold_by_account_uid VARCHAR,
     customer_id INTEGER,
     sales_order_group_id TEXT,
+    official_receipt_number VARCHAR DEFAULT NULL,
     remarks VARCHAR(120),
     invoice_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -2352,6 +2353,27 @@ export const alterTables = async currentAppVersion => {
     } catch (error) {
       console.debug(
         '[alterTables] Error adding batch_transfer_groups.initiator_branch_id:',
+        error,
+      );
+    }
+
+    // Official receipt (OR) number — a short, presentable, device-prefixed
+    // sequence printed on sales receipts in place of the invoice UUID. Stored
+    // as the final formatted string (e.g. "OR-7K2A-0000123") so it is an
+    // immutable receipt identifier and round-trips through delta sync as an
+    // opaque value (see allowedFields/$fillable on the server). Generated per
+    // device at sale time in confirmSaleEntries / confirmFulfillingSalesOrders
+    // — see getDeviceShortCode / buildNextOfficialReceiptNumber.
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'invoices',
+        'official_receipt_number',
+        `ALTER TABLE invoices ADD COLUMN official_receipt_number VARCHAR DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding invoices.official_receipt_number:',
         error,
       );
     }

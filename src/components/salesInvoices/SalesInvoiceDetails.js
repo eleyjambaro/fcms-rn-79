@@ -5,6 +5,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import moment from 'moment';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
+import {getInvoiceReceiptNumber} from '../../utils/stringHelpers';
+
 const SalesInvoiceDetails = props => {
   const {containerStyle, salesInvoice, handlePressPrint} = props;
   const {colors} = useTheme();
@@ -19,11 +21,16 @@ const SalesInvoiceDetails = props => {
         containerStyle,
       ]}>
       <View style={{flexDirection: 'row', alignItems: 'center'}}>
-        <Headline>
-          {moment(salesInvoice.invoice_date.split(' ').join('T')).format(
-            'MMMM DD, YYYY, hh:mm A',
-          )}
-        </Headline>
+        <View style={{flex: 1}}>
+          <Headline style={{color: colors.accent}}>
+            {getInvoiceReceiptNumber(salesInvoice)}
+          </Headline>
+          <Text style={{color: colors.dark}}>
+            {moment(salesInvoice.invoice_date.split(' ').join('T')).format(
+              'MMMM DD, YYYY, hh:mm A',
+            )}
+          </Text>
+        </View>
         <Pressable
           style={[
             {

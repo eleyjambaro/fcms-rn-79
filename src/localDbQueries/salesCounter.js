@@ -8,6 +8,42 @@ import {
   isMutationDisabled,
 } from '../utils/localDbQueryHelpers';
 import {scheduleSyncSoon} from '../services/syncService';
+import {
+  getDeviceShortCode,
+  formatOfficialReceiptNumber,
+} from '../utils/stringHelpers';
+
+/**
+ * Computes the next official receipt (OR) number for a sale on this device.
+ *
+ * The sequence is per-device: a branch can have several POS devices creating
+ * sales offline, so each device numbers its own receipts and the device code
+ * prefix keeps them from ever colliding once they sync into the same branch
+ * dataset. Because the prefix is constant for a device and the suffix is
+ * zero-padded fixed width, a lexicographic MAX over this device's stored OR
+ * strings equals its numeric max — so we read MAX and bump its trailing digits.
+ */
+const buildNextOfficialReceiptNumber = async (db, deviceId) => {
+  const code = getDeviceShortCode(deviceId);
+  const whereDevice = deviceId
+    ? `device_id = '${deviceId}'`
+    : `device_id IS NULL`;
+
+  const result = await db.executeSql(
+    `SELECT MAX(official_receipt_number) AS max_or
+       FROM invoices
+      WHERE ${whereDevice} AND official_receipt_number IS NOT NULL`,
+  );
+  const maxOr = result[0].rows.item(0)?.max_or || null;
+
+  let nextSeq = 1;
+  if (maxOr) {
+    const trailing = parseInt(String(maxOr).split('-').pop(), 10);
+    if (!isNaN(trailing)) nextSeq = trailing + 1;
+  }
+
+  return formatOfficialReceiptNumber(code, nextSeq);
+};
 
 export const confirmSaleEntries = async ({
   saleDate,
@@ -92,11 +128,16 @@ export const confirmSaleEntries = async ({
      * Create invoice
      */
     const newInvoiceId = uuid.v4();
+    const officialReceiptNumber = await buildNextOfficialReceiptNumber(
+      db,
+      deviceId,
+    );
     const createInvoiceQuery = `
       INSERT INTO invoices (
         id,
         sold_by_account_uid,
         customer_id,
+        official_receipt_number,
         invoice_date,
         device_id,
         branch_id,
@@ -108,6 +149,7 @@ export const confirmSaleEntries = async ({
         '${newInvoiceId}',
         ${accountUID},
         ${customerId},
+        '${officialReceiptNumber}',
         ${salesInvoiceDate},
         ${deviceId ? `'${deviceId}'` : 'NULL'},
         ${branchId ? `'${branchId}'` : 'NULL'},
@@ -581,11 +623,16 @@ export const confirmFulfillingSalesOrders = async ({
      * Create invoice
      */
     const newInvoiceId = uuid.v4();
+    const officialReceiptNumber = await buildNextOfficialReceiptNumber(
+      db,
+      salesDeviceId,
+    );
     const createInvoiceQuery = `
       INSERT INTO invoices (
         id,
         sold_by_account_uid,
         customer_id,
+        official_receipt_number,
         invoice_date,
         sales_order_group_id,
         device_id,
@@ -598,6 +645,7 @@ export const confirmFulfillingSalesOrders = async ({
         '${newInvoiceId}',
         ${accountUID},
         ${customerId},
+        '${officialReceiptNumber}',
         ${salesInvoiceDate},
         ${salesOrderGroupId ? `'${salesOrderGroupId}'` : 'null'},
         ${salesDeviceId ? `'${salesDeviceId}'` : 'NULL'},
