@@ -27,6 +27,8 @@ import {
 } from '../serverDbQueries/v2/branches';
 import {assignBranch} from '../serverDbQueries/v2/devices';
 
+const LICENSED_BADGE_COLOR = '#2e7d32';
+
 const createBranchSchema = Yup.object({
   name: Yup.string().required('Branch name is required'),
   address: Yup.string(),
@@ -202,6 +204,13 @@ const ManageBranches = () => {
               <View style={[styles.activeBadge, {backgroundColor: colors.primary}]}>
                 <Text style={[styles.activeBadgeText, {color: colors.surface}]}>
                   Active
+                </Text>
+              </View>
+            )}
+            {branch.is_licensed && (
+              <View style={[styles.licensedBadge, {backgroundColor: LICENSED_BADGE_COLOR}]}>
+                <Text style={[styles.activeBadgeText, {color: colors.surface}]}>
+                  Licensed
                 </Text>
               </View>
             )}
@@ -615,6 +624,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  licensedBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,

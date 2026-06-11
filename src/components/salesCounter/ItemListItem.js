@@ -23,7 +23,14 @@ const ItemListItem = props => {
   const currencySymbol = useCurrencySymbol();
 
   const renderPrice = () => {
-    if (item.unit_selling_price) {
+    // Match the POS precedence: any active selling size option (count > 0) means
+    // the item is sold via the size picker, so show the chevron even if a
+    // residual unit_selling_price is still stored on the row.
+    if (item.item_modifier_options_count > 0) {
+      return (
+        <MaterialIcons name="chevron-right" size={20} color={colors.dark} />
+      );
+    } else if (item.unit_selling_price) {
       return (
         <View
           style={{
@@ -38,10 +45,6 @@ const ItemListItem = props => {
             parseFloat(item.unit_selling_price || 0).toFixed(2),
           )}`}</Text>
         </View>
-      );
-    } else if (item.item_modifier_options_count > 0) {
-      return (
-        <MaterialIcons name="chevron-right" size={20} color={colors.dark} />
       );
     }
   };

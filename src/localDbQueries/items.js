@@ -1329,37 +1329,14 @@ export const updateItem = async ({
     }
 
     /**
-     * Sales tax (selling side). Baseline from the item's current value, then
-     * apply the form's update. '0' => None (null); downstream falls back to the
-     * cost tax at read time.
+     * Selling-side fields (sales_tax_id, unit_selling_price, markup_percentage,
+     * markup_amount) are intentionally NOT resolved or written here. In edit
+     * mode they are owned exclusively by the Size Options screen — markup/tax/
+     * unit price via updateItemSellingPriceAndTax, size options via the modifier
+     * mutations — and the main Edit Item form has no inputs for them. Writing
+     * them here from stale mount-time formik values would silently revert a
+     * sub-screen edit when the user later taps "Save Changes".
      */
-    let salesTax = defaultTaxEmptyValue;
-
-    if (normalizeId(item.sales_tax_id)) {
-      const getItemSalesTaxResult = await db.executeSql(
-        `SELECT * FROM taxes WHERE id = '${item.sales_tax_id}'`,
-      );
-      const fetchedItemSalesTax = getItemSalesTaxResult[0].rows.item(0);
-
-      if (fetchedItemSalesTax) {
-        salesTax = fetchedItemSalesTax;
-      }
-    }
-
-    if (updatedValues.sales_tax_id) {
-      if (updatedValues.sales_tax_id === '0') {
-        salesTax = defaultTaxEmptyValue;
-      } else {
-        const getUpdatedSalesTaxResult = await db.executeSql(
-          `SELECT * FROM taxes WHERE id = '${updatedValues.sales_tax_id}'`,
-        );
-        const fetchedUpdatedSalesTax = getUpdatedSalesTaxResult[0].rows.item(0);
-
-        if (fetchedUpdatedSalesTax) {
-          salesTax = fetchedUpdatedSalesTax;
-        }
-      }
-    }
 
     let defaultInitStockTaxEmptyValue = {
       id: null,
@@ -1538,7 +1515,6 @@ export const updateItem = async ({
     const unitCostNet = unitCost / (taxRatePercentage / 100 + 1);
     const unitCostTax = unitCost - unitCostNet;
     const defaultTaxId = tax.id ? `'${tax.id}'` : 'null';
-    const salesTaxId = salesTax.id ? `'${salesTax.id}'` : 'null';
     const defaultVendorId = vendor.id ? `'${vendor.id}'` : 'null';
     const initStockTaxId = initStockTax.id ? `'${initStockTax.id}'` : 'null';
     const initStockTaxName = initStockTax.name
@@ -1568,16 +1544,12 @@ export const updateItem = async ({
         updatedValues.category_id ? `'${updatedValues.category_id}'` : 'null'
       },
       tax_id = ${defaultTaxId},
-      sales_tax_id = ${salesTaxId},
       preferred_vendor_id = ${defaultVendorId},
       name = '${updatedValues.name.replace(/\'/g, "''")}',
       uom_abbrev = '${updatedValues.uom_abbrev}',
       uom_abbrev_per_piece = '${updatedValues.uom_abbrev_per_piece}',
       qty_per_piece = ${parseFloat(updatedValues.qty_per_piece || 0)},
       barcode = '${updatedValues.barcode || ''}',
-      unit_selling_price = ${parseFloat(updatedValues.unit_selling_price || 0)},
-      markup_percentage = ${parseFloat(updatedValues.markup_percentage || 0)},
-      markup_amount = ${parseFloat(updatedValues.markup_amount || 0)},
       low_stock_level = ${parseFloat(updatedValues.low_stock_level)},
       packaging_type = '${
         updatedValues.packaging_type
@@ -1894,6 +1866,7 @@ export const updateItemSellingPriceAndTax = async ({
   markup_percentage,
   markup_amount,
   sales_tax_id,
+  unit_selling_price,
 }) => {
   try {
     const db = await getDBConnection();
@@ -1910,9 +1883,17 @@ export const updateItemSellingPriceAndTax = async ({
     const salesTaxId =
       sales_tax_id && sales_tax_id !== '0' ? `'${sales_tax_id}'` : 'null';
 
+    // Only touch unit_selling_price when the caller passes it (unit-price mode).
+    // Omitting it in size-options mode avoids clobbering the stored value.
+    const unitSellingPriceSet =
+      unit_selling_price !== undefined
+        ? `unit_selling_price = ${parseFloat(unit_selling_price || 0)},`
+        : '';
+
     const query = `
       UPDATE items
-      SET markup_percentage = ${parseFloat(markup_percentage || 0)},
+      SET ${unitSellingPriceSet}
+      markup_percentage = ${parseFloat(markup_percentage || 0)},
       markup_amount = ${parseFloat(markup_amount || 0)},
       sales_tax_id = ${salesTaxId},
       updated_at = CURRENT_TIMESTAMP

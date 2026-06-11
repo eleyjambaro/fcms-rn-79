@@ -254,6 +254,50 @@ export const deleteItemSellingSizeOption = async ({id}) => {
   }
 };
 
+/**
+ * Soft-delete ALL of an item's selling size options (the options and their
+ * parent selling-size modifier). Used when the user switches an item from
+ * "Add Selling Size Option" mode back to a single "Input Unit Selling Price":
+ * once item_modifier_options_count drops to 0, the POS uses unit_selling_price
+ * again. Soft-delete only (delta-sync tables); never DELETE FROM.
+ */
+export const deleteAllItemSellingSizeOptions = async ({itemId}) => {
+  try {
+    const db = await getDBConnection();
+
+    if (!itemId) {
+      throw Error('Missing itemId parameter.');
+    }
+
+    // Soft-delete the options first, then their parent modifier(s). Both are
+    // delta-sync tables, so set is_deleted + updated_at (push collects rows
+    // where updated_at > synced_at).
+    const deleteOptionsQuery = `
+      UPDATE modifier_options
+      SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
+      WHERE modifier_id IN (
+        SELECT id FROM modifiers
+        WHERE item_id = '${itemId}'
+        AND type_ref = '${appDefaultsTypeRefs.sellingSizeOptions}'
+      )
+    `;
+    await db.executeSql(deleteOptionsQuery);
+
+    const deleteModifierQuery = `
+      UPDATE modifiers
+      SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
+      WHERE item_id = '${itemId}'
+      AND type_ref = '${appDefaultsTypeRefs.sellingSizeOptions}'
+    `;
+    await db.executeSql(deleteModifierQuery);
+
+    scheduleSyncSoon();
+  } catch (error) {
+    console.debug(error);
+    throw Error('Failed to remove selling size options.');
+  }
+};
+
 export const getItemModifierOptions = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter, itemId, limit = 1000000000}] = queryKey;
   const orderBy = '';

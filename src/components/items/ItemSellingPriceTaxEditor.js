@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {View, StyleSheet} from 'react-native';
+import {View, StyleSheet, Pressable} from 'react-native';
 import {Button, Text, TextInput, HelperText} from 'react-native-paper';
 import {useNavigation} from '@react-navigation/native';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
@@ -32,7 +32,11 @@ import {
  * tax back via ItemFormContext.formikActions.setFieldValue — so we register a
  * minimal actions object (state setter) before navigating, exactly like ItemForm.
  */
-const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
+const ItemSellingPriceTaxEditor = ({
+  item,
+  containerStyle,
+  showUnitSellingPrice = false,
+}) => {
   const navigation = useNavigation();
   const currencySymbol = useCurrencySymbol();
   const queryClient = useQueryClient();
@@ -47,6 +51,11 @@ const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
   // '0' represents None (no per-item sales tax → falls back to the cost tax).
   const [salesTaxId, setSalesTaxId] = useState(
     item?.sales_tax_id ? item.sales_tax_id.toString() : '0',
+  );
+  // Single unit selling price (tax-inclusive / gross), shown only in unit-price
+  // mode. Maps to the "SRP (With Tax)" suggestion below.
+  const [unitSellingPrice, setUnitSellingPrice] = useState(
+    item?.unit_selling_price != null ? item.unit_selling_price.toString() : '0',
   );
 
   const normalizedSalesTaxId =
@@ -80,7 +89,9 @@ const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
     numChanged(item?.markup_percentage, markupPercentage) ||
     numChanged(item?.markup_amount, markupAmount) ||
     (item?.sales_tax_id ? item.sales_tax_id.toString() : '0') !==
-      (salesTaxId || '0');
+      (salesTaxId || '0') ||
+    (showUnitSellingPrice &&
+      numChanged(item?.unit_selling_price, unitSellingPrice));
 
   const handleUpdate = async () => {
     try {
@@ -89,6 +100,9 @@ const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
         markup_percentage: markupPercentage,
         markup_amount: markupAmount,
         sales_tax_id: salesTaxId,
+        // Only persisted in unit-price mode; omitted otherwise so it isn't
+        // clobbered while editing markup/tax for a size-option item.
+        ...(showUnitSellingPrice ? {unit_selling_price: unitSellingPrice} : {}),
       });
     } catch (error) {
       console.debug(error);
@@ -174,6 +188,28 @@ const ItemSellingPriceTaxEditor = ({item, containerStyle}) => {
         style={styles.srpCard}
       />
 
+      {showUnitSellingPrice && (
+        <View style={styles.unitPriceSection}>
+          <TextInput
+            style={styles.unitPriceInput}
+            label={<TextInputLabel label="Unit Selling Price (Including tax)" />}
+            value={unitSellingPrice}
+            keyboardType="numeric"
+            left={<TextInput.Affix text={currencySymbol} />}
+            onChangeText={setUnitSellingPrice}
+          />
+          <Pressable
+            onPress={() => setUnitSellingPrice(srpWithTax.toFixed(2))}
+            style={styles.suggestionRow}>
+            <HelperText type="info" style={styles.suggestionText}>
+              {`Tap to use suggested SRP (With Tax): ${currencySymbol} ${commaNumber(
+                srpWithTax.toFixed(2),
+              )}`}
+            </HelperText>
+          </Pressable>
+        </View>
+      )}
+
       <Button
         mode="contained"
         onPress={handleUpdate}
@@ -208,6 +244,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginTop: 12,
     marginBottom: 4,
+  },
+  unitPriceSection: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+  },
+  unitPriceInput: {},
+  suggestionRow: {
+    alignSelf: 'flex-start',
+  },
+  suggestionText: {
+    textDecorationLine: 'underline',
   },
   updateButton: {
     marginTop: 16,

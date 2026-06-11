@@ -47,6 +47,7 @@ import PressableSectionHeading from '../headings/PressableSectionHeading';
 import {Dropdown} from 'react-native-paper-dropdown';
 import PreventGoBack from '../utils/PreventGoBack';
 import UnitOrTotalCostRadioButtonWrapper from './UnitOrTotalCostRadioButtonWrapper';
+import SellingPriceModeSelector from './SellingPriceModeSelector';
 import {PACKAGING_TYPE_OPTIONS} from '../../constants/itemForm';
 import {getMasterItems} from '../../serverDbQueries/v2/masterItems';
 import commaNumber from 'comma-number';
@@ -92,6 +93,20 @@ const ItemValidationSchema = Yup.object({
     otherwise: () => Yup.string().notRequired(),
   }),
   selling_size_options: Yup.array(),
+  selling_price_mode: Yup.string().notRequired(),
+  // Optional and lenient (an item may have no price yet); when present it must
+  // be a non-negative number.
+  unit_selling_price: Yup.string()
+    .notRequired()
+    .test(
+      'is-non-negative-number',
+      'Enter a valid price',
+      value =>
+        value === undefined ||
+        value === null ||
+        value === '' ||
+        (!isNaN(parseFloat(value)) && parseFloat(value) >= 0),
+    ),
   markup_percentage: Yup.string().notRequired(),
   markup_amount: Yup.string().notRequired(),
   packaging_type: Yup.string().notRequired(),
@@ -132,6 +147,7 @@ const getDefaultInitialValues = item => ({
   markup_amount: '',
   sales_tax_id: '',
   selling_size_options: [],
+  selling_price_mode: 'unit_price',
   adjustment_qty: '',
   remarks: '',
   packaging_type: '',
@@ -1393,44 +1409,88 @@ const ItemForm = props => {
   };
 
   const renderSellingDetailsFields = formikProps => {
-    const {values} = formikProps;
+    const {values, setFieldValue, handleChange, handleBlur} = formikProps;
 
-    // Add mode only. The toggle gates the whole section; order is markup/SRP →
-    // sales tax → selling size options (the "Add Selling Size Option" button
-    // sits below the Sales Tax). In edit mode this whole section instead lives
-    // on the Size Options screen that the pressable "Update Selling Price & Tax"
-    // heading navigates to, so nothing renders inline here.
+    // Add mode only. The section heading switch gates the whole block; order is
+    // markup/SRP → sales tax → the selling-price mode toggle (a single Unit
+    // Selling Price OR per-size options). In edit mode this whole section
+    // instead lives on the Size Options screen that the pressable "Update
+    // Selling Price & Tax" heading navigates to, so nothing renders inline here.
     if (editMode || !isSellingDetailsFieldsVisible) return null;
+
+    const {srpWithTax} = computeLiveSrp(values);
 
     return (
       <>
         {renderMarkupFields(formikProps)}
         {renderSalesTaxButton(formikProps)}
 
-        <ItemSellingSizeOptions
-          listItems={values.selling_size_options}
-          listItemKey="option_id"
-          containerStyle={{marginTop: 10}}
-          onPressItem={() => {}}
-          onPressDeleteListItem={listItem => {
-            setFocusedSellingSizeOption(listItem);
-            setConfirmDeleteSellingSizeOptionDialogVisible(true);
+        <SellingPriceModeSelector
+          value={values.selling_price_mode}
+          onChange={newMode => {
+            setFieldValue('selling_price_mode', newMode);
+            // Keep the two pricing paths mutually exclusive (the POS uses size
+            // options whenever any exist): clear the other side on switch.
+            if (newMode === 'unit_price') {
+              setFieldValue('selling_size_options', []);
+            } else {
+              setFieldValue('unit_selling_price', '0');
+            }
           }}
         />
 
-        <Button
-          icon="plus"
-          mode="outlined"
-          style={{marginTop: 10}}
-          onPress={() => {
-            if (!values.uom_abbrev) {
-              setUnitOfMeasurementRequiredDialogVisible(true);
-              return;
-            }
-            setAddOptionModalVisible(true);
-          }}>
-          Add Selling Size Option
-        </Button>
+        {values.selling_price_mode === 'unit_price' ? (
+          <View>
+            <TextInput
+              style={styles.textInput}
+              label={
+                <TextInputLabel label="Unit Selling Price (Including tax)" />
+              }
+              value={values.unit_selling_price}
+              keyboardType="numeric"
+              left={<TextInput.Affix text={currencySymbol} />}
+              onChangeText={handleChange('unit_selling_price')}
+              onBlur={handleBlur('unit_selling_price')}
+            />
+            <Pressable
+              onPress={() =>
+                setFieldValue('unit_selling_price', srpWithTax.toFixed(2))
+              }>
+              <HelperText type="info" style={{textDecorationLine: 'underline'}}>
+                {`Tap to use suggested SRP (With Tax): ${currencySymbol} ${commaNumber(
+                  srpWithTax.toFixed(2),
+                )}`}
+              </HelperText>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <ItemSellingSizeOptions
+              listItems={values.selling_size_options}
+              listItemKey="option_id"
+              containerStyle={{marginTop: 10}}
+              onPressItem={() => {}}
+              onPressDeleteListItem={listItem => {
+                setFocusedSellingSizeOption(listItem);
+                setConfirmDeleteSellingSizeOptionDialogVisible(true);
+              }}
+            />
+
+            <Button
+              icon="plus"
+              mode="outlined"
+              style={{marginTop: 10}}
+              onPress={() => {
+                if (!values.uom_abbrev) {
+                  setUnitOfMeasurementRequiredDialogVisible(true);
+                  return;
+                }
+                setAddOptionModalVisible(true);
+              }}>
+              Add Selling Size Option
+            </Button>
+          </>
+        )}
       </>
     );
   };
@@ -1441,9 +1501,10 @@ const ItemForm = props => {
    * (`avg_unit_cost_net` in edit mode, else the net of the entered unit cost).
    * SRP = net cost + markup (no VAT). markup_percentage is the canonical driver.
    */
-  const renderMarkupFields = formikProps => {
-    const {setFieldValue, handleBlur, values} = formikProps;
-
+  // Live suggested SRP from the current markup + effective selling tax. The
+  // "with tax" value (gross) is what the POS treats unit_selling_price /
+  // option_selling_price as, so it powers the unit-price tap-to-fill suggestion.
+  const computeLiveSrp = values => {
     const avgNet = parseFloat(item?.avg_unit_cost_net);
     const grossUnitCost = parseFloat(values.unit_cost || 0);
     const initRate = parseFloat(
@@ -1463,6 +1524,15 @@ const ItemForm = props => {
       ? parseFloat(getSalesTaxData?.result?.rate_percentage || 0)
       : initRate;
     const srpWithTax = computeSrpWithTax(srp, sellingTaxRate);
+
+    return {netCostBase, srp, sellingTaxRate, srpWithTax};
+  };
+
+  const renderMarkupFields = formikProps => {
+    const {setFieldValue, handleBlur, values} = formikProps;
+
+    const {netCostBase, srp, sellingTaxRate, srpWithTax} =
+      computeLiveSrp(values);
 
     return (
       <View style={{marginTop: 5}}>
@@ -1604,6 +1674,11 @@ const ItemForm = props => {
       markup_amount: initialValues.markup_amount?.toString() || '0',
       sales_tax_id: initialValues.sales_tax_id?.toString() || '',
       selling_size_options: sellingSizeOptions,
+      selling_price_mode: editMode
+        ? sellingSizeOptions?.length > 0
+          ? 'size_options'
+          : 'unit_price'
+        : initialValues.selling_price_mode || 'unit_price',
       remarks: initialStockRemarks,
     },
     validationSchema: ItemValidationSchema,
