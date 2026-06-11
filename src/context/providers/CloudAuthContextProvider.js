@@ -29,6 +29,7 @@ import {
 import {getCloudCompany} from '../../serverDbQueries/v2/companies';
 import {getDeviceCompanyInfo} from '../../serverDbQueries/v2/devices';
 import {getMe} from '../../serverDbQueries/v2/auth';
+import {setOnUnauthorized} from '../../api/cloudApiV2';
 
 const {
   cloudV2AuthToken,
@@ -262,6 +263,33 @@ const CloudAuthContextProvider = ({children}) => {
               await saveItem(cloudV2AuthUser, restoredAuthUser);
             }
           } catch (refreshError) {
+            // A 401 means the token is definitively invalid (revoked, or the
+            // server's token store was reset) — not a transient network error.
+            // Don't revive a dead session: clear it, surface the expired-session
+            // prompt, and drop to sign-in (device credentials are preserved so a
+            // sub-account can sign back in). Any other error (offline, timeout,
+            // slow server) keeps the cached account so offline startup still works.
+            if (refreshError?.response?.status === 401) {
+              console.debug(
+                '[CloudAuthContextProvider] auth token rejected (401) on restore; signing out',
+              );
+              await saveItem(cloudV2AuthToken, null);
+              await saveItem(cloudV2AuthUser, null);
+              queryClient.clear();
+              invalidateCloudSyncParamsCache();
+              setExpiredAuthTokenDialogVisible(true);
+              dispatch({
+                type: 'RESTORE',
+                authToken: null,
+                authUser: null,
+                deviceId,
+                deviceToken,
+                designatedBranch,
+                deviceCompanyInfo,
+                lastSignInAccountType,
+              });
+              return;
+            }
             console.debug(
               '[CloudAuthContextProvider] auth refresh on restore failed; using cached account:',
               refreshError?.message,
@@ -318,6 +346,34 @@ const CloudAuthContextProvider = ({children}) => {
   const authUserRef = useRef(state.authUser);
   authTokenRef.current = state.authToken;
   authUserRef.current = state.authUser;
+
+  // Lets the (once-subscribed) 401 interceptor call the latest signOut without
+  // re-registering, and de-dupes the burst of 401s a single revoked token
+  // produces (e.g. a sync push + pull both fail) into one sign-out.
+  const signOutRef = useRef(null);
+  const sessionExpiredHandledRef = useRef(false);
+
+  // Reset the de-dupe latch whenever a fresh token is established so a later
+  // expiry is handled again.
+  useEffect(() => {
+    if (state.authToken) sessionExpiredHandledRef.current = false;
+  }, [state.authToken]);
+
+  // Register the global 401 handler once. Guards:
+  //  - only acts when an auth token is currently set, so a 401 from the sign-in
+  //    screen (wrong password) or from restore's pre-dispatch getMe() is ignored
+  //    here (restore handles its own 401 inline);
+  //  - de-duped via sessionExpiredHandledRef so concurrent 401s sign out once.
+  useEffect(() => {
+    setOnUnauthorized(() => {
+      if (!authTokenRef.current) return;
+      if (sessionExpiredHandledRef.current) return;
+      sessionExpiredHandledRef.current = true;
+      setExpiredAuthTokenDialogVisible(true);
+      signOutRef.current?.();
+    });
+    return () => setOnUnauthorized(null);
+  }, []);
 
   // Refresh role/permissions when the app returns to the foreground so a
   // server-side role change applies on resume, not only on a cold start (the
@@ -631,6 +687,9 @@ const CloudAuthContextProvider = ({children}) => {
     }),
     [],
   );
+
+  // Keep the 401 interceptor pointed at the current signOut implementation.
+  signOutRef.current = authActions.signOut;
 
   const otherState = {expiredAuthTokenDialogVisible};
   const otherActions = useMemo(() => ({setExpiredAuthTokenDialogVisible}), []);

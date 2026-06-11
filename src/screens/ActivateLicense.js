@@ -13,11 +13,7 @@ import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import moment from 'moment';
 
 import LicenseForm from '../components/forms/LicenseForm';
-import {
-  activateLicense,
-  getLicenseKey,
-  getLicenseStatus,
-} from '../localDbQueries/license';
+import {activateLicense, getLicenseStatus} from '../localDbQueries/license';
 import DefaultLoadingScreen from '../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../components/stateIndicators/DefaultErrorScreen';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
@@ -70,32 +66,6 @@ const ActivateLicense = props => {
       }
 
       actions.resetForm();
-    }
-  };
-
-  // Activate the already-stored license on the CURRENT device + branch.
-  // Reuses the saved license key (entitlement is per-device and per-branch, so
-  // the user re-activates the same key on each device/branch they want
-  // licensed, up to max_devices / max_branches).
-  const handleActivateHere = async () => {
-    try {
-      const {result: completeKey} = await getLicenseKey({
-        queryKey: ['licenseKey', {returnCompleteKey: true}],
-      });
-
-      if (!completeKey) {
-        setErrorMessage(() => 'No saved license key found.');
-        return;
-      }
-
-      await activateLicenseMutation.mutateAsync({
-        values: {license_key: completeKey},
-      });
-    } catch (error) {
-      console.debug(error);
-      setErrorMessage(() =>
-        error?.message ? `${error.message}` : 'License activation failed!',
-      );
     }
   };
 
@@ -170,6 +140,9 @@ const ActivateLicense = props => {
     // user to activate the license here (capped by max_devices / max_branches;
     // the server rejects with a clear message if either cap is reached).
     if (licenseKey && !isCurrentlyLicensed) {
+      // Entitlement is per-device and per-branch. The license key must be
+      // re-entered every time it is activated on a device/branch that isn't
+      // licensed yet — there is no one-tap reuse of the saved key.
       return (
         <>
           <View
@@ -192,40 +165,17 @@ const ActivateLicense = props => {
                 textAlign: 'center',
                 color: colors.dark,
               }}>
-              {'Activate license here'}
+              {'Enter license key'}
             </Subheading>
             <Text style={[styles.text]}>
-              {`Your ${appDefaults.appDisplayName} license is not yet active on this device and branch, so it currently runs with FREE and limited feature access. Activate your license here to unlock full access.`}
+              {`Your ${appDefaults.appDisplayName} license is not yet active on this device and branch, so it currently runs with FREE and limited feature access. Enter your license key to unlock full access.`}
             </Text>
           </View>
-          {changeLicenseKeyFormVisible ? (
-            <LicenseForm
-              autoFocus
-              onSubmit={handleSubmit}
-              onCancel={() => setChangeLicenseKeyFormVisible(() => false)}
-            />
-          ) : (
-            <>
-              <Button
-                icon="shield-key"
-                mode="contained"
-                loading={activateLicenseMutation.isLoading}
-                disabled={activateLicenseMutation.isLoading}
-                onPress={handleActivateHere}>
-                Activate here
-              </Button>
-              <Button
-                icon="key-remove"
-                mode="text"
-                disabled={activateLicenseMutation.isLoading}
-                onPress={() => {
-                  setChangeLicenseKeyFormVisible(() => true);
-                }}
-                style={{marginTop: 15}}>
-                Change license key
-              </Button>
-            </>
-          )}
+          <LicenseForm
+            autoFocus
+            onSubmit={handleSubmit}
+            onCancel={() => navigation.goBack()}
+          />
         </>
       );
     }

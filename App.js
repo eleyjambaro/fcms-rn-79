@@ -4,6 +4,7 @@ import useAppLifecycle from './src/hooks/useAppLifecycle';
 import useAppInitialization from './src/hooks/useAppInitialization';
 import usePermissions from './src/hooks/usePermissions';
 import useExpiredAuthDialog from './src/hooks/useExpiredAuthDialog';
+import useCloudExpiredAuthDialog from './src/hooks/useCloudExpiredAuthDialog';
 import {useVersionCheck} from './src/hooks/useVersionCheck';
 import UpdatePromptModal from './src/components/modals/UpdatePromptModal';
 
@@ -25,6 +26,7 @@ const App = () => {
   } = usePermissions({enabled: false});
 
   const {ExpiredAuthDialog} = useExpiredAuthDialog();
+  const {CloudExpiredAuthDialog} = useCloudExpiredAuthDialog();
 
   const {isInitializing} = useAppInitialization();
 
@@ -79,6 +81,7 @@ const App = () => {
   return (
     <>
       <ExpiredAuthDialog />
+      <CloudExpiredAuthDialog />
       <UpdatePromptModal
         visible={showUpdateModal}
         onDismiss={hideUpdateModal}
