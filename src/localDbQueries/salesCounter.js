@@ -201,8 +201,20 @@ export const confirmSaleEntries = async ({
 
       if (item.menu_id) {
         inSizeQty = parseFloat(item.in_menu_qty);
-        inSizeQtyUOMAbbrev = item.in_option_qty_uom_abbrev;
-        unitSellingPrice = parseFloat(item.option_selling_price || 0);
+
+        if (item.option_id) {
+          inSizeQtyUOMAbbrev = item.in_option_qty_uom_abbrev;
+          unitSellingPrice = parseFloat(item.option_selling_price || 0);
+        } else {
+          // Menu item with no selling size option: consume stock in the item's
+          // own UOM and sell at its base unit_selling_price. Without this guard
+          // in_option_qty_uom_abbrev is null (crashing convert() below) and
+          // option_selling_price is null (selling the line for 0). Mirrors the
+          // non-option regular-item defaults above and the selling-menu price
+          // fallback in getSellingMenuItems.
+          inSizeQtyUOMAbbrev = item.uom_abbrev;
+          unitSellingPrice = parseFloat(item.unit_selling_price || 0);
+        }
       }
 
       // The product item id to record on sale_logs/inventory_logs. For a
