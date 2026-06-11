@@ -483,8 +483,15 @@ const SalesCounterContextProvider = props => {
             parseFloat(saleItems?.[saleItemRefId]?.saleQty || 0) + saleQty;
         }
 
-        const saleSubtotal =
-          parseFloat(item.option_selling_price || 0) * parseFloat(saleQty || 0);
+        // Use the size option's price only when the item actually has a size
+        // option; otherwise fall back to the item's base unit_selling_price.
+        // Without this, items with no size option (regular items added at base
+        // price, or no-option menu items) have a null option_selling_price and
+        // their subtotal collapses to 0 on Update. Mirrors updateSaleItem.
+        const sellingPrice = item.option_id
+          ? parseFloat(item.option_selling_price || 0)
+          : parseFloat(item.unit_selling_price || 0);
+        const saleSubtotal = sellingPrice * parseFloat(saleQty || 0);
 
         if (enableStockQtyValidation && saleQty > item.current_stock_qty) {
           setErrors(currentState => {
