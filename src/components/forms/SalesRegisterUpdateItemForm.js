@@ -30,7 +30,13 @@ const SalesRegisterUpdateItemForm = props => {
 
   const formik = useFormik({
     initialValues: {
-      item_id: item?.id,
+      // Use the product id, not the sale-item row id. For a selling-menu line
+      // item.id is the selling_menu_items row id while item.item_id is the
+      // actual product id; on submit this value is merged back over the item
+      // ({...item, ...formik.values}), so using item.id here would clobber the
+      // real item_id and make confirmSaleEntries write a non-existent product
+      // id — hiding the line from the invoice's INNER JOIN on items.
+      item_id: item?.item_id || item?.id,
       sale_qty: initialValues.sale_qty?.toString() || '1',
     },
     validationSchema: ItemValidationSchema,

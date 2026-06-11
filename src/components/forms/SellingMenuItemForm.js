@@ -8,6 +8,7 @@ import commaNumber from 'comma-number';
 
 import {extractNumber, formatUOMAbbrev} from '../../utils/stringHelpers';
 import ItemSizeOptionList from '../salesCounter/ItemSizeOptionList';
+import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 
 // size_option_id is intentionally optional here: items without any selling
 // size option are sold at the item's base unit_selling_price. The "a size
@@ -34,6 +35,7 @@ const SellingMenuItemForm = props => {
     onCancel,
   } = props;
   const {colors} = useTheme();
+  const currencySymbol = useCurrencySymbol();
 
   // null = size options not loaded yet, 0 = item has no selling size option
   const [sizeOptionsCount, setSizeOptionsCount] = useState(null);
@@ -91,6 +93,40 @@ const SellingMenuItemForm = props => {
 
   if (!item) return null;
 
+  const basePriceCard = (
+    <View
+      style={[
+        styles.basePriceCard,
+        {
+          borderColor: colors.primary,
+          backgroundColor: colors.highlighted,
+        },
+      ]}>
+      <View style={{flex: 1}}>
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: 'bold',
+            color: colors.dark,
+            marginRight: 10,
+          }}
+          numberOfLines={1}>
+          {'Selling Price'}
+        </Text>
+        <Text style={{color: colors.neutralTint1, marginTop: 2}}>
+          {'No size options'}
+        </Text>
+      </View>
+      <View>
+        <Text style={{fontWeight: '500', fontSize: 16, color: colors.dark}}>
+          {`${currencySymbol ? `${currencySymbol} ` : ''}${commaNumber(
+            parseFloat(item?.unit_selling_price || 0).toFixed(2),
+          )}`}
+        </Text>
+      </View>
+    </View>
+  );
+
   return (
     <>
       <View style={{marginTop: 15, marginBottom: 15, marginHorizontal: 10}}>
@@ -103,7 +139,7 @@ const SellingMenuItemForm = props => {
         item={item}
         onChange={handleSizeOptionChange}
         onOptionsLoaded={handleSizeOptionsLoaded}
-        emptyText="This item has no selling size option. It will use its base selling price."
+        emptyComponent={basePriceCard}
         listContentContainerStyle={{marginBottom: 20}}
       />
       <View
@@ -216,6 +252,15 @@ const SellingMenuItemForm = props => {
 
 const styles = StyleSheet.create({
   textInput: {},
+  basePriceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderWidth: 2,
+    borderRadius: 25,
+    marginTop: 10,
+  },
   button: {
     borderWidth: 1,
     borderRadius: 20,

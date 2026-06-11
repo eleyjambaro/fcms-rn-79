@@ -47,6 +47,7 @@ const ItemSizeOptionList = props => {
     onChange,
     onOptionsLoaded,
     emptyText = 'No data to display',
+    emptyComponent,
   } = props;
   const {colors} = useTheme();
 
@@ -159,15 +160,19 @@ const ItemSizeOptionList = props => {
         onEndReachedThreshold={0.3}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={
-          <View
-            style={{
-              flex: 1,
-              padding: 20,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}>
-            <Text style={{textAlign: 'center'}}>{emptyText}</Text>
-          </View>
+          emptyComponent !== undefined ? (
+            emptyComponent
+          ) : (
+            <View
+              style={{
+                flex: 1,
+                padding: 20,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+              <Text style={{textAlign: 'center'}}>{emptyText}</Text>
+            </View>
+          )
         }
         refreshControl={
           <RefreshControl

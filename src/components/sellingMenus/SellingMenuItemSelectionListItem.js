@@ -32,22 +32,22 @@ const RecipeListItem = props => {
       ]}
       onPress={onPressItem}>
       <View style={styles.wrapper}>
-        <View>
+        <View style={{flex: 1}}>
           <Text
             style={{
               fontSize: 14,
               color: colors.dark,
               marginRight: 10,
-              flex: 1,
             }}
-            numberOfLines={1}>
+            numberOfLines={1}
+            ellipsizeMode="tail">
             {item.name}
           </Text>
         </View>
 
         <View
           style={{
-            marginLeft: 'auto',
+            flexShrink: 0,
             flexDirection: 'row',
             backgroundColor: colors.surface,
             paddingLeft: 15,
