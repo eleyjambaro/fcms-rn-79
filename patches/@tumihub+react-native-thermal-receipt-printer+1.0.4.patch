@@ -19,6 +19,32 @@ index 3bd16c7..0f80973 100644
          versionCode 1
          versionName "1.0"
  
+diff --git a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/RNNetPrinterModule.java b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/RNNetPrinterModule.java
+index 63d2d4d..9822f3a 100644
+--- a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/RNNetPrinterModule.java
++++ b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/RNNetPrinterModule.java
+@@ -76,7 +76,21 @@ public class RNNetPrinterModule extends ReactContextBaseJavaModule implements RN
+         adapter.printQrCode(qrCode, errorCallback);
+     }
+ 
++    // Required by React Native's NativeEventEmitter: the JS side constructs
++    // `new NativeEventEmitter(RNNetPrinter)`, and on Android RN expects the
++    // backing module to expose these two methods. Without them RN logs the
++    // warning: "`new NativeEventEmitter()` was called with a non-null argument
++    // without the required `removeListeners` method." They are intentionally
++    // no-ops — this module emits no events; the stubs just satisfy the contract.
++    @ReactMethod
++    public void addListener(String eventName) {
++        // Keep: Required for RN built-in Event Emitter Calls.
++    }
+ 
++    @ReactMethod
++    public void removeListeners(Integer count) {
++        // Keep: Required for RN built-in Event Emitter Calls.
++    }
+ 
+     @Override
+     public String getName() {
 diff --git a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java
 index 3d21728..2744d28 100644
 --- a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java
