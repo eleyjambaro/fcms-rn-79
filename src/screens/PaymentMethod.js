@@ -222,21 +222,23 @@ const PaymentMethod = props => {
         onLimitReached: ({message}) => {
           setLimitReachedMessage(() => message);
         },
-        onSuccess: () => {
+        onSuccess: async ({salesInvoice}) => {
           actions?.resetSalesCounter();
 
-          const dateNowString = Date.now().toString();
-
-          const params = {addSalesOrdersSuccess: dateNowString};
-
-          if (action === 'proceed-to-sales-invoice') {
-            params.salesConfirmationSuccess = dateNowString;
-          }
+          await printReceipt({
+            salesInvoice,
+            salesInvoiceItems: items,
+            paymentFormValues,
+          });
 
           // Pop back to the previous screen and merge params (see note in
           // handleConfirmSaleEntries — popTo removes this screen from the
           // stack, navigate would push a duplicate on top).
-          navigation.popTo(routeToGoBack, params, {merge: true});
+          navigation.popTo(
+            routeToGoBack,
+            {addSalesOrdersSuccess: Date.now().toString()},
+            {merge: true},
+          );
           runSync().catch(console.warn);
         },
       });

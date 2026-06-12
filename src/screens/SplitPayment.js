@@ -176,20 +176,23 @@ const SplitPayment = props => {
         onLimitReached: ({message}) => {
           setLimitReachedMessage(() => message);
         },
-        onSuccess: () => {
+        onSuccess: async ({salesInvoice}) => {
           actions?.resetSalesCounter();
 
-          const dateNowString = Date.now().toString();
-
-          const params = {addSalesOrdersSuccess: dateNowString};
-
-          if (action === 'proceed-to-sales-invoice') {
-            params.salesConfirmationSuccess = dateNowString;
-          }
+          await printReceipt({
+            salesInvoice,
+            salesInvoiceItems: items,
+            paymentFormValues,
+          });
 
           // Pop back to the previous screen and merge params (see note above —
           // popTo removes the payment screens, navigate would push duplicates).
-          navigation.popTo(routeToGoBack, params, {merge: true});
+          navigation.popTo(
+            routeToGoBack,
+            {addSalesOrdersSuccess: Date.now().toString()},
+            {merge: true},
+          );
+          runSync().catch(console.warn);
         },
       });
     } catch (error) {

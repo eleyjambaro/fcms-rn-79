@@ -1017,8 +1017,16 @@ export const confirmFulfillingSalesOrders = async ({
       updateFulfilledOrderQtyQuery,
     );
 
+    const getCreatedSalesInvoiceQuery = `
+      SELECT * FROM invoices WHERE id = '${createdInvoiceId}'
+    `;
+    const getCreatedSalesInvoiceResult = await db.executeSql(
+      getCreatedSalesInvoiceQuery,
+    );
+    const salesInvoice = getCreatedSalesInvoiceResult[0].rows.item(0);
+
     scheduleSyncSoon();
-    onSuccess && onSuccess();
+    onSuccess && onSuccess({salesInvoice});
 
     return {
       createdInvoiceId,
