@@ -75,15 +75,18 @@ const SalesOrderItemListItem = props => {
     const isStockQtyExceeded = saleQty > item?.current_stock_qty;
     const isOrderQtyExceeded = saleQty > notYetCompletedOrderQty;
 
+    const isErrored = !isHighlightedUpdating && isOrderQtyExceeded;
+    const badgeColor = isErrored ? colors.error : colors.accent;
+
     let errorIcon = null;
 
-    if (!isHighlightedUpdating && isOrderQtyExceeded) {
+    if (isErrored) {
       errorIcon = (
         <MaterialIcons
           name="error"
           size={16}
-          color={colors.error}
-          style={{marginRight: 5}}
+          color={colors.surface}
+          style={{marginRight: 4}}
         />
       );
     }
@@ -99,15 +102,19 @@ const SalesOrderItemListItem = props => {
     return (
       <View
         style={{
-          marginLeft: 20,
+          marginLeft: 12,
           flexDirection: 'row',
           alignItems: 'center',
+          backgroundColor: badgeColor,
+          borderRadius: 20,
+          paddingHorizontal: 12,
+          paddingVertical: 2,
         }}>
         {errorIcon}
         <Text
           style={{
             fontSize: 16,
-            color: colors.accent,
+            color: colors.surface,
             fontWeight: 'bold',
           }}>
           {`+ ${fulfillingValue}`}
