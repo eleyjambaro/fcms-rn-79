@@ -73,6 +73,9 @@ export const printSalesInvoice = ({
   salesInvoiceItems,
   salesInvoiceTotals,
   salesInvoiceTotalsAlignment = 'left-and-right',
+  // SO number of the fulfilled sales order, printed alongside the OR number.
+  // Only set on the sales-order fulfillment path; omitted for direct sales.
+  salesOrderNumber,
   // { cash, card, change } amounts tendered for this sale.
   payment,
   // Cashier display name ("Owner" or full name).
@@ -300,6 +303,9 @@ export const printSalesInvoice = ({
     receiptText += `${dividers.dashed}\n`;
     receiptText += `Date: ${datetime}\n`;
     receiptText += `OR Number: ${getInvoiceReceiptNumber(salesInvoice)}\n`;
+    if (salesOrderNumber) {
+      receiptText += `Order Number: ${salesOrderNumber}\n`;
+    }
 
     const cashierName = cashier || salesInvoice.sold_by_name;
     if (cashierName) {

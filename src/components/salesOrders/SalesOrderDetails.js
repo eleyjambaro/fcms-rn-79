@@ -3,7 +3,7 @@ import {StyleSheet, Text, View} from 'react-native';
 import {useTheme, Headline} from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import moment from 'moment';
-import {padNumber} from '../../utils/stringHelpers';
+import {getSalesOrderNumber} from '../../utils/stringHelpers';
 
 const SalesOrderDetails = props => {
   const {containerStyle, salesOrderGroup} = props;
@@ -18,7 +18,7 @@ const SalesOrderDetails = props => {
         {backgroundColor: colors.surface},
         containerStyle,
       ]}>
-      <Headline>{`SO-${padNumber(salesOrderGroup.id)}`}</Headline>
+      <Headline>{getSalesOrderNumber(salesOrderGroup)}</Headline>
       <View style={[styles.detailsListItem, {marginTop: 10}]}>
         <View>
           <Text style={{fontWeight: 'bold', marginBottom: 5}}>Order Date:</Text>

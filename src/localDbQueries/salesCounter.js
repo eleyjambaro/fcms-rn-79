@@ -13,6 +13,7 @@ import {scheduleSyncSoon} from '../services/syncService';
 import {
   getDeviceShortCode,
   formatOfficialReceiptNumber,
+  formatSalesOrderNumber,
   getCashierDisplayName,
 } from '../utils/stringHelpers';
 
@@ -71,6 +72,35 @@ const buildNextOfficialReceiptNumber = async (db, deviceId) => {
   }
 
   return formatOfficialReceiptNumber(code, nextSeq);
+};
+
+/**
+ * Computes the next sales order (SO) number for this device — the sales-order
+ * counterpart of buildNextOfficialReceiptNumber above. Same per-device scheme
+ * (constant device-code prefix + zero-padded suffix) so a lexicographic MAX of
+ * this device's stored SO strings equals its numeric max; we read MAX and bump
+ * its trailing digits.
+ */
+const buildNextSalesOrderNumber = async (db, deviceId) => {
+  const code = getDeviceShortCode(deviceId);
+  const whereDevice = deviceId
+    ? `device_id = '${deviceId}'`
+    : `device_id IS NULL`;
+
+  const result = await db.executeSql(
+    `SELECT MAX(sales_order_number) AS max_so
+       FROM sales_order_groups
+      WHERE ${whereDevice} AND sales_order_number IS NOT NULL`,
+  );
+  const maxSo = result[0].rows.item(0)?.max_so || null;
+
+  let nextSeq = 1;
+  if (maxSo) {
+    const trailing = parseInt(String(maxSo).split('-').pop(), 10);
+    if (!isNaN(trailing)) nextSeq = trailing + 1;
+  }
+
+  return formatSalesOrderNumber(code, nextSeq);
 };
 
 export const confirmSaleEntries = async ({
@@ -1048,11 +1078,22 @@ export const confirmFulfillingSalesOrders = async ({
     );
     const salesInvoice = getCreatedSalesInvoiceResult[0].rows.item(0);
 
+    // The fulfilled order's SO number, so the receipt can print it alongside the
+    // OR number (see printSalesInvoice's salesOrderNumber param).
+    let salesOrderNumber = null;
+    if (salesOrderGroupId) {
+      const getSalesOrderGroupResult = await db.executeSql(
+        `SELECT sales_order_number FROM sales_order_groups WHERE id = '${salesOrderGroupId}'`,
+      );
+      salesOrderNumber =
+        getSalesOrderGroupResult[0].rows.item(0)?.sales_order_number || null;
+    }
+
     await db.executeSql('COMMIT;');
     inTransaction = false;
 
     scheduleSyncSoon();
-    onSuccess && onSuccess({salesInvoice});
+    onSuccess && onSuccess({salesInvoice, salesOrderNumber});
 
     return {
       createdInvoiceId,
@@ -1159,9 +1200,14 @@ export const addSaleEntriesToSalesOrders = async ({
      * Create sales order group
      */
     const newSalesOrderGroupId = uuid.v4();
+    const salesOrderNumber = await buildNextSalesOrderNumber(
+      db,
+      salesOrderDeviceId,
+    );
     const createSalesOrderGroupQuery = `
       INSERT INTO sales_order_groups (
         id,
+        sales_order_number,
         sold_by_account_uid,
         customer_id,
         order_date,
@@ -1173,6 +1219,7 @@ export const addSaleEntriesToSalesOrders = async ({
 
       VALUES (
         '${newSalesOrderGroupId}',
+        '${salesOrderNumber}',
         ${accountUID},
         ${customerId},
         ${salesOrderDate},

@@ -18,7 +18,7 @@ import {
 import commaNumber from 'comma-number';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 import moment from 'moment';
-import {padNumber} from '../../utils/stringHelpers';
+import {getSalesOrderNumber} from '../../utils/stringHelpers';
 
 const SalesOrderListItem = props => {
   const {item, onPress} = props;
@@ -75,7 +75,7 @@ const SalesOrderListItem = props => {
                   marginLeft: 10,
                   color: colors.neutralTint1,
                   fontSize: 16,
-                }}>{`SO-${padNumber(item.sales_order_group_id)}`}</Headline>
+                }}>{getSalesOrderNumber(item)}</Headline>
               {renderCompletedIcon()}
             </View>
             <Text

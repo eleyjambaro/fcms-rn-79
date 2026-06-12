@@ -327,6 +327,30 @@ export const getInvoiceReceiptNumber = invoice => {
   return `SI-${padNumber(invoice.id)}`;
 };
 
+/**
+ * Sales order (SO) number support — mirrors the OR number above.
+ *
+ * A sales order needs a short, presentable identifier instead of its raw UUID,
+ * generated locally (offline-first) yet collision-free across the branch's POS
+ * devices once they sync. Same per-device scheme as the OR number: a stable
+ * device code prefix + a zero-padded per-device sequence, e.g. "SO-7K2A-0000123".
+ * Stored on sales_order_groups.sales_order_number as an immutable, synced value.
+ */
+export const formatSalesOrderNumber = (deviceCode, seq) =>
+  `SO-${deviceCode}-${padNumber(seq, '0000000')}`;
+
+// Display value for a sales order group. Uses the stored SO number when present,
+// and falls back to the legacy short id form for pre-SO-number sales orders so
+// nothing breaks on historical records.
+export const getSalesOrderNumber = salesOrderGroup => {
+  if (!salesOrderGroup) return '';
+  if (salesOrderGroup.sales_order_number) {
+    return salesOrderGroup.sales_order_number;
+  }
+
+  return `SO-${padNumber(salesOrderGroup.id)}`;
+};
+
 // Cashier display name for a sale. The root (owner) account is shown as "Owner";
 // a team member shows their full name (first + last), falling back to email.
 // `account` is the cloud auth account object ({ first_name, last_name,

@@ -97,6 +97,7 @@ const PaymentMethod = props => {
     salesInvoice,
     salesInvoiceItems,
     paymentFormValues,
+    salesOrderNumber,
   }) => {
     if (isLoadingDefaultPrinter) {
       return;
@@ -118,6 +119,7 @@ const PaymentMethod = props => {
         salesInvoice,
         salesInvoiceItems,
         salesInvoiceTotals: saleTotals,
+        salesOrderNumber,
         payment: getPaymentBreakdownFromFormValues(paymentFormValues),
         cashier: getCashierDisplayName(authUser?.account),
         company,
@@ -222,13 +224,14 @@ const PaymentMethod = props => {
         onLimitReached: ({message}) => {
           setLimitReachedMessage(() => message);
         },
-        onSuccess: async ({salesInvoice}) => {
+        onSuccess: async ({salesInvoice, salesOrderNumber}) => {
           actions?.resetSalesCounter();
 
           await printReceipt({
             salesInvoice,
             salesInvoiceItems: items,
             paymentFormValues,
+            salesOrderNumber,
           });
 
           // Pop back to the previous screen and merge params (see note in

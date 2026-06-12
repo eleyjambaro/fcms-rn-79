@@ -790,6 +790,7 @@ const createSalesOrderGroupsTableQuery = `
   CREATE TABLE IF NOT EXISTS sales_order_groups (
     id TEXT PRIMARY KEY NOT NULL,
     voided INTEGER DEFAULT 0,
+    sales_order_number VARCHAR DEFAULT NULL,
     sold_by_account_uid VARCHAR,
     customer_id INTEGER,
     remarks VARCHAR(120),
@@ -2375,6 +2376,28 @@ export const alterTables = async currentAppVersion => {
     } catch (error) {
       console.debug(
         '[alterTables] Error adding invoices.official_receipt_number:',
+        error,
+      );
+    }
+
+    // Sales order (SO) number — the sales-order counterpart of the OR number
+    // above: a short, presentable, device-prefixed sequence (e.g.
+    // "SO-7K2A-0000123") shown in place of the sales_order_groups UUID and
+    // printed on a fulfilled order's receipt alongside the OR number. Stored as
+    // the final formatted string (immutable identifier) and round-trips through
+    // delta sync as an opaque value (see allowedFields/$fillable on the server).
+    // Generated per device at order creation in addSaleEntriesToSalesOrders —
+    // see getDeviceShortCode / buildNextSalesOrderNumber.
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'sales_order_groups',
+        'sales_order_number',
+        `ALTER TABLE sales_order_groups ADD COLUMN sales_order_number VARCHAR DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding sales_order_groups.sales_order_number:',
         error,
       );
     }
