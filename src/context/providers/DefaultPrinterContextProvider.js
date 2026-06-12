@@ -248,7 +248,18 @@ const DefaultPrinterContextProvider = props => {
           receiptText += `${alignCenter}<D>Print Test</D>\n`;
           receiptText += `${dashedDivider}`;
 
-          PrinterController.printText(receiptText);
+          // Await the print so a failed write (e.g. the printer was turned off
+          // after connecting, leaving a stale 'connected' state and a dead
+          // socket) is handled here instead of becoming an unhandled rejection.
+          try {
+            await PrinterController.printText(receiptText);
+          } catch (printError) {
+            console.error('Print test failed', printError);
+            // The connection is dead: clear the stale 'connected' state (so the
+            // UI offers Connect again) and prompt the user to retry.
+            setPrinterState(() => 'connection-failed');
+            setConnectToPrinterFailedDialogVisible(() => true);
+          }
           break;
         default:
           break;
@@ -288,7 +299,18 @@ const DefaultPrinterContextProvider = props => {
         if (!connected) return false;
       }
 
-      PrinterController.printText(text);
+      // Await the write: if the socket is dead (printer turned off while the
+      // state still reads 'connected'), surface it here rather than letting the
+      // rejection go unhandled. Clear the stale state so the next print/connect
+      // re-establishes the link.
+      try {
+        await PrinterController.printText(text);
+      } catch (printError) {
+        console.error('Print failed', printError);
+        setPrinterState(() => 'connection-failed');
+        setConnectToPrinterFailedDialogVisible(() => true);
+        return false;
+      }
       return true;
     } catch (error) {
       console.error(error);

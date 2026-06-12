@@ -20,7 +20,7 @@ index 3bd16c7..0f80973 100644
          versionName "1.0"
  
 diff --git a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java
-index 3d21728..b8b2239 100644
+index 3d21728..2744d28 100644
 --- a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java
 +++ b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java
 @@ -93,8 +93,8 @@ public class BLEPrinterAdapter implements PrinterAdapter{
@@ -34,23 +34,15 @@ index 3d21728..b8b2239 100644
          if(bluetoothAdapter == null) {
              errorCallback.invoke("No bluetooth adapter available");
              return;
-@@ -113,26 +113,36 @@ public class BLEPrinterAdapter implements PrinterAdapter{
+@@ -113,26 +113,50 @@ public class BLEPrinterAdapter implements PrinterAdapter{
                  closeConnectionIfExists();
              }
          }
 -        Set<BluetoothDevice> pairedDevices = getBTAdapter().getBondedDevices();
- 
+-
 -        for (BluetoothDevice device : pairedDevices) {
 -            if(device.getAddress().equals(blePrinterDeviceId.getInnerMacAddress())){
--
--                try{
--                    connectBluetoothDevice(device);
--                    successCallback.invoke(new BLEPrinterDevice(this.mBluetoothDevice).toRNWritableMap());
--                    return;
--                }catch (IOException e){
--                    e.printStackTrace();
--                    errorCallback.invoke(e.getMessage());
--                    return;
+ 
 +        // The RFCOMM socket.connect() below is a synchronous blocking call that
 +        // can hang for the full Bluetooth timeout when the printer is off/out of
 +        // range. This method runs on React Native's shared NativeModules thread,
@@ -61,23 +53,43 @@ index 3d21728..b8b2239 100644
 +        new Thread(new Runnable() {
 +            @Override
 +            public void run() {
-+                Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-+                for (BluetoothDevice device : pairedDevices) {
-+                    if(device.getAddress().equals(targetAddress)){
-+                        try{
++                // Catch every exception (not just IOException): connecting to an
++                // off/out-of-range printer can throw runtime exceptions (e.g.
++                // SecurityException) too, and an uncaught exception on this
++                // worker thread crashes the whole process. Decide the outcome
++                // inside the try, then invoke exactly one callback OUTSIDE it so
++                // a callback is never reached from the catch (a double invocation
++                // would crash the React Native bridge).
++                boolean connected = false;
++                Exception failure = null;
+                 try{
+-                    connectBluetoothDevice(device);
+-                    successCallback.invoke(new BLEPrinterDevice(this.mBluetoothDevice).toRNWritableMap());
+-                    return;
+-                }catch (IOException e){
++                    Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
++                    for (BluetoothDevice device : pairedDevices) {
++                        if(device.getAddress().equals(targetAddress)){
 +                            connectBluetoothDevice(device);
-+                            successCallback.invoke(new BLEPrinterDevice(mBluetoothDevice).toRNWritableMap());
-+                            return;
-+                        }catch (IOException e){
-+                            e.printStackTrace();
-+                            errorCallback.invoke(e.getMessage());
-+                            return;
++                            connected = true;
++                            break;
 +                        }
 +                    }
++                }catch (Exception e){
+                     e.printStackTrace();
+-                    errorCallback.invoke(e.getMessage());
+-                    return;
++                    failure = e;
++                }
++                if (connected) {
++                    successCallback.invoke(new BLEPrinterDevice(mBluetoothDevice).toRNWritableMap());
++                } else if (failure != null) {
++                    errorCallback.invoke(failure.getMessage() != null ? failure.getMessage() : failure.toString());
++                } else {
++                    // Note: no Toast here — Toast requires a Looper and would crash
++                    // on this worker thread; the JS layer surfaces this to the user.
++                    errorCallback.invoke("Can not find the specified printing device, please perform Bluetooth pairing in the system settings first.");
                  }
-+                // Note: no Toast here — Toast requires a Looper and would crash on
-+                // this worker thread; the JS layer surfaces this error to the user.
-+                errorCallback.invoke("Can not find the specified printing device, please perform Bluetooth pairing in the system settings first.");
              }
 -        }
 -        String errorText = "Can not find the specified printing device, please perform Bluetooth pairing in the system settings first.";
@@ -88,3 +100,40 @@ index 3d21728..b8b2239 100644
      }
  
      private void connectBluetoothDevice(BluetoothDevice device) throws IOException{
+diff --git a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEThreadWrite.java b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEThreadWrite.java
+index a37ce4b..1f13d77 100644
+--- a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEThreadWrite.java
++++ b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEThreadWrite.java
+@@ -30,16 +30,27 @@ public class BLEThreadWrite implements Runnable {
+    
+    @Override
+     public void run() {
+-        byte [] bytes = Base64.decode(rawData, Base64.DEFAULT);
++        // Catch every exception (not just IOException): writing to a dead socket
++        // — e.g. the printer was turned off after connecting — can throw runtime
++        // exceptions too, and an uncaught exception on this worker thread crashes
++        // the whole process (the app "restarts"). Invoke the callbacks OUTSIDE
++        // the try so a callback can never be reached from the catch block, which
++        // would be a double invocation and crash the React Native bridge.
++        Exception failure = null;
+         try{
++            byte [] bytes = Base64.decode(rawData, Base64.DEFAULT);
+             OutputStream printerOutputStream = socket.getOutputStream();
+             printerOutputStream.write(bytes, 0, bytes.length);
+             printerOutputStream.flush();
+-            this.callSuccess.invoke();
+-        }catch (IOException e){
+-            Log.e(LOG_TAG, "failed to print data" + rawData);
++        }catch (Exception e){
++            Log.e(LOG_TAG, "failed to print data " + rawData);
+             e.printStackTrace();
+-            this.callError.invoke(e.toString());
++            failure = e;
++        }
++        if (failure == null) {
++            this.callSuccess.invoke();
++        } else {
++            this.callError.invoke(failure.toString());
+         }
+     }
+ }
