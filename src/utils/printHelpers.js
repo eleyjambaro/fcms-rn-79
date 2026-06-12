@@ -147,6 +147,32 @@ export const printSalesInvoice = ({
         )}`;
       }
 
+      /**
+       * from sales order fulfillment line
+       *
+       * Fulfillment items carry the price quoted at order time on
+       * order_unit_selling_price (the item's base unit_selling_price is often 0
+       * for size-priced items, which printed "@ 0.00" on the receipt). When the
+       * order was placed with a size, order_size_name holds it and the qty is
+       * shown as "x N" like the other size-priced lines. Mirrors the on-screen
+       * fix in SalesRegisterTicketItemListItem.
+       */
+      if (
+        item.order_unit_selling_price != null &&
+        !item.sale_size_name &&
+        !item.option_name
+      ) {
+        unitSellingPrice = `@ ${commaNumber(
+          parseFloat(item?.order_unit_selling_price || 0).toFixed(2),
+        )}`;
+
+        if (item.order_size_name) {
+          saleQty = `x ${commaNumber(
+            parseFloat(item.sale_qty || 0).toFixed(item.sale_qty % 1 ? 2 : 0),
+          )}`;
+        }
+      }
+
       let subTotal = `${commaNumber(
         parseFloat(item?.subtotal_amount || 0).toFixed(2),
       )} ${isSalesTaxable(item) ? costMarkers.taxable : costMarkers.taxExempt}`;
@@ -186,6 +212,23 @@ export const printSalesInvoice = ({
         if (item.in_option_qty) {
           itemSizeName += ` (${item.in_option_qty} ${formatUOMAbbrev(
             item.in_option_qty_uom_abbrev,
+          )?.toUpperCase()})\n`;
+        } else {
+          itemSizeName += '\n';
+        }
+
+        receiptText += itemSizeName;
+      }
+
+      /**
+       * from sales order fulfillment line
+       */
+      if (item.order_size_name && !item.sale_size_name && !item.option_name) {
+        itemSizeName = `${item.order_size_name}`;
+
+        if (item.order_in_size_qty) {
+          itemSizeName += ` (${item.order_in_size_qty} ${formatUOMAbbrev(
+            item.order_in_size_qty_uom_abbrev,
           )?.toUpperCase()})\n`;
         } else {
           itemSizeName += '\n';
