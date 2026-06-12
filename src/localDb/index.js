@@ -724,6 +724,7 @@ const createInvoicesTableQuery = `
     id TEXT PRIMARY KEY NOT NULL,
     voided INTEGER DEFAULT 0,
     sold_by_account_uid VARCHAR,
+    sold_by_name VARCHAR DEFAULT NULL,
     customer_id INTEGER,
     sales_order_group_id TEXT,
     official_receipt_number VARCHAR DEFAULT NULL,
@@ -2374,6 +2375,24 @@ export const alterTables = async currentAppVersion => {
     } catch (error) {
       console.debug(
         '[alterTables] Error adding invoices.official_receipt_number:',
+        error,
+      );
+    }
+
+    // Cashier name — the display name of the user who rang up the sale ("Owner"
+    // for the root account, otherwise the team member's full name), captured at
+    // sale time so it stays correct on the Sales Invoice screen and receipt
+    // reprints regardless of who later views/reprints. Syncs as an opaque value.
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'invoices',
+        'sold_by_name',
+        `ALTER TABLE invoices ADD COLUMN sold_by_name VARCHAR DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding invoices.sold_by_name:',
         error,
       );
     }

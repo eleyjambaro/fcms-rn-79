@@ -124,7 +124,25 @@ export const getSalesInvoices = async ({queryKey, pageParam = 1}) => {
 
 export const getSalesInvoice = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM invoices WHERE id = '${id}'`;
+  // Pull the payment breakdown (cash/card tendered + change given) alongside the
+  // invoice so the Sales Invoice screen and receipt reprints can show it without
+  // a separate query. Mirrors the per-method subqueries used by getSalesInvoices.
+  const query = `
+    SELECT *,
+    (
+      SELECT SUM(IFNULL(payments.payment_amount, 0)) FROM payments
+      WHERE payments.invoice_id = invoices.id AND payments.payment_method = 'cash'
+    ) AS cash_payment_total_amount,
+    (
+      SELECT SUM(IFNULL(payments.payment_amount, 0)) FROM payments
+      WHERE payments.invoice_id = invoices.id AND payments.payment_method = 'card'
+    ) AS card_payment_total_amount,
+    (
+      SELECT SUM(IFNULL(payments.change_amount, 0)) FROM payments
+      WHERE payments.invoice_id = invoices.id
+    ) AS change_total_amount
+    FROM invoices WHERE id = '${id}'
+  `;
 
   try {
     const db = await getDBConnection();

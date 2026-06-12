@@ -148,6 +148,14 @@ const SalesInvoiceView = () => {
         salesInvoice,
         salesInvoiceItems: getAllPagesData(),
         salesInvoiceTotals,
+        payment: {
+          cash: salesInvoice?.cash_payment_total_amount || 0,
+          card: salesInvoice?.card_payment_total_amount || 0,
+          change: salesInvoice?.change_total_amount || 0,
+        },
+        // Recorded cashier from the invoice (printSalesInvoice also falls back to
+        // salesInvoice.sold_by_name, but pass it explicitly for clarity).
+        cashier: salesInvoice?.sold_by_name,
         company,
         currencySymbol,
       }),

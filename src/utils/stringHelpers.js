@@ -300,6 +300,52 @@ export const getInvoiceReceiptNumber = invoice => {
   return `SI-${padNumber(invoice.id)}`;
 };
 
+// Cashier display name for a sale. The root (owner) account is shown as "Owner";
+// a team member shows their full name (first + last), falling back to email.
+// `account` is the cloud auth account object ({ first_name, last_name,
+// is_root_account, email }).
+export const getCashierDisplayName = account => {
+  if (!account) return '';
+  if (account.is_root_account) return 'Owner';
+
+  const fullName = `${account.first_name || ''} ${
+    account.last_name || ''
+  }`.trim();
+
+  return fullName || account.email || '';
+};
+
+// Normalizes a checkout payment form into a { cash, card, change } breakdown.
+// Handles both the single-payment shape ({ payment_method, payment_amount,
+// change_amount }) and the split-payment shape ({ is_split_payment, payments:
+// { <key>: { ... } } }). Mirrors how payments are persisted in confirmSaleEntries.
+export const getPaymentBreakdownFromFormValues = paymentFormValues => {
+  const breakdown = {cash: 0, card: 0, change: 0};
+  if (!paymentFormValues) return breakdown;
+
+  const addPayment = payment => {
+    if (!payment) return;
+    const amount = parseFloat(payment.payment_amount || 0) || 0;
+    const change = parseFloat(payment.change_amount || 0) || 0;
+
+    if (payment.payment_method === 'cash') {
+      breakdown.cash += amount;
+    } else if (payment.payment_method === 'card') {
+      breakdown.card += amount;
+    }
+
+    breakdown.change += change;
+  };
+
+  if (paymentFormValues.is_split_payment && paymentFormValues.payments) {
+    Object.values(paymentFormValues.payments).forEach(addPayment);
+  } else {
+    addPayment(paymentFormValues);
+  }
+
+  return breakdown;
+};
+
 /**
  * Extracts timestamp from backup file name
  * Supports both old format: fcms_data_${timestamp}.db

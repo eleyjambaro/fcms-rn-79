@@ -73,6 +73,10 @@ export const printSalesInvoice = ({
   salesInvoiceItems,
   salesInvoiceTotals,
   salesInvoiceTotalsAlignment = 'left-and-right',
+  // { cash, card, change } amounts tendered for this sale.
+  payment,
+  // Cashier display name ("Owner" or full name).
+  cashier,
   company,
   currencySymbol,
 }) => {
@@ -254,6 +258,39 @@ export const printSalesInvoice = ({
     }${commaNumber(parseFloat(grandTotalAmount || 0).toFixed(2))}</D>\n`;
   }
 
+  // payment breakdown — cash / card tendered and change given. Only lines with a
+  // non-zero amount are printed (e.g. a pure-cash sale shows no Card line).
+  if (payment) {
+    const cash = parseFloat(payment.cash || 0);
+    const card = parseFloat(payment.card || 0);
+    const change = parseFloat(payment.change || 0);
+
+    if (cash > 0 || card > 0 || change > 0) {
+      receiptText += `${dividers.dashed}\n`;
+
+      if (cash > 0) {
+        receiptText += alignTextLeftAndRight({
+          leftText: 'Cash',
+          rightText: `${commaNumber(cash.toFixed(2))}\n`,
+        });
+      }
+
+      if (card > 0) {
+        receiptText += alignTextLeftAndRight({
+          leftText: 'Card',
+          rightText: `${commaNumber(card.toFixed(2))}\n`,
+        });
+      }
+
+      if (change > 0) {
+        receiptText += alignTextLeftAndRight({
+          leftText: 'Change',
+          rightText: `${commaNumber(change.toFixed(2))}\n`,
+        });
+      }
+    }
+  }
+
   // receipt details
   if (salesInvoice) {
     const datetime = moment(
@@ -263,6 +300,12 @@ export const printSalesInvoice = ({
     receiptText += `${dividers.dashed}\n`;
     receiptText += `Date: ${datetime}\n`;
     receiptText += `OR Number: ${getInvoiceReceiptNumber(salesInvoice)}\n`;
+
+    const cashierName = cashier || salesInvoice.sold_by_name;
+    if (cashierName) {
+      receiptText += `Cashier: ${cashierName}\n`;
+    }
+
     receiptText += `${dividers.dashed}`;
   }
 

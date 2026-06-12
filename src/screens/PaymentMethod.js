@@ -21,6 +21,10 @@ import useDefaultPrinterContext from '../hooks/useDefaultPrinterContext';
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
 import useCurrencySymbol from '../hooks/useCurrencySymbol';
 import {printSalesInvoice} from '../utils/printHelpers';
+import {
+  getCashierDisplayName,
+  getPaymentBreakdownFromFormValues,
+} from '../utils/stringHelpers';
 import {runSync} from '../services/syncService';
 import useRoleAccess from '../hooks/useRoleAccess';
 
@@ -89,7 +93,11 @@ const PaymentMethod = props => {
     return listData;
   };
 
-  const printReceipt = async ({salesInvoice, salesInvoiceItems}) => {
+  const printReceipt = async ({
+    salesInvoice,
+    salesInvoiceItems,
+    paymentFormValues,
+  }) => {
     if (isLoadingDefaultPrinter) {
       return;
     }
@@ -110,6 +118,8 @@ const PaymentMethod = props => {
         salesInvoice,
         salesInvoiceItems,
         salesInvoiceTotals: saleTotals,
+        payment: getPaymentBreakdownFromFormValues(paymentFormValues),
+        cashier: getCashierDisplayName(authUser?.account),
         company,
         currencySymbol,
       }),
@@ -133,7 +143,11 @@ const PaymentMethod = props => {
         onSuccess: async ({salesInvoice}) => {
           actions?.resetSalesCounter();
 
-          await printReceipt({salesInvoice, salesInvoiceItems: items});
+          await printReceipt({
+            salesInvoice,
+            salesInvoiceItems: items,
+            paymentFormValues,
+          });
 
           // Pop back to the previous screen (e.g. Sales Register) and merge
           // params. popTo (not navigate) removes this PaymentMethod screen and

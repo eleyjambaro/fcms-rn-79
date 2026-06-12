@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import convert from 'convert-units';
 import uuid from 'react-native-uuid';
+import SecureStorage from 'react-native-fast-secure-storage';
 
 import {getDBConnection, getCloudSyncParams} from '../localDb';
+import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 import {
   createQueryFilter,
   isMutationDisabled,
@@ -11,7 +13,33 @@ import {scheduleSyncSoon} from '../services/syncService';
 import {
   getDeviceShortCode,
   formatOfficialReceiptNumber,
+  getCashierDisplayName,
 } from '../utils/stringHelpers';
+
+/**
+ * Reads the signed-in cloud account from secure storage so a sale can record
+ * who rang it up. Returns the account id (for the existing sold_by_account_uid
+ * audit column) and a display name ("Owner" for the root account, otherwise the
+ * team member's full name). Returns nulls when not signed in — callers stamp the
+ * fields as nullable. Read inside the query (not passed from the screen) so all
+ * of the many confirm-sale call sites get it for free.
+ */
+const loadCurrentCashier = async () => {
+  try {
+    const has = await SecureStorage.hasItem(rnStorageKeys.cloudV2AuthUser);
+    if (!has) return {accountId: null, cashierName: null};
+
+    const raw = await SecureStorage.getItem(rnStorageKeys.cloudV2AuthUser);
+    const account = raw ? JSON.parse(raw)?.account ?? null : null;
+
+    return {
+      accountId: account?.id ?? null,
+      cashierName: getCashierDisplayName(account) || null,
+    };
+  } catch {
+    return {accountId: null, cashierName: null};
+  }
+};
 
 /**
  * Computes the next official receipt (OR) number for a sale on this device.
@@ -120,9 +148,13 @@ export const confirmSaleEntries = async ({
     //   ? `'${values.official_receipt_number}'`
     //   : 'null';
 
-    const accountUID = 'null';
     const customerId = 'null';
     const {deviceId, branchId} = await getCloudSyncParams();
+    const {accountId, cashierName} = await loadCurrentCashier();
+    const soldByAccountUid = accountId ? `'${accountId}'` : 'null';
+    const soldByName = cashierName ? `'${cashierName.replace(/'/g, "''")}'` : 'null';
+    // Reused for sale_logs.sold_by_account_uid below (same quoted/null form).
+    const accountUID = soldByAccountUid;
 
     /**
      * Create invoice
@@ -136,6 +168,7 @@ export const confirmSaleEntries = async ({
       INSERT INTO invoices (
         id,
         sold_by_account_uid,
+        sold_by_name,
         customer_id,
         official_receipt_number,
         invoice_date,
@@ -147,7 +180,8 @@ export const confirmSaleEntries = async ({
 
       VALUES (
         '${newInvoiceId}',
-        ${accountUID},
+        ${soldByAccountUid},
+        ${soldByName},
         ${customerId},
         '${officialReceiptNumber}',
         ${salesInvoiceDate},
@@ -614,10 +648,14 @@ export const confirmFulfillingSalesOrders = async ({
     //   ? `'${values.official_receipt_number}'`
     //   : 'null';
 
-    const accountUID = 'null';
     const customerId = 'null';
     const {deviceId: salesDeviceId, branchId: salesBranchId} =
       await getCloudSyncParams();
+    const {accountId, cashierName} = await loadCurrentCashier();
+    const soldByAccountUid = accountId ? `'${accountId}'` : 'null';
+    const soldByName = cashierName ? `'${cashierName.replace(/'/g, "''")}'` : 'null';
+    // Reused for sale_logs.sold_by_account_uid below (same quoted/null form).
+    const accountUID = soldByAccountUid;
 
     /**
      * Create invoice
@@ -631,6 +669,7 @@ export const confirmFulfillingSalesOrders = async ({
       INSERT INTO invoices (
         id,
         sold_by_account_uid,
+        sold_by_name,
         customer_id,
         official_receipt_number,
         invoice_date,
@@ -643,7 +682,8 @@ export const confirmFulfillingSalesOrders = async ({
 
       VALUES (
         '${newInvoiceId}',
-        ${accountUID},
+        ${soldByAccountUid},
+        ${soldByName},
         ${customerId},
         '${officialReceiptNumber}',
         ${salesInvoiceDate},

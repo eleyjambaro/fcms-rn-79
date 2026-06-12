@@ -215,6 +215,9 @@ const CashPaymentForm = props => {
             formik.setValues({
               ...formik.values,
               payment_method: 'cash',
+              // change given back to the customer (received cash − amount due),
+              // so it persists on the payment row and prints on the receipt.
+              change_amount: changeAmount,
             });
 
             handleSubmit();
