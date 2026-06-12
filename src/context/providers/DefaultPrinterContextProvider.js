@@ -82,6 +82,12 @@ const DefaultPrinterContextProvider = props => {
   // read the current value without re-subscribing on every state change.
   const printerStateRef = useRef(printerState);
   const appStateRef = useRef(AppState.currentState);
+  // True while a *passive* reconnect (app foreground / Bluetooth on) is in
+  // flight, so the blocking loading modal is suppressed for it. Explicit user
+  // actions leave this false and keep the modal. A ref (not state) is fine: the
+  // loading-modal effect runs on every printerState change, which is set right
+  // after this ref, so the effect reads the current value.
+  const silentConnectRef = useRef(false);
 
   const queryClient = useQueryClient();
   const setPrinterAutoConnectMutation = useMutation(setPrinterAutoConnect, {
@@ -182,6 +188,11 @@ const DefaultPrinterContextProvider = props => {
   async function initializeAndConnectToPrinter(options = {}) {
     if (!defaultPrinter || !PrinterController) return false;
 
+    // Every connect path funnels through here, so set the silent flag once: the
+    // four explicit callers omit `silent` (-> false, modal shows); only the
+    // passive reconnect path passes `silent: true` to skip the blocking modal.
+    silentConnectRef.current = !!options.silent;
+
     await initializePrinter();
     return await connectToPrinter(options);
   }
@@ -195,9 +206,16 @@ const DefaultPrinterContextProvider = props => {
   function reconnectOrPromptForDefaultPrinter() {
     if (!defaultPrinter || !PrinterController) return;
     if (printerStateRef.current === 'connected') return;
+    // A reconnect is already in flight (rapid foreground/background toggling can
+    // fire several of these); don't stack another on top.
+    if (
+      printerStateRef.current === 'initializing' ||
+      printerStateRef.current === 'connecting'
+    )
+      return;
 
     if (defaultPrinter.auto_connect) {
-      initializeAndConnectToPrinter({showFailureDialog: false});
+      initializeAndConnectToPrinter({showFailureDialog: false, silent: true});
     } else {
       // Seed the dialog's checkbox from the stored value as we open it.
       setAutoReconnectChecked(() => !!defaultPrinter.auto_connect);
@@ -434,13 +452,16 @@ const DefaultPrinterContextProvider = props => {
     if (!authState.authToken || !authState.authUser) return;
     if (!defaultPrinter || !PrinterController) return;
 
-    let isLoading =
-      isInitialLoadingDefaultPrinter ||
-      printerState === 'initializing' ||
-      printerState === 'connecting' ||
-      bluetoothState === 'Resetting';
+    // Suppress the blocking modal for passive/silent reconnects so switching
+    // back into the app stays instant; explicit user actions still show it.
+    let isLoadingModal =
+      (isInitialLoadingDefaultPrinter ||
+        printerState === 'initializing' ||
+        printerState === 'connecting' ||
+        bluetoothState === 'Resetting') &&
+      !silentConnectRef.current;
 
-    if (isLoading) {
+    if (isLoadingModal) {
       // make sure no other modal is visible, only loading modal
       setConnectToPrinterDialogVisible(() => false);
       setConnectToPrinterFailedDialogVisible(() => false);

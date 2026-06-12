@@ -19,3 +19,72 @@ index 3bd16c7..0f80973 100644
          versionCode 1
          versionName "1.0"
  
+diff --git a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java
+index 3d21728..b8b2239 100644
+--- a/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java
++++ b/node_modules/@tumihub/react-native-thermal-receipt-printer/android/src/main/java/com/pinmi/react/printer/adapter/BLEPrinterAdapter.java
+@@ -93,8 +93,8 @@ public class BLEPrinterAdapter implements PrinterAdapter{
+     }
+ 
+     @Override
+-    public void selectDevice(PrinterDeviceId printerDeviceId, Callback successCallback, Callback errorCallback) {
+-        BluetoothAdapter bluetoothAdapter = getBTAdapter();
++    public void selectDevice(PrinterDeviceId printerDeviceId, final Callback successCallback, final Callback errorCallback) {
++        final BluetoothAdapter bluetoothAdapter = getBTAdapter();
+         if(bluetoothAdapter == null) {
+             errorCallback.invoke("No bluetooth adapter available");
+             return;
+@@ -113,26 +113,36 @@ public class BLEPrinterAdapter implements PrinterAdapter{
+                 closeConnectionIfExists();
+             }
+         }
+-        Set<BluetoothDevice> pairedDevices = getBTAdapter().getBondedDevices();
+ 
+-        for (BluetoothDevice device : pairedDevices) {
+-            if(device.getAddress().equals(blePrinterDeviceId.getInnerMacAddress())){
+-
+-                try{
+-                    connectBluetoothDevice(device);
+-                    successCallback.invoke(new BLEPrinterDevice(this.mBluetoothDevice).toRNWritableMap());
+-                    return;
+-                }catch (IOException e){
+-                    e.printStackTrace();
+-                    errorCallback.invoke(e.getMessage());
+-                    return;
++        // The RFCOMM socket.connect() below is a synchronous blocking call that
++        // can hang for the full Bluetooth timeout when the printer is off/out of
++        // range. This method runs on React Native's shared NativeModules thread,
++        // so blocking here freezes every other native module (SQLite, storage,
++        // navigation) and the whole app appears stuck. Run the find+connect off
++        // that thread; RN Callbacks are thread-safe to invoke from a worker.
++        final String targetAddress = blePrinterDeviceId.getInnerMacAddress();
++        new Thread(new Runnable() {
++            @Override
++            public void run() {
++                Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
++                for (BluetoothDevice device : pairedDevices) {
++                    if(device.getAddress().equals(targetAddress)){
++                        try{
++                            connectBluetoothDevice(device);
++                            successCallback.invoke(new BLEPrinterDevice(mBluetoothDevice).toRNWritableMap());
++                            return;
++                        }catch (IOException e){
++                            e.printStackTrace();
++                            errorCallback.invoke(e.getMessage());
++                            return;
++                        }
++                    }
+                 }
++                // Note: no Toast here — Toast requires a Looper and would crash on
++                // this worker thread; the JS layer surfaces this error to the user.
++                errorCallback.invoke("Can not find the specified printing device, please perform Bluetooth pairing in the system settings first.");
+             }
+-        }
+-        String errorText = "Can not find the specified printing device, please perform Bluetooth pairing in the system settings first.";
+-        Toast.makeText(this.mContext, errorText, Toast.LENGTH_LONG).show();
+-        errorCallback.invoke(errorText);
+-        return;
++        }).start();
+     }
+ 
+     private void connectBluetoothDevice(BluetoothDevice device) throws IOException{
