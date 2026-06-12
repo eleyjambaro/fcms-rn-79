@@ -88,6 +88,7 @@ export const confirmSaleEntries = async ({
 
   let createdInvoiceId = null;
   let db;
+  let inTransaction = false;
 
   try {
     db = await getDBConnection();
@@ -191,6 +192,12 @@ export const confirmSaleEntries = async ({
         CURRENT_TIMESTAMP
       )
     `;
+
+    // Wrap all writes in a transaction so a failure anywhere (e.g. a bad
+    // INSERT/UPDATE) rolls back the whole sale atomically instead of leaving an
+    // orphaned invoice + sale_logs behind (which would then sync to the cloud).
+    await db.executeSql('BEGIN TRANSACTION;');
+    inTransaction = true;
 
     const createInvoiceResult = await db.executeSql(createInvoiceQuery);
     createdInvoiceId = createInvoiceResult[0]?.rowsAffected > 0 ? newInvoiceId : null;
@@ -545,6 +552,9 @@ export const confirmSaleEntries = async ({
     //   updateItemsLastUnitCostQuery,
     // );
 
+    await db.executeSql('COMMIT;');
+    inTransaction = false;
+
     scheduleSyncSoon();
     onSuccess && onSuccess({salesInvoice});
 
@@ -553,17 +563,13 @@ export const confirmSaleEntries = async ({
       saleItems,
     };
   } catch (error) {
-    // delete created invoice
-    if (createdInvoiceId) {
-      const deleteInvoiceQuery = `
-        UPDATE invoices SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = '${createdInvoiceId}';
-      `;
-
-      const deleteInvoiceResult = await db.executeSql(deleteInvoiceQuery);
-
-      if (deleteInvoiceResult[0].rowsAffected === 0) {
-        throw Error('Failed to delete created invoice.');
+    // Roll back every write from this sale (invoice, sale_logs, inventory_logs,
+    // payments) so a partial failure leaves no orphaned rows to sync.
+    if (inTransaction && db) {
+      try {
+        await db.executeSql('ROLLBACK;');
+      } catch (rollbackError) {
+        console.debug('Rollback failed:', rollbackError);
       }
     }
 
@@ -588,6 +594,7 @@ export const confirmFulfillingSalesOrders = async ({
 
   let createdInvoiceId = null;
   let db;
+  let inTransaction = false;
 
   try {
     db = await getDBConnection();
@@ -695,6 +702,14 @@ export const confirmFulfillingSalesOrders = async ({
       )
     `;
 
+    // Wrap all writes in a transaction so a failure anywhere (e.g. the
+    // fulfilled_order_qty UPDATE) rolls back the whole fulfillment atomically
+    // instead of leaving an orphaned invoice + sale_logs behind (which would
+    // then sync to the cloud — the "failed-fulfillment invoices still appear"
+    // bug).
+    await db.executeSql('BEGIN TRANSACTION;');
+    inTransaction = true;
+
     await db.executeSql(createInvoiceQuery);
     createdInvoiceId = newInvoiceId;
 
@@ -762,14 +777,20 @@ export const confirmFulfillingSalesOrders = async ({
         : 'null';
       let inSizeQty = 1;
       let inSizeQtyUOMAbbrev = item.uom_abbrev;
-      let unitSellingPrice = parseFloat(item.unit_selling_price || 0);
+      // Honor the price recorded ON the order (order_unit_selling_price), not the
+      // item's current unit_selling_price — otherwise a price change between
+      // order creation and fulfillment would persist an amount that differs from
+      // what the order quoted and what the Review Sales screen shows (its
+      // subtotal uses order_unit_selling_price). order_unit_selling_price is set
+      // for every order line (base, size-option, or menu) in
+      // addSaleEntriesToSalesOrders, so it is the correct per-unit price here.
+      let unitSellingPrice = parseFloat(item.order_unit_selling_price || 0);
       let qty = parseFloat(item.saleQty || 0);
       const taxRatePercentage = parseFloat(item.tax_rate_percentage || 0);
 
       if (item.item_modifier_options_count > 0) {
         inSizeQty = parseFloat(item.order_in_size_qty);
         inSizeQtyUOMAbbrev = item.order_in_size_qty_uom_abbrev;
-        unitSellingPrice = parseFloat(item.order_unit_selling_price || 0);
       }
 
       // Selling side uses the item's own sales tax only — no fallback to the
@@ -893,9 +914,11 @@ export const confirmFulfillingSalesOrders = async ({
 
       const totalFulfilledQty = qty + parseFloat(item.fulfilled_order_qty || 0);
 
-      // tmp values
+      // tmp values. order_id is a UUID string, so it MUST be quoted — an
+      // unquoted UUID makes SQLite parse it as an expression and choke on the
+      // hex-looking token (e.g. "2ac0"), failing the fulfilled_order_qty UPDATE.
       tmpValues += `(
-        ${item.order_id},
+        '${item.order_id}',
         ${totalFulfilledQty}
       )`;
 
@@ -1025,6 +1048,9 @@ export const confirmFulfillingSalesOrders = async ({
     );
     const salesInvoice = getCreatedSalesInvoiceResult[0].rows.item(0);
 
+    await db.executeSql('COMMIT;');
+    inTransaction = false;
+
     scheduleSyncSoon();
     onSuccess && onSuccess({salesInvoice});
 
@@ -1033,16 +1059,15 @@ export const confirmFulfillingSalesOrders = async ({
       saleItems,
     };
   } catch (error) {
-    // delete created invoice
-    if (createdInvoiceId) {
-      // const deleteInvoiceQuery = `
-      //   DELETE FROM invoices
-      //   WHERE id = '${createdInvoiceId}';
-      // `;
-      // const deleteInvoiceResult = await db.executeSql(deleteInvoiceQuery);
-      // if (deleteInvoiceResult[0].rowsAffected === 0) {
-      //   throw Error('Failed to delete created invoice.');
-      // }
+    // Roll back every write from this fulfillment (invoice, sale_logs,
+    // inventory_logs, payments, sales_orders update) so a partial failure
+    // leaves no orphaned rows to sync.
+    if (inTransaction && db) {
+      try {
+        await db.executeSql('ROLLBACK;');
+      } catch (rollbackError) {
+        console.debug('Rollback failed:', rollbackError);
+      }
     }
 
     console.debug(error);
@@ -1064,6 +1089,7 @@ export const addSaleEntriesToSalesOrders = async ({
 
   let createdSalesOrderGroupId = null;
   let db;
+  let inTransaction = false;
 
   try {
     db = await getDBConnection();
@@ -1157,6 +1183,12 @@ export const addSaleEntriesToSalesOrders = async ({
       )
     `;
 
+    // Wrap all writes in a transaction so a failure anywhere rolls back the
+    // whole sales order atomically instead of leaving an orphaned
+    // sales_order_groups row (with no sales_orders) behind to sync.
+    await db.executeSql('BEGIN TRANSACTION;');
+    inTransaction = true;
+
     await db.executeSql(createSalesOrderGroupQuery);
     createdSalesOrderGroupId = newSalesOrderGroupId;
 
@@ -1218,6 +1250,30 @@ export const addSaleEntriesToSalesOrders = async ({
         unitSellingPrice = parseFloat(item.option_selling_price || 0);
       }
 
+      if (item.menu_id) {
+        inSizeQty = parseFloat(item.in_menu_qty);
+
+        if (item.option_id) {
+          inSizeQtyUOMAbbrev = item.in_option_qty_uom_abbrev;
+          unitSellingPrice = parseFloat(item.option_selling_price || 0);
+        } else {
+          // Menu item with no selling size option: order in the item's own UOM
+          // at its base unit_selling_price. Mirrors confirmSaleEntries.
+          inSizeQtyUOMAbbrev = item.uom_abbrev;
+          unitSellingPrice = parseFloat(item.unit_selling_price || 0);
+        }
+      }
+
+      // The product item id to record on sales_orders. For a selling-menu sale
+      // item, item.id is the selling_menu_items row id (from
+      // getAllSellingMenuItems' `selling_menu_items.id AS id`), so the actual
+      // product id lives in item.item_id; regular items carry the product id in
+      // item.id. Using item.id directly for menu items would write a non-
+      // existent item_id, hiding the line from the Sales Order view (its INNER
+      // JOIN on items drops it) — the empty-order-list bug. Mirrors
+      // confirmSaleEntries' resolvedItemId.
+      const resolvedItemId = item.menu_id ? item.item_id : item.id;
+
       const unitSellingPriceNet =
         unitSellingPrice / (taxRatePercentage / 100 + 1);
       const unitSellingPriceTax = unitSellingPrice - unitSellingPriceNet;
@@ -1232,7 +1288,7 @@ export const addSaleEntriesToSalesOrders = async ({
       const newSalesOrderId = uuid.v4();
       insertSalesOrdersQuery += `(
         '${newSalesOrderId}',
-        '${item.id}',
+        '${resolvedItemId}',
         ${taxId},
         ${customerId},
         ${unitSellingPrice},
@@ -1290,6 +1346,9 @@ export const addSaleEntriesToSalesOrders = async ({
     //   updateItemsLastUnitCostQuery,
     // );
 
+    await db.executeSql('COMMIT;');
+    inTransaction = false;
+
     scheduleSyncSoon();
     onSuccess && onSuccess();
 
@@ -1298,19 +1357,13 @@ export const addSaleEntriesToSalesOrders = async ({
       saleItems,
     };
   } catch (error) {
-    // delete created sales order group
-    if (createdSalesOrderGroupId) {
-      const deleteSalesOrderGroupQuery = `
-        UPDATE sales_order_groups SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = '${createdSalesOrderGroupId}';
-      `;
-
-      const deleteSalesOrderGroupResult = await db.executeSql(
-        deleteSalesOrderGroupQuery,
-      );
-
-      if (deleteSalesOrderGroupResult[0].rowsAffected === 0) {
-        throw Error('Failed to delete created sales order group.');
+    // Roll back the sales_order_groups row and its sales_orders so a partial
+    // failure leaves no orphaned rows to sync.
+    if (inTransaction && db) {
+      try {
+        await db.executeSql('ROLLBACK;');
+      } catch (rollbackError) {
+        console.debug('Rollback failed:', rollbackError);
       }
     }
 

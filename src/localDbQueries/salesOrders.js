@@ -232,6 +232,20 @@ export const getSalesOrderGroupItems = async ({queryKey, pageParam = 1}) => {
       sales_orders.order_qty AS order_qty,
       sales_orders.order_unit_selling_price * sales_orders.order_qty AS subtotal_amount,
       sales_orders.meta_use_measurement_per_piece AS use_measurement_per_piece,
+      /*
+       * Surface the sales tax captured ON the order (at order-creation time) under
+       * the field names the sales-counter pipeline expects, so fulfillment matches
+       * a regular sale: the E/T marker (SalesRegisterTicketItemListItem), the
+       * Taxable/Tax-Exempt/Tax breakdown (SalesCounterContextProvider), and the
+       * persisted sale_logs tax (confirmFulfillingSalesOrders) all read these.
+       * Without them every fulfilled line falls back to undefined => tax-exempt,
+       * mislabeling the marker, the breakdown, the printed receipt, and the Sales
+       * Invoice. Using the order's recorded tax (not the item's current sales_tax_id)
+       * honors what was quoted when the order was placed.
+       */
+      sales_orders.ref_tax_id AS sales_tax_id_effective,
+      sales_orders.order_tax_rate_percentage AS sales_tax_rate_percentage,
+      sales_orders.order_tax_name AS sales_tax_name,
       inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty AS current_stock_qty
     `;
     const countAllQuery = `SELECT COUNT(*) `;
