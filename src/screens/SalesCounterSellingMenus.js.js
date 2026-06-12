@@ -65,7 +65,10 @@ const SalesCounterSellingMenus = props => {
       </View>
 
       <View style={{flex: 1}}>
-        <SalesCounterSellingMenuList />
+        <SalesCounterSellingMenuList
+          filter={listFilter}
+          counterMode={counterMode}
+        />
       </View>
 
       {showActionButtons && (
