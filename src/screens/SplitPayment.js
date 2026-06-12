@@ -17,6 +17,15 @@ import {
 } from '../localDbQueries/salesCounter';
 import routes from '../constants/routes';
 import TestModeLimitModal from '../components/modals/TestModeLimitModal';
+import useDefaultPrinterContext from '../hooks/useDefaultPrinterContext';
+import useCloudAuthContext from '../hooks/useCloudAuthContext';
+import useCurrencySymbol from '../hooks/useCurrencySymbol';
+import {printSalesInvoice} from '../utils/printHelpers';
+import {
+  getCashierDisplayName,
+  getPaymentBreakdownFromFormValues,
+} from '../utils/stringHelpers';
+import {runSync} from '../services/syncService';
 
 const SplitPayment = props => {
   const {route} = props;
@@ -28,6 +37,10 @@ const SplitPayment = props => {
   const navigation = useNavigation();
   const {colors} = useTheme();
   const [{saleTotals, saleItems}, actions] = useSalesCounterContext();
+  const {isLoading: isLoadingDefaultPrinter, printText} =
+    useDefaultPrinterContext();
+  const [cloudAuthState] = useCloudAuthContext();
+  const currencySymbol = useCurrencySymbol();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [limitReachedMessage, setLimitReachedMessage] = useState('');
@@ -69,6 +82,39 @@ const SplitPayment = props => {
     return listData;
   };
 
+  const printReceipt = async ({
+    salesInvoice,
+    salesInvoiceItems,
+    paymentFormValues,
+  }) => {
+    if (isLoadingDefaultPrinter) {
+      return;
+    }
+
+    // Receipt header sourced from cloud auth context (offline-safe, from secure
+    // storage): full company name, branch name, and branch address.
+    const {authUser, designatedBranch, deviceCompanyInfo} = cloudAuthState;
+    const company = {
+      name: deviceCompanyInfo?.name ?? authUser?.company?.name ?? '',
+      branch_name: designatedBranch?.name ?? '',
+      branch_address: designatedBranch?.address ?? '',
+    };
+
+    // printText is self-sufficient: it ensures Bluetooth is on and the printer
+    // is connected (reading the live BT state), then prints.
+    await printText(
+      printSalesInvoice({
+        salesInvoice,
+        salesInvoiceItems,
+        salesInvoiceTotals: saleTotals,
+        payment: getPaymentBreakdownFromFormValues(paymentFormValues),
+        cashier: getCashierDisplayName(authUser?.account),
+        company,
+        currencySymbol,
+      }),
+    );
+  };
+
   const handleConfirmSaleEntries = async (
     items,
     paymentFormValues,
@@ -83,8 +129,14 @@ const SplitPayment = props => {
         onLimitReached: ({message}) => {
           setLimitReachedMessage(() => message);
         },
-        onSuccess: () => {
+        onSuccess: async ({salesInvoice}) => {
           actions?.resetSalesCounter();
+
+          await printReceipt({
+            salesInvoice,
+            salesInvoiceItems: items,
+            paymentFormValues,
+          });
 
           // Pop back to the previous screen (e.g. Sales Register) and merge
           // params. popTo (not navigate) removes the payment screens from the
@@ -98,6 +150,7 @@ const SplitPayment = props => {
             {salesConfirmationSuccess: Date.now().toString()},
             {merge: true},
           );
+          runSync().catch(console.warn);
         },
       });
     } catch (error) {
