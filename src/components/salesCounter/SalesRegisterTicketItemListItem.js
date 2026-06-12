@@ -66,35 +66,27 @@ const SalesRegisterTicketItemListItem = props => {
   };
 
   const renderUnitSellingPrice = () => {
-    let textContent = (
-      <>
-        <Text
-          style={{
-            color: colors.neutralTint2,
-            fontStyle: 'italic',
-          }}>{`@ ${currencySymbol} ${commaNumber(
-          parseFloat(item?.unit_selling_price || 0).toFixed(2),
-        )}`}</Text>
-        <Text style={{fontStyle: 'italic'}}>{` / ${formatUOMAbbrev(
-          item?.uom_abbrev,
-        )}`}</Text>
-      </>
-    );
+    // Pick the unit price to display:
+    // - Sales-order fulfillment lines carry the price quoted at order time on
+    //   order_unit_selling_price. The item's base unit_selling_price is often 0
+    //   for size-priced items, so using it here renders "@ 0.00" (the Review
+    //   Sales fulfilling-order bug). Mirrors the subtotal computed in
+    //   updateSaleItemFromSalesOrder, which also uses order_unit_selling_price.
+    // - Regular size-option lines use option_selling_price.
+    // - Everything else uses the item's base unit_selling_price.
+    const isSalesOrderLine = item?.order_unit_selling_price != null;
+    let unitSellingPrice = item?.unit_selling_price;
 
-    if (item.option_name) {
-      textContent = (
-        <>
-          <Text
-            style={{
-              color: colors.neutralTint2,
-              fontStyle: 'italic',
-            }}>{`@ ${currencySymbol} ${commaNumber(
-            parseFloat(item?.option_selling_price || 0).toFixed(2),
-          )}`}</Text>
-          {/* <Text style={{fontStyle: 'italic'}}>{` each`}</Text> */}
-        </>
-      );
+    if (isSalesOrderLine) {
+      unitSellingPrice = item?.order_unit_selling_price;
+    } else if (item.option_name) {
+      unitSellingPrice = item?.option_selling_price;
     }
+
+    // Size-priced lines (a regular size option, or a sales order placed with a
+    // size) omit the "/ uom" suffix because the price is per size, not per uom.
+    const isSizePriced = item.option_name || item.order_size_name;
+
     return (
       <View
         style={{
@@ -102,7 +94,18 @@ const SalesRegisterTicketItemListItem = props => {
           alignItems: 'center',
           marginLeft: 'auto',
         }}>
-        {textContent}
+        <Text
+          style={{
+            color: colors.neutralTint2,
+            fontStyle: 'italic',
+          }}>{`@ ${currencySymbol} ${commaNumber(
+          parseFloat(unitSellingPrice || 0).toFixed(2),
+        )}`}</Text>
+        {!isSizePriced && (
+          <Text style={{fontStyle: 'italic'}}>{` / ${formatUOMAbbrev(
+            item?.uom_abbrev,
+          )}`}</Text>
+        )}
       </View>
     );
   };

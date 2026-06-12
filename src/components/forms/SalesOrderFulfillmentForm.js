@@ -53,6 +53,11 @@ const SalesOrderFulfillmentForm = props => {
   } = formik;
 
   const renderOrderSizeAndQuantity = (renderQty = false) => {
+    // Items ordered without a size have no order_size_name. Render nothing for
+    // them here instead of the literal string "null" (which was showing below
+    // the item name in the fulfillment modal).
+    if (!item.order_size_name && !renderQty) return null;
+
     let textValue = `${commaNumber(
       parseFloat(item.order_qty || 0).toFixed(item.order_qty % 1 ? 2 : 0),
     )} ${formatUOMAbbrev(item.uom_abbrev)}`;
@@ -70,12 +75,15 @@ const SalesOrderFulfillmentForm = props => {
           marginRight: 'auto',
           flexDirection: 'row',
         }}>
-        <Text style={{fontSize: 16, fontWeight: '500', marginRight: 5}}>
-          {`${item.order_size_name}`}
-        </Text>
+        {item.order_size_name && (
+          <Text style={{fontSize: 16, fontWeight: '500', marginRight: 5}}>
+            {`${item.order_size_name}`}
+          </Text>
+        )}
         {renderQty && (
-          <Text
-            style={{fontSize: 16, fontWeight: '500'}}>{`: ${textValue}`}</Text>
+          <Text style={{fontSize: 16, fontWeight: '500'}}>{`${
+            item.order_size_name ? ': ' : ''
+          }${textValue}`}</Text>
         )}
       </View>
     );
