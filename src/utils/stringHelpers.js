@@ -246,6 +246,33 @@ export const extractNumber = value => {
   return text.replace(/[^0-9\.-]+/g, '');
 };
 
+// Sanitizes a currency amount text input: digits, at most one decimal point,
+// and at most 2 decimal places. Returns a STRING so in-progress values like
+// "100." and "100.50" (trailing zero) are preserved exactly while typing.
+//
+// Never round-trip an amount input back through parseFloat on every keystroke
+// (e.g. `commaNumber(parseFloat(value))`): parseFloat("100.") is 100, so the
+// decimal point gets dropped the instant it's typed and the following digits
+// concatenate onto the integer part — the Split Payment "100.50 → 10050" bug.
+export const sanitizeAmountInput = value => {
+  if (value === null || value === undefined) return '';
+
+  let text = value.toString().replace(/[^0-9.]/g, '');
+
+  const firstDot = text.indexOf('.');
+  if (firstDot !== -1) {
+    const intPart = text.slice(0, firstDot);
+    // Drop any further dots and cap the decimals at 2 places.
+    const decPart = text
+      .slice(firstDot + 1)
+      .replace(/\./g, '')
+      .slice(0, 2);
+    text = `${intPart}.${decPart}`;
+  }
+
+  return text;
+};
+
 export const padNumber = (num = 0, pad = '0000000000') => {
   const str = '' + num;
   const ans = pad.substring(0, pad.length - str.length) + str;

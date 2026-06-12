@@ -6,7 +6,26 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import {Dropdown} from 'react-native-paper-dropdown';
 
 import useCurrencySymbol from '../../../hooks/useCurrencySymbol';
-import {extractNumber, formatUOMAbbrev} from '../../../utils/stringHelpers';
+import {sanitizeAmountInput, formatUOMAbbrev} from '../../../utils/stringHelpers';
+
+// Thousands-separates the integer part while preserving the decimal portion
+// exactly as typed (including a trailing dot or trailing zero), so comma
+// formatting never fights decimal entry.
+const formatAmountForInput = value => {
+  if (value === null || value === undefined || value === '') return '';
+
+  const text = value.toString();
+  const dotIndex = text.indexOf('.');
+
+  if (dotIndex === -1) {
+    return commaNumber(text);
+  }
+
+  const intPart = text.slice(0, dotIndex);
+  const decPart = text.slice(dotIndex + 1);
+
+  return `${intPart === '' ? '' : commaNumber(intPart)}.${decPart}`;
+};
 
 const SplitPaymentList = props => {
   const {
@@ -89,8 +108,10 @@ const SplitPaymentList = props => {
           <TextInput
             label="Amount"
             onChangeText={value => {
-              const extractedValue = extractNumber(value);
-              const amount = extractedValue ? parseFloat(extractedValue) : '';
+              // Keep the sanitized text (a string) as the field value so
+              // in-progress decimals like "100." and "100.50" are preserved.
+              // The total is parsed from it in getSplitPaymentsAndTotals.
+              const amount = sanitizeAmountInput(value);
 
               let updatedListItem = {
                 ...listItem,
@@ -101,7 +122,7 @@ const SplitPaymentList = props => {
                 handleChangeListItemValue(updatedListItem);
             }}
             onBlur={() => {}}
-            value={commaNumber(listItem?.payment_amount)?.toString() || ''}
+            value={formatAmountForInput(listItem?.payment_amount)}
             keyboardType="numeric"
           />
         </View>

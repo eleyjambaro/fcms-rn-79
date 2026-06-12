@@ -73,7 +73,10 @@ const SplitPaymentForm = props => {
       let payment = values.payments[key];
       paymentsArray.push({id: key, ...payment});
 
-      paymentsTotalAmount = paymentsTotalAmount + payment.payment_amount;
+      // payment_amount is the raw sanitized text from the input (e.g. "100.50"),
+      // so parse it before summing — otherwise "+" string-concatenates.
+      paymentsTotalAmount =
+        paymentsTotalAmount + (parseFloat(payment.payment_amount) || 0);
     }
 
     if (paymentsTotalAmount < totalAmountDue) {
