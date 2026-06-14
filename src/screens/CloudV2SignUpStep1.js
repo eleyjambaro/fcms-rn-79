@@ -13,6 +13,7 @@ import * as Yup from 'yup';
 import routes from '../constants/routes';
 import appDefaults from '../constants/appDefaults';
 import CloudAppIcon from '../components/icons/CloudAppIcon';
+import LegalLinksFooter from '../components/cloudAccount/LegalLinksFooter';
 
 const schema = Yup.object({
   company_name: Yup.string().required('Company name is required'),
@@ -128,6 +129,8 @@ const CloudV2SignUpStep1 = ({navigation}) => {
           </View>
         )}
       </Formik>
+
+      <LegalLinksFooter />
     </ScrollView>
   );
 };

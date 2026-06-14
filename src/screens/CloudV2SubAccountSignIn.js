@@ -18,6 +18,7 @@ import {signIn} from '../serverDbQueries/v2/auth';
 import routes from '../constants/routes';
 import appDefaults from '../constants/appDefaults';
 import CloudAppIcon from '../components/icons/CloudAppIcon';
+import LegalLinksFooter from '../components/cloudAccount/LegalLinksFooter';
 
 const schema = Yup.object({
   email: Yup.string()
@@ -227,6 +228,8 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
           </Text>
         </Pressable>
       </View>
+
+      <LegalLinksFooter />
     </ScrollView>
   );
 };
