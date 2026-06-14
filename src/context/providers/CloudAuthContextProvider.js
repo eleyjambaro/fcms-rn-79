@@ -28,7 +28,7 @@ import {
 } from '../../services/syncService';
 import {getCloudCompany} from '../../serverDbQueries/v2/companies';
 import {getDeviceCompanyInfo} from '../../serverDbQueries/v2/devices';
-import {getMe} from '../../serverDbQueries/v2/auth';
+import {getMe, logout} from '../../serverDbQueries/v2/auth';
 import {setOnUnauthorized} from '../../api/cloudApiV2';
 
 const {
@@ -370,7 +370,9 @@ const CloudAuthContextProvider = ({children}) => {
       if (sessionExpiredHandledRef.current) return;
       sessionExpiredHandledRef.current = true;
       setExpiredAuthTokenDialogVisible(true);
-      signOutRef.current?.();
+      // Token is already dead on the 401 path — skip server revocation (it would
+      // just 401 again and re-enter this handler).
+      signOutRef.current?.({revokeServer: false});
     });
     return () => setOnUnauthorized(null);
   }, []);
@@ -536,7 +538,26 @@ const CloudAuthContextProvider = ({children}) => {
         });
       },
 
-      signOut: async () => {
+      signOut: async ({revokeServer = true} = {}) => {
+        // Best-effort server-side token revocation so a user-initiated sign-out
+        // kills the token immediately instead of leaving it valid until it
+        // expires. Skipped on the 401 path (revokeServer: false) where the token
+        // is already invalid. Must run BEFORE clearing the token from secure
+        // storage, since logout() reads the bearer from there.
+        if (revokeServer) {
+          // Suppress the global 401 handler for this deliberate sign-out: if the
+          // token is already dead, logout()'s 401 must not pop the session-expired
+          // dialog or re-enter signOut. The latch resets on the next sign-in.
+          sessionExpiredHandledRef.current = true;
+          try {
+            await logout();
+          } catch (error) {
+            console.debug(
+              '[CloudAuthContextProvider] server logout failed (ignored):',
+              error,
+            );
+          }
+        }
         try {
           await saveItem(cloudV2AuthToken, null);
           await saveItem(cloudV2AuthUser, null);

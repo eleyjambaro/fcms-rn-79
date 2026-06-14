@@ -1,6 +1,7 @@
 import cloudApiV2 from '../../api/cloudApiV2';
 import SecureStorage from 'react-native-fast-secure-storage';
 import {rnStorageKeys} from '../../constants/rnSecureStorageKeys';
+import deviceInfo from '../../lib/deviceInfo';
 
 const getAuthHeaders = async () => {
   try {
@@ -13,13 +14,30 @@ const getAuthHeaders = async () => {
   }
 };
 
+// Stable per-install client identifier sent on auth requests. The server uses it
+// as the Sanctum token name and rotates only THIS client's token on sign-in, so
+// the mobile app and the web app (and other devices) keep independent sessions
+// instead of logging each other out. Derived from the physical device id, which
+// is available even before device registration. Best-effort: when unavailable
+// the field is omitted and the server falls back to a shared token name.
+const getClientId = async () => {
+  try {
+    const physicalId = await deviceInfo.getPhysicalDeviceId();
+    return physicalId ? `mobile:${physicalId}` : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export const signUp = async values => {
-  const {data} = await cloudApiV2.post('/api/v2/auth/signup', values);
+  const client_id = await getClientId();
+  const {data} = await cloudApiV2.post('/api/v2/auth/signup', {...values, client_id});
   return data;
 };
 
 export const signIn = async values => {
-  const {data} = await cloudApiV2.post('/api/v2/auth/signin', values);
+  const client_id = await getClientId();
+  const {data} = await cloudApiV2.post('/api/v2/auth/signin', {...values, client_id});
   return data;
 };
 
@@ -29,10 +47,12 @@ export const requestOtp = async email => {
 };
 
 export const verifyOtp = async ({email, otp, request_id}) => {
+  const client_id = await getClientId();
   const {data} = await cloudApiV2.post('/api/v2/auth/verify-otp', {
     email,
     otp,
     request_id,
+    client_id,
   });
   return data;
 };
