@@ -105,8 +105,6 @@ export const saveRecipe = async ({
     group_name,
     name,
     yield,
-    markup_percentage,
-    markup_amount,
     date_saved,
     device_id,
     branch_id,
@@ -122,8 +120,6 @@ export const saveRecipe = async ({
     ${groupName},
     '${values.name.replace(/\'/g, "''")}',
     ${parseFloat(values.yield || 1)},
-    ${parseFloat(values.markup_percentage || 0)},
-    ${parseFloat(values.markup_amount || 0)},
     datetime('now'),
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
@@ -161,8 +157,6 @@ export const saveRecipe = async ({
         group_name = '${values.group_name.replace(/\'/g, "''")}',
         name = '${values.name.replace(/\'/g, "''")}',
         yield = ${parseFloat(values.yield || 1)},
-        markup_percentage = ${parseFloat(values.markup_percentage || 0)},
-        markup_amount = ${parseFloat(values.markup_amount || 0)},
         date_saved = datetime('now'),
         updated_at = CURRENT_TIMESTAMP
         WHERE id = '${currentRecipeId}'
@@ -210,93 +204,6 @@ export const saveRecipe = async ({
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create recipe.');
-  }
-};
-
-export const saveSubRecipe = async ({values}) => {
-  const groupName = values.groupName
-    ? `'${values.groupName.replace(/\'/g, "''")}'`
-    : 'null';
-  try {
-    const db = await getDBConnection();
-    const {deviceId, branchId} = await getCloudSyncParams();
-    const newRecipeId = uuid.v4();
-    const createRecipeQuery = `INSERT INTO recipes (
-    id,
-    is_draft,
-    group_name,
-    name,
-    yield,
-    date_saved,
-    device_id,
-    branch_id,
-    sync_id,
-    updated_at
-  )
-
-  VALUES(
-    '${newRecipeId}',
-    0,
-    ${groupName},
-    '${values.name.replace(/\'/g, "''")}',
-    ${parseFloat(values.yield || 1)},
-    datetime('now'),
-    ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'},
-    '${newRecipeId}',
-    CURRENT_TIMESTAMP
-  );`;
-
-    // check if there's an existing unsaved sub recipe
-    let currentSubRecipeId = await AsyncStorage.getItem('currentSubRecipeId');
-
-    if (currentSubRecipeId) {
-      const updateAndSaveUnsavedSubRecipeQuery = `
-        UPDATE recipes
-        SET is_draft = 0,
-        group_name = '${values.group_name.replace(/\'/g, "''")}',
-        name = '${values.name.replace(/\'/g, "''")}',
-        yield = ${parseFloat(values.yield || 1)},
-        date_saved = datetime('now'),
-        updated_at = CURRENT_TIMESTAMP
-        WHERE id = '${currentSubRecipeId}'
-      `;
-
-      // check if recipe has ingredients
-      let hasIngredient = false;
-      const isRecipeHasIngredientQuery = `SELECT * FROM active_ingredients ingredients WHERE recipe_id = '${currentSubRecipeId}'`;
-      const isRecipeHasIngredientResult = await db.executeSql(
-        isRecipeHasIngredientQuery,
-      );
-
-      if (isRecipeHasIngredientResult[0].rows.length > 0) {
-        hasIngredient = true;
-      } else {
-        hasIngredient = false;
-      }
-
-      if (!hasIngredient) {
-        throw Error('Recipe with no ingredient cannot be saved');
-      }
-
-      const updateAndSaveUnsavedSubRecipeResult = await db.executeSql(
-        updateAndSaveUnsavedSubRecipeQuery,
-      );
-
-      if (updateAndSaveUnsavedSubRecipeResult[0].rowsAffected === 0) {
-        throw Error('Failed to update and save unsaved sub recipe');
-      }
-    } else {
-      // create new sub recipe
-      await db.executeSql(createRecipeQuery);
-    }
-
-    // remove unsaved recipe ID from storage
-    await AsyncStorage.removeItem('currentSubRecipeId');
-    scheduleSyncSoon();
-  } catch (error) {
-    console.debug(error);
-    throw Error('Failed to create sub recipe.');
   }
 };
 
@@ -582,8 +489,6 @@ export const updateRecipe = async ({id, updatedValues}) => {
     recipe_kind_id = ${recipeKindId},
     name = '${updatedValues.name.replace(/\'/g, "''")}',
     yield = ${parseFloat(updatedValues.yield || 1)},
-    markup_percentage = ${parseFloat(updatedValues.markup_percentage || 0)},
-    markup_amount = ${parseFloat(updatedValues.markup_amount || 0)},
     updated_at = CURRENT_TIMESTAMP
     WHERE id = '${id}'
   `;

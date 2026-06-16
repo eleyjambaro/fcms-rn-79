@@ -70,7 +70,6 @@ export const routes = {
   createRecipe: () => 'CreateRecipe',
   editRecipe: () => 'EditRecipe',
   recipeKind: () => 'RecipeKind',
-  createSubRecipe: () => 'CreateSubRecipe',
   selectRecipeIngredient: () => 'SelectRecipeIngredient',
   produceFinishedProductStock: () => 'ProduceFinishedProductStock',
   revenues: () => 'Revenues',

@@ -27,11 +27,10 @@ import StockUsageHistory from '../modals/StockUsageHistory';
 import StockUsageHistoryView from '../modals/StockUsageHistoryView';
 import ItemPurchaseEntries from '../modals/ItemPurchaseEntries';
 
-import Recipes, {ServingRecipes} from '../screens/Recipes';
+import {ServingRecipes} from '../screens/Recipes';
 import RecipeView from '../modals/RecipeView';
 import CreateRecipe from '../modals/CreateRecipe';
 import RecipeKind from '../modals/RecipeKind';
-import CreateSubRecipe from '../modals/CreateSubRecipe';
 import SelectRecipeIngredient from '../modals/SelectRecipeIngredient';
 
 import Purchases from '../screens/Purchases';
@@ -132,7 +131,6 @@ const MemoizedCreateRecipe = React.memo(CreateRecipe);
 const MemoizedEditRecipe = React.memo(EditRecipe);
 const MemoizedRecipeView = React.memo(RecipeView);
 const MemoizedRecipeKind = React.memo(RecipeKind);
-const MemoizedCreateSubRecipe = React.memo(CreateSubRecipe);
 const MemoizedSelectRecipeIngredient = React.memo(SelectRecipeIngredient);
 const MemoizedProduceFinishedProductStock = React.memo(
   ProduceFinishedProductStock,
@@ -303,11 +301,6 @@ const RootStack = () => {
           name={routes.recipeKind()}
           component={MemoizedRecipeKind}
           options={{headerTitle: 'Recipe Kind'}}
-        />
-        <Stack.Screen
-          name={routes.createSubRecipe()}
-          component={MemoizedCreateSubRecipe}
-          options={{headerTitle: 'Create Sub Recipe'}}
         />
         <Stack.Screen
           name={routes.selectRecipeIngredient()}

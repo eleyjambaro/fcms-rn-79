@@ -66,8 +66,6 @@ const EditRecipe = () => {
     group_name: recipe.group_name || '',
     name: recipe.name || '',
     yield: recipe.yield?.toString() || '',
-    markup_percentage: recipe.markup_percentage?.toString() || '0',
-    markup_amount: recipe.markup_amount?.toString() || '0',
   };
 
   return (
