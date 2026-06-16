@@ -89,6 +89,9 @@ export const saveRecipe = async ({
   const groupName = values.groupName
     ? `'${values.groupName.replace(/\'/g, "''")}'`
     : 'null';
+  const recipeKindId = values.recipe_kind_id
+    ? `'${values.recipe_kind_id}'`
+    : 'NULL';
 
   try {
     const db = await getDBConnection();
@@ -98,6 +101,7 @@ export const saveRecipe = async ({
     id,
     is_draft,
     is_sub_recipe,
+    recipe_kind_id,
     group_name,
     name,
     yield,
@@ -114,6 +118,7 @@ export const saveRecipe = async ({
     '${newRecipeId}',
     0,
     0,
+    ${recipeKindId},
     ${groupName},
     '${values.name.replace(/\'/g, "''")}',
     ${parseFloat(values.yield || 1)},
@@ -152,6 +157,7 @@ export const saveRecipe = async ({
       const updateAndSaveUnsavedRecipeQuery = `
         UPDATE recipes
         SET is_draft = 0,
+        recipe_kind_id = ${recipeKindId},
         group_name = '${values.group_name.replace(/\'/g, "''")}',
         name = '${values.name.replace(/\'/g, "''")}',
         yield = ${parseFloat(values.yield || 1)},
@@ -540,7 +546,15 @@ export const getAllRecipesWithAllIngredientsTotal = async ({
 
 export const getRecipe = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM active_recipes recipes WHERE id = '${id}'`;
+  // LEFT JOIN exposes recipe_kind_name for display; recipe_kinds.name is
+  // aliased so it never collides with recipes.name (recipes.* keeps its own).
+  const query = `
+    SELECT recipes.*, recipe_kinds.name AS recipe_kind_name
+    FROM active_recipes recipes
+    LEFT JOIN active_recipe_kinds recipe_kinds
+      ON recipe_kinds.id = recipes.recipe_kind_id
+    WHERE recipes.id = '${id}'
+  `;
 
   try {
     const db = await getDBConnection();
@@ -559,9 +573,13 @@ export const updateRecipe = async ({id, updatedValues}) => {
   const groupName = updatedValues.group_name
     ? `'${updatedValues.group_name.replace(/\'/g, "''")}'`
     : 'null';
+  const recipeKindId = updatedValues.recipe_kind_id
+    ? `'${updatedValues.recipe_kind_id}'`
+    : 'NULL';
   const updateRecipeQuery = `
     UPDATE recipes
     SET group_name = ${groupName},
+    recipe_kind_id = ${recipeKindId},
     name = '${updatedValues.name.replace(/\'/g, "''")}',
     yield = ${parseFloat(updatedValues.yield || 1)},
     markup_percentage = ${parseFloat(updatedValues.markup_percentage || 0)},

@@ -62,6 +62,7 @@ const EditRecipe = () => {
   if (!recipe) return null;
 
   const initialValues = {
+    recipe_kind_id: recipe.recipe_kind_id || '',
     group_name: recipe.group_name || '',
     name: recipe.name || '',
     yield: recipe.yield?.toString() || '',

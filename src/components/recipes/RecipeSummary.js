@@ -160,6 +160,17 @@ const RecipeSummary = props => {
         </View>
       </View>
 
+      {recipe.recipe_kind_name ? (
+        <View style={{flexDirection: 'row', marginTop: 6}}>
+          <Chip
+            icon="chef-hat"
+            style={{alignSelf: 'flex-start'}}
+            textStyle={{fontSize: 12}}>
+            {recipe.recipe_kind_name}
+          </Chip>
+        </View>
+      ) : null}
+
       {renderRecipeDetails()}
 
       <PermissionGate permission="recipes.yield">

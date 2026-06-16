@@ -217,6 +217,13 @@ The IDT is the Excel file users download to bulk-import inventory items. The ful
 
 4. **Required vs optional missing columns.** A `required: true` column missing from the header row makes the importer abort with a clear user-facing message naming the missing header(s) — no rows are inserted. An optional column missing is treated as empty string `''` for every row and the import proceeds. Unknown extra columns in the user's file are ignored.
 
+### Recipes (domain model)
+
+- **"Sub-recipe" is legacy — conceptually it no longer exists.** Every registered finished product is *automatically* a sub-recipe: a recipe's finished product is a registered, stockable item (it increases yield) and that item can itself be used as an ingredient in another recipe — which is exactly what a sub-recipe is. Don't build new features on the distinction. The dedicated sub-recipe UI (`/src/modals/CreateSubRecipe.js`, `/src/components/forms/SubRecipeForm.js`, `/src/components/recipes/SubRecipeList.js`/`SubRecipeListItem.js`) and the `recipes.is_sub_recipe` / `items.is_sub_recipe` columns are back-compat only.
+- **Markup is NOT set at the recipe level.** Add markup/SRP on the registered finished-product *item* — it's the real sellable entity. The `recipes.markup_percentage` / `markup_amount` columns (still written by `saveRecipe`/`updateRecipe` in `/src/localDbQueries/recipes.js`) are legacy; don't surface or extend recipe-level markup.
+- **Recipe kind** is the current way to categorize recipes (parity with web). It is wired into `RecipeForm` (create + edit) via the kind picker → `RecipeKind` modal (`/src/modals/RecipeKind.js`), persisted as `recipes.recipe_kind_id`, and managed through `/src/localDbQueries/recipeKinds.js` (`recipe_kinds` is a delta-sync table). Display name comes from a `LEFT JOIN active_recipe_kinds` in `getRecipe`.
+- Removing the legacy sub-recipe/markup UI is **deferred** (recipe UX is still changing); don't rip it out unless asked. The User Guide is intentionally not updated for this yet.
+
 ### Navigation Structure
 
 Five navigation stacks in `/src/stacks/`:

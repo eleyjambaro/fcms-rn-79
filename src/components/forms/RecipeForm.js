@@ -20,7 +20,6 @@ import {
 } from '@tanstack/react-query';
 
 import routes from '../../constants/routes';
-import {recipeKinds} from '../../__dummyData';
 import MoreSelectionButton from '../buttons/MoreSelectionButton';
 import useRecipeFormContext from '../../hooks/useRecipeFormContext';
 import useAddedIngredientsContext from '../../hooks/useAddedIngredientsContext';
@@ -158,6 +157,7 @@ const RecipeForm = props => {
           handleChange,
           handleBlur,
           handleSubmit,
+          setFieldValue,
           values,
           errors,
           touched,
@@ -178,7 +178,7 @@ const RecipeForm = props => {
                 }}>
                 {'Recipe Details'}
               </Text>
-              {/* <MoreSelectionButton
+              <MoreSelectionButton
                 placeholder="Select Recipe Kind"
                 label="Kind"
                 renderValueCurrentValue={values.recipe_kind_id}
@@ -195,6 +195,7 @@ const RecipeForm = props => {
                   });
                 }}
               />
+              {/* Group Name is a legacy/optional field — intentionally hidden.
               <TextInput
                 label="Group Name (Optional, e.g. Dessert)"
                 onChangeText={handleChange('group_name')}
