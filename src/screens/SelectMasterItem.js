@@ -5,6 +5,7 @@ import {
   List,
   Divider,
   Text,
+  Chip,
   ActivityIndicator,
   useTheme,
 } from 'react-native-paper';
@@ -109,6 +110,9 @@ const SelectMasterItem = ({navigation, route}) => {
   const forwardParams = route.params ?? {};
 
   const handleSelect = mi => {
+    // In-branch masters are already linked to an items row here — re-attaching
+    // would create a duplicate (branch_id, master_item_sync_id) row.
+    if (mi.is_in_branch) return;
     navigation.replace(routes.addItem(), {
       ...forwardParams,
       masterItem: {
@@ -153,16 +157,32 @@ const SelectMasterItem = ({navigation, route}) => {
         <FlatList
           data={items}
           keyExtractor={mi => mi.sync_id ?? String(mi.id)}
-          renderItem={({item: mi}) => (
-            <List.Item
-              title={mi.sku ?? ''}
-              titleStyle={styles.skuText}
-              description={mi.description ?? ''}
-              descriptionNumberOfLines={2}
-              onPress={() => handleSelect(mi)}
-              left={() => <List.Icon icon="package-variant" />}
-            />
-          )}
+          renderItem={({item: mi}) => {
+            const inBranch = !!mi.is_in_branch;
+            return (
+              <List.Item
+                title={mi.sku ?? ''}
+                titleStyle={styles.skuText}
+                description={mi.description ?? ''}
+                descriptionNumberOfLines={2}
+                disabled={inBranch}
+                onPress={() => handleSelect(mi)}
+                style={inBranch ? styles.inBranchRow : undefined}
+                left={() => <List.Icon icon="package-variant" />}
+                right={() =>
+                  inBranch ? (
+                    <Chip
+                      compact
+                      mode="outlined"
+                      style={styles.inBranchChip}
+                      textStyle={styles.inBranchChipText}>
+                      Already in this branch
+                    </Chip>
+                  ) : null
+                }
+              />
+            );
+          }}
           ItemSeparatorComponent={Divider}
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -181,7 +201,7 @@ const SelectMasterItem = ({navigation, route}) => {
               <Text variant="titleMedium" style={{color: colors.neutralTint3, textAlign: 'center'}}>
                 {debouncedQuery
                   ? 'No master items match your search.'
-                  : 'No new master items available for this branch. Pull down to sync the latest catalog, or tap back and choose "Register new item" instead.'}
+                  : 'No master items in your company catalog yet. Pull down to sync the latest catalog, or tap back and choose "Register new item" instead.'}
               </Text>
             </View>
           }
@@ -217,6 +237,15 @@ const styles = StyleSheet.create({
   skuText: {
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  inBranchRow: {
+    opacity: 0.5,
+  },
+  inBranchChip: {
+    alignSelf: 'center',
+  },
+  inBranchChipText: {
+    fontSize: 10,
   },
   syncingText: {
     marginTop: 8,
