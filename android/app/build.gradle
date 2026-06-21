@@ -1,6 +1,17 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+
+// Safety net so the JS bundle ALWAYS embeds an env file, even when the build is
+// run without ENVFILE (e.g. `./gradlew bundleRelease` directly or from Android
+// Studio, instead of the `bundle:android:release` npm script). Without this,
+// react-native-config falls back to a non-existent `.env`, Config comes back
+// empty, and src/config/env.js throws at module load → the app crashes on
+// launch. An explicit ENVFILE env/system property still overrides this map.
+project.ext.envConfigFiles = [
+    release: ".env.production",
+    debug: ".env.development",
+]
 apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.gradle"
 
 /**
@@ -83,7 +94,7 @@ android {
         applicationId "rocks.uxi.fcmscloud"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 30
+        versionCode 31
         versionName "2.0.5"
         
         externalNativeBuild {
