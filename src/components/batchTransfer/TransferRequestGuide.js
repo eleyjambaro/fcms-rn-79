@@ -46,15 +46,15 @@ const TransferRequestGuide = ({isOut, branchSelected}) => {
       key: 'transferring',
       label: 'Transferring',
       description: isOut
-        ? 'You dispatch the items and the quantities are deducted from your branch.'
-        : 'The source branch dispatches the items and their stock is deducted.',
+        ? 'You dispatch the items and they head to the destination. No stock moves yet — it is logged only on receipt.'
+        : 'The source branch dispatches the items. No stock moves yet — it is logged only on receipt.',
     },
     {
       key: 'received',
       label: 'Received',
       description: isOut
-        ? 'The destination branch confirms receipt and the stock is added there.'
-        : 'You confirm receipt and the items are added to your stock.',
+        ? 'The destination branch confirms receipt. Only now is stock logged — out of your branch and into theirs.'
+        : 'You confirm receipt. Only now is stock logged — out of the source branch and into your stock.',
     },
   ];
 
