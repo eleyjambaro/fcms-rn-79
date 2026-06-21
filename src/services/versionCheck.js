@@ -29,10 +29,22 @@ const getLatestVersion = async () => {
     latestVersions = versions;
     return latestVersions;
   } catch (error) {
-    console.warn(
-      'Getting version and minimum supported version from backend error:',
-      error,
-    );
+    // A network error here is expected when the device is offline or the
+    // backend is unreachable (common in dev). Fall back to the default
+    // versions quietly instead of dumping a full AxiosError stack trace.
+    const isNetworkError =
+      error?.message === 'Network Error' || !error?.response;
+
+    if (isNetworkError) {
+      console.warn(
+        'Version check skipped: backend unreachable, using fallback versions.',
+      );
+    } else {
+      console.warn(
+        'Getting version and minimum supported version from backend error:',
+        error,
+      );
+    }
 
     return latestVersions;
   }
