@@ -98,7 +98,11 @@ const LogView = props => {
         log.operation_type === 'remove_stock' ||
         // on New Yield Stock
         (log.operation_type === 'add_stock' &&
-          log.operation_code === OPERATION_CODES.NEW_YIELD_STOCK)
+          log.operation_code === OPERATION_CODES.NEW_YIELD_STOCK) ||
+        // on Stock Transfer In logged by a batch transfer (managed through the
+        // batch transfer, not editable as a standalone log)
+        (log.operation_code === OPERATION_CODES.STOCK_TRANSFER_IN &&
+          log.batch_transfer_group_id)
       ) {
         setIsUpdateLogOptionDisabled(() => true);
       }
