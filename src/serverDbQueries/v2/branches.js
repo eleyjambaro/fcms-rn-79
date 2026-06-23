@@ -44,9 +44,22 @@ export const updateBranch = async ({id, ...values}) => {
   return data;
 };
 
-export const deleteBranch = async id => {
+// Password-gated OTP send for branch deletion. The server verifies the password
+// and emails a fresh code (so a wrong password never sends one); deleteBranch
+// below re-checks both password + OTP. Mirrors the account-deletion flow.
+export const requestBranchDeleteOtp = async ({id, password}) => {
+  const {data} = await cloudApiV2.post(
+    `/api/v2/branches/${id}/delete/send-otp`,
+    {password},
+    {headers: await getAuthHeaders()},
+  );
+  return data;
+};
+
+export const deleteBranch = async ({id, password, otp, request_id}) => {
   const {data} = await cloudApiV2.delete(`/api/v2/branches/${id}`, {
     headers: await getAuthHeaders(),
+    data: {password, otp, request_id},
   });
   return data;
 };

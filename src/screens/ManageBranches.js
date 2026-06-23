@@ -19,6 +19,7 @@ import {Formik} from 'formik';
 import * as Yup from 'yup';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import {
   getBranches,
   createBranch,
@@ -26,6 +27,8 @@ import {
   deleteBranch,
 } from '../serverDbQueries/v2/branches';
 import {assignBranch} from '../serverDbQueries/v2/devices';
+import ConfirmAccountDeletionUsingPasswordForm from '../components/forms/ConfirmAccountDeletionUsingPasswordForm';
+import ConfirmBranchDeletionUsingOtpForm from '../components/forms/ConfirmBranchDeletionUsingOtpForm';
 
 const LICENSED_BADGE_COLOR = '#2e7d32';
 
@@ -42,6 +45,7 @@ const editBranchSchema = Yup.object({
 const ManageBranches = () => {
   const {colors} = useTheme();
   const [cloudAuthState, cloudAuthActions] = useCloudAuthContext();
+  const [{authUser}] = useCurrentUser();
   const queryClient = useQueryClient();
 
   const activeBranchId = cloudAuthState.designatedBranch?.id ?? null;
@@ -61,7 +65,17 @@ const ManageBranches = () => {
   const [switchErrorMessage, setSwitchErrorMessage] = useState('');
   const [switchingId, setSwitchingId] = useState(null);
 
+  // Branch deletion is a four-step confirmation that mirrors company-account
+  // deletion: password → OTP (emailed) → retype-to-confirm phrase → delete.
+  // deleteTarget holds the branch for the whole flow; the three step flags drive
+  // which modal is showing.
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [confirmByPasswordVisible, setConfirmByPasswordVisible] =
+    useState(false);
+  const [confirmByOtpVisible, setConfirmByOtpVisible] = useState(false);
+  const [retypeVisible, setRetypeVisible] = useState(false);
+  const [verifiedPassword, setVerifiedPassword] = useState('');
+  const [verifiedOtp, setVerifiedOtp] = useState(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteErrorVisible, setDeleteErrorVisible] = useState(false);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
@@ -162,21 +176,79 @@ const ManageBranches = () => {
     }
   };
 
+  const resetDeleteFlow = () => {
+    setConfirmByPasswordVisible(false);
+    setConfirmByOtpVisible(false);
+    setRetypeVisible(false);
+    setDeleteTarget(null);
+    setVerifiedPassword('');
+    setVerifiedOtp(null);
+    setDeleteConfirmText('');
+  };
+
+  // Step 1 → 2: password verified locally; the OTP step re-verifies it
+  // server-side and emails a code.
+  const handleDeletePasswordSubmit = (values, _actions) => {
+    setVerifiedPassword(values.password);
+    setConfirmByPasswordVisible(false);
+    setConfirmByOtpVisible(true);
+  };
+
+  // Step 2 → 3: code entered; carry it to the retype-to-confirm friction step.
+  const handleDeleteOtpSubmit = ({otp, request_id}) => {
+    setVerifiedOtp({otp, request_id});
+    setConfirmByOtpVisible(false);
+    setRetypeVisible(true);
+  };
+
+  // The OTP step verifies the password server-side before emailing a code; a
+  // wrong password bounces back here to re-enter it.
+  const handleDeleteOtpPasswordRejected = () => {
+    setConfirmByOtpVisible(false);
+    setVerifiedPassword('');
+    setConfirmByPasswordVisible(true);
+  };
+
+  // Step 4: actually delete, with the verified password + OTP.
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     try {
-      const data = await deleteMutation.mutateAsync(deleteTarget.id);
+      const data = await deleteMutation.mutateAsync({
+        id: deleteTarget.id,
+        password: verifiedPassword,
+        otp: verifiedOtp?.otp,
+        request_id: verifiedOtp?.request_id,
+      });
       if (data?.status === 'success') {
-        setDeleteTarget(null);
-        setDeleteConfirmText('');
+        resetDeleteFlow();
       } else {
         setDeleteErrorMessage(data?.message || 'Failed to delete branch.');
         setDeleteErrorVisible(true);
       }
     } catch (error) {
+      const status = error?.response?.status;
+      const serverMessage = error?.response?.data?.message || '';
+
+      // The branch endpoint returns 422 for both a wrong password and an
+      // invalid/expired OTP — distinguish by message so the user is bounced to
+      // the right step instead of having to restart.
+      if (status === 422) {
+        if (/password/i.test(serverMessage)) {
+          setRetypeVisible(false);
+          setVerifiedPassword('');
+          setConfirmByPasswordVisible(true);
+          return;
+        }
+        // Invalid/expired code → back to the OTP step (it requests a fresh
+        // code on mount).
+        setRetypeVisible(false);
+        setVerifiedOtp(null);
+        setConfirmByOtpVisible(true);
+        return;
+      }
+
       setDeleteErrorMessage(
-        error?.response?.data?.message ||
-          'Could not delete branch. Try again.',
+        serverMessage || 'Could not delete branch. Try again.',
       );
       setDeleteErrorVisible(true);
     }
@@ -258,8 +330,9 @@ const ManageBranches = () => {
                 titleStyle={{color: isActive ? undefined : colors.error}}
                 onPress={() => {
                   setMenuVisibleId(null);
+                  resetDeleteFlow();
                   setDeleteTarget(branch);
-                  setDeleteConfirmText('');
+                  setConfirmByPasswordVisible(true);
                 }}
               />
             </Menu>
@@ -513,14 +586,51 @@ const ManageBranches = () => {
         </Dialog>
       </Portal>
 
-      {/* Delete confirmation dialog */}
+      {/* Delete step 1: confirm password */}
       <Portal>
-        <Dialog
-          visible={!!deleteTarget}
-          onDismiss={() => {
-            setDeleteTarget(null);
-            setDeleteConfirmText('');
-          }}>
+        <Modal
+          visible={confirmByPasswordVisible}
+          onDismiss={() => setConfirmByPasswordVisible(false)}
+          contentContainerStyle={[styles.modal, {backgroundColor: colors.surface}]}>
+          <Text style={[styles.modalTitle, {color: colors.text}]}>
+            Confirm branch deletion
+          </Text>
+          <Text style={{marginBottom: 16, color: colors.text}}>
+            {`Deleting "${deleteTarget?.name}" can't be undone. Re-enter your account password to confirm your identity.`}
+          </Text>
+          <ConfirmAccountDeletionUsingPasswordForm
+            onSubmit={handleDeletePasswordSubmit}
+            onCancel={resetDeleteFlow}
+          />
+        </Modal>
+      </Portal>
+
+      {/* Delete step 2: verify with emailed OTP */}
+      <Portal>
+        <Modal
+          visible={confirmByOtpVisible}
+          onDismiss={() => setConfirmByOtpVisible(false)}
+          contentContainerStyle={[styles.modal, {backgroundColor: colors.surface}]}>
+          <Text style={[styles.modalTitle, {color: colors.text}]}>
+            Verify it&apos;s you
+          </Text>
+          {confirmByOtpVisible ? (
+            <ConfirmBranchDeletionUsingOtpForm
+              email={authUser?.email}
+              branchId={deleteTarget?.id}
+              branchName={deleteTarget?.name}
+              password={verifiedPassword}
+              onSubmit={handleDeleteOtpSubmit}
+              onPasswordRejected={handleDeleteOtpPasswordRejected}
+              onCancel={resetDeleteFlow}
+            />
+          ) : null}
+        </Modal>
+      </Portal>
+
+      {/* Delete step 3: retype-to-confirm friction */}
+      <Portal>
+        <Dialog visible={retypeVisible} onDismiss={resetDeleteFlow}>
           <Dialog.Title>Delete Branch</Dialog.Title>
           <Dialog.Content>
             <Text style={{marginBottom: 12}}>
@@ -547,13 +657,7 @@ const ManageBranches = () => {
             />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button
-              onPress={() => {
-                setDeleteTarget(null);
-                setDeleteConfirmText('');
-              }}>
-              Cancel
-            </Button>
+            <Button onPress={resetDeleteFlow}>Cancel</Button>
             <Button
               textColor={colors.error}
               disabled={!deleteConfirmMatches || deleteMutation.isLoading}

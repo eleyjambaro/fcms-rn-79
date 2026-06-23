@@ -1,0 +1,242 @@
+import React, {useEffect, useRef, useState} from 'react';
+import {View, StyleSheet, TextInput as RNTextInput, Pressable} from 'react-native';
+import {Button, Text, useTheme, HelperText, ActivityIndicator} from 'react-native-paper';
+import {useMutation} from '@tanstack/react-query';
+
+import {requestBranchDeleteOtp} from '../../serverDbQueries/v2/branches';
+
+const OTP_LENGTH = 6;
+
+/**
+ * Verification-code step for branch deletion. On mount it asks the server to
+ * verify the password and email a fresh OTP to the signed-in user, lets the user
+ * enter the 6-digit code, and hands the code + request_id back via onSubmit so
+ * the caller can pass them to deleteBranch alongside the password. If the server
+ * rejects the password (422 — the branch endpoint returns 422 rather than 401 so
+ * the web BFF proxy doesn't treat it as an expired session), onPasswordRejected
+ * bounces the user back to the password step instead of emailing a code.
+ */
+const ConfirmBranchDeletionUsingOtpForm = ({
+  email,
+  branchId,
+  password,
+  branchName,
+  onSubmit,
+  onCancel,
+  onPasswordRejected,
+}) => {
+  const {colors} = useTheme();
+
+  const [otp, setOtp] = useState('');
+  const [requestId, setRequestId] = useState(null);
+  const [serverError, setServerError] = useState('');
+  // Resend guard: seconds left before another code can be requested. Seeded from
+  // the server (resend_after on send, retry_after on a 429) so the button can't
+  // be tapped past the server's own cooldown.
+  const [cooldown, setCooldown] = useState(0);
+  const inputRef = useRef(null);
+  const tickRef = useRef(null);
+
+  const requestMutation = useMutation(requestBranchDeleteOtp);
+
+  const startCooldown = seconds => {
+    if (tickRef.current) {
+      clearInterval(tickRef.current);
+    }
+    setCooldown(Math.max(0, Math.ceil(seconds)));
+    tickRef.current = setInterval(() => {
+      setCooldown(s => {
+        if (s <= 1 && tickRef.current) {
+          clearInterval(tickRef.current);
+        }
+        return s <= 1 ? 0 : s - 1;
+      });
+    }, 1000);
+  };
+
+  const sendOtp = async ({resend = false} = {}) => {
+    if (resend && cooldown > 0) {
+      return;
+    }
+    setServerError('');
+    try {
+      const data = await requestMutation.mutateAsync({id: branchId, password});
+      if (data?.data?.request_id) {
+        setRequestId(data.data.request_id);
+        startCooldown(data?.data?.resend_after ?? 30);
+      } else {
+        setServerError('Failed to send the code. Please try again.');
+      }
+    } catch (error) {
+      const status = error?.response?.status;
+      // 422 → wrong password (the branch endpoint uses 422, not 401). Bounce
+      // back to the password step. A missing-password validation error can't
+      // happen here since the password is always supplied.
+      if (status === 422 && onPasswordRejected) {
+        onPasswordRejected(
+          error?.response?.data?.message || 'The password is incorrect.',
+        );
+        return;
+      }
+      // 429 → resend cooldown still active. A valid code was already sent, so
+      // keep its request_id usable and just run the countdown.
+      if (status === 429) {
+        const errs = error?.response?.data?.errors;
+        if (errs?.request_id) {
+          setRequestId(errs.request_id);
+        }
+        startCooldown(errs?.retry_after ?? 30);
+        return;
+      }
+      setServerError(
+        error?.response?.data?.message ||
+          'Unable to send the code. Check your network.',
+      );
+    }
+  };
+
+  useEffect(() => {
+    sendOtp();
+    return () => {
+      if (tickRef.current) {
+        clearInterval(tickRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleContinue = () => {
+    if (otp.length !== OTP_LENGTH) {
+      setServerError(`Enter the ${OTP_LENGTH}-digit code.`);
+      return;
+    }
+    if (!requestId) {
+      setServerError('No active code. Please resend.');
+      return;
+    }
+    onSubmit && onSubmit({otp, request_id: requestId});
+  };
+
+  const digits = otp.padEnd(OTP_LENGTH, ' ').split('');
+
+  return (
+    <View>
+      <Text style={{marginBottom: 16}}>
+        We sent a 6-digit code to{' '}
+        <Text style={{fontWeight: 'bold'}}>{email}</Text>. Enter it below to
+        confirm deleting{' '}
+        <Text style={{fontWeight: 'bold'}}>{branchName}</Text>.
+      </Text>
+
+      {/* Hidden real input */}
+      <RNTextInput
+        ref={inputRef}
+        value={otp}
+        onChangeText={val => {
+          const cleaned = val.replace(/\D/g, '').slice(0, OTP_LENGTH);
+          setOtp(cleaned);
+          setServerError('');
+        }}
+        keyboardType="number-pad"
+        maxLength={OTP_LENGTH}
+        style={styles.hiddenInput}
+        showSoftInputOnFocus
+        autoFocus
+      />
+
+      {/* Digit boxes — tap anywhere to (re)open the keyboard */}
+      <Pressable
+        onPress={() => {
+          inputRef.current?.blur();
+          requestAnimationFrame(() => inputRef.current?.focus());
+        }}>
+        <View style={styles.otpRow}>
+          {digits.map((digit, index) => {
+            const isFocused = index === otp.length;
+            return (
+              <View
+                key={index}
+                style={[
+                  styles.digitBox,
+                  {
+                    borderColor:
+                      isFocused || digit.trim()
+                        ? colors.primary
+                        : colors.outline ?? '#ccc',
+                    backgroundColor: colors.surface,
+                  },
+                ]}>
+                <Text
+                  style={[
+                    styles.digitText,
+                    {color: colors.onSurface ?? colors.text},
+                  ]}>
+                  {digit.trim()}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </Pressable>
+
+      {serverError ? (
+        <HelperText type="error" style={{textAlign: 'center'}}>
+          {serverError}
+        </HelperText>
+      ) : null}
+
+      {requestMutation.isLoading ? (
+        <ActivityIndicator size="small" style={{marginBottom: 12}} />
+      ) : null}
+
+      <Button
+        mode="contained"
+        onPress={handleContinue}
+        icon={'delete-outline'}
+        color={colors.notification}
+        disabled={otp.length !== OTP_LENGTH || requestMutation.isLoading}
+        style={{marginTop: 8}}>
+        Continue
+      </Button>
+      <Button
+        mode="text"
+        onPress={() => sendOtp({resend: true})}
+        disabled={requestMutation.isLoading || cooldown > 0}
+        style={{marginTop: 12}}>
+        {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+      </Button>
+      <Button onPress={onCancel} style={{marginTop: 4}}>
+        Cancel
+      </Button>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  hiddenInput: {
+    position: 'absolute',
+    opacity: 0,
+    width: 1,
+    height: 1,
+  },
+  otpRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  digitBox: {
+    width: 42,
+    height: 52,
+    borderWidth: 2,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  digitText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+});
+
+export default ConfirmBranchDeletionUsingOtpForm;
