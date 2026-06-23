@@ -46,6 +46,7 @@ const RecipeForm = props => {
       group_name: '',
       name: '',
       yield: '',
+      yield_label: '',
     },
     onSubmit,
     editMode = false,
@@ -148,6 +149,7 @@ const RecipeForm = props => {
         group_name: initialValues.group_name || '',
         name: initialValues.name || '',
         yield: initialValues.yield?.toString() || '1',
+        yield_label: initialValues.yield_label || '',
       }}
       onSubmit={onSubmit}
       validationSchema={RecipeValidationSchema}
@@ -218,6 +220,23 @@ const RecipeForm = props => {
                 error={errors.yield && touched.yield ? true : false}
                 keyboardType="numeric"
               />
+              <TextInput
+                label="Yield Label (Optional, e.g. cupcakes, kg, servings)"
+                onChangeText={handleChange('yield_label')}
+                onBlur={handleBlur('yield_label')}
+                value={values.yield_label}
+                error={errors.yield_label && touched.yield_label ? true : false}
+              />
+              <Text
+                style={{
+                  marginTop: 6,
+                  marginBottom: 4,
+                  fontSize: 12,
+                  color: colors.backdrop,
+                }}>
+                For your reference — what this yield makes. The official unit is
+                set when you register the finished product.
+              </Text>
             </View>
 
             <View style={{flex: 1}}>

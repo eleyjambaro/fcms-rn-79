@@ -92,6 +92,9 @@ export const saveRecipe = async ({
   const recipeKindId = values.recipe_kind_id
     ? `'${values.recipe_kind_id}'`
     : 'NULL';
+  const yieldLabel = values.yield_label
+    ? `'${values.yield_label.replace(/\'/g, "''")}'`
+    : 'NULL';
 
   try {
     const db = await getDBConnection();
@@ -105,6 +108,7 @@ export const saveRecipe = async ({
     group_name,
     name,
     yield,
+    yield_label,
     date_saved,
     device_id,
     branch_id,
@@ -120,6 +124,7 @@ export const saveRecipe = async ({
     ${groupName},
     '${values.name.replace(/\'/g, "''")}',
     ${parseFloat(values.yield || 1)},
+    ${yieldLabel},
     datetime('now'),
     ${deviceId ? `'${deviceId}'` : 'NULL'},
     ${branchId ? `'${branchId}'` : 'NULL'},
@@ -157,6 +162,7 @@ export const saveRecipe = async ({
         group_name = '${values.group_name.replace(/\'/g, "''")}',
         name = '${values.name.replace(/\'/g, "''")}',
         yield = ${parseFloat(values.yield || 1)},
+        yield_label = ${yieldLabel},
         date_saved = datetime('now'),
         updated_at = CURRENT_TIMESTAMP
         WHERE id = '${currentRecipeId}'
@@ -483,12 +489,16 @@ export const updateRecipe = async ({id, updatedValues}) => {
   const recipeKindId = updatedValues.recipe_kind_id
     ? `'${updatedValues.recipe_kind_id}'`
     : 'NULL';
+  const yieldLabel = updatedValues.yield_label
+    ? `'${updatedValues.yield_label.replace(/\'/g, "''")}'`
+    : 'NULL';
   const updateRecipeQuery = `
     UPDATE recipes
     SET group_name = ${groupName},
     recipe_kind_id = ${recipeKindId},
     name = '${updatedValues.name.replace(/\'/g, "''")}',
     yield = ${parseFloat(updatedValues.yield || 1)},
+    yield_label = ${yieldLabel},
     updated_at = CURRENT_TIMESTAMP
     WHERE id = '${id}'
   `;

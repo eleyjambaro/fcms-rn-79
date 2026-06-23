@@ -54,7 +54,9 @@ const RecipeSummary = props => {
               fontWeight: 'bold',
               color: colors.dark,
             }}>
-            {`${numOfServing} serving${numOfServing > 1 ? 's' : ''}`}
+            {recipe.yield_label
+              ? `${numOfServing} ${recipe.yield_label}`
+              : `${numOfServing} serving${numOfServing > 1 ? 's' : ''}`}
           </Text>
         </View>
         <View style={styles.detailsListItem}>

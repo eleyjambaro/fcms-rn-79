@@ -66,6 +66,7 @@ const EditRecipe = () => {
     group_name: recipe.group_name || '',
     name: recipe.name || '',
     yield: recipe.yield?.toString() || '',
+    yield_label: recipe.yield_label || '',
   };
 
   return (

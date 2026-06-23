@@ -939,6 +939,7 @@ const createRecipesTableQuery = `
     name VARCHAR,
     yield REAL DEFAULT 1,
     uom_abbrev VARCHAR,
+    yield_label VARCHAR,
     uom_abbrev_per_piece VARCHAR,
     qty_per_piece REAL,
     markup_percentage REAL DEFAULT 0,
@@ -2416,6 +2417,26 @@ export const alterTables = async currentAppVersion => {
     } catch (error) {
       console.debug(
         '[alterTables] Error adding invoices.sold_by_name:',
+        error,
+      );
+    }
+
+    // recipes.yield_label — optional free-text note for *what* a recipe's
+    // numeric yield makes (e.g. "cupcakes", "kg", "servings"). A memory aid
+    // only, NOT a UOM: it never participates in conversions or costing. The
+    // yield's real unit still lives on the registered finished-product item.
+    // Plain column (no FK) so it syncs by identical name (server GROUP_A
+    // allowedFields / $fillable include yield_label).
+    try {
+      await executeSqlIfColumnNotExist(
+        db,
+        'recipes',
+        'yield_label',
+        `ALTER TABLE recipes ADD COLUMN yield_label VARCHAR DEFAULT NULL;`,
+      );
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error adding recipes.yield_label:',
         error,
       );
     }

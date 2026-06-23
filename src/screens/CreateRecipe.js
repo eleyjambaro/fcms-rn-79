@@ -168,6 +168,7 @@ const CreateRecipe = () => {
     group_name: data.result?.group_name || '',
     name: data.result?.name || '',
     yield: data.result?.yield?.toString() || '',
+    yield_label: data.result?.yield_label || '',
   };
 
   const finishedProduct = getFinishedProductData?.result;
