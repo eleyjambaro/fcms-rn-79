@@ -78,14 +78,20 @@ const ConfirmBranchDeletionUsingOtpForm = ({
         );
         return;
       }
-      // 429 → resend cooldown still active. A valid code was already sent, so
-      // keep its request_id usable and just run the countdown.
+      // 429 → either the resend cooldown is still active (carries the still-valid
+      // code's request_id — keep it and run the countdown) or the rolling daily
+      // deletion cap was hit (no request_id — surface the message instead).
       if (status === 429) {
         const errs = error?.response?.data?.errors;
         if (errs?.request_id) {
           setRequestId(errs.request_id);
+          startCooldown(errs?.retry_after ?? 30);
+          return;
         }
-        startCooldown(errs?.retry_after ?? 30);
+        setServerError(
+          error?.response?.data?.message ||
+            'You have reached the daily branch-deletion limit. Please try again later.',
+        );
         return;
       }
       setServerError(
