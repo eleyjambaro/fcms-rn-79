@@ -44,7 +44,8 @@ const CloudV2OTPVerification = ({route}) => {
       const data = await requestMutation.mutateAsync(email);
       if (data?.data?.request_id) {
         setRequestId(data.data.request_id);
-        startCooldown(data.data.expires_in ?? 300);
+        // Server-driven resend cooldown; escalates with repeated requests.
+        startCooldown(data?.data?.resend_after ?? 30);
       } else {
         setServerError('Failed to send OTP. Please try again.');
       }
@@ -57,9 +58,11 @@ const CloudV2OTPVerification = ({route}) => {
   };
 
   const startCooldown = seconds => {
-    const clamped = seconds > 60 ? 60 : seconds;
-    cooldownEndRef.current = Date.now() + clamped * 1000;
-    setResendCooldown(clamped);
+    // The server owns the cooldown (and escalates it on repeated resends), so
+    // mirror its value directly instead of clamping it client-side.
+    const safe = Math.max(0, Math.ceil(seconds));
+    cooldownEndRef.current = Date.now() + safe * 1000;
+    setResendCooldown(safe);
     clearInterval(cooldownRef.current);
     cooldownRef.current = setInterval(() => {
       const remaining = Math.ceil((cooldownEndRef.current - Date.now()) / 1000);
