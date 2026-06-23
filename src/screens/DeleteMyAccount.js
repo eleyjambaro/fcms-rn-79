@@ -108,6 +108,14 @@ const DeleteMyAccount = () => {
     setRetypeTextModalVisible(() => true);
   };
 
+  // The OTP step verifies the password server-side before emailing a code; a
+  // wrong password bounces back here to re-enter it.
+  const handleOtpPasswordRejected = () => {
+    setConfirmByOtpModalVisible(() => false);
+    setVerifiedPassword(() => '');
+    setConfirmByPasswordModalVisible(() => true);
+  };
+
   const handleRetypeSubmit = async (_values, actions) => {
     try {
       await deleteMyAccountMutation.mutateAsync({
@@ -180,7 +188,9 @@ const DeleteMyAccount = () => {
           </Title>
           <ConfirmAccountDeletionUsingOtpForm
             email={authUser?.email}
+            password={verifiedPassword}
             onSubmit={handleOtpSubmit}
+            onPasswordRejected={handleOtpPasswordRejected}
             onCancel={() => setConfirmByOtpModalVisible(() => false)}
           />
         </Modal>

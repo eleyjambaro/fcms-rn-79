@@ -3,17 +3,25 @@ import {View, StyleSheet, TextInput as RNTextInput, Pressable} from 'react-nativ
 import {Button, Text, useTheme, HelperText, ActivityIndicator} from 'react-native-paper';
 import {useMutation} from '@tanstack/react-query';
 
-import {requestOtp} from '../../serverDbQueries/v2/auth';
+import {requestDeleteAccountOtp} from '../../serverDbQueries/v2/auth';
 
 const OTP_LENGTH = 6;
 
 /**
- * Verification-code step for account deletion. On mount it emails a fresh OTP
- * to the root account, lets the user enter the 6-digit code, and hands the
- * code + request_id back via onSubmit so the caller can pass them to
- * deleteMyCloudAccount alongside the already-verified password.
+ * Verification-code step for account deletion. On mount it asks the server to
+ * verify the password and email a fresh OTP to the root account, lets the user
+ * enter the 6-digit code, and hands the code + request_id back via onSubmit so
+ * the caller can pass them to deleteMyCloudAccount alongside the password. If
+ * the server rejects the password (401), onPasswordRejected bounces the user
+ * back to the password step instead of emailing a code.
  */
-const ConfirmAccountDeletionUsingOtpForm = ({email, onSubmit, onCancel}) => {
+const ConfirmAccountDeletionUsingOtpForm = ({
+  email,
+  password,
+  onSubmit,
+  onCancel,
+  onPasswordRejected,
+}) => {
   const {colors} = useTheme();
 
   const [otp, setOtp] = useState('');
@@ -21,18 +29,25 @@ const ConfirmAccountDeletionUsingOtpForm = ({email, onSubmit, onCancel}) => {
   const [serverError, setServerError] = useState('');
   const inputRef = useRef(null);
 
-  const requestMutation = useMutation(requestOtp);
+  const requestMutation = useMutation(requestDeleteAccountOtp);
 
   const sendOtp = async () => {
     setServerError('');
     try {
-      const data = await requestMutation.mutateAsync(email);
+      const data = await requestMutation.mutateAsync({password});
       if (data?.data?.request_id) {
         setRequestId(data.data.request_id);
       } else {
         setServerError('Failed to send the code. Please try again.');
       }
     } catch (error) {
+      // Wrong password → bounce back to the password step.
+      if (error?.response?.status === 401 && onPasswordRejected) {
+        onPasswordRejected(
+          error?.response?.data?.message || 'The password is incorrect.',
+        );
+        return;
+      }
       setServerError(
         error?.response?.data?.message ||
           'Unable to send the code. Check your network.',
