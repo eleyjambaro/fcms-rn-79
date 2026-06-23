@@ -22,6 +22,7 @@ import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
 import {appDefaults} from '../constants/appDefaults';
 import AccountDeletionConfirmation from '../components/forms/components/AccountDeletionConfirmation';
 import ConfirmAccountDeletionUsingPasswordForm from '../components/forms/ConfirmAccountDeletionUsingPasswordForm';
+import ConfirmAccountDeletionUsingOtpForm from '../components/forms/ConfirmAccountDeletionUsingOtpForm';
 import RetypeTextToConfirmForm from '../components/forms/RetypeTextToConfirmForm';
 import useCurrentUser from '../hooks/useCurrentUser';
 
@@ -33,12 +34,15 @@ const DeleteMyAccount = () => {
   const [confirmAccountDeletion, setConfirmAccountDeletion] = useState(false);
   const [confirmByPasswordModalVisible, setConfirmByPasswordModalVisible] =
     useState(false);
+  const [confirmByOtpModalVisible, setConfirmByOtpModalVisible] =
+    useState(false);
   const [retypeTextModalVisible, setRetypeTextModalVisible] = useState(false);
   const [
     deleteMyAccountSuccessDialogVisible,
     setDeleteMyAccountSuccessDialogVisible,
   ] = useState(false);
   const [verifiedPassword, setVerifiedPassword] = useState('');
+  const [verifiedOtp, setVerifiedOtp] = useState(null);
 
   const wipeLocalState = async () => {
     // SQLite files live in <docs-parent>/databases. We can't enumerate company
@@ -95,12 +99,22 @@ const DeleteMyAccount = () => {
   const handlePasswordSubmit = async (values, _actions) => {
     setVerifiedPassword(() => values.password);
     setConfirmByPasswordModalVisible(() => false);
+    setConfirmByOtpModalVisible(() => true);
+  };
+
+  const handleOtpSubmit = ({otp, request_id}) => {
+    setVerifiedOtp(() => ({otp, request_id}));
+    setConfirmByOtpModalVisible(() => false);
     setRetypeTextModalVisible(() => true);
   };
 
   const handleRetypeSubmit = async (_values, actions) => {
     try {
-      await deleteMyAccountMutation.mutateAsync({password: verifiedPassword});
+      await deleteMyAccountMutation.mutateAsync({
+        password: verifiedPassword,
+        otp: verifiedOtp?.otp,
+        request_id: verifiedOtp?.request_id,
+      });
       await wipeLocalState();
       setRetypeTextModalVisible(() => false);
       setDeleteMyAccountSuccessDialogVisible(() => true);
@@ -118,6 +132,15 @@ const DeleteMyAccount = () => {
         setRetypeTextModalVisible(() => false);
         setVerifiedPassword(() => '');
         setConfirmByPasswordModalVisible(() => true);
+        return;
+      }
+
+      // 422 → invalid/expired verification code. Bounce back to the OTP modal
+      // (it requests a fresh code on mount) so the user can re-verify.
+      if (status === 422) {
+        setRetypeTextModalVisible(() => false);
+        setVerifiedOtp(() => null);
+        setConfirmByOtpModalVisible(() => true);
         return;
       }
 
@@ -143,6 +166,22 @@ const DeleteMyAccount = () => {
           <ConfirmAccountDeletionUsingPasswordForm
             onSubmit={handlePasswordSubmit}
             onCancel={() => setConfirmByPasswordModalVisible(() => false)}
+          />
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal
+          visible={confirmByOtpModalVisible}
+          onDismiss={() => setConfirmByOtpModalVisible(() => false)}
+          contentContainerStyle={{backgroundColor: 'white', padding: 20}}>
+          <Title style={{marginBottom: 15, textAlign: 'center'}}>
+            Verify it&apos;s you
+          </Title>
+          <ConfirmAccountDeletionUsingOtpForm
+            email={authUser?.email}
+            onSubmit={handleOtpSubmit}
+            onCancel={() => setConfirmByOtpModalVisible(() => false)}
           />
         </Modal>
       </Portal>

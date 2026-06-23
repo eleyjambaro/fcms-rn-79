@@ -73,10 +73,10 @@ export const logout = async () => {
   return data;
 };
 
-export const deleteMyCloudAccount = async ({password}) => {
+export const deleteMyCloudAccount = async ({password, otp, request_id}) => {
   const {data} = await cloudApiV2.delete('/api/v2/auth/delete-account', {
     headers: await getAuthHeaders(),
-    data: {password},
+    data: {password, otp, request_id},
   });
   return data;
 };
