@@ -47,6 +47,17 @@ const Settings = () => {
           </PermissionGate>
         </Drawer.Section>
         {can('settings.edit') ? (
+          <Drawer.Section title="Food Costing">
+            <Drawer.Item
+              style={styles.itemStyle}
+              label="Inventory Settings"
+              onPress={() => {
+                navigation.navigate(routes.inventorySettings());
+              }}
+            />
+          </Drawer.Section>
+        ) : null}
+        {can('settings.edit') ? (
           <Drawer.Section title="Devices">
             <Drawer.Item
               style={styles.itemStyle}

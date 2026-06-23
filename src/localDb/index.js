@@ -686,6 +686,7 @@ const createInventoryLogsTableQuery = `
     official_receipt_number VARCHAR,
     batch_purchase_group_id TEXT,
     batch_stock_usage_group_id TEXT,
+    spoilage_id TEXT,
     invoice_id TEXT,
     remarks VARCHAR(120),
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -1687,6 +1688,20 @@ export const alterTables = async currentAppVersion => {
         db,
         'inventory_logs',
         'meta_converted_from_qty',
+        addNewTableColumnsQuery,
+      );
+
+      // Links a Stock Usage log to the spoilage it was auto-deducted from
+      // (Settings > Inventory Settings > Auto-deduct spoilages). Local-only —
+      // not part of delta sync, mirroring the web's web-only spoilage_sync_id.
+      addNewTableColumnsQuery = `
+        ALTER TABLE inventory_logs ADD COLUMN spoilage_id TEXT;
+      `;
+
+      await executeSqlIfColumnNotExist(
+        db,
+        'inventory_logs',
+        'spoilage_id',
         addNewTableColumnsQuery,
       );
 

@@ -118,11 +118,19 @@ const SpoilageList = props => {
   const updateSpoilageMutation = useMutation(updateSpoilage, {
     onSuccess: () => {
       queryClient.invalidateQueries('spoilages');
+      // Auto-deducted spoilages keep a linked Stock Usage log in step.
+      queryClient.invalidateQueries('items');
+      queryClient.invalidateQueries('item');
+      queryClient.invalidateQueries('inventoryLogs');
     },
   });
   const deleteSpoilageMutation = useMutation(deleteSpoilage, {
     onSuccess: () => {
       queryClient.invalidateQueries('spoilages');
+      // Deleting an auto-deducted spoilage voids its log (restores stock).
+      queryClient.invalidateQueries('items');
+      queryClient.invalidateQueries('item');
+      queryClient.invalidateQueries('inventoryLogs');
     },
   });
   const {

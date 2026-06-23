@@ -6,6 +6,32 @@ import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {scheduleSyncSoon} from '../services/syncService';
 import {periodTotalsBlock, EARLIEST_LOG_DATE} from './reportsSqlBuilders';
 
+// NOTE: `./inventoryLogs` and `./items` are required lazily inside the functions
+// that need them (addSpoilage / updateSpoilage / deleteSpoilage) rather than
+// imported at the top. Their transitive deps (operations → appDefaults →
+// react-native-fs) are native-only and break Jest's module-eval of this file,
+// which the spoilage SQL tests import for the report builders.
+
+/**
+ * Settings > Inventory Settings > "Auto-deduct spoilages". When on, recording a
+ * spoilage also writes a Stock Usage inventory log (tagged with the spoilage id)
+ * that reduces stock; when off, a spoilage stays a standalone loss record.
+ */
+const isAutoDeductSpoilagesEnabled = async db => {
+  const result = await db.executeSql(
+    `SELECT value FROM settings WHERE name = 'auto_deduct_spoilages' LIMIT 1`,
+  );
+  return result[0].rows.item(0)?.value === '1';
+};
+
+/** The fixed `stock_usage` (remove_stock) operation id, or null if unseeded. */
+const getStockUsageOperationId = async db => {
+  const result = await db.executeSql(
+    `SELECT id FROM operations WHERE code = 'stock_usage' LIMIT 1`,
+  );
+  return result[0].rows.item(0)?.id || null;
+};
+
 // TODO: Make it deleteSelectedMonthSpoilages
 export const deleteRecipeIngredients = async ({id}) => {
   const deleteRecipeIngredientsQuery = `UPDATE ingredients SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipe_id = '${id}'`;
@@ -57,6 +83,29 @@ export const addSpoilage = async ({values}) => {
         .to(item.uom_abbrev);
     }
 
+    // Auto-deduct: resolve the Stock Usage operation and guard stock BEFORE
+    // recording anything, so an insufficient-stock case records neither the
+    // spoilage nor the deduction (mirrors the web's transactional behaviour).
+    const autoDeduct = await isAutoDeductSpoilagesEnabled(db);
+    let stockUsageOperationId = null;
+
+    if (autoDeduct) {
+      const {getItem} = require('./items');
+
+      stockUsageOperationId = await getStockUsageOperationId(db);
+      if (!stockUsageOperationId) {
+        throw Error('Stock Usage operation not found.');
+      }
+
+      const itemData = await getItem({queryKey: ['item', {id: values.item_id}]});
+      const currentStockQty = parseFloat(
+        itemData?.result?.current_stock_qty || 0,
+      );
+      if (currentStockQty < parseFloat(inSpoilageQtyBasedOnItemUom)) {
+        throw Error('Not enough stock to auto-deduct this spoilage.');
+      }
+    }
+
     const spoilageDate = values.in_spoilage_date
       ? `datetime('${values.in_spoilage_date}')`
       : `datetime('now', 'localtime')`;
@@ -95,6 +144,23 @@ export const addSpoilage = async ({values}) => {
 
     // add new spoilage
     const createSpoilageResult = await db.executeSql(createSpoilageQuery);
+
+    // Auto-deduct: write the linked Stock Usage log. addInventoryLog re-checks
+    // stock and values the removal at the item's moving-avg net cost.
+    if (autoDeduct) {
+      const {addInventoryLog} = require('./inventoryLogs');
+      await addInventoryLog({
+        log: {
+          operation_id: stockUsageOperationId,
+          item_id: values.item_id,
+          adjustment_qty: parseFloat(inSpoilageQtyBasedOnItemUom),
+          adjustment_date: values.in_spoilage_date,
+          remarks: values.remarks,
+          spoilage_id: newSpoilageId,
+        },
+      });
+    }
+
     scheduleSyncSoon();
     const spoilage = createSpoilageResult[0].rows.item(0);
 
@@ -425,14 +491,52 @@ export const getSpoilagesTotal = async ({queryKey, pageParam = 1}) => {
 
 export const getSpoilage = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM active_spoilages spoilages WHERE id = '${id}';`;
+  const query = `
+    SELECT
+      spoilages.*,
+      items.name AS item_name,
+      items.uom_abbrev AS item_uom_abbrev,
+      items.uom_abbrev_per_piece AS item_uom_abbrev_per_piece,
+      items.qty_per_piece AS item_qty_per_piece,
+      categories.name AS item_category_name
+    FROM active_spoilages spoilages
+    INNER JOIN active_items items ON items.id = spoilages.item_id
+    LEFT JOIN active_categories categories ON categories.id = items.category_id
+    WHERE spoilages.id = '${id}'
+    LIMIT 1;
+  `;
 
   try {
     const db = await getDBConnection();
     const result = await db.executeSql(query);
+    const spoilage = result[0].rows.item(0);
+
+    if (!spoilage) {
+      return {result: null};
+    }
+
+    // Value the loss at the item's current moving-average net cost (same basis
+    // as an auto-deducted Stock Usage log). `./items` and `./inventoryLogs` are
+    // required lazily — see the note at the top of this file.
+    const {getItem} = require('./items');
+    const {getInventoryLogBySpoilageId} = require('./inventoryLogs');
+
+    const itemData = await getItem({queryKey: ['item', {id: spoilage.item_id}]});
+    const avgUnitCostNet = parseFloat(itemData?.result?.avg_unit_cost_net || 0);
+    const totalCostNet =
+      avgUnitCostNet * parseFloat(spoilage.in_spoilage_qty_based_on_item_uom || 0);
+
+    // Linked Stock Usage log — present only when the spoilage was auto-deducted.
+    const linkedLog = await getInventoryLogBySpoilageId(id);
 
     return {
-      result: result[0].rows.item(0),
+      result: {
+        ...spoilage,
+        avg_unit_cost_net: avgUnitCostNet,
+        total_cost_net: totalCostNet,
+        inventory_log_id: linkedLog?.id || null,
+        deducted: !!linkedLog,
+      },
     };
   } catch (error) {
     console.debug(error);
@@ -503,6 +607,38 @@ export const updateSpoilage = async ({id, updatedValues}) => {
     `;
 
     const result = await db.executeSql(updateSpoilageQuery);
+
+    // Keep an auto-deducted spoilage's Stock Usage log in step: the deducted qty
+    // follows in_spoilage_qty_based_on_item_uom and the log date follows the
+    // spoilage date. Re-values at the item's current moving-avg net cost. No-op
+    // when the spoilage wasn't auto-deducted (no linked log exists).
+    const {getInventoryLogBySpoilageId} = require('./inventoryLogs');
+    const {getItem} = require('./items');
+    const linkedLog = await getInventoryLogBySpoilageId(id);
+    if (linkedLog) {
+      const itemData = await getItem({queryKey: ['item', {id: spoilage.item_id}]});
+      const avgUnitCostNet = parseFloat(
+        itemData?.result?.avg_unit_cost_net || 0,
+      );
+
+      const updateLinkedLogQuery = `
+        UPDATE inventory_logs
+        SET adjustment_qty = ${parseFloat(inSpoilageQtyBasedOnItemUom)},
+        adjustment_unit_cost = ${avgUnitCostNet},
+        adjustment_unit_cost_net = ${avgUnitCostNet},
+        adjustment_unit_cost_tax = 0,
+        adjustment_date = ${spoilageDate},
+        remarks = '${
+          updatedValues.remarks
+            ? updatedValues.remarks.replace(/\'/g, "''")
+            : ''
+        }',
+        updated_at = CURRENT_TIMESTAMP
+        WHERE id = '${linkedLog.id}'
+      `;
+      await db.executeSql(updateLinkedLogQuery);
+    }
+
     scheduleSyncSoon();
     return result;
   } catch (error) {
@@ -516,6 +652,18 @@ export const deleteSpoilage = async ({id}) => {
 
   try {
     const db = await getDBConnection();
+
+    // Void the linked Stock Usage log first (restores the deducted stock) so a
+    // removed spoilage no longer affects inventory.
+    const {
+      getInventoryLogBySpoilageId,
+      voidInventoryLog,
+    } = require('./inventoryLogs');
+    const linkedLog = await getInventoryLogBySpoilageId(id);
+    if (linkedLog) {
+      await voidInventoryLog({id: linkedLog.id});
+    }
+
     await db.executeSql(query);
     scheduleSyncSoon();
   } catch (error) {

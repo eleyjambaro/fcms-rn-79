@@ -603,6 +603,76 @@ const ItemLogDetails = props => {
     );
   };
 
+  // Shown for a Stock Usage log that was auto-deducted from a spoilage
+  // (Settings > Inventory Settings > Auto-deduct spoilages). The ref ID is a
+  // pressable link to the Spoilage / Wastage records.
+  const renderSpoilageDetails = () => {
+    if (!log.spoilage_id) return null;
+
+    const refNo = `SP-${String(log.spoilage_id)
+      .replace(/-/g, '')
+      .slice(0, 8)
+      .toUpperCase()}`;
+
+    return (
+      <>
+        <Divider style={{marginTop: 15}} />
+
+        <View style={styles.detailsContainer}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: 4,
+              marginBottom: 10,
+            }}>
+            <MaterialCommunityIcons
+              name="trash-can-outline"
+              size={25}
+              color={log.voided === 1 ? colors.notification : colors.dark}
+            />
+            <Subheading
+              style={[
+                {marginLeft: 5, fontWeight: 'bold'},
+                log.voided === 1 && {color: colors.notification},
+              ]}>
+              {'Spoilage / Wastage'}
+            </Subheading>
+          </View>
+          <View style={[styles.detailsListItem]}>
+            <Text style={{fontWeight: 'bold'}}>{`Spoilage Ref ID:`}</Text>
+            <Pressable
+              onPress={() =>
+                navigation.navigate(routes.spoilageView(), {
+                  spoilage_id: log.spoilage_id,
+                })
+              }>
+              <Text
+                style={{
+                  marginLeft: 7,
+                  fontWeight: 'bold',
+                  color: colors.primary,
+                }}>
+                {`#${refNo}`}
+              </Text>
+            </Pressable>
+          </View>
+          <Text
+            style={{
+              marginLeft: 15,
+              marginTop: 2,
+              fontStyle: 'italic',
+              color: colors.neutralTint2,
+            }}>
+            {
+              'This Stock Usage was auto-deducted from a recorded spoilage. Edit or remove it from the Spoilage / Wastage records.'
+            }
+          </Text>
+        </View>
+      </>
+    );
+  };
+
   const renderRemovedStockQtySubtext = () => {
     if (
       log.operation_type === 'remove_stock' &&
@@ -931,6 +1001,8 @@ const ItemLogDetails = props => {
         </View>
 
         {renderTransferDetails()}
+
+        {renderSpoilageDetails()}
 
         {renderYieldDetails()}
 

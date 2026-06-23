@@ -110,7 +110,10 @@ const LogView = props => {
       if (
         // disable 'Void Log' option:
         // on Pre-App Stock
-        log.operation_code === OPERATION_CODES.PRE_APP_STOCK
+        log.operation_code === OPERATION_CODES.PRE_APP_STOCK ||
+        // on a Stock Usage auto-deducted from a spoilage (managed through the
+        // spoilage record — edit/remove it from Spoilage / Wastage instead)
+        log.spoilage_id
       ) {
         setIsVoidLogOptionDisabled(() => true);
       }

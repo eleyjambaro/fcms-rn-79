@@ -106,6 +106,10 @@ const SpoilageItemSelectionList = props => {
   const addSpoilageMutation = useMutation(addSpoilage, {
     onSuccess: () => {
       queryClient.invalidateQueries('spoilages');
+      // Auto-deduct may have written a Stock Usage log — refresh stock/log views.
+      queryClient.invalidateQueries('items');
+      queryClient.invalidateQueries('item');
+      queryClient.invalidateQueries('inventoryLogs');
     },
   });
 

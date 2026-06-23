@@ -73,8 +73,10 @@ import ItemAddedStocks from '../screens/ItemAddedStocks';
 import Vendors from '../screens/Vendors';
 import UpdateCompany from '../screens/UpdateCompany';
 import Currencies from '../screens/Currencies';
+import InventorySettings from '../screens/InventorySettings';
 import ActivateLicense from '../screens/ActivateLicense';
 import Spoilage from '../screens/Spoilage';
+import SpoilageView from '../screens/SpoilageView';
 import SelectSpoilageItem from '../modals/SelectSpoilageItem';
 import LocalUserAccounts from '../screens/LocalUserAccounts';
 import CloudRoles from '../screens/CloudRoles';
@@ -136,8 +138,10 @@ const MemoizedProduceFinishedProductStock = React.memo(
   ProduceFinishedProductStock,
 );
 const MemoizedCurrencies = React.memo(Currencies);
+const MemoizedInventorySettings = React.memo(InventorySettings);
 const MemoizedVendors = React.memo(Vendors);
 const MemoizedSpoilage = React.memo(Spoilage);
+const MemoizedSpoilageView = React.memo(SpoilageView);
 const MemoizedSelectSpoilageItem = React.memo(SelectSpoilageItem);
 const MemoizedItemsTab = React.memo(ItemsTab);
 const MemoizedAddItem = React.memo(AddItem);
@@ -255,6 +259,11 @@ const RootStack = () => {
           options={{headerTitle: 'Account'}}
         />
         <Stack.Screen
+          name={routes.inventorySettings()}
+          component={MemoizedInventorySettings}
+          options={{headerTitle: 'Inventory Settings'}}
+        />
+        <Stack.Screen
           name={routes.localUserAccounts()}
           options={{headerTitle: 'Manage Users'}}>
           {props => {
@@ -330,6 +339,11 @@ const RootStack = () => {
           name={routes.spoilage()}
           component={MemoizedSpoilage}
           options={{headerTitle: 'Spoilage / Wastage'}}
+        />
+        <Stack.Screen
+          name={routes.spoilageView()}
+          component={MemoizedSpoilageView}
+          options={{headerTitle: 'Spoilage Details'}}
         />
         <Stack.Screen
           name={routes.selectSpoilageItem()}

@@ -145,6 +145,7 @@ export const getInventoryLog = async ({queryKey}) => {
     inventory_logs.idt_import_id,
     inventory_logs.batch_transfer_group_id,
     inventory_logs.batch_transfer_ref_no,
+    inventory_logs.spoilage_id,
     operations.type AS operation_type,
     operations.name AS operation_name,
     operations.code AS operation_code,
@@ -1271,6 +1272,8 @@ export const addInventoryLog = async ({
       ? `datetime('${log.adjustment_date}')`
       : `datetime('now', 'localtime')`;
 
+    const spoilageId = log.spoilage_id ? `'${log.spoilage_id}'` : 'NULL';
+
     const {deviceId, branchId} = await getCloudSyncParams();
     const newLogId = uuid.v4();
     const addInventoryLogQuery = `INSERT INTO inventory_logs (
@@ -1289,6 +1292,7 @@ export const addInventoryLog = async ({
       adjustment_date,
       official_receipt_number,
       remarks,
+      spoilage_id,
       device_id,
       branch_id,
       sync_id,
@@ -1311,6 +1315,7 @@ export const addInventoryLog = async ({
       ${adjustmentDate},
       ${officialReceiptNumber},
       '${log.remarks ? log.remarks.replace(/\'/g, "''") : ''}',
+      ${spoilageId},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
       '${newLogId}',
@@ -1323,6 +1328,31 @@ export const addInventoryLog = async ({
   } catch (error) {
     console.debug(error);
     throw Error('Failed to add inventory log.');
+  }
+};
+
+/**
+ * The active (non-voided, non-deleted) Stock Usage log auto-deducted from a
+ * spoilage, or null. Used by the spoilage edit/delete flow to keep the linked
+ * inventory log in step (see localDbQueries/spoilages.js).
+ */
+export const getInventoryLogBySpoilageId = async spoilageId => {
+  if (!spoilageId) return null;
+
+  try {
+    const db = await getDBConnection();
+    const result = await db.executeSql(
+      `SELECT * FROM inventory_logs
+       WHERE spoilage_id = '${spoilageId}'
+       AND COALESCE(voided, 0) != 1
+       AND COALESCE(is_deleted, 0) != 1
+       LIMIT 1`,
+    );
+
+    return result[0].rows.item(0) || null;
+  } catch (error) {
+    console.debug(error);
+    return null;
   }
 };
 

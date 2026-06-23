@@ -26,6 +26,13 @@ export const defaultSettings = [
     setting_group: '',
     setting_sub_group: '',
   },
+  // Inventory settings
+  {
+    name: 'auto_deduct_spoilages',
+    value: '0',
+    setting_group: 'Inventory',
+    setting_sub_group: '',
+  },
 ];
 
 export const createSetting = async ({values}) => {
@@ -148,7 +155,23 @@ export const createDefaultSettings = async () => {
     const count = results[0]?.rows?.item(0)?.count ?? 0;
 
     if (count > 0) {
-      return;
+      // Settings already seeded — backfill only the defaults that don't exist
+      // yet, so newly-introduced settings (e.g. auto_deduct_spoilages) reach
+      // users created before this version.
+      const existing = await db.executeSql(`SELECT name FROM settings`);
+      const names = new Set();
+      existing.forEach(result => {
+        for (let i = 0; i < result.rows.length; i++) {
+          names.add(result.rows.item(i).name);
+        }
+      });
+
+      const missing = defaultSettings.filter(s => !names.has(s.name));
+      if (!missing.length) {
+        return;
+      }
+
+      return await Promise.all(missing.map(values => createSetting({values})));
     }
 
     return await Promise.all(
