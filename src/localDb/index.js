@@ -6,6 +6,7 @@ import {
 import SecureStorage from 'react-native-fast-secure-storage';
 import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import uuid from 'react-native-uuid';
 
 import {appDefaults} from '../constants/appDefaults';
 import {rnStorageKeys} from '../constants/rnSecureStorageKeys';
@@ -33,6 +34,35 @@ const loadCloudV2Item = async (key, parse = false) => {
     return null;
   }
 };
+
+// Epoch sentinel used to seed default `settings` rows. updated_at == synced_at
+// at the epoch means (a) collectUnsynced skips the row so a freshly-seeded
+// default never pushes and clobbers a real server value, and (b) any real
+// server value (updated_at > epoch) always wins the applyPulledRecord merge.
+// The first real updateSettings() bumps updated_at to CURRENT_TIMESTAMP so the
+// change then pushes normally. Same epoch string the initial pull uses.
+export const SETTINGS_SEED_SENTINEL = '1970-01-01 00:00:00';
+
+// Fixed namespace for deriving deterministic `settings` sync_ids. Every device
+// in a branch must agree on the sync_id for a given setting name, otherwise two
+// devices create two server rows for e.g. currency_code that never converge.
+// branchId is folded into the name so different branches never collide on the
+// server's globally-unique sync_id.
+const SETTINGS_SYNC_NAMESPACE = '8f1c9d2e-1a3b-4c5d-9e7f-0a1b2c3d4e5f';
+
+/**
+ * Deterministic sync_id for a settings row, stable across devices and reinstalls
+ * for a given (branchId, name) pair.
+ *
+ * NOTE: `react-native-uuid`'s v5 is non-standard (it mis-encodes the SHA-1
+ * digest). The server reproduces this exact output in App\Support\SettingSyncId
+ * (PHP) so a setting written from the web converges with the mobile-seeded row
+ * on the same sync_id. If this changes (namespace, name format, or uuid lib),
+ * update SettingSyncId.php + SettingSyncIdTest in lockstep or the two stores
+ * stop converging.
+ */
+export const getSettingSyncId = (branchId, name) =>
+  uuid.v5(`${branchId ?? 'nobranch'}:${name}`, SETTINGS_SYNC_NAMESPACE);
 
 let _cloudSyncParamsCache = null;
 
@@ -910,9 +940,14 @@ const createSavedPrintersTableQuery = `
     paper_width_uom_abbrev VARCHAR DEFAULT 'mm',
     auto_connect INTEGER DEFAULT 1,
     auto_print_receipt INTEGER DEFAULT 1,
+    is_default INTEGER DEFAULT 0,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
     device_id VARCHAR DEFAULT NULL,
-    branch_id VARCHAR DEFAULT NULL
+    branch_id VARCHAR DEFAULT NULL,
+    sync_id VARCHAR(36) DEFAULT NULL,
+    updated_at DATETIME DEFAULT NULL,
+    synced_at DATETIME DEFAULT NULL,
+    is_deleted INTEGER DEFAULT 0
   );
 `;
 
@@ -1229,13 +1264,23 @@ const createSellingMenuItemsTableQuery = `
   );
 `;
 
+// Company+branch-scoped settings. Delta-sync table (id is TEXT === sync_id so
+// applyPulledRecord's id=sync_id insert works; see getSettingSyncId for the
+// deterministic-per-(branch,name) identity). Existing INTEGER-id installs are
+// rebuilt by migrateSettingsToTextId() in alterTables.
 const createSettingsTableQuery = `CREATE TABLE IF NOT EXISTS settings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id TEXT PRIMARY KEY NOT NULL,
   name VARCHAR,
   value VARCHAR,
   setting_group VARCHAR,
   setting_sub_group VARCHAR,
-  app_version VARCHAR
+  app_version VARCHAR,
+  device_id VARCHAR DEFAULT NULL,
+  branch_id VARCHAR DEFAULT NULL,
+  sync_id VARCHAR(36) DEFAULT NULL,
+  updated_at DATETIME DEFAULT NULL,
+  synced_at DATETIME DEFAULT NULL,
+  is_deleted INTEGER DEFAULT 0
 );`;
 
 // Local mirror of the centralized company-wide master item catalog. Each row
@@ -1322,6 +1367,10 @@ const DELTA_SYNC_TABLES = [
   'expenses',
   'revenue_deductions',
   'revenue_categories',
+  // Branch-shared business config. saved_printers also syncs but is filtered to
+  // the current device on read (device-private — see localDbQueries/printers.js).
+  'settings',
+  'saved_printers',
 ];
 
 export const createViews = async () => {
@@ -1986,6 +2035,9 @@ export const alterTables = async currentAppVersion => {
         'revenue_categories',
         'selling_menus',
         'selling_menu_items',
+        // saved_printers already has device_id/branch_id from createTables; add
+        // settings here so existing DBs gain the Cloud v2 device/branch columns.
+        'settings',
       ];
 
       for (const table of cloudSyncTables) {
@@ -2024,6 +2076,95 @@ export const alterTables = async currentAppVersion => {
     } catch (error) {
       console.debug(
         '[alterTables] Error adding device_id/branch_id columns:',
+        error,
+      );
+    }
+
+    /**
+     * Delta-sync enablement for settings and saved_printers.
+     *
+     * Both became delta-sync tables so user settings (currency, logo toggles,
+     * inventory toggles) and saved/default printers survive an uninstall —
+     * device_id is stable across reinstall (server re-binds by physical hash),
+     * so the normal branch pull restores them. settings is branch-shared;
+     * saved_printers is branch-stored but filtered to the current device on read.
+     */
+    try {
+      // settings: rebuild INTEGER-id installs to TEXT id (= sync_id). Idempotent
+      // — no-ops once settings.id is already TEXT.
+      await migrateSettingsToTextId();
+
+      // saved_printers: add the four delta-sync columns + the per-device default
+      // flag for existing DBs (createTables only covers fresh installs / the
+      // UUID rebuild). All idempotent.
+      await executeSqlIfColumnNotExist(
+        db,
+        'saved_printers',
+        'sync_id',
+        'ALTER TABLE saved_printers ADD COLUMN sync_id VARCHAR(36) DEFAULT NULL;',
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'saved_printers',
+        'updated_at',
+        'ALTER TABLE saved_printers ADD COLUMN updated_at DATETIME DEFAULT NULL;',
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'saved_printers',
+        'synced_at',
+        'ALTER TABLE saved_printers ADD COLUMN synced_at DATETIME DEFAULT NULL;',
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'saved_printers',
+        'is_deleted',
+        'ALTER TABLE saved_printers ADD COLUMN is_deleted INTEGER DEFAULT 0;',
+      );
+      await executeSqlIfColumnNotExist(
+        db,
+        'saved_printers',
+        'is_default',
+        'ALTER TABLE saved_printers ADD COLUMN is_default INTEGER DEFAULT 0;',
+      );
+
+      // Backfill: existing printers each get a stable sync_id (= their TEXT id)
+      // and an updated_at so they push on the next sync.
+      await db.executeSql(
+        `UPDATE saved_printers SET sync_id = id WHERE sync_id IS NULL;`,
+      );
+      await db.executeSql(
+        `UPDATE saved_printers SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL;`,
+      );
+
+      // Migrate the legacy company-wide default_printer_id setting onto the
+      // per-device is_default flag (one-time; only if no row is flagged yet).
+      try {
+        const [flagged] = await db.executeSql(
+          `SELECT COUNT(*) AS c FROM saved_printers WHERE IFNULL(is_default, 0) = 1`,
+        );
+        const alreadyFlagged = flagged?.rows?.item(0)?.c ?? 0;
+        if (!alreadyFlagged) {
+          const [setRow] = await db.executeSql(
+            `SELECT value FROM settings WHERE name = 'default_printer_id' LIMIT 1`,
+          );
+          const legacyDefaultId = setRow?.rows?.item(0)?.value;
+          if (legacyDefaultId && legacyDefaultId !== '0') {
+            await db.executeSql(
+              `UPDATE saved_printers SET is_default = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?;`,
+              [legacyDefaultId],
+            );
+          }
+        }
+      } catch (e) {
+        console.debug(
+          '[alterTables] default_printer_id → is_default migration skipped:',
+          e,
+        );
+      }
+    } catch (error) {
+      console.debug(
+        '[alterTables] Error enabling settings/saved_printers delta sync:',
         error,
       );
     }
@@ -2661,6 +2802,92 @@ export const OPERATION_DEFAULT_UUIDS = {
   inventory_recount_out: '00000001-0000-4000-a000-000000000007',
   stock_transfer_out: '00000001-0000-4000-a000-000000000010',
   new_yield_stock: '00000001-0000-4000-a000-000000000011',
+};
+
+/**
+ * One-time migration: rebuild the `settings` table with a TEXT id (= sync_id)
+ * so it can participate in delta sync. The generic applyPulledRecord inserts
+ * `id = sync_id` (a UUID), which an INTEGER PRIMARY KEY rejects. `settings.id`
+ * is referenced nowhere (every query keys on `name`), so the swap is safe.
+ *
+ * Idempotent: skips once `settings.id` is already TEXT (fresh installs, or a
+ * prior run). Existing values are preserved locally and each row gets the
+ * deterministic per-(branch, name) sync_id from getSettingSyncId so all devices
+ * converge. Rows are stamped at the epoch sentinel (updated_at == synced_at), so
+ * the migration is NON-DESTRUCTIVE: it never pushes (and so never clobbers a
+ * value already set on the server — e.g. an admin-set auto_deduct_spoilages from
+ * the web), and any real server value wins the next pull. The first explicit
+ * change after upgrade bumps updated_at past the sentinel and pushes normally.
+ */
+export const migrateSettingsToTextId = async () => {
+  const db = await getDBConnection();
+
+  // Detect current id column type.
+  let idType = null;
+  try {
+    const info = await db.executeSql('PRAGMA table_info(settings)');
+    for (let i = 0; i < info[0].rows.length; i++) {
+      const col = info[0].rows.item(i);
+      if (col.name === 'id') {
+        idType = col.type;
+        break;
+      }
+    }
+  } catch (e) {
+    console.debug('[migrateSettingsToTextId] Could not read settings schema:', e);
+    return;
+  }
+  if (idType === null) return; // no settings table yet
+  if (String(idType).toUpperCase() === 'TEXT') return; // already migrated
+
+  console.info('[migrateSettingsToTextId] Rebuilding settings with TEXT id…');
+
+  try {
+    const {branchId, deviceId} = await getCloudSyncParams();
+
+    // Snapshot existing rows.
+    const [old] = await db.executeSql(
+      `SELECT name, value, setting_group, setting_sub_group, app_version FROM settings`,
+    );
+    const rows = [];
+    for (let i = 0; i < old.rows.length; i++) {
+      rows.push(old.rows.item(i));
+    }
+
+    await db.executeSql('DROP TABLE IF EXISTS _settings_old_mig;');
+    await db.executeSql('ALTER TABLE settings RENAME TO _settings_old_mig;');
+    await db.executeSql(createSettingsTableQuery);
+
+    for (const r of rows) {
+      const syncId = getSettingSyncId(branchId, r.name);
+      await db.executeSql(
+        `INSERT INTO settings
+          (id, sync_id, name, value, setting_group, setting_sub_group, app_version,
+           device_id, branch_id, updated_at, synced_at, is_deleted)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0);`,
+        [
+          syncId,
+          syncId,
+          r.name ?? null,
+          r.value ?? null,
+          r.setting_group ?? null,
+          r.setting_sub_group ?? null,
+          r.app_version ?? null,
+          deviceId ?? null,
+          branchId ?? null,
+          SETTINGS_SEED_SENTINEL,
+          SETTINGS_SEED_SENTINEL,
+        ],
+      );
+    }
+
+    await db.executeSql('DROP TABLE IF EXISTS _settings_old_mig;');
+    console.info(
+      `[migrateSettingsToTextId] Rebuilt settings (${rows.length} rows).`,
+    );
+  } catch (e) {
+    console.debug('[migrateSettingsToTextId] Rebuild failed:', e);
+  }
 };
 
 /**

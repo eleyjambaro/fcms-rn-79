@@ -19,7 +19,7 @@ import {periodTotalsBlock, EARLIEST_LOG_DATE} from './reportsSqlBuilders';
  */
 const isAutoDeductSpoilagesEnabled = async db => {
   const result = await db.executeSql(
-    `SELECT value FROM settings WHERE name = 'auto_deduct_spoilages' LIMIT 1`,
+    `SELECT value FROM active_settings WHERE name = 'auto_deduct_spoilages' LIMIT 1`,
   );
   return result[0].rows.item(0)?.value === '1';
 };

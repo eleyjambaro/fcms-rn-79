@@ -5,7 +5,6 @@ import {
   isInsertLimitReached,
 } from '../utils/localDbQueryHelpers';
 import getAppConfig from '../constants/appConfig';
-import {getSettings} from './settings';
 import uuid from 'react-native-uuid';
 
 export const createPrinter = async ({values, onInsertLimitReached}) => {
@@ -21,31 +20,44 @@ export const createPrinter = async ({values, onInsertLimitReached}) => {
         : values.auto_connect
         ? 1
         : 0;
+    // saved_printers is a delta-sync table: id is TEXT === sync_id, and
+    // updated_at is stamped (UTC, matching the sync watermark format) so the new
+    // printer pushes on the next sync.
     const createPrinterQuery = `INSERT INTO saved_printers (
     id,
+    sync_id,
     display_name,
     device_name,
     inner_mac_address,
     auto_connect,
     device_id,
-    branch_id
+    branch_id,
+    updated_at,
+    is_deleted
   )
 
   VALUES(
+    '${newPrinterId}',
     '${newPrinterId}',
     '${values.display_name.replace(/\'/g, "''")}',
     '${values.device_name.replace(/\'/g, "''")}',
     '${values.inner_mac_address.replace(/\'/g, "''")}',
     ${autoConnect},
     ${deviceId ? `'${deviceId}'` : 'NULL'},
-    ${branchId ? `'${branchId}'` : 'NULL'}
+    ${branchId ? `'${branchId}'` : 'NULL'},
+    CURRENT_TIMESTAMP,
+    0
   );`;
     const appConfig = await getAppConfig();
     const insertLimit = appConfig?.insertLimit;
 
+    // Limit is per-device and excludes soft-deleted rows — count via the active
+    // view filtered to this device (printers are device-private).
     if (
       insertLimit > 0 &&
-      (await isInsertLimitReached('saved_printers', insertLimit))
+      (await isInsertLimitReached('active_saved_printers', insertLimit, {
+        device_id: deviceId,
+      }))
     ) {
       onInsertLimitReached &&
         onInsertLimitReached({
@@ -80,10 +92,13 @@ export const createPrinter = async ({values, onInsertLimitReached}) => {
 export const getPrinters = async ({queryKey, pageParam = 1}) => {
   const [_key, {filter, limit = 1000000000}] = queryKey;
   const orderBy = 'display_name';
-  let queryFilter = createQueryFilter(filter);
 
   try {
     const db = await getDBConnection();
+    // Printers are device-private: read from the NULL-safe active view and scope
+    // to this device so other tablets' printers never appear here.
+    const {deviceId} = await getCloudSyncParams();
+    let queryFilter = createQueryFilter(filter, {device_id: deviceId ?? ''});
     const vendors = [];
     const offset = (pageParam - 1) * limit;
     const queryOrderBy = orderBy ? `ORDER BY ${orderBy} ASC` : '';
@@ -92,7 +107,7 @@ export const getPrinters = async ({queryKey, pageParam = 1}) => {
     `;
     const countAllQuery = `SELECT COUNT(*) `;
     const query = `
-      FROM saved_printers
+      FROM active_saved_printers
 
       ${queryFilter}
 
@@ -124,7 +139,7 @@ export const getPrinters = async ({queryKey, pageParam = 1}) => {
 
 export const getPrinter = async ({queryKey}) => {
   const [_key, {id}] = queryKey;
-  const query = `SELECT * FROM saved_printers WHERE id = '${id}'`;
+  const query = `SELECT * FROM active_saved_printers WHERE id = '${id}'`;
 
   if (!id) {
     return {
@@ -160,7 +175,8 @@ export const updatePrinter = async ({id, updatedValues}) => {
   inner_mac_address = '${updatedValues.inner_mac_address.replace(
     /\'/g,
     "''",
-  )}'${autoConnectSet}
+  )}'${autoConnectSet},
+  updated_at = CURRENT_TIMESTAMP
   WHERE id = '${id}'`;
 
   try {
@@ -173,12 +189,16 @@ export const updatePrinter = async ({id, updatedValues}) => {
 };
 
 // Toggle just the auto-reconnect preference (used by the "Connect to default
-// printer?" dialog). saved_printers is an excluded, non-sync table, so a plain
-// UPDATE is correct here — no soft-delete / updated_at handling needed.
+// printer?" dialog). saved_printers is now a delta-sync table, so bump
+// updated_at too — the preference is per-device but still pushed so it restores
+// after a reinstall on the same device.
 export const setPrinterAutoConnect = async ({id, autoConnect}) => {
   const query = `UPDATE saved_printers SET auto_connect = ${
     autoConnect ? 1 : 0
-  } WHERE id = '${String(id).replace(/\'/g, "''")}'`;
+  }, updated_at = CURRENT_TIMESTAMP WHERE id = '${String(id).replace(
+    /\'/g,
+    "''",
+  )}'`;
 
   try {
     const db = await getDBConnection();
@@ -190,7 +210,9 @@ export const setPrinterAutoConnect = async ({id, autoConnect}) => {
 };
 
 export const deletePrinter = async ({id}) => {
-  const query = `DELETE FROM saved_printers WHERE id = '${id}'`;
+  // Soft-delete: saved_printers is a delta-sync table (Invariant 4 — never
+  // DELETE FROM). Bump updated_at so the tombstone propagates on the next push.
+  const query = `UPDATE saved_printers SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = '${id}'`;
 
   try {
     const db = await getDBConnection();
@@ -202,29 +224,25 @@ export const deletePrinter = async ({id}) => {
 };
 
 export const getDefaultPrinter = async () => {
+  // The default printer is now a per-device flag on the printer row itself
+  // (saved_printers.is_default), not the old company-wide default_printer_id
+  // setting. This keeps the default device-private (a tablet can't default to a
+  // Bluetooth printer it can't reach) and lets it restore after a reinstall on
+  // the same device via the normal printer sync.
   try {
-    /**
-     * Get default printer id
-     */
-    const getDefaultPrinterQueryData = await getSettings({
-      queryKey: ['settings', {settingNames: ['default_printer_id']}],
-    });
+    const db = await getDBConnection();
+    const {deviceId} = await getCloudSyncParams();
+    const result = await db.executeSql(
+      `SELECT * FROM active_saved_printers
+       WHERE IFNULL(is_default, 0) = 1 AND device_id ${
+         deviceId ? `= '${String(deviceId).replace(/\'/g, "''")}'` : 'IS NULL'
+       }
+       LIMIT 1`,
+    );
 
-    const settings = getDefaultPrinterQueryData?.resultMap;
-
-    if (
-      !settings ||
-      !settings.default_printer_id ||
-      settings.default_printer_id === '0'
-    ) {
-      return null;
-    }
-
-    const defaultPrinter = await getPrinter({
-      queryKey: ['printer', {id: settings.default_printer_id}],
-    });
-
-    return defaultPrinter;
+    return {
+      result: result[0].rows.item(0) ?? null,
+    };
   } catch (error) {
     console.debug(error);
     throw Error('Failed to get default printer.');
@@ -232,26 +250,22 @@ export const getDefaultPrinter = async () => {
 };
 
 export const setDefaultPrinter = async ({id}) => {
-  // Store the id verbatim. `saved_printers.id` is a TEXT UUID (createTables +
-  // createPrinter's uuid.v4()), so the previous `parseInt(id)` corrupted it to
-  // 'NaN' (or a truncated number when the UUID led with a digit). That value
-  // never matched any saved_printers.id, so getDefaultPrinter's lookup found no
-  // row and returned null — triggering the same `!defaultPrinter` no-op
-  // described below on every context-based print.
-  const query = `UPDATE settings SET value = '${String(id).replace(
-    /\'/g,
-    "''",
-  )}' WHERE name = 'default_printer_id'`;
-
+  // Flip is_default on this device's printers: set the chosen row to 1 and all
+  // of this device's other rows to 0, bumping updated_at so the change pushes.
+  // Scoped to device_id so it never touches another device's default.
   try {
-    // The `default_printer_id` setting lives in the COMPANY DB (it is read back
-    // via getSettings/getDefaultPrinter, both on getDBConnection). Writing it to
-    // the account DB here meant the company DB's row was never set, so
-    // getDefaultPrinter always returned null and every context-based print
-    // (Sales Register / Sales Invoice) silently no-op'd on the `!defaultPrinter`
-    // guard — while the create-printer screen's own test kept working because it
-    // talks to BLEPrinter directly.
     const db = await getDBConnection();
+    const {deviceId} = await getCloudSyncParams();
+    const safeId = String(id).replace(/\'/g, "''");
+    const deviceClause = deviceId
+      ? `device_id = '${String(deviceId).replace(/\'/g, "''")}'`
+      : 'device_id IS NULL';
+
+    const query = `UPDATE saved_printers
+      SET is_default = CASE WHEN id = '${safeId}' THEN 1 ELSE 0 END,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE ${deviceClause}`;
+
     await db.executeSql(query);
   } catch (error) {
     console.debug(error);

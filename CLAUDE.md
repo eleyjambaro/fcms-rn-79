@@ -68,7 +68,12 @@ Units are stored in AsyncStorage under a company+branch-scoped key (`units_<comp
 
 ### Delta Sync (Cloud Sync)
 
-All Company DB tables participate in delta sync **except**: `app_versions`, `operations`, `saved_printers`, `settings`, and `sync_metadata`. Account DB tables are never synced.
+All Company DB tables participate in delta sync **except**: `app_versions`, `operations`, and `sync_metadata`. Account DB tables are never synced.
+
+`settings` and `saved_printers` **do** sync (so user config and saved/default printers survive an uninstall — `device_id` is stable across reinstall, so the normal branch pull restores them). Two non-obvious rules apply to them:
+
+- **`settings` is branch-shared.** `settings.id` is `TEXT` (= `sync_id`, since `applyPulledRecord` inserts `id = sync_id`), and the `sync_id` is **deterministic per `(branch, name)`** via `getSettingSyncId()` in `/src/localDb/index.js` so every device in a branch converges on one row per setting name (never reintroduce a random `sync_id` here). Seeded defaults are stamped at the epoch sentinel `SETTINGS_SEED_SENTINEL` (`updated_at == synced_at`) so a fresh default neither pushes (clobbering a real server value) nor wins a pull against one; the first `updateSettings()` bumps `updated_at` so the change then pushes. Existing INTEGER-id installs are rebuilt by `migrateSettingsToTextId()` in `alterTables`.
+- **`saved_printers` is branch-stored but DEVICE-PRIVATE.** Every read in `/src/localDbQueries/printers.js` filters `WHERE device_id = <this device>` (and reads `active_saved_printers`) so a tablet never sees or auto-connects to another device's printer. The default printer is the per-device `saved_printers.is_default` flag (not the legacy company-wide `default_printer_id` setting); `setDefaultPrinter` flips it scoped to `device_id`.
 
 Delta sync tables receive four extra columns added via `alterTables()` in `/src/localDb/index.js`:
 
@@ -77,7 +82,7 @@ Delta sync tables receive four extra columns added via `alterTables()` in `/src/
 - `synced_at` — stamped by the sync service after a successful push
 - `is_deleted` — soft-delete flag (`1` = deleted); **never use `DELETE FROM` on these tables**
 
-**Soft-delete rule**: all deletions on delta sync tables must use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` instead of `DELETE FROM`. Hard deletes are only allowed on excluded tables (`app_versions`, `operations`, `saved_printers`, `settings`, `monthly_expenses`, and Account DB tables).
+**Soft-delete rule**: all deletions on delta sync tables must use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` instead of `DELETE FROM`. Hard deletes are only allowed on excluded tables (`app_versions`, `operations`, `monthly_expenses`, and Account DB tables) — note `settings` and `saved_printers` are now sync tables and must soft-delete.
 
 **Active views**: `createViews()` in `/src/localDb/index.js` creates an `active_<table>` SQLite view for every delta sync table (e.g. `active_items`, `active_inventory_logs`). Each view is defined as `SELECT * FROM <table> WHERE IFNULL(is_deleted, 0) != 1` — **the `IFNULL` is required** because pulled records can have `is_deleted = NULL` and `NULL != 1` evaluates to NULL (falsy) in SQLite, which would silently hide every such row. **All SELECT queries in `/src/localDbQueries/` must use these views instead of the base tables** so soft-deleted records are automatically excluded. Use an alias matching the original table name to keep column references working:
 

@@ -223,6 +223,13 @@ const GROUP_A_ENTITIES = [
       idt_import_id: 'idt_import_sync_id',
     },
   },
+  // Branch-shared business config (currency, logo toggles, inventory toggles).
+  // No FK columns, so no pushFieldMap.
+  {key: 'settings', table: 'settings'},
+  // Branch-stored but device-private (filtered to the current device on read in
+  // localDbQueries/printers.js). Synced so printers + the per-device default
+  // (is_default) restore after a reinstall on the same device.
+  {key: 'saved_printers', table: 'saved_printers'},
 ];
 
 /**

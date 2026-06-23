@@ -1,4 +1,9 @@
-import {getDBConnection} from '../localDb';
+import {
+  getDBConnection,
+  getCloudSyncParams,
+  getSettingSyncId,
+  SETTINGS_SEED_SENTINEL,
+} from '../localDb';
 
 export const defaultSettings = [
   // Logo settings
@@ -35,25 +40,44 @@ export const defaultSettings = [
   },
 ];
 
+// Seeds a single (default) setting row. settings is a delta-sync table: id is
+// TEXT === sync_id (deterministic per branch+name so every device converges),
+// and the seed is stamped at the epoch sentinel (updated_at == synced_at) so a
+// freshly-seeded default neither pushes (and clobbers a real server value) nor
+// wins a pull against a real one. The first updateSettings() bumps updated_at
+// past the sentinel, at which point the change pushes normally.
 export const createSetting = async ({values}) => {
-  const query = `INSERT INTO settings (
-    name,
-    value,
-    setting_group,
-    setting_sub_group
-  )
-  
-  VALUES(
-    '${values.name?.replace(/\'/g, "''")}',
-    '${values.value}',
-    '${values.setting_group}',
-    '${values.setting_sub_group}'
-  );`;
-
   try {
     const db = await getDBConnection();
+    const {deviceId, branchId} = await getCloudSyncParams();
+    const syncId = getSettingSyncId(branchId, values.name);
+    const query = `INSERT INTO settings (
+      id,
+      sync_id,
+      name,
+      value,
+      setting_group,
+      setting_sub_group,
+      device_id,
+      branch_id,
+      updated_at,
+      synced_at,
+      is_deleted
+    )
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0);`;
 
-    return db.executeSql(query);
+    return db.executeSql(query, [
+      syncId,
+      syncId,
+      values.name ?? null,
+      values.value ?? null,
+      values.setting_group ?? null,
+      values.setting_sub_group ?? null,
+      deviceId ?? null,
+      branchId ?? null,
+      SETTINGS_SEED_SENTINEL,
+      SETTINGS_SEED_SENTINEL,
+    ]);
   } catch (error) {
     console.debug(error);
     throw Error('Failed to create setting.');
@@ -63,12 +87,13 @@ export const createSetting = async ({values}) => {
 export const getSettings = async ({queryKey}) => {
   const [_key, {settingNames}] = queryKey;
 
-  let query = `SELECT * FROM settings WHERE name IN (${settingNames
+  // Read from the NULL-safe active_ view so soft-deleted rows stay hidden.
+  let query = `SELECT * FROM active_settings WHERE name IN (${settingNames
     ?.map(name => `'${name}'`)
     ?.join(', ')})`;
 
   if (typeof settingNames === 'string' && settingNames === '*') {
-    query = `SELECT * FROM settings`;
+    query = `SELECT * FROM active_settings`;
   }
 
   try {
@@ -126,11 +151,14 @@ export const updateSettings = async ({values, onSuccess, onError}) => {
       }
     }
 
-    // update each setting value
+    // update each setting value. Bump updated_at (UTC, matches the sync
+    // watermark format) so the change is collected on the next push.
     const updateEachSettingValueQuery = `
       WITH tmp(name, value) AS (${tmpValues})
 
-      UPDATE settings SET value = (SELECT value FROM tmp WHERE settings.name = tmp.name)
+      UPDATE settings SET
+        value = (SELECT value FROM tmp WHERE settings.name = tmp.name),
+        updated_at = CURRENT_TIMESTAMP
 
       WHERE name IN (SELECT name FROM tmp)
     `;
@@ -186,7 +214,7 @@ export const createDefaultSettings = async () => {
 export const getAllSettings = async ({queryKey}) => {
   const [_key] = queryKey;
 
-  let query = `SELECT * FROM settings`;
+  let query = `SELECT * FROM active_settings`;
 
   try {
     const db = await getDBConnection();
@@ -220,7 +248,9 @@ export const deleteAllSettings = async () => {
   try {
     const db = await getDBConnection();
 
-    const query = `DELETE FROM settings`;
+    // Soft-delete: settings is a delta-sync table (Invariant 4 — never DELETE
+    // FROM). Bump updated_at so the tombstone propagates on the next push.
+    const query = `UPDATE settings SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP`;
     await db.executeSql(query);
 
     console.info('Settings deleted');
@@ -236,7 +266,8 @@ export const deletePreviousAppVersionDefaultSettings = async (
   try {
     const db = await getDBConnection();
 
-    const query = `DELETE FROM settings WHERE app_version != '${currentVersion}'`;
+    // Soft-delete (see deleteAllSettings).
+    const query = `UPDATE settings SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE app_version != '${currentVersion}'`;
     return db.executeSql(query);
   } catch (error) {
     console.debug(error);
