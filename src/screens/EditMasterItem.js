@@ -15,9 +15,7 @@ import {Dropdown} from 'react-native-paper-dropdown';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import MoreSelectionButton from '../components/buttons/MoreSelectionButton';
-import ConfirmationCheckbox from '../components/forms/ConfirmationCheckbox';
 import QuantityUOMText from '../components/forms/QuantityUOMText';
-import useItemFormContext from '../hooks/useItemFormContext';
 import {updateMasterItem} from '../serverDbQueries/v2/masterItems';
 import {PACKAGING_TYPE_OPTIONS} from '../constants/itemForm';
 import {generateMasterItemDescription} from '../utils/generateMasterItemDescription';
@@ -88,7 +86,6 @@ const BoldDropdownInput = ({
 const EditMasterItem = ({navigation, route}) => {
   const {colors} = useTheme();
   const queryClient = useQueryClient();
-  const {setFormikActions} = useItemFormContext();
   const master = route.params?.master ?? null;
   const [actionError, setActionError] = useState('');
   const [showPackagingDropDown, setShowPackagingDropDown] = useState(false);
@@ -169,28 +166,6 @@ const EditMasterItem = ({navigation, route}) => {
     );
   }
 
-  const navigateToUOM = uomFieldKey => {
-    setFormikActions(() => ({
-      setFieldValue: formik.setFieldValue,
-      setFieldTouched: formik.setFieldTouched,
-      setFieldError: formik.setFieldError,
-    }));
-    navigation.navigate('ItemUOM', {
-      uom_abbrev: formik.values[uomFieldKey],
-      uom_abbrev_field_key: uomFieldKey,
-    });
-  };
-
-  const handleTogglePerPiece = () => {
-    if (formik.values.add_measurement_per_piece) {
-      formik.setFieldValue('uom_abbrev_per_piece', '');
-      formik.setFieldValue('qty_per_piece', '');
-      formik.setFieldValue('packaging_type', '');
-      formik.setFieldValue('add_measurement_per_piece', false);
-    } else {
-      formik.setFieldValue('add_measurement_per_piece', true);
-    }
-  };
 
   return (
     <View style={[styles.container, {backgroundColor: colors.surface}]}>
@@ -307,30 +282,31 @@ const EditMasterItem = ({navigation, route}) => {
           containerStyle={{marginTop: 4}}
           placeholder="Select Unit"
           label="Unit of Measurement"
+          disabled
           renderValueCurrentValue={formik.values.uom_abbrev}
           renderValue={(_v, p) => (
             <Text variant="titleMedium" {...p}>
               {p?.trimTextLength(formatUOMName(formik.values.uom_abbrev))}
             </Text>
           )}
-          onPress={() => navigateToUOM('uom_abbrev')}
+          onPress={() => {}}
         />
+        <HelperText type="info" visible>
+          Unit of measurement and per-piece quantity can't be changed once an
+          item exists — transactions may already be recorded against them. To
+          use a different unit, register a new master item for that variant.
+        </HelperText>
 
-        <View style={styles.perPieceToggle}>
-          <ConfirmationCheckbox
-            status={formik.values.add_measurement_per_piece}
-            text="Set a UOM Per Piece / Item Net Wt."
-            containerStyle={{paddingTop: 5, paddingBottom: 5}}
-            onPress={handleTogglePerPiece}
-          />
-        </View>
-
+        {/* Per-piece variant fields are write-once (insert-only on sync), so the
+            toggle is omitted here and any existing per-piece values are shown
+            read-only. A genuine UOM/per-piece change means a new master. */}
         {formik.values.add_measurement_per_piece ? (
           <>
             <MoreSelectionButton
               containerStyle={{marginTop: -1}}
               placeholder="Select Unit"
               label="UOM Per Piece (Per Package)"
+              disabled
               renderValueCurrentValue={formik.values.uom_abbrev_per_piece}
               renderValue={(_v, p) => (
                 <Text variant="titleMedium" {...p}>
@@ -339,21 +315,15 @@ const EditMasterItem = ({navigation, route}) => {
                   )}
                 </Text>
               )}
-              onPress={() => navigateToUOM('uom_abbrev_per_piece')}
+              onPress={() => {}}
             />
 
             <View style={{flexDirection: 'row'}}>
               <TextInput
                 label="Qty. Per Piece / Item Net Wt."
                 value={formik.values.qty_per_piece}
-                onChangeText={formik.handleChange('qty_per_piece')}
-                onBlur={formik.handleBlur('qty_per_piece')}
+                disabled
                 keyboardType="numeric"
-                error={
-                  !!(
-                    formik.touched.qty_per_piece && formik.errors.qty_per_piece
-                  )
-                }
                 style={[styles.input, {flex: 1}]}
                 contentStyle={styles.valueText}
               />
@@ -363,11 +333,6 @@ const EditMasterItem = ({navigation, route}) => {
                 concatText={' each'}
               />
             </View>
-            {formik.touched.qty_per_piece && formik.errors.qty_per_piece ? (
-              <HelperText type="error" visible>
-                {formik.errors.qty_per_piece}
-              </HelperText>
-            ) : null}
 
             <Dropdown
               label="Packaging Type (Optional)"
@@ -432,9 +397,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     marginTop: -8,
     marginBottom: 4,
-  },
-  perPieceToggle: {
-    marginVertical: 10,
   },
   footer: {
     flexDirection: 'row',
