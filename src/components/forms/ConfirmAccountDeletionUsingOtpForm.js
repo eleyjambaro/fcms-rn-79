@@ -27,16 +27,40 @@ const ConfirmAccountDeletionUsingOtpForm = ({
   const [otp, setOtp] = useState('');
   const [requestId, setRequestId] = useState(null);
   const [serverError, setServerError] = useState('');
+  // Resend guard: seconds left before another code can be requested. Seeded from
+  // the server (resend_after on send, retry_after on a 429) so the button can't
+  // be tapped past the server's own cooldown.
+  const [cooldown, setCooldown] = useState(0);
   const inputRef = useRef(null);
+  const tickRef = useRef(null);
 
   const requestMutation = useMutation(requestDeleteAccountOtp);
 
-  const sendOtp = async () => {
+  const startCooldown = seconds => {
+    if (tickRef.current) {
+      clearInterval(tickRef.current);
+    }
+    setCooldown(Math.max(0, Math.ceil(seconds)));
+    tickRef.current = setInterval(() => {
+      setCooldown(s => {
+        if (s <= 1 && tickRef.current) {
+          clearInterval(tickRef.current);
+        }
+        return s <= 1 ? 0 : s - 1;
+      });
+    }, 1000);
+  };
+
+  const sendOtp = async ({resend = false} = {}) => {
+    if (resend && cooldown > 0) {
+      return;
+    }
     setServerError('');
     try {
       const data = await requestMutation.mutateAsync({password});
       if (data?.data?.request_id) {
         setRequestId(data.data.request_id);
+        startCooldown(data?.data?.resend_after ?? 30);
       } else {
         setServerError('Failed to send the code. Please try again.');
       }
@@ -48,6 +72,16 @@ const ConfirmAccountDeletionUsingOtpForm = ({
         );
         return;
       }
+      // 429 → resend cooldown still active. A valid code was already sent, so
+      // keep its request_id usable and just run the countdown.
+      if (error?.response?.status === 429) {
+        const errs = error?.response?.data?.errors;
+        if (errs?.request_id) {
+          setRequestId(errs.request_id);
+        }
+        startCooldown(errs?.retry_after ?? 30);
+        return;
+      }
       setServerError(
         error?.response?.data?.message ||
           'Unable to send the code. Check your network.',
@@ -57,6 +91,11 @@ const ConfirmAccountDeletionUsingOtpForm = ({
 
   useEffect(() => {
     sendOtp();
+    return () => {
+      if (tickRef.current) {
+        clearInterval(tickRef.current);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -154,10 +193,10 @@ const ConfirmAccountDeletionUsingOtpForm = ({
       </Button>
       <Button
         mode="text"
-        onPress={sendOtp}
-        disabled={requestMutation.isLoading}
+        onPress={() => sendOtp({resend: true})}
+        disabled={requestMutation.isLoading || cooldown > 0}
         style={{marginTop: 12}}>
-        Resend code
+        {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
       </Button>
       <Button onPress={onCancel} style={{marginTop: 4}}>
         Cancel
