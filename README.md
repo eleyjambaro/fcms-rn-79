@@ -172,13 +172,33 @@ All Company DB tables participate in delta sync and receive the following column
 
 **Soft-delete rule**: deletions on sync tables use `UPDATE … SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP` — never `DELETE FROM`.
 
+### `settings` and `saved_printers` now sync (survive uninstall/reinstall)
+
+Both used to be device-local. They are now delta-sync tables, so a user's config
+and saved/default printers come back after an uninstall/reinstall (the server
+re-binds the same `device_id` by physical-device hash, so the normal branch pull
+restores the device's own rows). Two non-obvious rules:
+
+- **`settings` is branch-shared.** `settings.id` is `TEXT` (= `sync_id`) and the
+  `sync_id` is **deterministic per `(branch, name)`** via `getSettingSyncId()`
+  (`src/localDb/index.js`), so every device in a branch converges on one row per
+  setting name. Seeded defaults are stamped at the epoch sentinel
+  `SETTINGS_SEED_SENTINEL` (`updated_at == synced_at`) so a fresh default neither
+  pushes (clobbering a real server value) nor wins a pull against one; the first
+  `updateSettings()` bumps `updated_at` so the change then pushes. Existing
+  INTEGER-id installs are rebuilt by `migrateSettingsToTextId()`.
+- **`saved_printers` is branch-stored but DEVICE-PRIVATE.** Every read in
+  `src/localDbQueries/printers.js` filters `WHERE device_id = <this device>` so a
+  tablet never sees or auto-connects to another device's printer. The default
+  printer is the per-device `saved_printers.is_default` flag (not the legacy
+  company-wide `default_printer_id` setting).
+
 ### Excluded from sync
 
-| Category             | Tables                                       |
-| -------------------- | -------------------------------------------- |
-| Local Account DB     | `roles`, `accounts`, `companies`, `settings` |
-| App-managed / seeded | `app_versions`, `operations`, `taxes`        |
-| Device-local         | `saved_printers`, `sync_metadata`            |
+| Category             | Tables                                  |
+| -------------------- | --------------------------------------- |
+| Local Account DB     | `roles`, `accounts`, `companies`        |
+| App-managed / local  | `app_versions`, `operations`, `sync_metadata` |
 
 # Inventory Data Template (IDT)
 
