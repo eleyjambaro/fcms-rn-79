@@ -5,6 +5,21 @@ import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {scheduleSyncSoon} from '../services/syncService';
 import {periodTotalsBlock, EARLIEST_LOG_DATE} from './reportsSqlBuilders';
+import {formatUOMAbbrev} from '../utils/stringHelpers';
+
+/**
+ * Marks an error whose `message` is safe (and intended) to show directly to the
+ * user — e.g. the insufficient-stock guard. `addSpoilage`'s catch re-throws
+ * these verbatim instead of masking them with the generic failure message, so
+ * the UI can surface the actual reason.
+ */
+class SpoilageError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'SpoilageError';
+    this.isUserFacing = true;
+  }
+}
 
 // NOTE: `./inventoryLogs` and `./items` are required lazily inside the functions
 // that need them (addSpoilage / updateSpoilage / deleteSpoilage) rather than
@@ -102,7 +117,12 @@ export const addSpoilage = async ({values}) => {
         itemData?.result?.current_stock_qty || 0,
       );
       if (currentStockQty < parseFloat(inSpoilageQtyBasedOnItemUom)) {
-        throw Error('Not enough stock to auto-deduct this spoilage.');
+        const uomLabel = formatUOMAbbrev(item.uom_abbrev || '');
+        throw new SpoilageError(
+          `Not enough stock to auto-deduct this spoilage. Available: ` +
+            `${currentStockQty} ${uomLabel}, needed: ` +
+            `${parseFloat(inSpoilageQtyBasedOnItemUom)} ${uomLabel}.`,
+        );
       }
     }
 
@@ -167,6 +187,11 @@ export const addSpoilage = async ({values}) => {
     return spoilage;
   } catch (error) {
     console.debug(error);
+    // Preserve user-facing reasons (e.g. insufficient stock) so the UI can show
+    // them; mask only unexpected internal errors behind a generic message.
+    if (error?.isUserFacing) {
+      throw error;
+    }
     throw Error('Failed to add spoilage.');
   }
 };

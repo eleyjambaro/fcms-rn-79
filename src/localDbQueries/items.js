@@ -1065,8 +1065,8 @@ export const getItem = async ({queryKey}) => {
   const query = `
     /* modifier_options table with modifier fields */
     WITH cte_item_modifier_options AS (
-      SELECT * FROM modifier_options
-      JOIN modifiers ON modifiers.id = modifier_options.modifier_id
+      SELECT * FROM active_modifier_options modifier_options
+      JOIN active_modifiers modifiers ON modifiers.id = modifier_options.modifier_id
     )
     
     SELECT *,
@@ -1095,7 +1095,7 @@ export const getItem = async ({queryKey}) => {
     sales_taxes.id AS sales_tax_id_effective,
     sales_taxes.name AS sales_tax_name,
     sales_taxes.rate_percentage AS sales_tax_rate_percentage,
-    (SELECT beginning_inventory_date FROM inventory_logs WHERE voided != 1 AND item_id = '${id}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')) AS beginning_inventory_date,
+    (SELECT beginning_inventory_date FROM active_inventory_logs WHERE voided != 1 AND item_id = '${id}' AND operation_id = (SELECT id FROM operations WHERE code = 'pre_app_stock')) AS beginning_inventory_date,
 
     (
       SELECT COUNT(*)
@@ -1131,7 +1131,7 @@ export const getItem = async ({queryKey}) => {
         / NULLIF(inventory_logs_added_and_removed_totals.total_added_stock_qty - inventory_logs_added_and_removed_totals.total_removed_stock_qty, 0),
       items.unit_cost - items.unit_cost / (IFNULL(taxes.rate_percentage, 0) / 100.0 + 1)
     ) AS avg_unit_cost_tax
-    FROM items
+    FROM active_items items
     LEFT JOIN (
       SELECT inventory_logs_added_and_removed.item_id AS item_id,
       inventory_logs_added_and_removed.item_name AS item_name,
@@ -1154,21 +1154,21 @@ export const getItem = async ({queryKey}) => {
         items.id AS item_id,
         items.name AS item_name,
         items.category_id AS item_category_id
-        FROM inventory_logs
-        LEFT JOIN items ON items.id = inventory_logs.item_id
+        FROM active_inventory_logs inventory_logs
+        LEFT JOIN active_items items ON items.id = inventory_logs.item_id
         LEFT JOIN operations ON operations.id = inventory_logs.operation_id
         WHERE inventory_logs.voided != 1
         GROUP BY inventory_logs.item_id, operations.type
       ) AS inventory_logs_added_and_removed
-      LEFT JOIN items ON items.id = inventory_logs_added_and_removed.item_id
+      LEFT JOIN active_items items ON items.id = inventory_logs_added_and_removed.item_id
       GROUP BY inventory_logs_added_and_removed.item_id
     ) AS inventory_logs_added_and_removed_totals
     ON inventory_logs_added_and_removed_totals.item_id = items.id
-    LEFT JOIN categories ON categories.id = items.category_id
+    LEFT JOIN active_categories categories ON categories.id = items.category_id
     LEFT JOIN taxes ON taxes.id = items.tax_id
     LEFT JOIN taxes sales_taxes ON sales_taxes.id = items.sales_tax_id
-    LEFT JOIN revenue_categories ON revenue_categories.id = items.category_id
-    LEFT JOIN revenue_groups ON revenue_groups.id = revenue_categories.revenue_group_id
+    LEFT JOIN active_revenue_categories revenue_categories ON revenue_categories.id = items.category_id
+    LEFT JOIN active_revenue_groups revenue_groups ON revenue_groups.id = revenue_categories.revenue_group_id
     WHERE items.id = '${id}'
   `;
 

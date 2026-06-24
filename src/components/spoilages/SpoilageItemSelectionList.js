@@ -72,6 +72,7 @@ const SpoilageItemSelectionList = props => {
   const [focusedItem, setFocusedItem] = useState(null);
   const [ingredientModalVisible, setIngredientModalVisible] = useState(false);
   const [infoDialogVisible, setInfoDialogVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const navigation = useNavigation();
   const {colors} = useTheme();
   const currencySymbol = useCurrencySymbol();
@@ -221,15 +222,19 @@ const SpoilageItemSelectionList = props => {
       await addSpoilageMutation.mutateAsync({
         values: formValues,
       });
+
+      // Only on success: clear the form, close the modal, and leave the screen.
+      actions.resetForm();
+      hideSpoilageModal();
+      navigation.goBack();
     } catch (error) {
       console.debug(error);
+      // Surface the reason to the user (e.g. insufficient stock) and keep the
+      // modal open so they can adjust the quantity and retry.
+      setErrorMessage(error?.message || 'Failed to add spoilage.');
     } finally {
-      actions.resetForm();
-      navigation.goBack();
+      actions.setSubmitting(false);
     }
-
-    actions.resetForm();
-    hideSpoilageModal();
   };
 
   const renderBottomSheetBackdrop = useCallback(
@@ -379,7 +384,7 @@ const SpoilageItemSelectionList = props => {
                       style={{paddingLeft: 7, paddingRight: 30}}
                     />
                   </View>
-                  {/* {renderCurrentStockQuantity()} */}
+                  {renderCurrentStockQuantity()}
                 </View>
 
                 <SpoilageItemForm
@@ -421,6 +426,23 @@ const SpoilageItemSelectionList = props => {
               onPress={() => {
                 setInfoDialogVisible(() => false);
               }}
+              color={colors.primary}>
+              Okay
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <Portal>
+        <Dialog
+          visible={!!errorMessage}
+          onDismiss={() => setErrorMessage('')}>
+          <Dialog.Title>Unable to add spoilage</Dialog.Title>
+          <Dialog.Content>
+            <Paragraph>{errorMessage}</Paragraph>
+          </Dialog.Content>
+          <Dialog.Actions style={{justifyContent: 'space-around'}}>
+            <Button
+              onPress={() => setErrorMessage('')}
               color={colors.primary}>
               Okay
             </Button>
