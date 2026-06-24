@@ -14,6 +14,7 @@ import QuantityUOMText from './QuantityUOMText';
 import ConfirmationCheckbox from './ConfirmationCheckbox';
 import MoreSelectionButton from '../buttons/MoreSelectionButton';
 import {getItem} from '../../localDbQueries/items';
+import {getSettings} from '../../localDbQueries/settings';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
@@ -74,6 +75,13 @@ const SpoilageItemForm = props => {
       enabled: itemId ? true : false,
     },
   );
+
+  const {data: settingsData} = useQuery(
+    ['settings', {settingNames: ['auto_deduct_spoilages']}],
+    getSettings,
+  );
+  const autoDeductEnabled =
+    settingsData?.resultMap?.auto_deduct_spoilages === '1';
 
   const item = getItemData?.result;
 
@@ -225,6 +233,30 @@ const SpoilageItemForm = props => {
 
         return (
           <>
+            <View
+              style={[
+                styles.autoDeductBanner,
+                {
+                  backgroundColor: autoDeductEnabled
+                    ? colors.primary + '15'
+                    : colors.dark + '12',
+                },
+              ]}>
+              <MaterialCommunityIcons
+                name={autoDeductEnabled ? 'check-circle' : 'information'}
+                size={18}
+                color={autoDeductEnabled ? colors.primary : colors.dark}
+                style={{marginRight: 8, marginTop: 1}}
+              />
+              <Text style={{flex: 1, color: colors.dark, fontSize: 13}}>
+                <Text style={{fontWeight: 'bold'}}>
+                  {`Auto-deduct is ${autoDeductEnabled ? 'ON' : 'OFF'}. `}
+                </Text>
+                {autoDeductEnabled
+                  ? 'This spoilage will also be logged as Stock Usage and reduce the item’s stock.'
+                  : 'This spoilage will not reduce stock. Book the loss through Ending Inventory instead.'}
+              </Text>
+            </View>
             {showCalendar && (
               <DateTimePicker
                 testID="dateTimePicker"
@@ -331,6 +363,14 @@ const SpoilageItemForm = props => {
   );
 };
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  autoDeductBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+});
 
 export default SpoilageItemForm;
