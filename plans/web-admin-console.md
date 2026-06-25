@@ -259,11 +259,54 @@ super-admin per the existing e2e auth setup.)
   `app/(admin)/admin/ops`. **25 admin+auth tests passing**; `tsc`, ESLint, prod
   `next build` (all 5 admin routes compile) green.
 
-**Console complete — all three phases shipped.** Remaining optional polish:
-license generate `features` overrides UI (currently sends server defaults); the
-E2E_FULL non-super-admin 404 / super-admin happy-path e2e (needs a seeded
-super-admin); request-log `from`/`to` datetime pickers (the API already accepts
-them — only the UI inputs are unbuilt).
+**Console complete — all three phases shipped.**
+
+- **Polish: DONE + verified (2026-06-25).**
+  - License generate `features`-overrides UI: an "Override default features"
+    Switch in the generate dialog reveals the 4 limit inputs (0 = unlimited) +
+    4 boolean toggles, seeded from `DEFAULT_FEATURES`; `features` is only POSTed
+    when the operator opts in (otherwise the license keeps server defaults).
+  - Request-log `from`/`to` datetime-local pickers wired to the API's
+    `from`/`to` filters.
+  - New artisan command `account:set-super-admin {email} {--revoke}`
+    (`App\Console\Commands\SetSuperAdmin`) — the only non-DB way to mint the
+    first operator.
+  - E2E (`e2e/admin.spec.ts`): backend-independent gate test + one combined
+    `E2E_FULL` test — one signup, 404'd as a tenant, then promoted via the
+    artisan command (shells `docker exec`, container overridable via
+    `E2E_API_CONTAINER`) and shown the full console + a license generated
+    end-to-end. **Both pass against the live stack** (single signup keeps the
+    run off the OTP/signup throttle). `tsc`, ESLint, prod `next build` green.
+
+- **Device Lookup & Sync-Status: DONE + verified (2026-06-25).** Builds out the
+  P3 "more tools" placeholder into a first-class `/admin/devices` area.
+  - **The gap:** the server kept **no per-device sync telemetry** — watermarks
+    are client-only; it only stamped each row's originating `device_id` for echo
+    suppression. So "is device X syncing?" was unanswerable from the console.
+  - Backend: new **`device_sync_states`** table (operator telemetry, NOT a sync
+    entity — one row per device, keyed `device_id`) + `App\Support\DeviceSyncStateRecorder`
+    upserted from `SyncController::push()`/`pull()` (best-effort, try/catch — never
+    breaks a sync; pull is skipped on the epoch initial pull that omits
+    `X-Device-Id`). New read-only cross-tenant `Admin\DeviceController`
+    (`index` filterable by company/branch/q/status + `show`), routes under the
+    `admin` super-admin group, and `Device` relations
+    (`branchAssignment`/`syncState`/`accountAssignments`/`licenseDevices`/`tokenIssuances`).
+    **Note:** used a plain `branchAssignment` hasOne, not `currentAssignment`'s
+    `latestOfMany()` — its `MAX(uuid)` aggregate is invalid on Postgres (the
+    `device_branch_assignments` UNIQUE-per-device makes the plain hasOne exact).
+    Sync-status badge (`active` ≤24h / `stale` ≤7d / `dormant` / `never_synced`)
+    derived from `last_activity_at` against single-source thresholds shared by the
+    list `status` filter. Hashes (`device_token_hash`/`physical_device_hash`) stay
+    `$hidden` — asserted in tests. New `AdminDeviceTest` — **8 passing** (list/
+    filters/status buckets/detail-without-hashes/403/404/push-upserts-telemetry).
+  - Web: device types in `types/admin-console.ts`, `lib/hooks/use-devices.ts`,
+    `components/admin/devices-page.tsx` (filter bar + color-coded status badge +
+    DataTable) + `device-detail.tsx` (overview + sync-state + accounts + licenses
+    + token history + deep-link to Request Logs), routes
+    `app/(admin)/admin/devices/**`, a "Devices" sidebar entry, and the ops-page
+    placeholder replaced with an "Open devices" link. E2E: `/admin/devices`
+    assertion added to the `E2E_FULL` journey. `tsc`, ESLint, prod `next build`
+    (both device routes compile), and the gate e2e green.
 
 ## Suggested phasing
 
