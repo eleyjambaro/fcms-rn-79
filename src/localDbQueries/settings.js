@@ -4,6 +4,7 @@ import {
   getSettingSyncId,
   SETTINGS_SEED_SENTINEL,
 } from '../localDb';
+import {scheduleSyncSoon} from '../services/syncService';
 
 export const defaultSettings = [
   // Logo settings
@@ -164,6 +165,12 @@ export const updateSettings = async ({values, onSuccess, onError}) => {
     `;
 
     await db.executeSql(updateEachSettingValueQuery);
+
+    // settings is a delta-sync table and the UPDATE above bumped updated_at
+    // past synced_at, so push the change right away (debounced) instead of
+    // waiting for the next foreground sync tick — this is what makes a toggle
+    // like auto_deduct_spoilages reach the server (and the web app) promptly.
+    scheduleSyncSoon();
 
     return {
       result: {},
