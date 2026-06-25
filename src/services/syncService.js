@@ -548,7 +548,7 @@ export const flushPendingSync = async () => {
 /**
  * Run a full push-pull sync cycle.
  *
- * @returns {Promise<{pushed: Object, pulled: Object, errors: string[]}>}
+ * @returns {Promise<{pushed: Object, pulled: Object, rejected: Array, errors: string[]}>}
  */
 export const runSync = async () => {
   if (syncInProgress) {
@@ -565,7 +565,7 @@ export const runSync = async () => {
   }
   syncInProgress = true;
   _inFlightSync = (async () => {
-  const result = {pushed: {}, pulled: {}, errors: []};
+  const result = {pushed: {}, pulled: {}, rejected: [], errors: []};
 
   try {
     const {deviceId, branchId} = await getCloudSyncParams();
@@ -657,18 +657,72 @@ export const runSync = async () => {
 
         const {
           accepted = {},
+          conflicts = [],
+          rejected = [],
           sku_updates: skuUpdates = [],
           sync_id_remaps: syncIdRemaps = [],
           synced_at,
         } = pushResponse?.data ?? {};
         result.pushed = accepted;
+        result.rejected = rejected;
 
-        // Mark pushed records as synced
+        // Build a per-entity set of sync_ids the server did NOT durably store as
+        // OUR version, so we never mark them synced. Marking a non-accepted row
+        // synced is the silent data-loss bug: collectUnsynced only re-pushes rows
+        // where `updated_at > synced_at`, so a row stamped synced here is never
+        // retried — it just disappears from the server's view forever (the
+        // "register item → category shows on web but the item is missing"
+        // report). Two buckets are excluded:
+        //   • rejected — the server hit a DB error on this row (now isolated to
+        //     the row, not the whole push); leaving it unsynced retries it next
+        //     cycle and surfaces it via result.rejected.
+        //   • conflicts — the server has a strictly-newer version; we adopt that
+        //     authoritative record below instead of clobbering it with our stale
+        //     row, so this row must not be marked as if our value won.
+        const excludedSyncIds = {}; // { entityKey: Set<sync_id> }
+        const addExcluded = entry => {
+          if (!entry?.entity || !entry?.sync_id) return;
+          (excludedSyncIds[entry.entity] ??= new Set()).add(entry.sync_id);
+        };
+        (Array.isArray(rejected) ? rejected : []).forEach(addExcluded);
+        (Array.isArray(conflicts) ? conflicts : []).forEach(addExcluded);
+
+        // Reconcile server-wins conflicts: adopt the server's authoritative
+        // record locally. applyPulledRecord upserts by sync_id, lets the newer
+        // server row through its merge guard, and stamps synced_at = updated_at —
+        // so the local row converges and stops re-collecting. We cannot rely on
+        // the pull phase to deliver it: pull echo-suppresses rows that carry this
+        // device's own device_id, so a conflict on a row we originally pushed
+        // would otherwise loop forever (push → server_wins → push …).
+        if (Array.isArray(conflicts) && conflicts.length > 0) {
+          const tableByKey = Object.fromEntries(
+            ALL_PUSH_ENTITIES.map(e => [e.key, e.table]),
+          );
+          for (const c of conflicts) {
+            const table = tableByKey[c?.entity];
+            if (!table || !c?.server_record) continue;
+            try {
+              await applyPulledRecord(db, table, c.server_record);
+            } catch (err) {
+              result.errors.push(
+                `Reconcile conflict failed for ${c.entity} ${c.sync_id}: ${err.message}`,
+              );
+            }
+          }
+        }
+
+        // Mark synced only the rows the server durably accepted as ours
+        // (everything we sent, minus the rejected/conflict exclusions above).
         for (const {key, table} of ALL_PUSH_ENTITIES) {
           if (delta[key]?.length) {
-            const syncIds = delta[key].map(r => r.sync_id).filter(Boolean);
+            const skip = excludedSyncIds[key];
+            const syncIds = delta[key]
+              .map(r => r.sync_id)
+              .filter(id => id && !(skip && skip.has(id)));
             try {
-              await markAsSynced(db, table, syncIds);
+              if (syncIds.length) {
+                await markAsSynced(db, table, syncIds);
+              }
               await updateSyncMetadata(db, key, {
                 lastPushedAt: synced_at ?? pushedAt,
               });
