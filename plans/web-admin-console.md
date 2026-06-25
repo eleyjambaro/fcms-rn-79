@@ -236,8 +236,34 @@ super-admin per the existing e2e auth setup.)
   `next build` (both `/admin/licenses` routes compile), and `e2e/admin.spec.ts`
   gate test green (signed-out → sign-in; the non-super-admin 404 case is the
   E2E_FULL opt-in). Backend live in the container (user rebuilt).
-- **P2 — Request Logs:** not started.
-- **P3 — Ops/Debug:** not started.
+- **P2 — Request Logs: DONE + verified (2026-06-25).** Backend B2: new
+  `Admin\RequestLogController` (`index` filterable/paginated + `show` by
+  `request_id`), routes under the `admin` super-admin group, and a shared
+  `App\Support\ApiLogRedactor` now used by BOTH `LogApiRequest` (write) and the
+  controller (read) so the secret-key list can't drift — read-time redaction
+  also masks **response bodies** (which the middleware doesn't mask at write
+  time, e.g. auth responses carrying a `token`). Filters: company_id,
+  account_id, status_code, status_class (2xx/3xx/4xx/5xx), errors_only (≥400),
+  method, path/route_name ILIKE, request_id, from/to, q. Web: `RequestLogRow`/
+  `RequestLogDetail` types, `lib/hooks/use-request-logs.ts`, explorer list
+  (filter bar + DataTable) + JSON detail under
+  `app/(admin)/admin/request-logs/**`. Tests: new `AdminRequestLogTest`
+  (list/filter/redaction/403/404) — **21 admin+auth tests passing**. Web: `tsc`,
+  ESLint, prod `next build` (all 4 admin routes compile) green.
+- **P3 — Ops/Debug: DONE + verified (2026-06-25).** Backend already existed
+  (`AppVersionController` update + public show); added `AdminAppVersionTest`
+  (bump / super-admin 403 / 401 / 422). Web: `lib/hooks/use-app-version.ts`
+  (`useAppVersion(env)` maps the public 404 → null so a never-set env starts
+  empty; `useUpdateAppVersion`), `components/admin/ops-page.tsx` (env-scoped
+  app-version bump form keyed on env + a "more tools" placeholder), route
+  `app/(admin)/admin/ops`. **25 admin+auth tests passing**; `tsc`, ESLint, prod
+  `next build` (all 5 admin routes compile) green.
+
+**Console complete — all three phases shipped.** Remaining optional polish:
+license generate `features` overrides UI (currently sends server defaults); the
+E2E_FULL non-super-admin 404 / super-admin happy-path e2e (needs a seeded
+super-admin); request-log `from`/`to` datetime pickers (the API already accepts
+them — only the UI inputs are unbuilt).
 
 ## Suggested phasing
 
