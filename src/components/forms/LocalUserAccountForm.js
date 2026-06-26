@@ -8,7 +8,9 @@ import {
   useTheme,
   HelperText,
   Divider,
+  Switch,
 } from 'react-native-paper';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
 import {Dropdown} from 'react-native-paper-dropdown';
@@ -38,9 +40,25 @@ const LocalUserAccountValidationSchema = Yup.object().shape({
     is: false,
     then: () => Yup.string().required(),
   }),
-  role_id: Yup.string().required(),
-  branch_ids: Yup.array().min(1, 'Assign at least one branch.'),
-  device_ids: Yup.array().min(1, 'Assign at least one device.'),
+  // Executives are co-owners with full implicit access to all branches/devices,
+  // so they carry no role and need no branch/device assignment. Those fields are
+  // required only for regular team members.
+  is_executive_account: Yup.boolean(),
+  role_id: Yup.string().when('is_executive_account', {
+    is: true,
+    then: () => Yup.string().nullable(),
+    otherwise: () => Yup.string().required(),
+  }),
+  branch_ids: Yup.array().when('is_executive_account', {
+    is: true,
+    then: () => Yup.array(),
+    otherwise: () => Yup.array().min(1, 'Assign at least one branch.'),
+  }),
+  device_ids: Yup.array().when('is_executive_account', {
+    is: true,
+    then: () => Yup.array(),
+    otherwise: () => Yup.array().min(1, 'Assign at least one device.'),
+  }),
 });
 
 const LocalUserAccountForm = props => {
@@ -197,6 +215,7 @@ const LocalUserAccountForm = props => {
         email: initialValues.email || '',
         password: initialValues.password || '',
         role_id: initialValues.role_id || '',
+        is_executive_account: !!initialValues.is_executive_account,
         branch_ids: initialBranchIds,
         device_ids: initialDeviceIds,
       }}
@@ -289,6 +308,45 @@ const LocalUserAccountForm = props => {
               {`* Their email will be their username to login.`}
             </HelperText>
             {renderPasswordField(props)}
+            {/* Executive (co-owner) toggle — root-only. An executive can set up
+                branches/devices on the owner's behalf and has full access, so
+                it carries no role and needs no branch/device assignment. */}
+            {authUser?.is_root_account ? (
+              <View style={styles.executiveRow}>
+                <View style={styles.executiveRowText}>
+                  <View style={styles.executiveTitleRow}>
+                    <MaterialCommunityIcons
+                      name="star"
+                      size={18}
+                      color={colors.accent}
+                    />
+                    <Text style={[styles.executiveTitle, {color: colors.dark}]}>
+                      Executive account
+                    </Text>
+                  </View>
+                  <HelperText style={styles.executiveHint}>
+                    A trusted co-owner who can set up branches and devices and
+                    has full access. Only you (the owner) can manage executives.
+                  </HelperText>
+                </View>
+                <Switch
+                  value={values.is_executive_account}
+                  color={colors.accent}
+                  onValueChange={next => {
+                    setFieldValue('is_executive_account', next);
+                    if (next) {
+                      // Clear role/branch/device — an executive needs none.
+                      setRoleId('');
+                      setFieldValue('role_id', '');
+                      setFieldValue('branch_ids', []);
+                      setFieldValue('device_ids', []);
+                    }
+                  }}
+                />
+              </View>
+            ) : null}
+            {values.is_executive_account ? null : (
+            <>
             <Dropdown
               label={'Role'}
               mode={'flat'}
@@ -330,6 +388,8 @@ const LocalUserAccountForm = props => {
                 New role
               </Button>
             ) : null}
+            </>
+            )}
             <CreateRoleModal
               visible={createRoleModalVisible}
               onDismiss={() => setCreateRoleModalVisible(false)}
@@ -340,6 +400,13 @@ const LocalUserAccountForm = props => {
                 handleChange('role_id')(newRoleId);
               }}
             />
+            {values.is_executive_account ? (
+              <HelperText style={styles.executiveAccessHint}>
+                Executives have full access to all branches and devices, so no
+                branch or device assignment is needed.
+              </HelperText>
+            ) : (
+            <>
             <Divider style={styles.sectionDivider} />
             <Text style={[styles.sectionTitle, {color: colors.dark}]}>
               Manage Branch Access
@@ -389,6 +456,8 @@ const LocalUserAccountForm = props => {
                 {errors.device_ids}
               </HelperText>
             ) : null}
+            </>
+            )}
             </ScrollView>
 
             {/* Fixed footer — kept outside the ScrollView so a tap right after
@@ -446,6 +515,33 @@ const styles = StyleSheet.create({
   sectionHint: {
     fontStyle: 'italic',
     marginBottom: 4,
+  },
+  executiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+  },
+  executiveRowText: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  executiveTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  executiveTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
+  executiveHint: {
+    fontStyle: 'italic',
+    paddingHorizontal: 0,
+  },
+  executiveAccessHint: {
+    fontStyle: 'italic',
+    marginTop: 16,
   },
 });
 

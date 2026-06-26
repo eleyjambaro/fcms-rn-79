@@ -85,7 +85,7 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
               styles.deviceNotReadyMessage,
               {color: colors.onSurfaceVariant ?? colors.placeholder},
             ]}>
-            This device hasn't been set up by an account owner yet. Your manager
+            This device hasn't been set up yet. An account owner or executive
             needs to sign in on this device first to enable team member access.
           </Text>
         </View>
@@ -94,7 +94,7 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
           onPress={() => navigation.navigate(routes.cloudV2SignIn())}
           style={styles.button}
           contentStyle={styles.buttonContent}>
-          Account Owner? Sign In Here
+          Owner or Executive? Sign In Here
         </Button>
       </ScrollView>
     );

@@ -92,8 +92,8 @@ const CloudV2SignIn = ({navigation}) => {
         containerStyle={{marginBottom: 0}}
       />
       <Text style={styles.subtitle}>
-        Sign in to your {appDefaults.appDisplayName} account to connect this
-        device.
+        Owner or executive? Sign in to your {appDefaults.appDisplayName} account
+        to set up this device.
       </Text>
 
       <Formik
@@ -248,7 +248,8 @@ const CloudV2SignIn = ({navigation}) => {
                 styles.deviceHint,
                 {color: colors.onSurfaceVariant ?? colors.placeholder},
               ]}>
-              Device setup required — sign in as account owner first.
+              Device setup required — sign in as the account owner or an
+              executive first.
             </Text>
           ) : null}
         </Card.Content>

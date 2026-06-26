@@ -43,10 +43,15 @@ const {
 } = rnStorageKeys;
 
 // Maps an authUser to the account-type marker we persist so the auth stack can
-// default to the matching sign-in screen ('root' → Company Owner, 'sub' → Team
-// Member) the next time the device returns to the unauthenticated state.
+// default to the matching sign-in screen ('root' → Owner/Executive, 'sub' →
+// Team Member) the next time the device returns to the unauthenticated state.
+// Executives (co-owners) use the Owner sign-in entry because it supports
+// bootstrapping a fresh device for a remote branch, which the team-member
+// entry deliberately blocks.
 const accountTypeOf = user =>
-  user?.account?.is_root_account ? 'root' : 'sub';
+  user?.account?.is_root_account || user?.account?.is_executive_account
+    ? 'root'
+    : 'sub';
 
 const saveItem = async (key, value) => {
   if (value === null || value === undefined) {

@@ -14,6 +14,7 @@ import {
 } from 'react-native-paper';
 import commaNumber from 'comma-number';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const LocalUserAccountListItem = props => {
   const {
@@ -57,28 +58,48 @@ const LocalUserAccountListItem = props => {
           style={{marginRight: 10, backgroundColor: colors.neutralTint3}}
           labelStyle={{fontWeight: 'bold'}}
         />
-        <View>
+        <View style={{flex: 1}}>
+          <View style={styles.nameRow}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: 'bold',
+                color: colors.dark,
+                marginRight: 6,
+                flexShrink: 1,
+              }}
+              numberOfLines={1}>
+              {`${userFullName}`}
+            </Text>
+            {item.is_executive_account ? (
+              <MaterialCommunityIcons
+                name="star"
+                size={16}
+                color={colors.accent}
+              />
+            ) : null}
+          </View>
           <Text
             style={{
               fontSize: 14,
-              fontWeight: 'bold',
-              color: colors.dark,
+              color: item.is_executive_account
+                ? colors.accent
+                : item.role_name
+                ? colors.neutralTint2
+                : colors.notification,
+              fontStyle:
+                item.is_executive_account || item.role_name
+                  ? 'normal'
+                  : 'italic',
               marginRight: 10,
               flex: 1,
             }}
             numberOfLines={1}>
-            {`${userFullName}`}
-          </Text>
-          <Text
-            style={{
-              fontSize: 14,
-              color: item.role_name ? colors.neutralTint2 : colors.notification,
-              fontStyle: item.role_name ? 'normal' : 'italic',
-              marginRight: 10,
-              flex: 1,
-            }}
-            numberOfLines={1}>
-            {item.role_name ? `${item.role_name}` : 'No role assigned'}
+            {item.is_executive_account
+              ? 'Executive'
+              : item.role_name
+              ? `${item.role_name}`
+              : 'No role assigned'}
           </Text>
         </View>
       </View>
@@ -107,6 +128,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     paddingHorizontal: 15,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   optionButtonContainer: {
     justifyContent: 'center',

@@ -59,6 +59,9 @@ const LocalUserAccountList = props => {
   const canManageMembers = can('userManagement.manageMembers');
   const [authState] = useCurrentUser();
   const authUser = authState?.authUser;
+  // Only the root owner may manage executive (co-owner) accounts; executives
+  // can manage regular team members but never other executives.
+  const isRoot = !!authUser?.is_root_account;
   const [cloudAuthState] = useCloudAuthContext();
   const currentBranchId = cloudAuthState?.designatedBranch?.id ?? null;
   const currentDeviceId = cloudAuthState?.deviceId ?? null;
@@ -115,27 +118,34 @@ const LocalUserAccountList = props => {
     const accountId = focusedItem?.id;
     const {branch_ids = [], device_ids = []} = values;
 
+    const isExecutive = !!values.is_executive_account;
+
     try {
       await updateLocalUserAccountMutation.mutateAsync({
         id: accountId,
         first_name: values.first_name,
         last_name: values.last_name,
-        role_id: values.role_id,
+        role_id: isExecutive ? null : values.role_id,
+        is_executive_account: isExecutive,
       });
 
-      // Reconcile branch/device access to match the selected checkboxes.
-      await Promise.all([
-        syncCloudBranchAccountAssignments({account_id: accountId, branch_ids}),
-        syncCloudDeviceAccountAssignments({account_id: accountId, device_ids}),
-      ]);
-      queryClient.invalidateQueries([
-        'cloudBranchAccountAssignments',
-        {account_id: accountId},
-      ]);
-      queryClient.invalidateQueries([
-        'cloudDeviceAccountAssignments',
-        {account_id: accountId},
-      ]);
+      // Executives (co-owners) have full access to all branches/devices, so
+      // they carry no per-account assignment. For regular team members,
+      // reconcile branch/device access to match the selected checkboxes.
+      if (!isExecutive) {
+        await Promise.all([
+          syncCloudBranchAccountAssignments({account_id: accountId, branch_ids}),
+          syncCloudDeviceAccountAssignments({account_id: accountId, device_ids}),
+        ]);
+        queryClient.invalidateQueries([
+          'cloudBranchAccountAssignments',
+          {account_id: accountId},
+        ]);
+        queryClient.invalidateQueries([
+          'cloudDeviceAccountAssignments',
+          {account_id: accountId},
+        ]);
+      }
     } catch (error) {
       const msg =
         error?.response?.data?.message || 'Failed to update user account.';
@@ -156,8 +166,13 @@ const LocalUserAccountList = props => {
     return null;
   };
 
-  const localUserAccountOptions = canManageMembers
-    ? [
+  const focusedIsExecutive = !!focusedItem?.is_executive_account;
+  // An executive row is manageable only by the root owner. Executives also
+  // have no per-branch/device assignment, so those options are hidden for them.
+  const canManageFocused = canManageMembers && (!focusedIsExecutive || isRoot);
+  const localUserAccountOptions = !canManageFocused
+    ? []
+    : [
         {
           label: 'Edit',
           icon: 'pencil-outline',
@@ -166,22 +181,26 @@ const LocalUserAccountList = props => {
             closeOptionsBottomSheet();
           },
         },
-        {
-          label: 'Manage Device Access',
-          icon: 'cellphone-lock',
-          handler: () => {
-            setManageDevicesModalVisible(true);
-            closeOptionsBottomSheet();
-          },
-        },
-        {
-          label: 'Manage Branch Access',
-          icon: 'source-branch',
-          handler: () => {
-            setManageBranchesModalVisible(true);
-            closeOptionsBottomSheet();
-          },
-        },
+        ...(focusedIsExecutive
+          ? []
+          : [
+              {
+                label: 'Manage Device Access',
+                icon: 'cellphone-lock',
+                handler: () => {
+                  setManageDevicesModalVisible(true);
+                  closeOptionsBottomSheet();
+                },
+              },
+              {
+                label: 'Manage Branch Access',
+                icon: 'source-branch',
+                handler: () => {
+                  setManageBranchesModalVisible(true);
+                  closeOptionsBottomSheet();
+                },
+              },
+            ]),
         {
           label: 'Delete',
           labelColor: colors.notification,
@@ -192,8 +211,7 @@ const LocalUserAccountList = props => {
             closeOptionsBottomSheet();
           },
         },
-      ]
-    : [];
+      ];
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -267,14 +285,18 @@ const LocalUserAccountList = props => {
     return (
       <LocalUserAccountListItem
         item={item}
-        showOptionButton={canManageMembers}
+        showOptionButton={
+          canManageMembers && (!item.is_executive_account || isRoot)
+        }
         onPressItem={() => {
           setFocusedItem(() => item);
 
-          // Opening a member opens the edit form — gate behind manage access.
+          // Opening a member opens the edit form — gate behind manage access,
+          // and keep executive (co-owner) accounts editable only by the owner.
           if (
             (viewMode === 'list' || viewMode === 'manage-users') &&
-            canManageMembers
+            canManageMembers &&
+            (!item.is_executive_account || isRoot)
           ) {
             showUpdateLocalUserAccountModal();
           }
@@ -326,6 +348,7 @@ const LocalUserAccountList = props => {
               last_name: focusedItem?.last_name || '',
               email: focusedItem?.email || '',
               role_id: focusedItem?.role_id || '',
+              is_executive_account: !!focusedItem?.is_executive_account,
             }}
             submitButtonTitle="Update"
             onSubmit={handleSubmit}
