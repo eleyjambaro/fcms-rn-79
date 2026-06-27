@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "android": "ENVFILE=.env.development react-native run-android",
+    "android:wifi": "bash scripts/android-wifi.sh",
     "android:prod": "ENVFILE=.env.production react-native run-android --mode=release",
     "ios": "ENVFILE=.env.development react-native run-ios",
     "ios:prod": "ENVFILE=.env.production react-native run-ios --configuration=Release",

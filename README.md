@@ -32,6 +32,68 @@ npm run android
 yarn android
 ```
 
+### Android over Wi-Fi (flaky USB / `InstallException: EOF`)
+
+Some physical devices — notably the **ELI_NX9 POS tablet** — drop the USB
+connection mid-install. The build succeeds, but `react-native run-android` fails
+while pushing the APK with:
+
+```
+com.android.ddmlib.InstallException: EOF
+  ... Caused by: java.io.EOFException: EOF
+```
+
+This is **not** a code or build problem — the APK is valid, the cable just can't
+hold the transfer. Installing over Wi-Fi bypasses the cable entirely:
+
+```sh
+npm run android:wifi
+```
+
+The script (`scripts/android-wifi.sh`) auto-discovers the device, builds the
+debug APK, installs it over Wi-Fi, wires up the Metro reverse tunnel, and
+launches the app. Start Metro first (`npm start`) so the device can pull the JS
+bundle.
+
+#### One-time setup
+
+You do **not** need the "Wireless debugging" toggle in Developer Options (that's
+a separate Android 11+ pairing flow). This uses the classic `adb tcpip` method,
+which only needs:
+
+1. **USB debugging** enabled (Developer Options).
+2. The device **plugged in via USB once** so adb can switch it into TCP mode.
+
+After that first run the cable is optional.
+
+#### How it works
+
+On each run the script:
+
+1. Reuses an existing wireless connection (`<ip>:5555`) if one is present.
+2. Otherwise finds the USB device, reads its Wi-Fi IP, runs `adb tcpip 5555`,
+   and `adb connect`s to it.
+3. Builds with `./gradlew app:assembleDebug` (honoring `ENVFILE`, default
+   `.env.development`).
+4. Sets up `adb reverse tcp:8081` for Metro, installs, and launches
+   `MainActivity`.
+
+#### Reconnecting after a reboot
+
+A device **reboot or Wi-Fi change resets it back to USB-only**. Plug in via USB
+once and re-run `npm run android:wifi` — it re-enables TCP mode automatically.
+
+If the device is still listening on TCP (hasn't rebooted) but you want to skip
+discovery, pass the IP explicitly:
+
+```sh
+DEVICE_IP=192.168.254.102 npm run android:wifi
+```
+
+> The real fix is the USB link itself — try a known-good cable/port and check the
+> device isn't toggling USB mode (charging vs. file transfer / power saving). The
+> Wi-Fi path is the reliable workaround in the meantime.
+
 ### iOS
 
 For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
