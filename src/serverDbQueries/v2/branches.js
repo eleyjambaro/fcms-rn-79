@@ -13,9 +13,14 @@ const getAuthHeaders = async () => {
   }
 };
 
-export const getBranches = async ({page = 1, per_page = 50} = {}) => {
+// Pass `all: true` to bypass branch-assignment scoping and list EVERY branch in
+// the company. This is for counterparty pickers (e.g. Batch Transfer Source /
+// Destination) where any branch is a valid send/receive target regardless of
+// which branches the caller operates in. The default (scoped) list is what the
+// post-login "which branch do I operate in" picker uses.
+export const getBranches = async ({page = 1, per_page = 50, all = false} = {}) => {
   const {data} = await cloudApiV2.get('/api/v2/branches', {
-    params: {page, per_page},
+    params: {page, per_page, ...(all ? {all: true} : {})},
     headers: await getAuthHeaders(),
   });
   return data;

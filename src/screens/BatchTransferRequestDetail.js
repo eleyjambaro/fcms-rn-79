@@ -236,8 +236,11 @@ const BatchTransferRequestDetail = ({navigation, route}) => {
     getBatchTransferEntries,
     {enabled: !!groupId},
   );
-  const {data: branchesData} = useQuery(['branches', {per_page: 100}], () =>
-    getBranches({per_page: 100}),
+  // All company branches (unscoped): a transfer counterparty may be a branch this
+  // user isn't assigned to, so the scoped list could miss its name.
+  const {data: branchesData} = useQuery(
+    ['branches', {per_page: 100, all: true}],
+    () => getBranches({per_page: 100, all: true}),
   );
   // Stock Transfer In logs for the "View Transfer In Logs" modal (RECEIVED only).
   // Reuse getInventoryLogs filtered on batch_transfer_group_id so the rows carry

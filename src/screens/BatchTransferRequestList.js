@@ -115,9 +115,11 @@ const TabContent = ({tab, navigation}) => {
     };
   }, []);
 
+  // All company branches (unscoped): a transfer counterparty may be a branch this
+  // user isn't assigned to, so the scoped list could miss its name.
   const {data: branchesData} = useQuery(
-    ['branches', {per_page: 100}],
-    () => getBranches({per_page: 100}),
+    ['branches', {per_page: 100, all: true}],
+    () => getBranches({per_page: 100, all: true}),
   );
 
   const branchById = useMemo(() => {

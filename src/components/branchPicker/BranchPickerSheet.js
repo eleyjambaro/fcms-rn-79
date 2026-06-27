@@ -33,9 +33,11 @@ const BranchPickerSheet = ({
   const {colors} = useTheme();
   const [search, setSearch] = useState('');
 
+  // Counterparty picker: list ALL company branches, not just the ones this user
+  // is assigned to operate in — a transfer Source/Destination can be any branch.
   const {data, status} = useQuery(
-    ['branches', {per_page: 100}],
-    () => getBranches({per_page: 100}),
+    ['branches', {per_page: 100, all: true}],
+    () => getBranches({per_page: 100, all: true}),
     {enabled: visible},
   );
 
