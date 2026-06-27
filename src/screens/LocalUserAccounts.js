@@ -2,18 +2,20 @@ import React, {useState, useEffect} from 'react';
 import {View} from 'react-native';
 import {
   Button,
+  Menu,
   Modal,
   Title,
   Portal,
   Searchbar,
   useTheme,
 } from 'react-native-paper';
-import {useQueryClient, useMutation} from '@tanstack/react-query';
+import {useQueryClient, useMutation, useQuery} from '@tanstack/react-query';
 
 import LocalUserAccountList from '../components/accounts/LocalUserAccountList';
 import LocalUserAccountForm from '../components/forms/LocalUserAccountForm';
 import useSearchbarContext from '../hooks/useSearchbarContext';
 import {createCloudSubAccount} from '../serverDbQueries/v2/accounts';
+import {getBranches} from '../serverDbQueries/v2/branches';
 import {syncCloudBranchAccountAssignments} from '../serverDbQueries/v2/branchAccountAssignments';
 import {syncCloudDeviceAccountAssignments} from '../serverDbQueries/v2/deviceAccountAssignments';
 import ErrorMessageModal from '../components/modals/ErrorMessageModal';
@@ -41,6 +43,37 @@ function LocalUserAccounts(props) {
   });
   const {keyword, setKeyword} = useSearchbarContext();
   const [formErrorMessage, setErrorMessage] = useState('');
+
+  // Team-member branch filter. Options come from the viewer's accessible branch
+  // list (the /branches endpoint already scopes to what they may see). "All
+  // members" is offered only to root and executives — an ordinary member never
+  // gets a cross-branch view. Default: root → All members; everyone else →
+  // current branch.
+  const isRoot = !!authUser?.is_root_account;
+  const isExecutive = !!authUser?.is_executive_account;
+  const {data: branchesData} = useQuery(['teamBranchFilter'], () =>
+    getBranches({per_page: 100}),
+  );
+  const branchOptions = branchesData?.data ?? [];
+  const showAllOption = isRoot || isExecutive;
+  const ALL_MEMBERS = 'all';
+  const defaultFilter = isRoot
+    ? ALL_MEMBERS
+    : currentBranchId && branchOptions.some(b => b.id === currentBranchId)
+    ? currentBranchId
+    : showAllOption
+    ? ALL_MEMBERS
+    : branchOptions[0]?.id ?? ALL_MEMBERS;
+  const [branchFilter, setBranchFilter] = useState(null);
+  const [filterMenuVisible, setFilterMenuVisible] = useState(false);
+  const effectiveFilter = branchFilter ?? defaultFilter;
+  const effectiveFilterLabel =
+    effectiveFilter === ALL_MEMBERS
+      ? 'All members'
+      : (() => {
+          const b = branchOptions.find(o => o.id === effectiveFilter);
+          return b ? b.display_name || b.name : 'Select branch';
+        })();
 
   const onChangeSearch = keyword => setKeyword(keyword);
 
@@ -150,9 +183,48 @@ function LocalUserAccounts(props) {
           />
         </View>
 
+        {branchOptions.length > 0 && (
+          <View style={{flexDirection: 'row', paddingHorizontal: 5, paddingBottom: 5}}>
+            <Menu
+              visible={filterMenuVisible}
+              onDismiss={() => setFilterMenuVisible(false)}
+              anchor={
+                <Button
+                  mode="outlined"
+                  icon="filter-variant"
+                  onPress={() => setFilterMenuVisible(true)}>
+                  {effectiveFilterLabel}
+                </Button>
+              }>
+              {showAllOption && (
+                <Menu.Item
+                  title="All members"
+                  onPress={() => {
+                    setBranchFilter(ALL_MEMBERS);
+                    setFilterMenuVisible(false);
+                  }}
+                />
+              )}
+              {branchOptions.map(b => (
+                <Menu.Item
+                  key={b.id}
+                  title={b.display_name || b.name}
+                  onPress={() => {
+                    setBranchFilter(b.id);
+                    setFilterMenuVisible(false);
+                  }}
+                />
+              ))}
+            </Menu>
+          </View>
+        )}
+
         <View style={{flex: 1}}>
           <LocalUserAccountList
             viewMode={viewMode}
+            branchFilter={
+              effectiveFilter === ALL_MEMBERS ? null : effectiveFilter
+            }
             filter={{
               '%LIKE': {key: 'first_name', value: `'%${keyword}%'`},
             }}

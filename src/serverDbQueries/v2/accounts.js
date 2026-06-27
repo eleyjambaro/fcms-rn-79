@@ -13,9 +13,14 @@ const getAuthHeaders = async () => {
   }
 };
 
-export const getCloudSubAccounts = async () => {
+// The server scopes the result to the caller: root sees everyone, an executive
+// sees everyone (out-of-branch members come back is_manageable=false), an
+// ordinary member sees only members sharing a branch. Pass a branchId to narrow
+// to one branch (null/undefined = the unfiltered, already-scoped list).
+export const getCloudSubAccounts = async (branchId = null) => {
   const {data} = await cloudApiV2.get('/api/v2/accounts', {
     headers: await getAuthHeaders(),
+    params: branchId ? {branch_id: branchId} : undefined,
   });
   return data;
 };

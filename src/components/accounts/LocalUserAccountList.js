@@ -52,7 +52,7 @@ import useCloudAuthContext from '../../hooks/useCloudAuthContext';
 import useRoleAccess from '../../hooks/useRoleAccess';
 
 const LocalUserAccountList = props => {
-  const {backAction, viewMode, filter} = props;
+  const {backAction, viewMode, filter, branchFilter = null} = props;
   const navigation = useNavigation();
   const {colors} = useTheme();
   const {can} = useRoleAccess();
@@ -72,7 +72,9 @@ const LocalUserAccountList = props => {
     error,
     refetch,
     isRefetching,
-  } = useQuery(['cloudSubAccounts'], getCloudSubAccounts);
+  } = useQuery(['cloudSubAccounts', {branchId: branchFilter}], () =>
+    getCloudSubAccounts(branchFilter),
+  );
   const isFetchingNextPage = false;
   const queryClient = useQueryClient();
   const updateLocalUserAccountMutation = useMutation(updateCloudSubAccount, {
@@ -169,7 +171,12 @@ const LocalUserAccountList = props => {
   // An executive row is manageable only by the root owner. Root CAN limit an
   // executive's branch access (Manage Branch Access), but executives have no
   // device assignment (they self-bootstrap devices), so that option is hidden.
-  const canManageFocused = canManageMembers && (!focusedIsExecutive || isRoot);
+  // is_manageable === false mirrors the API's branch scope: members outside the
+  // viewer's branches are read-only (the server returns 403 on any mutation).
+  const canManageFocused =
+    canManageMembers &&
+    (!focusedIsExecutive || isRoot) &&
+    focusedItem?.is_manageable !== false;
   const localUserAccountOptions = !canManageFocused
     ? []
     : [
@@ -297,17 +304,21 @@ const LocalUserAccountList = props => {
       <LocalUserAccountListItem
         item={item}
         showOptionButton={
-          canManageMembers && (!item.is_executive_account || isRoot)
+          canManageMembers &&
+          (!item.is_executive_account || isRoot) &&
+          item.is_manageable !== false
         }
         onPressItem={() => {
           setFocusedItem(() => item);
 
           // Opening a member opens the edit form — gate behind manage access,
-          // and keep executive (co-owner) accounts editable only by the owner.
+          // keep executive (co-owner) accounts editable only by the owner, and
+          // treat out-of-branch members (is_manageable === false) as read-only.
           if (
             (viewMode === 'list' || viewMode === 'manage-users') &&
             canManageMembers &&
-            (!item.is_executive_account || isRoot)
+            (!item.is_executive_account || isRoot) &&
+            item.is_manageable !== false
           ) {
             showUpdateLocalUserAccountModal();
           }

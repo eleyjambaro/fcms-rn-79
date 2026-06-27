@@ -45,6 +45,35 @@ Copy `.env.example` to `.env` and set `CLOUD_API_V2_BASE_URL` to your local serv
   - `App.js` gates on `isCloudAuthenticated && hasDevice && hasBranch` — all three must be true to show `RootStack`.
 - **Local Auth** (`AuthStack`): **Deprecated.** Do not add new features here.
 
+### Executive accounts & branch-scoped team management
+
+An **executive account** (`is_executive_account`) is a trusted co-owner — like root except it
+can't manage other executives or delete the company. Team-member management lives on the
+`LocalUserAccounts` screen (`/src/screens/LocalUserAccounts.js`, `/src/components/accounts/LocalUserAccountList.js`,
+`/src/components/forms/LocalUserAccountForm.js`, branch picker `ManageSubAccountBranchesModal.js`).
+**The cloud API is the authoritative guard** (see `../fcms-api/CLAUDE.md` → "Executive accounts &
+branch-scoped team management"); the app mirrors it for UX and must treat a 403 as final.
+
+- **Branch access scoping.** An executive's branches = exactly their `branch_account_assignments`
+  (synced via `syncCloudBranchAccountAssignments`); zero = none (only root sees all branches). A
+  branch they create auto-assigns to them. **Only root** may edit an executive's branch access.
+- **Team-member management is branch-scoped for executives.** An executive may **Edit, Edit
+  Access, and Delete** a member **only if that member shares a branch with the executive's
+  assignments**. Members outside those branches are **read-only** to the executive — list them but
+  hide/disable the edit/access/delete options (the API returns 403 anyway).
+- **Team-member filter dropdown** on `LocalUserAccounts`: options `All members | Branch A | Branch B | …`.
+
+  | Viewer | Default | Dropdown options | Out-of-scope rows |
+  | --- | --- | --- | --- |
+  | **Root** | `All members` | `All members` + every branch | full control |
+  | **Executive** | **current branch** | `All members` + their assigned branches | shown **read-only** |
+  | **Ordinary member** | **current branch** | current branch + their other assigned branches — **no `All members`** | **never shown** (no cross-branch visibility) |
+
+  "Current branch" = `getActiveBranchId()`. The dropdown drives the `branch_id` sent to the server
+  account-list query; the server returns only the permitted set (ordinary members get a hard
+  restricted list; executives get cross-branch rows flagged read-only). Don't rely on client-side
+  filtering for ordinary members — request the scoped list from the API.
+
 ### Multi-Company / Multi-Branch Data Isolation
 
 **Each company+branch pair gets its own SQLite database file.** This is enforced at the `getDBConnection()` level in `/src/localDb/index.js` — no query-level filtering is needed or used.
