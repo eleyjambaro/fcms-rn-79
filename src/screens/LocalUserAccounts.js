@@ -78,20 +78,26 @@ function LocalUserAccounts(props) {
     // Grant the selected branch and device access to the newly created user.
     // The account already exists at this point, so on failure we surface the
     // message and still close — the admin can adjust access from the account
-    // options afterwards. Executives (co-owners) have full access to all
-    // branches/devices, so they need no per-account assignment.
+    // options afterwards. Branch access applies to executives too (root limits
+    // which branches a co-owner can reach); only DEVICE assignment is skipped
+    // for executives, since they self-bootstrap their own devices.
     try {
-      if (newAccount?.id && !values.is_executive_account) {
-        await Promise.all([
+      if (newAccount?.id) {
+        const ops = [
           syncCloudBranchAccountAssignments({
             account_id: newAccount.id,
             branch_ids,
           }),
-          syncCloudDeviceAccountAssignments({
-            account_id: newAccount.id,
-            device_ids,
-          }),
-        ]);
+        ];
+        if (!values.is_executive_account) {
+          ops.push(
+            syncCloudDeviceAccountAssignments({
+              account_id: newAccount.id,
+              device_ids,
+            }),
+          );
+        }
+        await Promise.all(ops);
       }
     } catch (error) {
       const msg =

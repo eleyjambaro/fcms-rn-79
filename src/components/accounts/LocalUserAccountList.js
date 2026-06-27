@@ -129,18 +129,17 @@ const LocalUserAccountList = props => {
         is_executive_account: isExecutive,
       });
 
-      // Executives (co-owners) have full access to all branches/devices, so
-      // they carry no per-account assignment. For regular team members,
-      // reconcile branch/device access to match the selected checkboxes.
+      // Branch access applies to executives too — root limits which branches a
+      // co-owner can reach (none = no branch access). Only DEVICE assignment is
+      // skipped for executives, since they self-bootstrap their own devices.
+      await syncCloudBranchAccountAssignments({account_id: accountId, branch_ids});
+      queryClient.invalidateQueries([
+        'cloudBranchAccountAssignments',
+        {account_id: accountId},
+      ]);
+
       if (!isExecutive) {
-        await Promise.all([
-          syncCloudBranchAccountAssignments({account_id: accountId, branch_ids}),
-          syncCloudDeviceAccountAssignments({account_id: accountId, device_ids}),
-        ]);
-        queryClient.invalidateQueries([
-          'cloudBranchAccountAssignments',
-          {account_id: accountId},
-        ]);
+        await syncCloudDeviceAccountAssignments({account_id: accountId, device_ids});
         queryClient.invalidateQueries([
           'cloudDeviceAccountAssignments',
           {account_id: accountId},
@@ -167,8 +166,9 @@ const LocalUserAccountList = props => {
   };
 
   const focusedIsExecutive = !!focusedItem?.is_executive_account;
-  // An executive row is manageable only by the root owner. Executives also
-  // have no per-branch/device assignment, so those options are hidden for them.
+  // An executive row is manageable only by the root owner. Root CAN limit an
+  // executive's branch access (Manage Branch Access), but executives have no
+  // device assignment (they self-bootstrap devices), so that option is hidden.
   const canManageFocused = canManageMembers && (!focusedIsExecutive || isRoot);
   const localUserAccountOptions = !canManageFocused
     ? []
@@ -182,7 +182,18 @@ const LocalUserAccountList = props => {
           },
         },
         ...(focusedIsExecutive
-          ? []
+          ? [
+              // Root-only (gated by canManageFocused): limit which branches this
+              // executive can access. No device option — executives self-bootstrap.
+              {
+                label: 'Manage Branch Access',
+                icon: 'source-branch',
+                handler: () => {
+                  setManageBranchesModalVisible(true);
+                  closeOptionsBottomSheet();
+                },
+              },
+            ]
           : [
               {
                 label: 'Manage Device Access',

@@ -335,10 +335,11 @@ const LocalUserAccountForm = props => {
                   onValueChange={next => {
                     setFieldValue('is_executive_account', next);
                     if (next) {
-                      // Clear role/branch/device — an executive needs none.
+                      // An executive carries no role and self-bootstraps devices,
+                      // so clear those — but KEEP branch_ids: root limits which
+                      // branches an executive may access via the checklist below.
                       setRoleId('');
                       setFieldValue('role_id', '');
-                      setFieldValue('branch_ids', []);
                       setFieldValue('device_ids', []);
                     }
                   }}
@@ -400,19 +401,18 @@ const LocalUserAccountForm = props => {
                 handleChange('role_id')(newRoleId);
               }}
             />
-            {values.is_executive_account ? (
-              <HelperText style={styles.executiveAccessHint}>
-                Executives have full access to all branches and devices, so no
-                branch or device assignment is needed.
-              </HelperText>
-            ) : (
-            <>
+            {/* Branch access — shown for both regular members and executives.
+                For an executive this is the root-only restriction: an executive
+                can access ONLY the branches checked here (none = no branch
+                access; branches they create are added automatically). */}
             <Divider style={styles.sectionDivider} />
             <Text style={[styles.sectionTitle, {color: colors.dark}]}>
               Manage Branch Access
             </Text>
             <HelperText style={styles.sectionHint}>
-              {editMode
+              {values.is_executive_account
+                ? "Select the branches this executive can access. They'll have no branch access until you assign at least one (branches they create are added automatically)."
+                : editMode
                 ? 'Select the branches this user can access.'
                 : 'Select the branches this user can access. The current branch is checked by default.'}
             </HelperText>
@@ -432,6 +432,10 @@ const LocalUserAccountForm = props => {
               </HelperText>
             ) : null}
 
+            {/* Device access — executives self-bootstrap their own devices on the
+                Owner / Executive screen, so no device assignment is needed. */}
+            {values.is_executive_account ? null : (
+            <>
             <Divider style={styles.sectionDivider} />
             <Text style={[styles.sectionTitle, {color: colors.dark}]}>
               Manage Device Access
@@ -538,10 +542,6 @@ const styles = StyleSheet.create({
   executiveHint: {
     fontStyle: 'italic',
     paddingHorizontal: 0,
-  },
-  executiveAccessHint: {
-    fontStyle: 'italic',
-    marginTop: 16,
   },
 });
 
