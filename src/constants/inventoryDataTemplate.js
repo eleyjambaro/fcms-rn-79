@@ -65,6 +65,33 @@ export const findDuplicateGroups = (rows, rowNumbers = []) => {
   return order.map(k => groups.get(k)).filter(g => g.skipped.length > 0);
 };
 
+/**
+ * Flatten duplicate groups into a spreadsheet array-of-arrays that mirrors the
+ * IDT layout, with two leading context columns (Status, Sheet Row) so a user can
+ * export the skipped rows, recover any stock/cost the imported row missed, and
+ * re-import. Order matches the modal: each name's imported row first, then its
+ * skipped rows. Columns are driven off IDT_COLUMNS to stay in lockstep.
+ */
+export const buildDuplicateRowsAoa = (groups = []) => {
+  const header = ['Status', 'Sheet Row', ...IDT_COLUMNS.map(c => c.header)];
+  const rows = [header];
+
+  const pushOcc = (occ, imported) => {
+    const fields = IDT_COLUMNS.map(c => {
+      const value = occ.row?.[c.field];
+      return value === undefined || value === null ? '' : value;
+    });
+    rows.push([imported ? 'Imported' : 'Skipped', occ.sourceRow, ...fields]);
+  };
+
+  groups.forEach(g => {
+    pushOcc(g.kept, true);
+    g.skipped.forEach(occ => pushOcc(occ, false));
+  });
+
+  return rows;
+};
+
 export const IDT_COLUMNS = [
   {field: 'count', header: 'Count', required: false, width: 7},
   {

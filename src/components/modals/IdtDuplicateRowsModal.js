@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {StyleSheet, View, ScrollView} from 'react-native';
 import {
   Portal,
@@ -6,11 +6,18 @@ import {
   Title,
   Text,
   Button,
+  Snackbar,
   useTheme,
 } from 'react-native-paper';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import * as RNFS from 'react-native-fs';
+import XLSX from 'xlsx';
 
-import {IDT_COLUMNS} from '../../constants/inventoryDataTemplate';
+import appDefaults from '../../constants/appDefaults';
+import {
+  IDT_COLUMNS,
+  buildDuplicateRowsAoa,
+} from '../../constants/inventoryDataTemplate';
 
 const STATUS_WIDTH = 90;
 const ROW_NUM_WIDTH = 64;
@@ -29,8 +36,49 @@ const IdtDuplicateRowsModal = props => {
   const {visible, onDismiss, groups = []} = props;
   const {colors} = useTheme();
 
+  const [exporting, setExporting] = useState(false);
+  const [snackbar, setSnackbar] = useState({visible: false, message: ''});
+
   const skippedCount = groups.reduce((n, g) => n + g.skipped.length, 0);
   const groupCount = groups.length;
+
+  const handleExport = async () => {
+    if (!groups.length || exporting) {
+      return;
+    }
+    setExporting(() => true);
+    try {
+      const aoa = buildDuplicateRowsAoa(groups);
+      const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+      // Status + Sheet Row context columns, then one column per IDT field.
+      worksheet['!cols'] = [
+        {wch: 10},
+        {wch: 10},
+        ...IDT_COLUMNS.map(c => ({wch: c.width})),
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Skipped Duplicates');
+
+      const wbout = XLSX.write(workbook, {type: 'binary', bookType: 'xlsx'});
+      const fileName = `${appDefaults.appDisplayName}_Skipped_Duplicate_Items.xlsx`;
+      const filepath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+      await RNFS.writeFile(filepath, wbout, 'ascii');
+
+      setSnackbar(() => ({
+        visible: true,
+        message: `Saved to Downloads as "${fileName}".`,
+      }));
+    } catch (error) {
+      console.debug(error);
+      setSnackbar(() => ({
+        visible: true,
+        message: 'Failed to export the spreadsheet. Please try again.',
+      }));
+    } finally {
+      setExporting(() => false);
+    }
+  };
 
   // Flatten groups into display rows: kept first, then its skipped rows.
   const rows = [];
@@ -136,12 +184,34 @@ const IdtDuplicateRowsModal = props => {
           </View>
         </ScrollView>
 
-        <View style={{marginTop: 12, alignItems: 'flex-end'}}>
+        <View style={styles.footer}>
+          <Button
+            mode="outlined"
+            icon="file-excel"
+            onPress={handleExport}
+            loading={exporting}
+            disabled={exporting || groups.length === 0}
+            color={colors.primary}>
+            Export to spreadsheet
+          </Button>
           <Button onPress={onDismiss} color={colors.primary}>
             Close
           </Button>
         </View>
       </Modal>
+
+      <Snackbar
+        visible={snackbar.visible}
+        duration={5000}
+        style={{backgroundColor: colors.primary}}
+        onDismiss={() => setSnackbar(() => ({visible: false, message: ''}))}
+        action={{
+          label: 'Okay',
+          color: colors.surface,
+          onPress: () => setSnackbar(() => ({visible: false, message: ''})),
+        }}>
+        {snackbar.message}
+      </Snackbar>
     </Portal>
   );
 };
@@ -157,6 +227,12 @@ const styles = StyleSheet.create({
   },
   body: {
     maxHeight: 380,
+  },
+  footer: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   row: {
     flexDirection: 'row',
