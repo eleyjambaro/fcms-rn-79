@@ -1706,6 +1706,17 @@ export const insertTemplateDataToDb = async ({
     }
 
     const itemsTotal = notExistingItems.length + alreadyExistingItems.length;
+    // Rows dropped because their item name repeats earlier in the file (first
+    // wins). Surfaced so the user can reconcile "N rows" against "N inserted".
+    const duplicateInFile = templateItems.length - uniqueItems.length;
+    const duplicateSentence =
+      duplicateInFile > 0
+        ? ` ${duplicateInFile} duplicate item name${
+            duplicateInFile > 1 ? 's' : ''
+          } in the file ${
+            duplicateInFile > 1 ? 'were' : 'was'
+          } skipped (only the first row of each name is imported).`
+        : '';
     // Sentence about master-list dedup is appended only when something
     // actually got merged so unrelated imports stay quiet.
     const mergedSentence =
@@ -1719,6 +1730,7 @@ export const insertTemplateDataToDb = async ({
 
     onSuccess &&
       onSuccess({
+        duplicateInFile,
         successMessage: `Found ${itemsTotal} item${
           itemsTotal > 1 ? 's' : ''
         } in your selected worksheet. Inserted ${
@@ -1727,7 +1739,7 @@ export const insertTemplateDataToDb = async ({
           alreadyExistingItems.length
         } out of ${itemsTotal} item${itemsTotal > 1 ? 's' : ''} already exist${
           alreadyExistingItems.length > 1 ? '' : 's'
-        }.${mergedSentence}`,
+        }.${duplicateSentence}${mergedSentence}`,
       });
   } catch (error) {
     console.debug(error);

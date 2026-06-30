@@ -1382,47 +1382,41 @@ const Account = props => {
   const renderSuccessMessage = () => {
     if (!successMessage) return null;
 
-    // Split on "Found N item(s)" and "Inserted N new item(s)" so we can
-    // emphasize the imported count in the dialog. Split includes the capture
-    // group, so matched segments land on odd indices.
-    const boldRegex = /(Found \d+ items?|Inserted \d+ new items?)/g;
-    const parts = successMessage.split(boldRegex);
-
-    const skippedDupCount = duplicateGroups.reduce(
-      (n, g) => n + g.skipped.length,
-      0,
-    );
+    // Split on "Found N item(s)", "Inserted N new item(s)" (emphasized), and the
+    // "N duplicate item name(s) … skipped" clause (made pressable → opens the
+    // table of skipped rows). Split keeps the capture group, so matched segments
+    // land on odd indices; we tell them apart by testing the matched text.
+    const dupPhrase = /\d+ duplicate item names? in the file (?:were|was) skipped/;
+    const matchRegex =
+      /(Found \d+ items?|Inserted \d+ new items?|\d+ duplicate item names? in the file (?:were|was) skipped)/g;
+    const parts = successMessage.split(matchRegex);
+    const hasDuplicates = duplicateGroups.length > 0;
 
     return (
-      <>
-        <Paragraph style={{marginTop: 10}}>
-          {parts.map((part, idx) =>
-            idx % 2 === 1 ? (
-              <Text key={idx} style={{fontWeight: 'bold'}}>
+      <Paragraph style={{marginTop: 10}}>
+        {parts.map((part, idx) => {
+          if (idx % 2 === 0) return part;
+          if (hasDuplicates && dupPhrase.test(part)) {
+            return (
+              <Text
+                key={idx}
+                onPress={() => setDuplicateRowsModalVisible(() => true)}
+                style={{
+                  color: '#d97706',
+                  fontWeight: 'bold',
+                  textDecorationLine: 'underline',
+                }}>
                 {part}
               </Text>
-            ) : (
-              part
-            ),
-          )}
-        </Paragraph>
-        {skippedDupCount > 0 ? (
-          <Paragraph style={{marginTop: 10}}>
-            <Text
-              onPress={() => setDuplicateRowsModalVisible(() => true)}
-              style={{
-                color: '#d97706',
-                fontWeight: 'bold',
-                textDecorationLine: 'underline',
-              }}>
-              {`${skippedDupCount} duplicate item name(s) in the file were skipped`}
+            );
+          }
+          return (
+            <Text key={idx} style={{fontWeight: 'bold'}}>
+              {part}
             </Text>
-            <Text style={{color: colors.backdrop}}>
-              {' (only the first row of each name is imported).'}
-            </Text>
-          </Paragraph>
-        ) : null}
-      </>
+          );
+        })}
+      </Paragraph>
     );
   };
 
