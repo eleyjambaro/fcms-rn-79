@@ -26,6 +26,45 @@ export const normalizeHeader = s =>
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
 
+/**
+ * Recompute which rows the IDT import drops as within-file duplicates. Mirrors
+ * `insertTemplateDataToDb` exactly: group by lower(trim(item_name)), the first
+ * occurrence is imported, the rest are skipped. Only groups that actually have
+ * skipped rows are returned, ordered by first appearance. `rowNumbers` must be
+ * aligned with `rows` (the 1-based spreadsheet row of each parsed item).
+ *
+ * Returns: [{itemName, kept: {row, sourceRow}, skipped: [{row, sourceRow}, ...]}]
+ */
+export const findDuplicateGroups = (rows, rowNumbers = []) => {
+  const groups = new Map();
+  const order = [];
+
+  rows.forEach((row, i) => {
+    const key = String(row?.item_name ?? '')
+      .trim()
+      .toLowerCase();
+    if (!key) {
+      return;
+    }
+
+    const occ = {row, sourceRow: rowNumbers[i] ?? i + 1};
+    const existing = groups.get(key);
+
+    if (!existing) {
+      groups.set(key, {
+        itemName: String(row?.item_name ?? '').trim(),
+        kept: occ,
+        skipped: [],
+      });
+      order.push(key);
+    } else {
+      existing.skipped.push(occ);
+    }
+  });
+
+  return order.map(k => groups.get(k)).filter(g => g.skipped.length > 0);
+};
+
 export const IDT_COLUMNS = [
   {field: 'count', header: 'Count', required: false, width: 7},
   {

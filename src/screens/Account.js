@@ -66,7 +66,9 @@ import {
   IDT_COLUMNS,
   IDT_EXPORT_EXCLUDED_FIELDS,
   normalizeHeader,
+  findDuplicateGroups,
 } from '../constants/inventoryDataTemplate';
+import IdtDuplicateRowsModal from '../components/modals/IdtDuplicateRowsModal';
 import BannerAdComponent from '../components/ads/BannerAdComponent';
 import ConfirmationCheckbox from '../components/forms/ConfirmationCheckbox';
 import ManageListButton from '../components/buttons/ManageListButton';
@@ -179,6 +181,9 @@ const Account = props => {
   const [errorMessage, setErrorMessage] = useState('');
   const [limitReachedMessage, setLimitReachedMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [duplicateGroups, setDuplicateGroups] = useState([]);
+  const [duplicateRowsModalVisible, setDuplicateRowsModalVisible] =
+    useState(false);
 
   useEffect(() => {
     if (selectedInventoryDataFilePath) {
@@ -664,6 +669,7 @@ const Account = props => {
       }
 
       const itemsArray = [];
+      const rowNumbers = [];
       for (let r = 1; r < rows.length; r++) {
         const row = rows[r] || [];
         const obj = {};
@@ -673,8 +679,14 @@ const Account = props => {
         }
         if (obj.item_name) {
           itemsArray.push(obj);
+          rowNumbers.push(r + 1); // rows[0] is the header (sheet row 1)
         }
       }
+
+      // Recompute the within-file duplicates the import will drop (same rule as
+      // insertTemplateDataToDb) so the success dialog can show exactly which rows
+      // were skipped.
+      setDuplicateGroups(() => findDuplicateGroups(itemsArray, rowNumbers));
 
       prepareInventoryDataTemplateItemList(itemsArray, beginningInventoryDate);
     } catch (error) {
@@ -1376,18 +1388,41 @@ const Account = props => {
     const boldRegex = /(Found \d+ items?|Inserted \d+ new items?)/g;
     const parts = successMessage.split(boldRegex);
 
+    const skippedDupCount = duplicateGroups.reduce(
+      (n, g) => n + g.skipped.length,
+      0,
+    );
+
     return (
-      <Paragraph style={{marginTop: 10}}>
-        {parts.map((part, idx) =>
-          idx % 2 === 1 ? (
-            <Text key={idx} style={{fontWeight: 'bold'}}>
-              {part}
+      <>
+        <Paragraph style={{marginTop: 10}}>
+          {parts.map((part, idx) =>
+            idx % 2 === 1 ? (
+              <Text key={idx} style={{fontWeight: 'bold'}}>
+                {part}
+              </Text>
+            ) : (
+              part
+            ),
+          )}
+        </Paragraph>
+        {skippedDupCount > 0 ? (
+          <Paragraph style={{marginTop: 10}}>
+            <Text
+              onPress={() => setDuplicateRowsModalVisible(() => true)}
+              style={{
+                color: '#d97706',
+                fontWeight: 'bold',
+                textDecorationLine: 'underline',
+              }}>
+              {`${skippedDupCount} duplicate item name(s) in the file were skipped`}
             </Text>
-          ) : (
-            part
-          ),
-        )}
-      </Paragraph>
+            <Text style={{color: colors.backdrop}}>
+              {' (only the first row of each name is imported).'}
+            </Text>
+          </Paragraph>
+        ) : null}
+      </>
     );
   };
 
@@ -2053,6 +2088,7 @@ const Account = props => {
               onPress={() => {
                 navigation.navigate(routes.items());
                 setSuccessMessage(() => '');
+                setDuplicateGroups(() => []);
                 setImportSuccessDialogVisible(() => false);
               }}
               color={colors.primary}>
@@ -2061,6 +2097,7 @@ const Account = props => {
             <Button
               onPress={() => {
                 setSuccessMessage(() => '');
+                setDuplicateGroups(() => []);
                 setImportSuccessDialogVisible(() => false);
               }}
               color={colors.primary}>
@@ -2069,6 +2106,11 @@ const Account = props => {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+      <IdtDuplicateRowsModal
+        visible={duplicateRowsModalVisible}
+        onDismiss={() => setDuplicateRowsModalVisible(() => false)}
+        groups={duplicateGroups}
+      />
       <Portal>
         <Dialog
           visible={importFailedDialogVisible}
