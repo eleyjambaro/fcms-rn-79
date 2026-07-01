@@ -50,6 +50,16 @@ const CloudV2SubAccountSignIn = ({navigation}) => {
         setServerError(data?.message || 'Sign in failed. Please try again.');
       }
     } catch (error) {
+      // First-login gate: an owner-created member must verify their email and
+      // set their own password before they can sign in. Route them into the
+      // OTP → set-password flow instead of showing a dead-end error.
+      if (error?.response?.data?.errors?.code === 'onboarding_required') {
+        navigation.navigate(routes.cloudV2OTPVerification(), {
+          email: values.email,
+          flow: 'onboarding',
+        });
+        return;
+      }
       const msg =
         error?.response?.data?.message ||
         'Unable to connect. Check your network and try again.';

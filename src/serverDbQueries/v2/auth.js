@@ -57,6 +57,37 @@ export const verifyOtp = async ({email, otp, request_id}) => {
   return data;
 };
 
+// First-login onboarding (owner-created accounts: team members + executives).
+// Screen 1 — verify the email OTP for an account still pending its first login.
+// The account isn't authenticated yet, so email/otp/request_id go in the body
+// (no bearer). Returns a short-lived grant_token that unlocks set-password only.
+export const onboardingVerifyOtp = async ({email, otp, request_id}) => {
+  const {data} = await cloudApiV2.post('/api/v2/auth/onboarding/verify-otp', {
+    email,
+    otp,
+    request_id,
+  });
+  return data;
+};
+
+// Screen 2 — set the member's own password, authenticated by the grant token
+// from screen 1 (passed as the bearer, never stored). On success the server
+// clears the pending flag and returns a real client token, so the caller can
+// establish the session exactly like OTP verify does.
+export const onboardingSetPassword = async ({
+  grant_token,
+  password,
+  password_confirmation,
+}) => {
+  const client_id = await getClientId();
+  const {data} = await cloudApiV2.post(
+    '/api/v2/auth/onboarding/set-password',
+    {password, password_confirmation, client_id},
+    {headers: {Authorization: `Bearer ${grant_token}`}},
+  );
+  return data;
+};
+
 export const getMe = async () => {
   const {data} = await cloudApiV2.get('/api/v2/auth/me', {
     headers: await getAuthHeaders(),

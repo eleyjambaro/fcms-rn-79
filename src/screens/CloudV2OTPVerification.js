@@ -16,15 +16,25 @@ import {
 import {useMutation} from '@tanstack/react-query';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
-import {requestOtp, verifyOtp} from '../serverDbQueries/v2/auth';
+import {
+  requestOtp,
+  verifyOtp,
+  onboardingVerifyOtp,
+} from '../serverDbQueries/v2/auth';
+import routes from '../constants/routes';
 import appDefaults from '../constants/appDefaults';
 import CloudAppIcon from '../components/icons/CloudAppIcon';
 
 const OTP_LENGTH = 6;
 
-const CloudV2OTPVerification = ({route}) => {
+const CloudV2OTPVerification = ({route, navigation}) => {
   const {colors} = useTheme();
   const {email} = route.params ?? {};
+  // 'signin' (default) → owner email verification, signs the account in here.
+  // 'onboarding' → team-member/executive first login; verifying only returns a
+  // grant, then hands off to the set-password screen (screen 2).
+  const flow = route.params?.flow ?? 'signin';
+  const isOnboarding = flow === 'onboarding';
   const [, {setAuthFromVerify}] = useCloudAuthContext();
 
   const [otp, setOtp] = useState('');
@@ -36,7 +46,7 @@ const CloudV2OTPVerification = ({route}) => {
   const inputRef = useRef(null);
 
   const requestMutation = useMutation(requestOtp);
-  const verifyMutation = useMutation(verifyOtp);
+  const verifyMutation = useMutation(isOnboarding ? onboardingVerifyOtp : verifyOtp);
 
   const sendOtp = async () => {
     setServerError('');
@@ -116,8 +126,19 @@ const CloudV2OTPVerification = ({route}) => {
         request_id: requestId,
       });
       if (data?.status === 'success') {
-        await setAuthFromVerify(data);
-        // CloudAuthStackV2 will auto-advance to device registration
+        if (isOnboarding) {
+          // Screen 1 done — hand the grant to screen 2 (set password). The
+          // grant lives only in navigation params (in memory): killing the app
+          // drops it, so a fresh sign-in re-requires the OTP, which is exactly
+          // the "re-verify before letting them set a password" guarantee.
+          navigation.replace(routes.cloudV2OnboardingSetPassword(), {
+            email,
+            grantToken: data?.data?.grant_token,
+          });
+        } else {
+          await setAuthFromVerify(data);
+          // CloudAuthStackV2 will auto-advance to device registration
+        }
       } else {
         setServerError(data?.message || 'Invalid or expired OTP.');
       }

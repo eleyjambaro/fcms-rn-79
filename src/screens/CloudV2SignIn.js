@@ -70,6 +70,15 @@ const CloudV2SignIn = ({navigation}) => {
         });
         return;
       }
+      // Owner-created executives are also gated through first-login onboarding
+      // (email OTP → set their own password) before they can sign in.
+      if (error?.response?.data?.errors?.code === 'onboarding_required') {
+        navigation.navigate(routes.cloudV2OTPVerification(), {
+          email: values.email,
+          flow: 'onboarding',
+        });
+        return;
+      }
       const msg =
         error?.response?.data?.message ||
         'Unable to connect. Check your network and try again.';

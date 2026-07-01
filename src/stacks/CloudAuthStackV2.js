@@ -10,6 +10,7 @@ import CloudV2SignIn from '../screens/CloudV2SignIn';
 import CloudV2SignUpStep1 from '../screens/CloudV2SignUpStep1';
 import CloudV2SignUpStep2 from '../screens/CloudV2SignUpStep2';
 import CloudV2OTPVerification from '../screens/CloudV2OTPVerification';
+import CloudV2OnboardingSetPassword from '../screens/CloudV2OnboardingSetPassword';
 import CloudV2DeviceRegistration from '../screens/CloudV2DeviceRegistration';
 import CloudV2BranchSetup from '../screens/CloudV2BranchSetup';
 import CloudV2TeamAssignment from '../screens/CloudV2TeamAssignment';
@@ -133,6 +134,10 @@ const CloudAuthStackV2 = () => {
       <Stack.Screen
         name={routes.cloudV2OTPVerification()}
         component={CloudV2OTPVerification}
+      />
+      <Stack.Screen
+        name={routes.cloudV2OnboardingSetPassword()}
+        component={CloudV2OnboardingSetPassword}
       />
       <Stack.Screen
         name={routes.cloudV2SubAccountSignIn()}

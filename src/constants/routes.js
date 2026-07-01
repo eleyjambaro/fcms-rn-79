@@ -122,6 +122,7 @@ export const routes = {
   cloudV2SignUpStep1: () => 'CloudV2SignUpStep1',
   cloudV2SignUpStep2: () => 'CloudV2SignUpStep2',
   cloudV2OTPVerification: () => 'CloudV2OTPVerification',
+  cloudV2OnboardingSetPassword: () => 'CloudV2OnboardingSetPassword',
   cloudV2DeviceRegistration: () => 'CloudV2DeviceRegistration',
   cloudV2BranchSetup: () => 'CloudV2BranchSetup',
   cloudV2SubAccountSignIn: () => 'CloudV2SubAccountSignIn',
