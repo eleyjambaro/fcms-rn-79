@@ -57,6 +57,14 @@ branch-scoped team management"); the app mirrors it for UX and must treat a 403 
 - **Branch access scoping.** An executive's branches = exactly their `branch_account_assignments`
   (synced via `syncCloudBranchAccountAssignments`); zero = none (only root sees all branches). A
   branch they create auto-assigns to them. **Only root** may edit an executive's branch access.
+- **Creating a branch is root/executive ONLY** (a team member with `settings.edit` may edit/delete
+  existing branches but not create — the API `BranchController::store` returns **403**).
+  ⚠️ **The RN app does NOT yet gate this** — `ManageBranches.js` ("Add Branch") and the post-login
+  picker `CloudV2BranchSetup.js` ("+ Create New Branch") show the create action unconditionally and
+  only surface the server's 403 error after submit. When updating: hide/disable those create
+  affordances unless `isRoot || authUser?.is_executive_account` (`isRoot` comes from
+  `useRoleAccess()`; `is_executive_account` is on the auth account). The `createBranch` mutation is
+  in `/src/serverDbQueries/v2/branches.js`. Until then the API is the only enforcement.
 - **Team-member management is branch-scoped for executives.** An executive may **Edit, Edit
   Access, and Delete** a member **only if that member shares a branch with the executive's
   assignments**. Members outside those branches are **read-only** to the executive — list them but
