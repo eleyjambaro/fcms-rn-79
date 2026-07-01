@@ -51,6 +51,14 @@ const ManageBranches = () => {
   const activeBranchId = cloudAuthState.designatedBranch?.id ?? null;
   const deviceId = cloudAuthState.deviceId;
 
+  // Creating a branch is reserved for the company owner (root) and executive
+  // co-owners. A team member with 'settings.edit' may still edit/delete existing
+  // branches, but not add new ones. The cloud API enforces this
+  // (BranchController::store → 403); this just hides the affordance.
+  const canCreateBranch = !!(
+    authUser?.is_root_account || authUser?.is_executive_account
+  );
+
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [createServerError, setCreateServerError] = useState('');
 
@@ -388,21 +396,23 @@ const ManageBranches = () => {
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       <View style={styles.content}>{renderContent()}</View>
 
-      <View
-        style={[
-          styles.addButtonRow,
-          {borderTopColor: colors.disabled, backgroundColor: colors.surface},
-        ]}>
-        <Button
-          icon="plus"
-          mode="contained"
-          onPress={() => {
-            setCreateServerError('');
-            setCreateModalVisible(true);
-          }}>
-          Add Branch
-        </Button>
-      </View>
+      {canCreateBranch ? (
+        <View
+          style={[
+            styles.addButtonRow,
+            {borderTopColor: colors.disabled, backgroundColor: colors.surface},
+          ]}>
+          <Button
+            icon="plus"
+            mode="contained"
+            onPress={() => {
+              setCreateServerError('');
+              setCreateModalVisible(true);
+            }}>
+            Add Branch
+          </Button>
+        </View>
+      ) : null}
 
       {/* Add Branch Modal */}
       <Portal>
