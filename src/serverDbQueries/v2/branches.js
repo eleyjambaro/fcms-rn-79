@@ -20,7 +20,11 @@ const getAuthHeaders = async () => {
 // post-login "which branch do I operate in" picker uses.
 export const getBranches = async ({page = 1, per_page = 50, all = false} = {}) => {
   const {data} = await cloudApiV2.get('/api/v2/branches', {
-    params: {page, per_page, ...(all ? {all: true} : {})},
+    // Send `1`, not `true`: axios serializes the boolean `true` as the string
+    // "true", which Laravel's strict `boolean` validation rule rejects (its
+    // accepted set is [true,false,0,1,'0','1'] — no "true"), causing a 422.
+    // `1` passes validation and `$request->boolean('all')` still reads it as true.
+    params: {page, per_page, ...(all ? {all: 1} : {})},
     headers: await getAuthHeaders(),
   });
   return data;
