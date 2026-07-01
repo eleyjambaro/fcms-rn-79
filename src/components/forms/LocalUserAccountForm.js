@@ -100,22 +100,18 @@ const LocalUserAccountForm = props => {
   // In edit mode, pre-check the branches/devices the account is already
   // assigned to. (Disabled queries report status 'loading' in RQ v4, so the
   // loading gate below guards these with `editMode && userAccountId`.)
-  const {
-    status: branchAssignmentsStatus,
-    data: branchAssignmentsData,
-  } = useQuery(
-    ['cloudBranchAccountAssignments', {account_id: userAccountId}],
-    () => getCloudBranchAccountAssignments({account_id: userAccountId}),
-    {enabled: editMode && !!userAccountId},
-  );
-  const {
-    status: deviceAssignmentsStatus,
-    data: deviceAssignmentsData,
-  } = useQuery(
-    ['cloudDeviceAccountAssignments', {account_id: userAccountId}],
-    () => getCloudDeviceAccountAssignments({account_id: userAccountId}),
-    {enabled: editMode && !!userAccountId},
-  );
+  const {status: branchAssignmentsStatus, data: branchAssignmentsData} =
+    useQuery(
+      ['cloudBranchAccountAssignments', {account_id: userAccountId}],
+      () => getCloudBranchAccountAssignments({account_id: userAccountId}),
+      {enabled: editMode && !!userAccountId},
+    );
+  const {status: deviceAssignmentsStatus, data: deviceAssignmentsData} =
+    useQuery(
+      ['cloudDeviceAccountAssignments', {account_id: userAccountId}],
+      () => getCloudDeviceAccountAssignments({account_id: userAccountId}),
+      {enabled: editMode && !!userAccountId},
+    );
   const [roleId, setRoleId] = useState(initialValues.role_id);
 
   const isDisabled = () => {
@@ -252,216 +248,224 @@ const LocalUserAccountForm = props => {
               style={styles.formScroll}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled">
-            <FormRequiredFieldHelperText containerStyle={{marginBottom: 10}} />
-            <TextInput
-              label={
-                <TextInputLabel
-                  label="First Name"
-                  required
-                  error={errors.first_name && touched.first_name ? true : false}
-                />
-              }
-              onChangeText={handleChange('first_name')}
-              onBlur={handleBlur('first_name')}
-              autoCapitalize="words"
-              value={values.first_name}
-              error={errors.first_name && touched.first_name ? true : false}
-              disabled={isDisabled()}
-            />
-            <TextInput
-              label={
-                <TextInputLabel
-                  label="Last Name"
-                  required
-                  error={errors.last_name && touched.last_name ? true : false}
-                />
-              }
-              onChangeText={handleChange('last_name')}
-              onBlur={handleBlur('last_name')}
-              autoCapitalize="words"
-              value={values.last_name}
-              error={errors.last_name && touched.last_name ? true : false}
-              disabled={isDisabled()}
-            />
-            <TextInput
-              label={
-                <TextInputLabel
-                  label="Email"
-                  required
-                  error={errors.email && touched.email ? true : false}
-                />
-              }
-              onChangeText={handleChange('email')}
-              onBlur={handleBlur('email')}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={values.email}
-              error={errors.email && touched.email ? true : false}
-              disabled={isDisabled()}
-            />
-            <HelperText
-              style={{
-                color: colors.dark,
-                marginVertical: 10,
-                fontStyle: 'italic',
-              }}>
-              {`* Their email will be their username to login.`}
-            </HelperText>
-            {renderPasswordField(props)}
-            {/* Executive (co-owner) toggle — root-only. An executive can set up
+              <FormRequiredFieldHelperText
+                containerStyle={{marginBottom: 10}}
+              />
+              <TextInput
+                label={
+                  <TextInputLabel
+                    label="First Name"
+                    required
+                    error={
+                      errors.first_name && touched.first_name ? true : false
+                    }
+                  />
+                }
+                onChangeText={handleChange('first_name')}
+                onBlur={handleBlur('first_name')}
+                autoCapitalize="words"
+                value={values.first_name}
+                error={errors.first_name && touched.first_name ? true : false}
+                disabled={isDisabled()}
+              />
+              <TextInput
+                label={
+                  <TextInputLabel
+                    label="Last Name"
+                    required
+                    error={errors.last_name && touched.last_name ? true : false}
+                  />
+                }
+                onChangeText={handleChange('last_name')}
+                onBlur={handleBlur('last_name')}
+                autoCapitalize="words"
+                value={values.last_name}
+                error={errors.last_name && touched.last_name ? true : false}
+                disabled={isDisabled()}
+              />
+              <TextInput
+                label={
+                  <TextInputLabel
+                    label="Email"
+                    required
+                    error={errors.email && touched.email ? true : false}
+                  />
+                }
+                onChangeText={handleChange('email')}
+                onBlur={handleBlur('email')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={values.email}
+                error={errors.email && touched.email ? true : false}
+                disabled={isDisabled()}
+              />
+              <HelperText
+                style={{
+                  color: colors.dark,
+                  marginVertical: 10,
+                  fontStyle: 'italic',
+                }}>
+                {`* Their email will be their username to login.`}
+              </HelperText>
+              {renderPasswordField(props)}
+              {/* Executive (co-owner) toggle — root-only. An executive can set up
                 branches/devices on the owner's behalf and has full access, so
                 it carries no role and needs no branch/device assignment. */}
-            {authUser?.is_root_account ? (
-              <View style={styles.executiveRow}>
-                <View style={styles.executiveRowText}>
-                  <View style={styles.executiveTitleRow}>
-                    <MaterialCommunityIcons
-                      name="star"
-                      size={18}
-                      color={colors.accent}
-                    />
-                    <Text style={[styles.executiveTitle, {color: colors.dark}]}>
-                      Executive account
-                    </Text>
+              {authUser?.is_root_account ? (
+                <View style={styles.executiveRow}>
+                  <View style={styles.executiveRowText}>
+                    <View style={styles.executiveTitleRow}>
+                      <MaterialCommunityIcons
+                        name="star"
+                        size={18}
+                        color={colors.accent}
+                      />
+                      <Text
+                        style={[styles.executiveTitle, {color: colors.dark}]}>
+                        Executive account
+                      </Text>
+                    </View>
+                    <HelperText style={styles.executiveHint}>
+                      A trusted account who can set up branches and devices and
+                      has full access. Only you (the owner) can manage
+                      executives.
+                    </HelperText>
                   </View>
-                  <HelperText style={styles.executiveHint}>
-                    A trusted co-owner who can set up branches and devices and
-                    has full access. Only you (the owner) can manage executives.
-                  </HelperText>
-                </View>
-                <Switch
-                  value={values.is_executive_account}
-                  color={colors.accent}
-                  onValueChange={next => {
-                    setFieldValue('is_executive_account', next);
-                    if (next) {
-                      // An executive carries no role and self-bootstraps devices,
-                      // so clear those — but KEEP branch_ids: root limits which
-                      // branches an executive may access via the checklist below.
-                      setRoleId('');
-                      setFieldValue('role_id', '');
-                      setFieldValue('device_ids', []);
-                    }
-                  }}
-                />
-              </View>
-            ) : null}
-            {values.is_executive_account ? null : (
-            <>
-            <Dropdown
-              label={'Role'}
-              mode={'flat'}
-              visible={showDropDown}
-              showDropDown={() => setShowDropDown(true)}
-              onDismiss={() => setShowDropDown(false)}
-              value={roleId}
-              hideMenuHeader
-              onSelect={value => {
-                if (isDisabled()) return;
-
-                setRoleId(value);
-                handleChange('role_id')(value);
-              }}
-              inputProps={{
-                disabled: isDisabled(),
-                label: (
-                  <TextInputLabel
-                    label="Role"
-                    required
-                    error={errors.role_id && touched.role_id ? true : false}
+                  <Switch
+                    value={values.is_executive_account}
+                    color={colors.accent}
+                    onValueChange={next => {
+                      setFieldValue('is_executive_account', next);
+                      if (next) {
+                        // An executive carries no role and self-bootstraps devices,
+                        // so clear those — but KEEP branch_ids: root limits which
+                        // branches an executive may access via the checklist below.
+                        setRoleId('');
+                        setFieldValue('role_id', '');
+                        setFieldValue('device_ids', []);
+                      }
+                    }}
                   />
-                ),
-              }}
-              options={roleSelectionList}
-              activeColor={colors.accent}
-              dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
-              dropDownItemTextStyle={
-                isDisabled() ? {color: colors.disabled} : {}
-              }
-            />
-            {!isDisabled() && can('userManagement.manageRoles') ? (
-              <Button
-                icon="plus"
-                compact
-                onPress={() => setCreateRoleModalVisible(true)}
-                style={styles.newRoleButton}
-                contentStyle={styles.newRoleButtonContent}>
-                New role
-              </Button>
-            ) : null}
-            </>
-            )}
-            <CreateRoleModal
-              visible={createRoleModalVisible}
-              onDismiss={() => setCreateRoleModalVisible(false)}
-              onCreated={role => {
-                if (!role?.id) return;
-                const newRoleId = `${role.id}`;
-                setRoleId(newRoleId);
-                handleChange('role_id')(newRoleId);
-              }}
-            />
-            {/* Branch access — shown for both regular members and executives.
+                </View>
+              ) : null}
+              {values.is_executive_account ? null : (
+                <>
+                  <Dropdown
+                    label={'Role'}
+                    mode={'flat'}
+                    visible={showDropDown}
+                    showDropDown={() => setShowDropDown(true)}
+                    onDismiss={() => setShowDropDown(false)}
+                    value={roleId}
+                    hideMenuHeader
+                    onSelect={value => {
+                      if (isDisabled()) return;
+
+                      setRoleId(value);
+                      handleChange('role_id')(value);
+                    }}
+                    inputProps={{
+                      disabled: isDisabled(),
+                      label: (
+                        <TextInputLabel
+                          label="Role"
+                          required
+                          error={
+                            errors.role_id && touched.role_id ? true : false
+                          }
+                        />
+                      ),
+                    }}
+                    options={roleSelectionList}
+                    activeColor={colors.accent}
+                    dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
+                    dropDownItemTextStyle={
+                      isDisabled() ? {color: colors.disabled} : {}
+                    }
+                  />
+                  {!isDisabled() && can('userManagement.manageRoles') ? (
+                    <Button
+                      icon="plus"
+                      compact
+                      onPress={() => setCreateRoleModalVisible(true)}
+                      style={styles.newRoleButton}
+                      contentStyle={styles.newRoleButtonContent}>
+                      New role
+                    </Button>
+                  ) : null}
+                </>
+              )}
+              <CreateRoleModal
+                visible={createRoleModalVisible}
+                onDismiss={() => setCreateRoleModalVisible(false)}
+                onCreated={role => {
+                  if (!role?.id) return;
+                  const newRoleId = `${role.id}`;
+                  setRoleId(newRoleId);
+                  handleChange('role_id')(newRoleId);
+                }}
+              />
+              {/* Branch access — shown for both regular members and executives.
                 For an executive this is the root-only restriction: an executive
                 can access ONLY the branches checked here (none = no branch
                 access; branches they create are added automatically). */}
-            <Divider style={styles.sectionDivider} />
-            <Text style={[styles.sectionTitle, {color: colors.dark}]}>
-              Manage Branch Access
-            </Text>
-            <HelperText style={styles.sectionHint}>
-              {values.is_executive_account
-                ? "Select the branches this executive can access. They'll have no branch access until you assign at least one (branches they create are added automatically)."
-                : editMode
-                ? 'Select the branches this user can access.'
-                : 'Select the branches this user can access. The current branch is checked by default.'}
-            </HelperText>
-            <AccessCheckboxList
-              items={branches}
-              isLoading={getBranchesStatus === 'loading'}
-              selectedIds={values.branch_ids}
-              onToggle={id => toggleSelected('branch_ids', id)}
-              currentId={currentBranchId}
-              currentLabel="Current branch"
-              emptyText="No branches found."
-              disabled={isDisabled()}
-            />
-            {errors.branch_ids ? (
-              <HelperText type="error" visible={true}>
-                {errors.branch_ids}
+              <Divider style={styles.sectionDivider} />
+              <Text style={[styles.sectionTitle, {color: colors.dark}]}>
+                Manage Branch Access
+              </Text>
+              <HelperText style={styles.sectionHint}>
+                {values.is_executive_account
+                  ? "Select the branches this executive can access. They'll have no branch access until you assign at least one (branches they create are added automatically)."
+                  : editMode
+                  ? 'Select the branches this user can access.'
+                  : 'Select the branches this user can access. The current branch is checked by default.'}
               </HelperText>
-            ) : null}
+              <AccessCheckboxList
+                items={branches}
+                isLoading={getBranchesStatus === 'loading'}
+                selectedIds={values.branch_ids}
+                onToggle={id => toggleSelected('branch_ids', id)}
+                currentId={currentBranchId}
+                currentLabel="Current branch"
+                emptyText="No branches found."
+                disabled={isDisabled()}
+              />
+              {errors.branch_ids ? (
+                <HelperText type="error" visible={true}>
+                  {errors.branch_ids}
+                </HelperText>
+              ) : null}
 
-            {/* Device access — executives self-bootstrap their own devices on the
+              {/* Device access — executives self-bootstrap their own devices on the
                 Owner / Executive screen, so no device assignment is needed. */}
-            {values.is_executive_account ? null : (
-            <>
-            <Divider style={styles.sectionDivider} />
-            <Text style={[styles.sectionTitle, {color: colors.dark}]}>
-              Manage Device Access
-            </Text>
-            <HelperText style={styles.sectionHint}>
-              {editMode
-                ? 'Select the devices this user can sign in on.'
-                : 'Select the devices this user can sign in on. The current device is checked by default.'}
-            </HelperText>
-            <AccessCheckboxList
-              items={devices}
-              isLoading={getDevicesStatus === 'loading'}
-              selectedIds={values.device_ids}
-              onToggle={id => toggleSelected('device_ids', id)}
-              currentId={currentDeviceId}
-              currentLabel="This device"
-              emptyText="No registered devices found."
-              disabled={isDisabled()}
-            />
-            {errors.device_ids ? (
-              <HelperText type="error" visible={true}>
-                {errors.device_ids}
-              </HelperText>
-            ) : null}
-            </>
-            )}
+              {values.is_executive_account ? null : (
+                <>
+                  <Divider style={styles.sectionDivider} />
+                  <Text style={[styles.sectionTitle, {color: colors.dark}]}>
+                    Manage Device Access
+                  </Text>
+                  <HelperText style={styles.sectionHint}>
+                    {editMode
+                      ? 'Select the devices this user can sign in on.'
+                      : 'Select the devices this user can sign in on. The current device is checked by default.'}
+                  </HelperText>
+                  <AccessCheckboxList
+                    items={devices}
+                    isLoading={getDevicesStatus === 'loading'}
+                    selectedIds={values.device_ids}
+                    onToggle={id => toggleSelected('device_ids', id)}
+                    currentId={currentDeviceId}
+                    currentLabel="This device"
+                    emptyText="No registered devices found."
+                    disabled={isDisabled()}
+                  />
+                  {errors.device_ids ? (
+                    <HelperText type="error" visible={true}>
+                      {errors.device_ids}
+                    </HelperText>
+                  ) : null}
+                </>
+              )}
             </ScrollView>
 
             {/* Fixed footer — kept outside the ScrollView so a tap right after
