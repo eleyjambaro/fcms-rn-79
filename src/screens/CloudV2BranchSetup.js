@@ -18,6 +18,7 @@ import {Formik} from 'formik';
 import * as Yup from 'yup';
 
 import useCloudAuthContext from '../hooks/useCloudAuthContext';
+import useCurrentUser from '../hooks/useCurrentUser';
 import {assignBranch} from '../serverDbQueries/v2/devices';
 import {getBranches, createBranch} from '../serverDbQueries/v2/branches';
 import appDefaults from '../constants/appDefaults';
@@ -33,7 +34,15 @@ const CloudV2BranchSetup = ({navigation}) => {
   const {colors} = useTheme();
   const insets = useSafeAreaInsets();
   const [cloudAuthState] = useCloudAuthContext();
+  const [{authUser}] = useCurrentUser();
   const queryClient = useQueryClient();
+
+  // Creating a branch is reserved for the company owner (root) and executive
+  // co-owners; a team member only picks from the branches assigned to them. The
+  // cloud API enforces this (BranchController::store → 403); this hides the entry.
+  const canCreateBranch = !!(
+    authUser?.is_root_account || authUser?.is_executive_account
+  );
 
   const [selectedBranchId, setSelectedBranchId] = useState(null);
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -182,27 +191,31 @@ const CloudV2BranchSetup = ({navigation}) => {
             ItemSeparatorComponent={() => <View style={styles.separator} />}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
-                No branches yet. Create your first one below.
+                {canCreateBranch
+                  ? 'No branches yet. Create your first one below.'
+                  : 'No branches are assigned to you yet. Ask an owner to grant you access.'}
               </Text>
             }
             ListFooterComponent={
-              <>
-                <Divider style={styles.divider} />
-                <Pressable
-                  onPress={() => setCreateModalVisible(true)}
-                  style={({pressed}) => [
-                    styles.createBranchRow,
-                    {
-                      opacity: pressed ? 0.7 : 1,
-                      backgroundColor: colors.surface,
-                    },
-                  ]}>
-                  <Text
-                    style={[styles.createBranchText, {color: colors.primary}]}>
-                    + Create New Branch
-                  </Text>
-                </Pressable>
-              </>
+              canCreateBranch ? (
+                <>
+                  <Divider style={styles.divider} />
+                  <Pressable
+                    onPress={() => setCreateModalVisible(true)}
+                    style={({pressed}) => [
+                      styles.createBranchRow,
+                      {
+                        opacity: pressed ? 0.7 : 1,
+                        backgroundColor: colors.surface,
+                      },
+                    ]}>
+                    <Text
+                      style={[styles.createBranchText, {color: colors.primary}]}>
+                      + Create New Branch
+                    </Text>
+                  </Pressable>
+                </>
+              ) : null
             }
           />
 
