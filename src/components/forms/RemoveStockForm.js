@@ -1,6 +1,14 @@
 import React, {useState, useEffect} from 'react';
 import {StyleSheet, View} from 'react-native';
-import {TextInput, Button, Text, Divider, useTheme} from 'react-native-paper';
+import {
+  TextInput,
+  Button,
+  Text,
+  Divider,
+  HelperText,
+  useTheme,
+} from 'react-native-paper';
+import {Dropdown} from 'react-native-paper-dropdown';
 import {useNavigation} from '@react-navigation/native';
 import {Formik} from 'formik';
 import {useQuery} from '@tanstack/react-query';
@@ -15,10 +23,17 @@ import MoreSelectionButton from '../../components/buttons/MoreSelectionButton';
 import DefaultLoadingScreen from '../../components/stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../../components/stateIndicators/DefaultErrorScreen';
 import {getInventoryOperations} from '../../localDbQueries/operations';
-import {getItem} from '../../localDbQueries/items';
+import {getItem, setItemNetWeightPerPiece} from '../../localDbQueries/items';
 import QuantityUOMText from './QuantityUOMText';
 import ConfirmationCheckbox from './ConfirmationCheckbox';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import {
+  PIECE_UNIT,
+  isNonEaItem,
+  nonEaStockUnitOptions,
+  pieceNeedsNetWeight,
+  toBaseQty,
+} from '../../utils/stockMeasurement';
 
 const RemoveStockValidationSchema = Yup.object().shape({
   operation_id: Yup.string().required('Operation is required.'),
@@ -78,6 +93,9 @@ const RemoveStockForm = props => {
   const [datetimeString, setDatetimeString] = useState(datetimeStringFormat);
   const [dateTimePickerMode, setDateTimePickerMode] = useState('date');
   const [showCalendar, setShowCalendar] = useState(false);
+  const [unit, setUnit] = useState('');
+  const [netWeight, setNetWeight] = useState('');
+  const [showUnitDropDown, setShowUnitDropDown] = useState(false);
 
   const {status: getItemStatus, data: getItemData} = useQuery(
     ['item', {id: itemId}],
@@ -185,6 +203,49 @@ const RemoveStockForm = props => {
 
   if (!item) return null;
 
+  const isNonEa = isNonEaItem(item);
+  const effectiveUnit = unit || item.uom_abbrev;
+  const unitOptions = isNonEa ? nonEaStockUnitOptions(item) : [];
+  const needsNetWeight = isNonEa && pieceNeedsNetWeight(item, effectiveUnit);
+  const isPieceEntry = effectiveUnit === PIECE_UNIT;
+
+  const handleFormSubmit = async (values, formikBag) => {
+    try {
+      // Non-'ea' item: convert the entered qty+unit to the item's base UOM (the
+      // number inventory_logs stores). 'ea' items keep the existing per-piece
+      // checkbox path (addInventoryLog divides by qty_per_piece).
+      let submitValues = values;
+      if (isNonEa) {
+        if (needsNetWeight) {
+          const nw = parseFloat(netWeight);
+          if (!(nw > 0)) {
+            formikBag.setFieldError(
+              'adjustment_qty',
+              'Enter the net weight per piece.',
+            );
+            formikBag.setSubmitting(false);
+            return;
+          }
+          await setItemNetWeightPerPiece({itemId: item.id, qtyPerPiece: nw});
+        }
+        const baseQty = toBaseQty(
+          item,
+          values.adjustment_qty,
+          effectiveUnit,
+          needsNetWeight ? parseFloat(netWeight) || 0 : undefined,
+        );
+        submitValues = {...values, adjustment_qty: `${baseQty}`};
+      }
+      await onSubmit(submitValues, formikBag);
+    } catch (error) {
+      formikBag.setSubmitting(false);
+      formikBag.setFieldError(
+        'adjustment_qty',
+        error?.message || 'Could not save the net weight per piece.',
+      );
+    }
+  };
+
   return (
     <Formik
       initialValues={{
@@ -199,7 +260,7 @@ const RemoveStockForm = props => {
           initialValues.adjustment_date?.toString() || datetimeString,
         remarks: initialValues.remarks || '',
       }}
-      onSubmit={onSubmit}
+      onSubmit={handleFormSubmit}
       validationSchema={RemoveStockValidationSchema}>
       {props => {
         const {
@@ -213,6 +274,18 @@ const RemoveStockForm = props => {
           isValid,
           isSubmitting,
         } = props;
+
+        const previewBaseQty = toBaseQty(
+          item,
+          values.adjustment_qty,
+          effectiveUnit,
+          needsNetWeight ? parseFloat(netWeight) || 0 : undefined,
+        );
+        const showPreview =
+          isPieceEntry &&
+          !needsNetWeight &&
+          Number.isFinite(previewBaseQty) &&
+          previewBaseQty > 0;
 
         return (
           <>
@@ -303,16 +376,54 @@ const RemoveStockForm = props => {
                   errors.adjustment_qty && touched.adjustment_qty ? true : false
                 }
               />
-              <QuantityUOMText
-                uomAbbrev={
-                  values.use_measurement_per_piece
-                    ? item?.uom_abbrev_per_piece
-                    : item?.uom_abbrev
-                }
-                quantity={values.adjustment_qty}
-                operationType="remove"
-              />
+              {!isPieceEntry ? (
+                <QuantityUOMText
+                  uomAbbrev={
+                    isNonEa
+                      ? effectiveUnit
+                      : values.use_measurement_per_piece
+                      ? item?.uom_abbrev_per_piece
+                      : item?.uom_abbrev
+                  }
+                  quantity={values.adjustment_qty}
+                  operationType="remove"
+                />
+              ) : null}
             </View>
+            {isNonEa ? (
+              <Dropdown
+                label={'Unit'}
+                mode={'flat'}
+                visible={showUnitDropDown}
+                showDropDown={() => setShowUnitDropDown(true)}
+                onDismiss={() => setShowUnitDropDown(false)}
+                value={effectiveUnit}
+                hideMenuHeader
+                onSelect={value => setUnit(value)}
+                options={unitOptions}
+              />
+            ) : null}
+            {needsNetWeight ? (
+              <View style={{marginTop: 10}}>
+                <TextInput
+                  label={`Item net weight — ${formatUOMAbbrev(
+                    item.uom_abbrev,
+                  )} per piece`}
+                  value={netWeight}
+                  onChangeText={setNetWeight}
+                  keyboardType="numeric"
+                  placeholder="e.g. 155"
+                />
+                <HelperText type="info" visible={true}>
+                  Saved on the item so you can measure it by the piece from now
+                  on.
+                </HelperText>
+              </View>
+            ) : showPreview ? (
+              <Text style={{marginTop: 8, color: colors.backdrop}}>
+                {`= ${previewBaseQty} ${formatUOMAbbrev(item.uom_abbrev)}`}
+              </Text>
+            ) : null}
             {renderUseMeasurementPerPieceCheckbox(props)}
             <TextInput
               multiline

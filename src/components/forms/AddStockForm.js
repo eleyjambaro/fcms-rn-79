@@ -29,12 +29,20 @@ import TaxCalculation from '../../components/taxes/TaxCalculation';
 import QuantityUOMText from './QuantityUOMText';
 import {getInventoryOperations, OPERATION_CODES} from '../../localDbQueries/operations';
 import {getTax} from '../../localDbQueries/taxes';
-import {getItem} from '../../localDbQueries/items';
+import {getItem, setItemNetWeightPerPiece} from '../../localDbQueries/items';
 import {getVendor} from '../../localDbQueries/vendors';
 import {getInventoryLog} from '../../localDbQueries/inventoryLogs';
 import MonthPicker from 'react-native-month-picker';
 import ConfirmationCheckbox from './ConfirmationCheckbox';
+import {Dropdown} from 'react-native-paper-dropdown';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import {
+  PIECE_UNIT,
+  isNonEaItem,
+  nonEaStockUnitOptions,
+  pieceNeedsNetWeight,
+  toBaseQty,
+} from '../../utils/stockMeasurement';
 import appDefaults from '../../constants/appDefaults';
 import UnitOrTotalCostRadioButtonWrapper from './UnitOrTotalCostRadioButtonWrapper';
 
@@ -148,6 +156,15 @@ const AddStockForm = props => {
 
   const [taxId, setTaxId] = useState(defaultTaxId);
   const [vendorId, setVendorId] = useState(defaultVendorId);
+  // Unit picker (non-'ea' items, add mode): the qty field shows the entered value
+  // in the chosen unit, while Formik's `adjustment_qty` holds the base-UOM number
+  // so the existing cost math stays correct.
+  const [enteredQty, setEnteredQty] = useState(
+    initialValues.adjustment_qty?.toString() || '',
+  );
+  const [unit, setUnit] = useState('');
+  const [netWeight, setNetWeight] = useState('');
+  const [showUnitDropDown, setShowUnitDropDown] = useState(false);
   const {
     status: getTaxStatus,
     data: getTaxData,
@@ -581,6 +598,42 @@ const AddStockForm = props => {
 
   if (!item) return null;
 
+  const isNonEa = isNonEaItem(item);
+  // Only offer the Quantity + Unit (+ Piece) picker for a weight/volume item when
+  // adding (not editing an existing log). 'ea' items keep the per-piece checkbox.
+  const showUnitPicker = !editMode && isNonEa;
+  const effectiveUnit = unit || item.uom_abbrev;
+  const unitOptions = showUnitPicker ? nonEaStockUnitOptions(item) : [];
+  const needsNetWeight =
+    showUnitPicker && pieceNeedsNetWeight(item, effectiveUnit);
+  const isPieceEntry = effectiveUnit === PIECE_UNIT;
+
+  const handleFormSubmit = async (formValues, formikBag) => {
+    try {
+      // Persist the net weight per piece (non-'ea' Piece entry, first time) before
+      // saving. `adjustment_qty` already holds the converted base-UOM quantity.
+      if (needsNetWeight) {
+        const nw = parseFloat(netWeight);
+        if (!(nw > 0)) {
+          formikBag.setFieldError(
+            'adjustment_qty',
+            'Enter the net weight per piece.',
+          );
+          formikBag.setSubmitting(false);
+          return;
+        }
+        await setItemNetWeightPerPiece({itemId: item.id, qtyPerPiece: nw});
+      }
+      await onSubmit(formValues, formikBag);
+    } catch (error) {
+      formikBag.setSubmitting(false);
+      formikBag.setFieldError(
+        'adjustment_qty',
+        error?.message || 'Could not save the net weight per piece.',
+      );
+    }
+  };
+
   if (editMode) {
     if (getInventoryLogStatus === 'loading') {
       return <DefaultLoadingScreen />;
@@ -678,7 +731,7 @@ const AddStockForm = props => {
         official_receipt_number: initialValues.official_receipt_number,
         remarks: initialValues.remarks || '',
       }}
-      onSubmit={onSubmit}
+      onSubmit={handleFormSubmit}
       validationSchema={AddStockValidationSchema}>
       {props => {
         const {
@@ -695,6 +748,61 @@ const AddStockForm = props => {
           setFieldTouched,
           setFieldError,
         } = props;
+
+        // Central handler for the unit-picker path: convert the entered qty to the
+        // item's base UOM, keep the cost totals in sync (unit cost is per base),
+        // and store the base number in `adjustment_qty`. For 'ea'/edit (no picker)
+        // it behaves exactly like the original raw-qty handler.
+        const applyEnteredQty = (enteredValue, unitOverride, nwOverride) => {
+          if (showUnitPicker) setEnteredQty(enteredValue);
+          const u = unitOverride ?? effectiveUnit;
+          const nw =
+            nwOverride ??
+            (needsNetWeight ? parseFloat(netWeight) || 0 : undefined);
+          const converted = showUnitPicker
+            ? toBaseQty(item, enteredValue, u, nw)
+            : parseFloat(enteredValue || 0);
+          const baseQty = Number.isFinite(converted) ? converted : 0;
+
+          if (values.cost_input_mode === 'total_cost') {
+            const totalCost = parseFloat(values?.adjustment_total_cost || 0);
+            const calculatedUnitCost =
+              totalCost && baseQty ? totalCost / baseQty : 0;
+            setFieldValue('adjustment_unit_cost', calculatedUnitCost?.toString());
+          }
+          if (values.cost_input_mode === 'unit_cost') {
+            const unitCost = parseFloat(values.adjustment_unit_cost || 0);
+            const calculatedTotalCost = unitCost * baseQty;
+            setFieldValue(
+              'adjustment_total_cost',
+              calculatedTotalCost?.toString(),
+            );
+          }
+
+          setFieldValue(
+            'adjustment_qty',
+            showUnitPicker
+              ? Number.isFinite(converted)
+                ? String(converted)
+                : ''
+              : enteredValue,
+          );
+        };
+
+        const pieceNetWeightPreview = showUnitPicker
+          ? toBaseQty(
+              item,
+              enteredQty,
+              effectiveUnit,
+              needsNetWeight ? parseFloat(netWeight) || 0 : undefined,
+            )
+          : NaN;
+        const showBasePreview =
+          showUnitPicker &&
+          effectiveUnit !== item.uom_abbrev &&
+          !needsNetWeight &&
+          Number.isFinite(pieceNetWeightPreview) &&
+          pieceNetWeightPreview > 0;
 
         return (
           <>
@@ -845,40 +953,9 @@ const AddStockForm = props => {
             <View style={{flexDirection: 'row'}}>
               <TextInput
                 label="Total Quantity"
-                onChangeText={value => {
-                  const adjustmentQty = parseFloat(value || 0);
-
-                  if (values.cost_input_mode === 'total_cost') {
-                    const totalCost = parseFloat(
-                      values?.adjustment_total_cost || 0,
-                    );
-                    const calculatedUnitCost =
-                      totalCost && adjustmentQty
-                        ? totalCost / adjustmentQty
-                        : 0;
-
-                    setFieldValue(
-                      'adjustment_unit_cost',
-                      calculatedUnitCost?.toString(),
-                    );
-                  }
-
-                  if (values.cost_input_mode === 'unit_cost') {
-                    const unitCost = parseFloat(
-                      values.adjustment_unit_cost || 0,
-                    );
-                    const calculatedTotalCost = unitCost * adjustmentQty;
-
-                    setFieldValue(
-                      'adjustment_total_cost',
-                      calculatedTotalCost?.toString(),
-                    );
-                  }
-
-                  handleChange('adjustment_qty')(value);
-                }}
+                onChangeText={value => applyEnteredQty(value)}
                 onBlur={handleBlur('adjustment_qty')}
-                value={values.adjustment_qty}
+                value={showUnitPicker ? enteredQty : values.adjustment_qty}
                 style={[styles.textInput, {flex: 1}]}
                 onFocus={() => {
                   onFocus && onFocus();
@@ -888,16 +965,64 @@ const AddStockForm = props => {
                   errors.adjustment_qty && touched.adjustment_qty ? true : false
                 }
               />
-              <QuantityUOMText
-                uomAbbrev={
-                  values.use_measurement_per_piece
-                    ? item?.uom_abbrev_per_piece
-                    : item?.uom_abbrev
-                }
-                quantity={values.adjustment_qty}
-                operationType="add"
-              />
+              {!(showUnitPicker && effectiveUnit !== item.uom_abbrev) ? (
+                <QuantityUOMText
+                  uomAbbrev={
+                    values.use_measurement_per_piece
+                      ? item?.uom_abbrev_per_piece
+                      : item?.uom_abbrev
+                  }
+                  quantity={showUnitPicker ? enteredQty : values.adjustment_qty}
+                  operationType="add"
+                />
+              ) : null}
             </View>
+            {showUnitPicker ? (
+              <Dropdown
+                label={'Unit'}
+                mode={'flat'}
+                visible={showUnitDropDown}
+                showDropDown={() => setShowUnitDropDown(true)}
+                onDismiss={() => setShowUnitDropDown(false)}
+                value={effectiveUnit}
+                hideMenuHeader
+                onSelect={value => {
+                  setUnit(value);
+                  applyEnteredQty(enteredQty, value);
+                }}
+                options={unitOptions}
+              />
+            ) : null}
+            {needsNetWeight ? (
+              <View style={{marginTop: 10}}>
+                <TextInput
+                  label={`Item net weight — ${formatUOMAbbrev(
+                    item.uom_abbrev,
+                  )} per piece`}
+                  value={netWeight}
+                  onChangeText={value => {
+                    setNetWeight(value);
+                    applyEnteredQty(
+                      enteredQty,
+                      effectiveUnit,
+                      parseFloat(value) || 0,
+                    );
+                  }}
+                  keyboardType="numeric"
+                  placeholder="e.g. 155"
+                />
+                <HelperText type="info" visible={true}>
+                  Saved on the item so you can measure it by the piece from now
+                  on.
+                </HelperText>
+              </View>
+            ) : showBasePreview ? (
+              <Text style={{marginTop: 8, color: colors.backdrop}}>
+                {`= ${pieceNetWeightPreview} ${formatUOMAbbrev(
+                  item.uom_abbrev,
+                )}`}
+              </Text>
+            ) : null}
             {renderUseMeasurementPerPieceCheckbox(props)}
 
             <UnitOrTotalCostRadioButtonWrapper>

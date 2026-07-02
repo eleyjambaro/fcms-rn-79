@@ -5,6 +5,10 @@ import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {getItem} from './items';
 import {scheduleSyncSoon} from '../services/syncService';
+import {
+  convertQtyToBaseItemUom,
+  storedUomAbbrev,
+} from '../utils/stockMeasurement';
 
 export const createOrGetUnsavedRecipe = async () => {
   try {
@@ -608,23 +612,16 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
       throw Error('Failed to fetch item');
     }
 
-    let inRecipeQtyBasedOnItemUom;
-
-    if (values.use_measurement_per_piece) {
-      const convertedQtyBasedOnItemUOMPerPiece = convert(
-        parseFloat(values.in_recipe_qty),
-      )
-        .from(values.in_recipe_uom_abbrev)
-        .to(item.uom_abbrev_per_piece);
-
-      const qtyInPiece =
-        parseFloat(convertedQtyBasedOnItemUOMPerPiece) / item.qty_per_piece;
-      inRecipeQtyBasedOnItemUom = qtyInPiece;
-    } else {
-      inRecipeQtyBasedOnItemUom = convert(parseFloat(values.in_recipe_qty))
-        .from(values.in_recipe_uom_abbrev)
-        .to(item.uom_abbrev);
-    }
+    // Convert the entered qty+unit to the item's base UOM. Handles the non-'ea'
+    // "by the piece" entry (uom stored as 'ea' / sentinel → qty × net weight) and
+    // the 'ea' inverse (weight → pieces via use_measurement_per_piece).
+    const inRecipeQtyBasedOnItemUom = convertQtyToBaseItemUom(item, {
+      qty: values.in_recipe_qty,
+      uom: values.in_recipe_uom_abbrev,
+      use_measurement_per_piece: values.use_measurement_per_piece,
+    });
+    // A non-'ea' Piece entry is recorded with uom 'ea' (renders "ea (pc)").
+    const inRecipeUomAbbrev = storedUomAbbrev(item, values.in_recipe_uom_abbrev);
 
     const {deviceId, branchId} = await getCloudSyncParams();
     const getIngredientQuery = `SELECT * FROM active_ingredients ingredients WHERE item_id = '${item.id}' AND recipe_id = '${recipe.id}';`;
@@ -648,7 +645,7 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
       '${recipe.id}',
       '${values.item_id}',
       ${parseFloat(values.in_recipe_qty)},
-      '${values.in_recipe_uom_abbrev}',
+      '${inRecipeUomAbbrev}',
       ${parseFloat(inRecipeQtyBasedOnItemUom)},
       ${values.use_measurement_per_piece === true ? 1 : 0},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
@@ -659,7 +656,7 @@ export const createRecipeIngredient = async ({values, recipeId}) => {
 
     const updateIngredientQuery = `UPDATE ingredients
       SET in_recipe_qty = ${parseFloat(values.in_recipe_qty)},
-      in_recipe_uom_abbrev = '${values.in_recipe_uom_abbrev}',
+      in_recipe_uom_abbrev = '${inRecipeUomAbbrev}',
       in_recipe_qty_based_on_item_uom = ${parseFloat(
         inRecipeQtyBasedOnItemUom,
       )},

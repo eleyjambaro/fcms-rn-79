@@ -15,20 +15,29 @@ import {
   Dialog,
   Portal,
   TextInput,
+  HelperText,
   ActivityIndicator,
   useTheme,
 } from 'react-native-paper';
+import {Dropdown} from 'react-native-paper-dropdown';
 import {useInfiniteQuery, useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import routes from '../constants/routes';
-import {getItems} from '../localDbQueries/items';
+import {getItems, setItemNetWeightPerPiece} from '../localDbQueries/items';
 import {
   getBatchTransferEntries,
   createBatchTransferEntry,
 } from '../localDbQueries/batchTransfer';
 import useSearchbarContext from '../hooks/useSearchbarContext';
 import {formatTransferUOMAbbrev} from '../utils/stringHelpers';
+import {
+  PIECE_UNIT,
+  isNonEaItem,
+  nonEaStockUnitOptions,
+  pieceNeedsNetWeight,
+  toBaseQty,
+} from '../utils/stockMeasurement';
 
 const ItemRow = ({item, currentQty, onPress}) => {
   const {colors} = useTheme();
@@ -82,6 +91,12 @@ const BatchTransferItemSelection = ({navigation, route}) => {
   const [editing, setEditing] = useState(null);
   const [qtyText, setQtyText] = useState('');
   const [remarksText, setRemarksText] = useState('');
+  // Transfer qty entry by unit / by the piece (non-'ea' items). `qtyText` is the
+  // entered value in `unit`; it is converted to the item's base UOM on save (the
+  // number `requested_qty` stores).
+  const [unit, setUnit] = useState('');
+  const [netWeight, setNetWeight] = useState('');
+  const [showUnitDropDown, setShowUnitDropDown] = useState(false);
   const [debouncedKeyword, setDebouncedKeyword] = useState(keyword);
 
   useEffect(() => {
@@ -149,6 +164,8 @@ const BatchTransferItemSelection = ({navigation, route}) => {
       setEditing(null);
       setQtyText('');
       setRemarksText('');
+      setUnit('');
+      setNetWeight('');
     },
     onError: err =>
       ToastAndroid.show(err?.message || 'Failed to save.', ToastAndroid.LONG),
@@ -158,19 +175,79 @@ const BatchTransferItemSelection = ({navigation, route}) => {
     setEditing(item);
     const existing = entryByItemId[item.id];
     setQtyText(existing ? String(parseFloat(existing.requested_qty)) : '');
+    setUnit('');
+    setNetWeight('');
     // Initiator's remark lives in source_remarks for Out, dest_remarks for In.
     const remarksCol = direction === 'in' ? 'dest_remarks' : 'source_remarks';
     setRemarksText(existing?.[remarksCol] || '');
   };
 
-  const saveEntry = () => {
+  // Unit picker state derived from the item currently being edited.
+  const editIsNonEa = editing ? isNonEaItem(editing) : false;
+  const showUnitPicker = editIsNonEa;
+  const effectiveUnit = unit || editing?.uom_abbrev;
+  const unitOptions = showUnitPicker ? nonEaStockUnitOptions(editing) : [];
+  const needsNetWeight =
+    showUnitPicker && pieceNeedsNetWeight(editing, effectiveUnit);
+  const isPieceEntry = effectiveUnit === PIECE_UNIT;
+  const previewBaseQty = showUnitPicker
+    ? toBaseQty(
+        editing,
+        qtyText,
+        effectiveUnit,
+        needsNetWeight ? parseFloat(netWeight) || 0 : undefined,
+      )
+    : NaN;
+  const showBasePreview =
+    showUnitPicker &&
+    effectiveUnit !== editing?.uom_abbrev &&
+    !needsNetWeight &&
+    Number.isFinite(previewBaseQty) &&
+    previewBaseQty > 0;
+
+  const saveEntry = async () => {
     if (!editing) return;
+    // Convert to the item's base UOM (what requested_qty stores). Persist the net
+    // weight per piece first for a non-'ea' Piece entry the item hasn't got yet.
+    let qtyToSave = qtyText;
+    if (showUnitPicker) {
+      if (needsNetWeight) {
+        const nw = parseFloat(netWeight);
+        if (!(nw > 0)) {
+          ToastAndroid.show(
+            'Enter the net weight per piece.',
+            ToastAndroid.LONG,
+          );
+          return;
+        }
+        try {
+          await setItemNetWeightPerPiece({itemId: editing.id, qtyPerPiece: nw});
+        } catch (error) {
+          ToastAndroid.show(
+            error?.message || 'Could not save the net weight per piece.',
+            ToastAndroid.LONG,
+          );
+          return;
+        }
+      }
+      const baseQty = toBaseQty(
+        editing,
+        qtyText,
+        effectiveUnit,
+        needsNetWeight ? parseFloat(netWeight) || 0 : undefined,
+      );
+      if (!Number.isFinite(baseQty) || baseQty <= 0) {
+        ToastAndroid.show('Enter a valid quantity.', ToastAndroid.LONG);
+        return;
+      }
+      qtyToSave = String(baseQty);
+    }
     saveEntryMutation.mutate({
       values: {
         groupId,
         direction,
         item: editing,
-        qty: qtyText,
+        qty: qtyToSave,
         remarks: remarksText || null,
       },
     });
@@ -262,15 +339,57 @@ const BatchTransferItemSelection = ({navigation, route}) => {
             </Text>
             <TextInput
               mode="outlined"
-              label={`Transfer qty (${formatTransferUOMAbbrev(
-                editing?.uom_abbrev,
-              )})`}
+              label={
+                showUnitPicker
+                  ? 'Transfer qty'
+                  : `Transfer qty (${formatTransferUOMAbbrev(
+                      editing?.uom_abbrev,
+                    )})`
+              }
               value={qtyText}
               onChangeText={setQtyText}
               keyboardType="decimal-pad"
               autoFocus
               style={styles.dialogInput}
             />
+            {showUnitPicker ? (
+              <Dropdown
+                label={'Unit'}
+                mode={'outlined'}
+                visible={showUnitDropDown}
+                showDropDown={() => setShowUnitDropDown(true)}
+                onDismiss={() => setShowUnitDropDown(false)}
+                value={effectiveUnit}
+                hideMenuHeader
+                onSelect={value => setUnit(value)}
+                options={unitOptions}
+              />
+            ) : null}
+            {needsNetWeight ? (
+              <View style={styles.dialogInput}>
+                <TextInput
+                  mode="outlined"
+                  label={`Item net weight — ${formatTransferUOMAbbrev(
+                    editing?.uom_abbrev,
+                  )} per piece`}
+                  value={netWeight}
+                  onChangeText={setNetWeight}
+                  keyboardType="decimal-pad"
+                  placeholder="e.g. 155"
+                />
+                <HelperText type="info" visible={true}>
+                  Saved on the item so you can measure it by the piece from now
+                  on.
+                </HelperText>
+              </View>
+            ) : showBasePreview ? (
+              <Text
+                style={[styles.dialogHelper, {color: colors.neutralTint1}]}>
+                {`= ${previewBaseQty} ${formatTransferUOMAbbrev(
+                  editing?.uom_abbrev,
+                )}`}
+              </Text>
+            ) : null}
             <TextInput
               mode="outlined"
               label="Remarks (optional)"
@@ -296,7 +415,11 @@ const BatchTransferItemSelection = ({navigation, route}) => {
                 mode="contained"
                 onPress={saveEntry}
                 loading={saveEntryMutation.isLoading}
-                disabled={!parseFloat(qtyText) || saveEntryMutation.isLoading}>
+                disabled={
+                  !parseFloat(qtyText) ||
+                  (needsNetWeight && !(parseFloat(netWeight) > 0)) ||
+                  saveEntryMutation.isLoading
+                }>
                 Save
               </Button>
             </View>

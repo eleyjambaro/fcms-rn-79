@@ -1911,6 +1911,65 @@ export const updateItemSellingPriceAndTax = async ({
   }
 };
 
+/**
+ * Persist the net weight per piece (`qty_per_piece`) collected when a user enters
+ * a non-'ea' item's stock "by the piece" (see utils/stockMeasurement). This is a
+ * piece⇄base *input convenience* — it never rebases stored logs (the base UOM is
+ * unchanged), so unlike UOM changes it is allowed to be set/corrected after
+ * registration. Writes ONLY the branch item (never master_items, whose
+ * qty_per_piece feeds the dedup_key) and bumps `updated_at` so the value syncs
+ * company-wide; the API sync guard now lets a non-'ea' qty_per_piece through on
+ * update, and web sets the same value via ItemController::setNetWeightPerPiece.
+ *
+ * Rejects 'ea' items — for them qty_per_piece divides stored piece logs and is
+ * strictly write-once.
+ */
+export const setItemNetWeightPerPiece = async ({itemId, qtyPerPiece}) => {
+  try {
+    const db = await getDBConnection();
+
+    if (await isMutationDisabled()) {
+      console.debug(
+        'Failed to set item net weight per piece, mutation is disabled.',
+      );
+      return;
+    }
+
+    const value = parseFloat(qtyPerPiece);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw Error('Net weight per piece must be greater than 0.');
+    }
+
+    const getItemResult = await db.executeSql(
+      `SELECT uom_abbrev FROM items WHERE id = '${itemId}'`,
+    );
+    const item = getItemResult[0].rows.item(0);
+    if (!item) {
+      throw Error('Item not found.');
+    }
+    if ((item.uom_abbrev ?? '').trim() === 'ea') {
+      throw Error(
+        'Net weight per piece cannot be set on an item measured by piece (ea).',
+      );
+    }
+
+    const query = `
+      UPDATE items
+      SET qty_per_piece = ${value},
+      updated_at = CURRENT_TIMESTAMP
+      WHERE id = '${itemId}'
+    `;
+    const result = await db.executeSql(query);
+
+    scheduleSyncSoon();
+
+    return result;
+  } catch (error) {
+    console.debug(error);
+    throw error;
+  }
+};
+
 export const deleteItem = async ({id}) => {
   try {
     const db = await getDBConnection();

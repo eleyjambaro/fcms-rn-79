@@ -5,6 +5,7 @@ import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {getItem} from './items';
 import {scheduleSyncSoon} from '../services/syncService';
+import {convertQtyToBaseItemUom} from '../utils/stockMeasurement';
 
 export const createOrGetUnsavedSellingMenu = async () => {
   try {
@@ -494,6 +495,19 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
       throw Error('Failed to fetch item');
     }
 
+    // `in_menu_qty` is stored in the item's base UOM (pricing multiplies it by the
+    // item's per-base unit_selling_price). Convert the entered qty+unit to base —
+    // this also covers a non-'ea' "by the piece" entry (uom 'ea'/sentinel → qty ×
+    // net weight). A qty tied to a size option is a plain count against that
+    // option's own price/UOM, so it is stored as-entered.
+    const inMenuQty = values.size_option_id
+      ? parseFloat(values.in_menu_qty)
+      : convertQtyToBaseItemUom(item, {
+          qty: values.in_menu_qty,
+          uom: values.in_menu_uom_abbrev,
+          use_measurement_per_piece: values.use_measurement_per_piece,
+        });
+
     const {deviceId, branchId} = await getCloudSyncParams();
     const getSellingMenuItemQuery = `SELECT * FROM active_selling_menu_items selling_menu_items WHERE item_id = '${item.id}' AND selling_menu_id = '${sellingMenu.id}';`;
     const newSellingMenuItemId = uuid.v4();
@@ -514,7 +528,7 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
       '${sellingMenu.id}',
       '${values.item_id}',
       ${values.size_option_id ? `'${values.size_option_id}'` : 'null'},
-      ${parseFloat(values.in_menu_qty)},
+      ${parseFloat(inMenuQty)},
       ${deviceId ? `'${deviceId}'` : 'NULL'},
       ${branchId ? `'${branchId}'` : 'NULL'},
       '${newSellingMenuItemId}',
@@ -522,7 +536,7 @@ export const createSellingMenuItem = async ({values, sellingMenuId}) => {
     );`;
 
     const updateSellingMenuItemQuery = `UPDATE selling_menu_items
-      SET in_menu_qty = ${parseFloat(values.in_menu_qty)},
+      SET in_menu_qty = ${parseFloat(inMenuQty)},
       modifier_option_id = ${values.size_option_id ? `'${values.size_option_id}'` : 'null'},
       updated_at = CURRENT_TIMESTAMP
       WHERE item_id = '${item.id}'

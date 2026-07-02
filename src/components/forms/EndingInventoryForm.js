@@ -26,13 +26,22 @@ import {
   OPERATION_CODES,
 } from '../../localDbQueries/operations';
 import {getTax} from '../../localDbQueries/taxes';
+import {getItem, setItemNetWeightPerPiece} from '../../localDbQueries/items';
 import * as RootNavigation from '../../../RootNavigation';
 import ItemInventorySummary from '../items/ItemInventorySummary';
 import ItemStocksHeading from '../items/ItemStocksHeading';
 import {ScrollView} from 'react-native-gesture-handler';
+import {Dropdown} from 'react-native-paper-dropdown';
 import TextWithIconButton from '../buttons/TextWithIconButton';
 import ConfirmationCheckbox from './ConfirmationCheckbox';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import {
+  PIECE_UNIT,
+  isNonEaItem,
+  nonEaStockUnitOptions,
+  pieceNeedsNetWeight,
+  toBaseQty,
+} from '../../utils/stockMeasurement';
 import {OPERATION_DEFAULT_UUIDS} from '../../localDb';
 
 const EndingInventoryValidationSchema = Yup.object().shape({
@@ -60,6 +69,58 @@ const EndingInventoryForm = props => {
   const [confirmEndingInventoryChanges, setConfirmDateChecked] =
     useState(false);
   const defaultOperationId = '1';
+  // The report row exposes only item_uom_abbrev; fetch the full item for the
+  // per-piece fields (qty_per_piece / uom_abbrev_per_piece) the unit picker needs.
+  const {data: fullItemData} = useQuery(['item', {id: item?.id}], getItem, {
+    enabled: item?.id ? true : false,
+  });
+  const fullItem = fullItemData?.result;
+  // Unit picker (non-'ea' items): the field shows the entered value in `unit`,
+  // while remaining_stock_qty holds the base-UOM number the diff logic compares.
+  const [enteredQty, setEnteredQty] = useState(
+    item?.selected_month_grand_total_qty?.toString() || '',
+  );
+  const [unit, setUnit] = useState('');
+  const [netWeight, setNetWeight] = useState('');
+  const [showUnitDropDown, setShowUnitDropDown] = useState(false);
+
+  const itemForMeasure = {
+    id: item?.id,
+    uom_abbrev: item?.item_uom_abbrev,
+    qty_per_piece: fullItem?.qty_per_piece,
+    uom_abbrev_per_piece: fullItem?.uom_abbrev_per_piece,
+  };
+  const isNonEa = isNonEaItem(itemForMeasure);
+  const showUnitPicker = isNonEa;
+  const effectiveUnit = unit || item?.item_uom_abbrev;
+  const unitOptions = showUnitPicker ? nonEaStockUnitOptions(itemForMeasure) : [];
+  const needsNetWeight =
+    showUnitPicker && pieceNeedsNetWeight(itemForMeasure, effectiveUnit);
+  const isPieceEntry = effectiveUnit === PIECE_UNIT;
+
+  const handleFormSubmit = async (formValues, formikBag) => {
+    try {
+      if (needsNetWeight) {
+        const nw = parseFloat(netWeight);
+        if (!(nw > 0)) {
+          formikBag.setFieldError(
+            'remaining_stock_qty',
+            'Enter the net weight per piece.',
+          );
+          formikBag.setSubmitting(false);
+          return;
+        }
+        await setItemNetWeightPerPiece({itemId: item.id, qtyPerPiece: nw});
+      }
+      await onSubmit(formValues, formikBag);
+    } catch (error) {
+      formikBag.setSubmitting(false);
+      formikBag.setFieldError(
+        'remaining_stock_qty',
+        error?.message || 'Could not save the net weight per piece.',
+      );
+    }
+  };
 
   const renderTaxValue = (status, data) => {
     if (!taxId) return null;
@@ -132,7 +193,7 @@ const EndingInventoryForm = props => {
           remaining_stock_qty:
             item?.selected_month_grand_total_qty?.toString() || '',
         }}
-        onSubmit={onSubmit}
+        onSubmit={handleFormSubmit}
         validationSchema={EndingInventoryValidationSchema}>
         {props => {
           const {
@@ -145,7 +206,46 @@ const EndingInventoryForm = props => {
             dirty,
             isValid,
             isSubmitting,
+            setFieldValue,
           } = props;
+
+          // Convert the entered qty (in the chosen unit / by the piece) to the
+          // item's base UOM and store it in remaining_stock_qty — the diff logic
+          // below compares it to the base current stock. Zero is allowed (a real
+          // "counted zero remaining" case).
+          const applyEnteredQty = (enteredValue, unitOverride, nwOverride) => {
+            if (showUnitPicker) setEnteredQty(enteredValue);
+            const u = unitOverride ?? effectiveUnit;
+            const nw =
+              nwOverride ??
+              (needsNetWeight ? parseFloat(netWeight) || 0 : undefined);
+            const converted = showUnitPicker
+              ? toBaseQty(itemForMeasure, enteredValue, u, nw)
+              : enteredValue;
+            setFieldValue(
+              'remaining_stock_qty',
+              showUnitPicker
+                ? Number.isFinite(converted)
+                  ? String(converted)
+                  : ''
+                : enteredValue,
+            );
+          };
+
+          const basePreviewQty = showUnitPicker
+            ? toBaseQty(
+                itemForMeasure,
+                enteredQty,
+                effectiveUnit,
+                needsNetWeight ? parseFloat(netWeight) || 0 : undefined,
+              )
+            : NaN;
+          const showBasePreview =
+            showUnitPicker &&
+            effectiveUnit !== item?.item_uom_abbrev &&
+            !needsNetWeight &&
+            Number.isFinite(basePreviewQty) &&
+            basePreviewQty >= 0;
 
           let isEndingInventoryInvalid = true;
 
@@ -222,9 +322,11 @@ const EndingInventoryForm = props => {
               <TextInput
                 style={{marginBottom: -1}}
                 label="Ending Inventory (Remaining Stock Quantity)"
-                onChangeText={handleChange('remaining_stock_qty')}
+                onChangeText={value => applyEnteredQty(value)}
                 onBlur={handleBlur('remaining_stock_qty')}
-                value={values.remaining_stock_qty}
+                value={
+                  showUnitPicker ? enteredQty : values.remaining_stock_qty
+                }
                 keyboardType="numeric"
                 error={
                   errors.remaining_stock_qty && touched.remaining_stock_qty
@@ -232,6 +334,52 @@ const EndingInventoryForm = props => {
                     : false
                 }
               />
+              {showUnitPicker ? (
+                <Dropdown
+                  label={'Unit'}
+                  mode={'flat'}
+                  visible={showUnitDropDown}
+                  showDropDown={() => setShowUnitDropDown(true)}
+                  onDismiss={() => setShowUnitDropDown(false)}
+                  value={effectiveUnit}
+                  hideMenuHeader
+                  onSelect={value => {
+                    setUnit(value);
+                    applyEnteredQty(enteredQty, value);
+                  }}
+                  options={unitOptions}
+                />
+              ) : null}
+              {needsNetWeight ? (
+                <View style={{marginTop: 10}}>
+                  <TextInput
+                    label={`Item net weight — ${formatUOMAbbrev(
+                      item?.item_uom_abbrev,
+                    )} per piece`}
+                    value={netWeight}
+                    onChangeText={value => {
+                      setNetWeight(value);
+                      applyEnteredQty(
+                        enteredQty,
+                        effectiveUnit,
+                        parseFloat(value) || 0,
+                      );
+                    }}
+                    keyboardType="numeric"
+                    placeholder="e.g. 155"
+                  />
+                  <HelperText type="info" visible={true}>
+                    Saved on the item so you can measure it by the piece from now
+                    on.
+                  </HelperText>
+                </View>
+              ) : showBasePreview ? (
+                <HelperText style={{color: colors.dark}}>
+                  {`= ${basePreviewQty} ${formatUOMAbbrev(
+                    item?.item_uom_abbrev,
+                  )}`}
+                </HelperText>
+              ) : null}
               {isEndingInventoryInvalid && (
                 <View style={{marginTop: 10}}>
                   <HelperText style={{color: colors.dark}}>
@@ -311,6 +459,7 @@ const EndingInventoryForm = props => {
                     !isValid ||
                     isEndingInventoryInvalid ||
                     !confirmEndingInventoryChanges ||
+                    (needsNetWeight && !(parseFloat(netWeight) > 0)) ||
                     isSubmitting
                   }
                   loading={isSubmitting}

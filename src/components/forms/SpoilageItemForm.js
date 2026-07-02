@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 import {View, StyleSheet} from 'react-native';
-import {TextInput, Button, Text, useTheme} from 'react-native-paper';
+import {TextInput, Button, Text, HelperText, useTheme} from 'react-native-paper';
 import {Dropdown} from 'react-native-paper-dropdown';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
@@ -13,9 +13,16 @@ import moment from 'moment';
 import QuantityUOMText from './QuantityUOMText';
 import ConfirmationCheckbox from './ConfirmationCheckbox';
 import MoreSelectionButton from '../buttons/MoreSelectionButton';
-import {getItem} from '../../localDbQueries/items';
+import {getItem, setItemNetWeightPerPiece} from '../../localDbQueries/items';
 import {getSettings} from '../../localDbQueries/settings';
 import {formatUOMAbbrev} from '../../utils/stringHelpers';
+import {
+  PIECE_UNIT,
+  isNonEaItem,
+  nonEaStockUnitOptions,
+  pieceNeedsNetWeight,
+  toBaseQty,
+} from '../../utils/stockMeasurement';
 import DefaultLoadingScreen from '../stateIndicators/DefaultLoadingScreen';
 import DefaultErrorScreen from '../stateIndicators/DefaultErrorScreen';
 
@@ -85,24 +92,10 @@ const SpoilageItemForm = props => {
 
   const item = getItemData?.result;
 
-  const [unit, setUnit] = useState(initialValues.in_spoilage_uom_abbrev);
-
-  /** units: [ 'ml', 'l', 'tsp', 'Tbs', 'fl-oz', 'cup', 'pnt', 'qt', 'gal' ] **/
-  const units = convert()
-    .from(unit)
-    .possibilities()
-    ?.filter(unit => unit !== 'dz');
-
-  const unitOptions = units.map(unit => {
-    const unitDesc = convert().describe(unit);
-    const label = unitDesc.singular === 'Each' ? 'Piece' : unitDesc.singular;
-    const value = unit === 'ea' ? 'pc' : unit;
-
-    return {
-      label: `${label} (${value})`,
-      value: unit,
-    };
-  });
+  // Empty until the user picks; `effectiveUnit` below falls back to the item's
+  // default (which remaps a stored non-'ea' Piece entry back to the sentinel).
+  const [unit, setUnit] = useState('');
+  const [netWeight, setNetWeight] = useState('');
 
   useEffect(() => {
     setDatetimeString(currentDatetimeString => {
@@ -201,6 +194,62 @@ const SpoilageItemForm = props => {
 
   if (!item) return null;
 
+  const isNonEa = isNonEaItem(item);
+  // A stored non-'ea' Piece entry is recorded with uom 'ea' — remap it back to the
+  // Piece sentinel so the dropdown selects it on edit.
+  const rawInitialUom = initialValues.in_spoilage_uom_abbrev;
+  const remappedInitialUom =
+    isNonEa && rawInitialUom === 'ea' ? PIECE_UNIT : rawInitialUom;
+  const defaultUom = remappedInitialUom || item.uom_abbrev || 'kg';
+  const effectiveUnit = unit || defaultUom;
+  const safeAnchor =
+    effectiveUnit && effectiveUnit !== PIECE_UNIT
+      ? effectiveUnit
+      : item.uom_abbrev;
+  // Non-'ea' items: base measure family + synthetic Piece. 'ea' items keep the
+  // existing per-piece checkbox flow (convertible possibilities of the unit).
+  const unitOptions = isNonEa
+    ? nonEaStockUnitOptions(item)
+    : convert()
+        .from(safeAnchor)
+        .possibilities()
+        ?.filter(u => u !== 'dz')
+        .map(u => {
+          const unitDesc = convert().describe(u);
+          const label =
+            unitDesc.singular === 'Each' ? 'Piece' : unitDesc.singular;
+          const value = u === 'ea' ? 'pc' : u;
+          return {label: `${label} (${value})`, value: u};
+        });
+  const needsNetWeight = pieceNeedsNetWeight(item, effectiveUnit);
+  const isPieceEntry = effectiveUnit === PIECE_UNIT;
+
+  const handleFormSubmit = async (values, formikBag) => {
+    try {
+      // Persist the net weight per piece (non-'ea' Piece entry, first time) so
+      // addSpoilage re-reads the item with qty_per_piece set.
+      if (pieceNeedsNetWeight(item, values.in_spoilage_uom_abbrev)) {
+        const nw = parseFloat(netWeight);
+        if (!(nw > 0)) {
+          formikBag.setFieldError(
+            'in_spoilage_uom_abbrev',
+            'Enter the net weight per piece.',
+          );
+          formikBag.setSubmitting(false);
+          return;
+        }
+        await setItemNetWeightPerPiece({itemId: item.id, qtyPerPiece: nw});
+      }
+      await onSubmit(values, formikBag);
+    } catch (error) {
+      formikBag.setSubmitting(false);
+      formikBag.setFieldError(
+        'in_spoilage_uom_abbrev',
+        error?.message || 'Could not save the net weight per piece.',
+      );
+    }
+  };
+
   return (
     <Formik
       initialValues={{
@@ -212,11 +261,11 @@ const SpoilageItemForm = props => {
             : false) ||
           false,
         in_spoilage_qty: initialValues.in_spoilage_qty?.toString(),
-        in_spoilage_uom_abbrev: initialValues.in_spoilage_uom_abbrev || 'kg',
+        in_spoilage_uom_abbrev: defaultUom,
         in_spoilage_date: initialValues.in_spoilage_date || '',
         remarks: initialValues.remarks || '',
       }}
-      onSubmit={onSubmit}
+      onSubmit={handleFormSubmit}
       validationSchema={SpoilageItemValidationSchema}>
       {props => {
         const {
@@ -230,6 +279,18 @@ const SpoilageItemForm = props => {
           isValid,
           isSubmitting,
         } = props;
+
+        const previewBaseQty = toBaseQty(
+          item,
+          values.in_spoilage_qty,
+          values.in_spoilage_uom_abbrev,
+          needsNetWeight ? parseFloat(netWeight) || 0 : undefined,
+        );
+        const showPreview =
+          isPieceEntry &&
+          !needsNetWeight &&
+          Number.isFinite(previewBaseQty) &&
+          previewBaseQty > 0;
 
         return (
           <>
@@ -314,11 +375,13 @@ const SpoilageItemForm = props => {
                     : false
                 }
               />
-              <QuantityUOMText
-                uomAbbrev={unit}
-                quantity={values.in_spoilage_qty}
-                operationType="add"
-              />
+              {!isPieceEntry ? (
+                <QuantityUOMText
+                  uomAbbrev={values.in_spoilage_uom_abbrev}
+                  quantity={values.in_spoilage_qty}
+                  operationType="add"
+                />
+              ) : null}
             </View>
             <Dropdown
               label={'Unit'}
@@ -326,7 +389,7 @@ const SpoilageItemForm = props => {
               visible={showDropDown}
               showDropDown={() => setShowDropDown(true)}
               onDismiss={() => setShowDropDown(false)}
-              value={unit}
+              value={values.in_spoilage_uom_abbrev}
               hideMenuHeader
               onSelect={value => {
                 setUnit(value);
@@ -334,6 +397,29 @@ const SpoilageItemForm = props => {
               }}
               options={unitOptions}
             />
+
+            {needsNetWeight ? (
+              <View style={{marginTop: 10}}>
+                <TextInput
+                  label={`Item net weight — ${formatUOMAbbrev(
+                    item.uom_abbrev,
+                  )} per piece`}
+                  value={netWeight}
+                  onChangeText={setNetWeight}
+                  keyboardType="numeric"
+                  placeholder="e.g. 155"
+                />
+                <HelperText type="info" visible={true}>
+                  Saved on the item so you can measure it by the piece from now
+                  on.
+                </HelperText>
+              </View>
+            ) : showPreview ? (
+              <Text style={{marginTop: 8, color: colors.backdrop}}>
+                {`= ${previewBaseQty} ${formatUOMAbbrev(item.uom_abbrev)}`}
+              </Text>
+            ) : null}
+
             {renderUseMeasurementPerPieceCheckbox(props)}
 
             <TextInput

@@ -1,11 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import convert from 'convert-units';
 import uuid from 'react-native-uuid';
 import {getDBConnection, getCloudSyncParams} from '../localDb';
 import {createQueryFilter} from '../utils/localDbQueryHelpers';
 import {scheduleSyncSoon} from '../services/syncService';
 import {periodTotalsBlock, EARLIEST_LOG_DATE} from './reportsSqlBuilders';
 import {formatUOMAbbrev} from '../utils/stringHelpers';
+import {
+  convertQtyToBaseItemUom,
+  storedUomAbbrev,
+} from '../utils/stockMeasurement';
 
 /**
  * Marks an error whose `message` is safe (and intended) to show directly to the
@@ -80,23 +83,19 @@ export const addSpoilage = async ({values}) => {
       throw Error('Failed to fetch item');
     }
 
-    let inSpoilageQtyBasedOnItemUom;
-
-    if (values.use_measurement_per_piece) {
-      const convertedQtyBasedOnItemUOMPerPiece = convert(
-        parseFloat(values.in_spoilage_qty),
-      )
-        .from(values.in_spoilage_uom_abbrev)
-        .to(item.uom_abbrev_per_piece);
-
-      const qtyInPiece =
-        parseFloat(convertedQtyBasedOnItemUOMPerPiece) / item.qty_per_piece;
-      inSpoilageQtyBasedOnItemUom = qtyInPiece;
-    } else {
-      inSpoilageQtyBasedOnItemUom = convert(parseFloat(values.in_spoilage_qty))
-        .from(values.in_spoilage_uom_abbrev)
-        .to(item.uom_abbrev);
-    }
+    // Convert the entered qty+unit to the item's base UOM. Handles the non-'ea'
+    // "by the piece" entry (uom 'ea'/sentinel → qty × net weight) and the 'ea'
+    // inverse (weight → pieces via use_measurement_per_piece).
+    const inSpoilageQtyBasedOnItemUom = convertQtyToBaseItemUom(item, {
+      qty: values.in_spoilage_qty,
+      uom: values.in_spoilage_uom_abbrev,
+      use_measurement_per_piece: values.use_measurement_per_piece,
+    });
+    // A non-'ea' Piece entry is recorded with uom 'ea' (renders "ea (pc)").
+    const inSpoilageUomAbbrev = storedUomAbbrev(
+      item,
+      values.in_spoilage_uom_abbrev,
+    );
 
     // Auto-deduct: resolve the Stock Usage operation and guard stock BEFORE
     // recording anything, so an insufficient-stock case records neither the
@@ -151,7 +150,7 @@ export const addSpoilage = async ({values}) => {
       '${newSpoilageId}',
       '${values.item_id}',
       ${parseFloat(values.in_spoilage_qty)},
-      '${values.in_spoilage_uom_abbrev}',
+      '${inSpoilageUomAbbrev}',
       ${parseFloat(inSpoilageQtyBasedOnItemUom)},
       ${values.use_measurement_per_piece === true ? 1 : 0},
       ${spoilageDate},
@@ -589,25 +588,15 @@ export const updateSpoilage = async ({id, updatedValues}) => {
       throw Error('Failed to fetch item');
     }
 
-    let inSpoilageQtyBasedOnItemUom;
-
-    if (updatedValues.use_measurement_per_piece) {
-      const convertedQtyBasedOnItemUOMPerPiece = convert(
-        parseFloat(updatedValues.in_spoilage_qty),
-      )
-        .from(updatedValues.in_spoilage_uom_abbrev)
-        .to(item.uom_abbrev_per_piece);
-
-      const qtyInPiece =
-        parseFloat(convertedQtyBasedOnItemUOMPerPiece) / item.qty_per_piece;
-      inSpoilageQtyBasedOnItemUom = qtyInPiece;
-    } else {
-      inSpoilageQtyBasedOnItemUom = convert(
-        parseFloat(updatedValues.in_spoilage_qty),
-      )
-        .from(updatedValues.in_spoilage_uom_abbrev)
-        .to(item.uom_abbrev);
-    }
+    const inSpoilageQtyBasedOnItemUom = convertQtyToBaseItemUom(item, {
+      qty: updatedValues.in_spoilage_qty,
+      uom: updatedValues.in_spoilage_uom_abbrev,
+      use_measurement_per_piece: updatedValues.use_measurement_per_piece,
+    });
+    const inSpoilageUomAbbrev = storedUomAbbrev(
+      item,
+      updatedValues.in_spoilage_uom_abbrev,
+    );
 
     const spoilageDate = updatedValues.in_spoilage_date
       ? `datetime('${updatedValues.in_spoilage_date}')`
@@ -616,7 +605,7 @@ export const updateSpoilage = async ({id, updatedValues}) => {
     const updateSpoilageQuery = `
       UPDATE spoilages
       SET in_spoilage_qty = ${parseFloat(updatedValues.in_spoilage_qty)},
-      in_spoilage_uom_abbrev = '${updatedValues.in_spoilage_uom_abbrev}',
+      in_spoilage_uom_abbrev = '${inSpoilageUomAbbrev}',
       in_spoilage_qty_based_on_item_uom = ${parseFloat(
         inSpoilageQtyBasedOnItemUom,
       )},

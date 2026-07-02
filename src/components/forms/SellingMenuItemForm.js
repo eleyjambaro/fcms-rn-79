@@ -1,12 +1,26 @@
 import React, {useState, useCallback} from 'react';
 import {View, Pressable, StyleSheet} from 'react-native';
-import {TextInput, Button, Text, useTheme} from 'react-native-paper';
+import {
+  TextInput,
+  Button,
+  Text,
+  HelperText,
+  useTheme,
+} from 'react-native-paper';
+import {Dropdown} from 'react-native-paper-dropdown';
 import {useFormik} from 'formik';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as Yup from 'yup';
 import commaNumber from 'comma-number';
 
 import {extractNumber, formatUOMAbbrev} from '../../utils/stringHelpers';
+import {setItemNetWeightPerPiece} from '../../localDbQueries/items';
+import {
+  isNonEaItem,
+  nonEaStockUnitOptions,
+  pieceNeedsNetWeight,
+  toBaseQty,
+} from '../../utils/stockMeasurement';
 import ItemSizeOptionList from '../salesCounter/ItemSizeOptionList';
 import useCurrencySymbol from '../../hooks/useCurrencySymbol';
 
@@ -39,6 +53,8 @@ const SellingMenuItemForm = props => {
 
   // null = size options not loaded yet, 0 = item has no selling size option
   const [sizeOptionsCount, setSizeOptionsCount] = useState(null);
+  const [showUnitDropDown, setShowUnitDropDown] = useState(false);
+  const [netWeight, setNetWeight] = useState('');
   const handleSizeOptionsLoaded = useCallback(count => {
     setSizeOptionsCount(count);
   }, []);
@@ -49,6 +65,10 @@ const SellingMenuItemForm = props => {
       size_option_id: initialValues.size_option_id?.toString() || '',
       in_option_qty: initialValues.in_option_qty?.toString() || '',
       in_menu_qty: initialValues.in_menu_qty?.toString() || '1',
+      // Base UOM by default; the Unit picker (non-'ea' items with no size options)
+      // lets the user enter by another unit or by the piece, converted on save.
+      in_menu_uom_abbrev: item?.uom_abbrev || '',
+      use_measurement_per_piece: false,
     },
     validationSchema: SellingMenuItemValidationSchema,
     onSubmit,
@@ -92,6 +112,27 @@ const SellingMenuItemForm = props => {
     (hasSizeOptions ? dirty && !!values.size_option_id : true);
 
   if (!item) return null;
+
+  const isNonEa = isNonEaItem(item);
+  // Show the Quantity + Unit (+ Piece) picker only for a weight/volume item with
+  // no size options — matching web, where a size-priced qty stays a plain count.
+  const showUnitPicker = sizeOptionsCount === 0 && isNonEa;
+  const effectiveUnit = values.in_menu_uom_abbrev || item.uom_abbrev;
+  const needsNetWeight =
+    showUnitPicker && pieceNeedsNetWeight(item, effectiveUnit);
+  const unitOptions = showUnitPicker ? nonEaStockUnitOptions(item) : [];
+  const previewBaseQty = toBaseQty(
+    item,
+    values.in_menu_qty,
+    effectiveUnit,
+    needsNetWeight ? parseFloat(netWeight) || 0 : undefined,
+  );
+  const showPreview =
+    showUnitPicker &&
+    effectiveUnit !== item.uom_abbrev &&
+    !needsNetWeight &&
+    Number.isFinite(previewBaseQty) &&
+    previewBaseQty > 0;
 
   const basePriceCard = (
     <View
@@ -142,90 +183,158 @@ const SellingMenuItemForm = props => {
         emptyComponent={basePriceCard}
         listContentContainerStyle={{marginBottom: 20}}
       />
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          marginTop: 30,
-        }}>
-        <Pressable
-          style={[
-            styles.button,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.neutralTint3,
-              height: buttonHeight,
-              width: buttonWidth,
-            },
-          ]}
-          onPress={() => {
-            const extractedValue = extractNumber(values.in_menu_qty);
-            const inMenuQty = extractedValue ? parseFloat(extractedValue) : '';
-            const saleSubtotal =
-              parseFloat(item?.unit_selling_price || 0) *
-              parseFloat(inMenuQty || 0);
-
-            formik.setValues({
-              ...values,
-              in_menu_qty: (inMenuQty - 1).toString(),
-            });
-          }}>
-          <MaterialCommunityIcons name="minus" size={37} color={colors.dark} />
-        </Pressable>
-        <TextInput
-          label="Quantity"
-          mode="outlined"
-          keyboardType="numeric"
+      {showUnitPicker ? (
+        <View style={{marginTop: 20}}>
+          <TextInput
+            label="Quantity"
+            mode="outlined"
+            keyboardType="numeric"
+            style={{backgroundColor: colors.surface}}
+            value={values.in_menu_qty}
+            onChangeText={value => {
+              formik.setValues({...values, in_menu_qty: value});
+            }}
+          />
+          <Dropdown
+            label={'Unit'}
+            mode={'flat'}
+            visible={showUnitDropDown}
+            showDropDown={() => setShowUnitDropDown(true)}
+            onDismiss={() => setShowUnitDropDown(false)}
+            value={effectiveUnit}
+            hideMenuHeader
+            onSelect={value => {
+              formik.setValues({...values, in_menu_uom_abbrev: value});
+            }}
+            options={unitOptions}
+            activeColor={colors.accent}
+            dropDownItemSelectedTextStyle={{fontWeight: 'bold'}}
+          />
+          {needsNetWeight ? (
+            <View style={{marginTop: 10}}>
+              <TextInput
+                label={`Item net weight — ${formatUOMAbbrev(
+                  item.uom_abbrev,
+                )} per piece`}
+                mode="outlined"
+                keyboardType="numeric"
+                value={netWeight}
+                onChangeText={setNetWeight}
+                placeholder="e.g. 155"
+                style={{backgroundColor: colors.surface}}
+              />
+              <HelperText type="info" visible={true}>
+                Saved on the item so you can measure it by the piece from now on.
+              </HelperText>
+            </View>
+          ) : showPreview ? (
+            <Text style={{marginTop: 8, color: colors.neutralTint1}}>
+              {`= ${previewBaseQty} ${formatUOMAbbrev(item.uom_abbrev)}`}
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <View
           style={{
-            flex: 1,
-            backgroundColor: colors.surface,
-            marginHorizontal: 15,
-            fontWeight: 'bold',
-            fontSize: 20,
-          }}
-          value={commaNumber(values.in_menu_qty)?.toString() || ''}
-          onChangeText={value => {
-            const extractedValue = extractNumber(value);
-            const inMenuQty = extractedValue ? parseFloat(extractedValue) : '';
-            const saleSubtotal =
-              parseFloat(item?.unit_selling_price || 0) *
-              parseFloat(inMenuQty || 0);
-
-            formik.setValues({
-              ...values,
-              in_menu_qty: inMenuQty.toString(),
-            });
-          }}
-        />
-        <Pressable
-          style={[
-            styles.button,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.neutralTint3,
-              height: buttonHeight,
-              width: buttonWidth,
-            },
-          ]}
-          onPress={() => {
-            const extractedValue = extractNumber(values.in_menu_qty);
-            const inMenuQty = extractedValue ? parseFloat(extractedValue) : '';
-            const saleSubtotal =
-              parseFloat(item?.unit_selling_price || 0) *
-              parseFloat(inMenuQty || 0);
-
-            formik.setValues({
-              ...values,
-              in_menu_qty: (inMenuQty + 1).toString(),
-            });
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginTop: 30,
           }}>
-          <MaterialCommunityIcons name="plus" size={37} color={colors.dark} />
-        </Pressable>
-      </View>
+          <Pressable
+            style={[
+              styles.button,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.neutralTint3,
+                height: buttonHeight,
+                width: buttonWidth,
+              },
+            ]}
+            onPress={() => {
+              const extractedValue = extractNumber(values.in_menu_qty);
+              const inMenuQty = extractedValue ? parseFloat(extractedValue) : '';
+
+              formik.setValues({
+                ...values,
+                in_menu_qty: (inMenuQty - 1).toString(),
+              });
+            }}>
+            <MaterialCommunityIcons
+              name="minus"
+              size={37}
+              color={colors.dark}
+            />
+          </Pressable>
+          <TextInput
+            label="Quantity"
+            mode="outlined"
+            keyboardType="numeric"
+            style={{
+              flex: 1,
+              backgroundColor: colors.surface,
+              marginHorizontal: 15,
+              fontWeight: 'bold',
+              fontSize: 20,
+            }}
+            value={commaNumber(values.in_menu_qty)?.toString() || ''}
+            onChangeText={value => {
+              const extractedValue = extractNumber(value);
+              const inMenuQty = extractedValue ? parseFloat(extractedValue) : '';
+
+              formik.setValues({
+                ...values,
+                in_menu_qty: inMenuQty.toString(),
+              });
+            }}
+          />
+          <Pressable
+            style={[
+              styles.button,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.neutralTint3,
+                height: buttonHeight,
+                width: buttonWidth,
+              },
+            ]}
+            onPress={() => {
+              const extractedValue = extractNumber(values.in_menu_qty);
+              const inMenuQty = extractedValue ? parseFloat(extractedValue) : '';
+
+              formik.setValues({
+                ...values,
+                in_menu_qty: (inMenuQty + 1).toString(),
+              });
+            }}>
+            <MaterialCommunityIcons name="plus" size={37} color={colors.dark} />
+          </Pressable>
+        </View>
+      )}
+      {needsNetWeight && !(parseFloat(netWeight) > 0) ? (
+        <HelperText type="error" visible={true} style={{marginTop: 5}}>
+          Enter the net weight per piece to continue.
+        </HelperText>
+      ) : null}
       <View style={{marginTop: 30, marginBottom: 15}}>
         <Button
           mode="contained"
-          onPress={() => {
+          onPress={async () => {
+            // Persist the net weight per piece (non-'ea' Piece entry, first time)
+            // before saving so createSellingMenuItem re-reads it for conversion.
+            if (needsNetWeight) {
+              const nw = parseFloat(netWeight);
+              if (!(nw > 0)) return;
+              try {
+                await setItemNetWeightPerPiece({
+                  itemId: item.id,
+                  qtyPerPiece: nw,
+                });
+              } catch (error) {
+                setFieldError('in_menu_qty', error?.message);
+                return;
+              }
+            }
+
             // inject some data to the values before submitting
             formik.setValues({
               ...formik.values,
@@ -234,7 +343,7 @@ const SellingMenuItemForm = props => {
 
             handleSubmit();
           }}
-          disabled={!canSubmit}
+          disabled={!canSubmit || (needsNetWeight && !(parseFloat(netWeight) > 0))}
           loading={isSubmitting}>
           {'Enter'}
         </Button>
