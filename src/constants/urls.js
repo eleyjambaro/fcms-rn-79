@@ -6,7 +6,7 @@ const legacyCloudApiUrl =
 // Public URL of the FCMS Cloud web app (Next.js). The About, Privacy Policy,
 // and Contact pages it serves are opened from the in-app auth screens. Set
 // WEB_APP_URL in your env once the web app's production domain is known.
-const webAppUrl = Config.WEB_APP_URL || 'https://app.fcms.example.com';
+const webAppUrl = Config.WEB_APP_URL || 'https://fcmscloud.uxi.rocks';
 
 export const urls = {
   cloudApiUrl: legacyCloudApiUrl,
