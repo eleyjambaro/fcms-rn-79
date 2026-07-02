@@ -205,18 +205,10 @@ function LocalUserAccounts(props) {
         }}
       />
       <View style={{flex: 1}}>
-        <View style={{flexDirection: 'row', padding: 5}}>
-          <Searchbar
-            placeholder="Search user"
-            onChangeText={onChangeSearch}
-            value={keyword}
-            style={{flex: 1}}
-          />
-        </View>
-
         {branchOptions.length > 0 && (
           <MoreSelectionButton
             label="Team"
+            containerStyle={{backgroundColor: 'white'}}
             renderValue={(_value, renderingValueProps) => (
               <Text style={renderingValueProps?.style}>
                 {effectiveFilterLabel}
@@ -232,6 +224,15 @@ function LocalUserAccounts(props) {
             )}
           />
         )}
+
+        <View style={{flexDirection: 'row', padding: 5}}>
+          <Searchbar
+            placeholder="Search user"
+            onChangeText={onChangeSearch}
+            value={keyword}
+            style={{flex: 1}}
+          />
+        </View>
 
         <View style={{flex: 1}}>
           <LocalUserAccountList
