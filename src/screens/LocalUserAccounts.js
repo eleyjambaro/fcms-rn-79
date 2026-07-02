@@ -1,18 +1,26 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef, useMemo, useCallback} from 'react';
 import {View} from 'react-native';
 import {
   Button,
-  Menu,
   Modal,
+  Text,
   Title,
   Portal,
   Searchbar,
   useTheme,
 } from 'react-native-paper';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 import {useQueryClient, useMutation, useQuery} from '@tanstack/react-query';
 
 import LocalUserAccountList from '../components/accounts/LocalUserAccountList';
 import LocalUserAccountForm from '../components/forms/LocalUserAccountForm';
+import MoreSelectionButton from '../components/buttons/MoreSelectionButton';
+import CheckboxSelection from '../components/forms/CheckboxSelection';
 import useSearchbarContext from '../hooks/useSearchbarContext';
 import {createCloudSubAccount} from '../serverDbQueries/v2/accounts';
 import {getBranches} from '../serverDbQueries/v2/branches';
@@ -65,7 +73,6 @@ function LocalUserAccounts(props) {
     ? ALL_MEMBERS
     : branchOptions[0]?.id ?? ALL_MEMBERS;
   const [branchFilter, setBranchFilter] = useState(null);
-  const [filterMenuVisible, setFilterMenuVisible] = useState(false);
   const effectiveFilter = branchFilter ?? defaultFilter;
   const effectiveFilterLabel =
     effectiveFilter === ALL_MEMBERS
@@ -74,6 +81,30 @@ function LocalUserAccounts(props) {
           const b = branchOptions.find(o => o.id === effectiveFilter);
           return b ? b.display_name || b.name : 'Select branch';
         })();
+  const filterOptions = [
+    ...(showAllOption ? [{label: 'All members', value: ALL_MEMBERS}] : []),
+    ...branchOptions.map(b => ({label: b.display_name || b.name, value: b.id})),
+  ];
+
+  const optionsBottomSheetModalRef = useRef(null);
+  const optionsBottomSheetSnapPoints = useMemo(
+    () => [120, (branchOptions.length + 1) * 85],
+    [branchOptions.length],
+  );
+  const openOptionsBottomSheet = () =>
+    optionsBottomSheetModalRef.current?.present();
+  const closeOptionsBottomSheet = () =>
+    optionsBottomSheetModalRef.current?.dismiss();
+  const renderBottomSheetBackdrop = useCallback(
+    backdropProps => (
+      <BottomSheetBackdrop
+        {...backdropProps}
+        disappearsOnIndex={-1}
+        appearsOnIndex={1}
+      />
+    ),
+    [],
+  );
 
   const onChangeSearch = keyword => setKeyword(keyword);
 
@@ -184,39 +215,22 @@ function LocalUserAccounts(props) {
         </View>
 
         {branchOptions.length > 0 && (
-          <View style={{flexDirection: 'row', paddingHorizontal: 5, paddingBottom: 5}}>
-            <Menu
-              visible={filterMenuVisible}
-              onDismiss={() => setFilterMenuVisible(false)}
-              anchor={
-                <Button
-                  mode="outlined"
-                  icon="filter-variant"
-                  onPress={() => setFilterMenuVisible(true)}>
-                  {effectiveFilterLabel}
-                </Button>
-              }>
-              {showAllOption && (
-                <Menu.Item
-                  title="All members"
-                  onPress={() => {
-                    setBranchFilter(ALL_MEMBERS);
-                    setFilterMenuVisible(false);
-                  }}
-                />
-              )}
-              {branchOptions.map(b => (
-                <Menu.Item
-                  key={b.id}
-                  title={b.display_name || b.name}
-                  onPress={() => {
-                    setBranchFilter(b.id);
-                    setFilterMenuVisible(false);
-                  }}
-                />
-              ))}
-            </Menu>
-          </View>
+          <MoreSelectionButton
+            label="Team"
+            renderValue={(_value, renderingValueProps) => (
+              <Text style={renderingValueProps?.style}>
+                {effectiveFilterLabel}
+              </Text>
+            )}
+            onPress={openOptionsBottomSheet}
+            renderIcon={({iconSize, iconColor}) => (
+              <MaterialCommunityIcons
+                name="chevron-down"
+                size={iconSize}
+                color={iconColor}
+              />
+            )}
+          />
         )}
 
         <View style={{flex: 1}}>
@@ -245,6 +259,42 @@ function LocalUserAccounts(props) {
             </Button>
           </View>
         </PermissionGate>
+
+        <BottomSheetModal
+          ref={optionsBottomSheetModalRef}
+          index={1}
+          snapPoints={optionsBottomSheetSnapPoints}
+          backdropComponent={renderBottomSheetBackdrop}>
+          <BottomSheetView
+            style={{flex: 1, paddingHorizontal: 15, paddingTop: 10}}>
+            <Text
+              style={{
+                marginBottom: 15,
+                fontSize: 16,
+                fontWeight: 'bold',
+                color: colors.dark,
+              }}>
+              Filter Team Members
+            </Text>
+            <CheckboxSelection
+              options={filterOptions}
+              value={effectiveFilter?.toString()}
+              onChange={selectedValue => {
+                if (selectedValue === ALL_MEMBERS) {
+                  setBranchFilter(ALL_MEMBERS);
+                } else {
+                  const match = branchOptions.find(
+                    b => b.id?.toString() === selectedValue,
+                  );
+                  if (match) {
+                    setBranchFilter(match.id);
+                  }
+                }
+                closeOptionsBottomSheet();
+              }}
+            />
+          </BottomSheetView>
+        </BottomSheetModal>
       </View>
     </>
   );
