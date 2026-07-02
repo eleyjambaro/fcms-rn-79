@@ -52,10 +52,11 @@ const describeUnit = u => {
 export const pieceUnitOption = () => ({label: 'Piece (pc)', value: PIECE_UNIT});
 
 /**
- * Dropdown options for entering a quantity of a NON-'ea' item: the base measure
- * family (anchored on the base UOM so selecting Piece never collapses the list)
- * plus a synthetic Piece option. 'ea' items keep their existing per-piece
- * checkbox flow, so this returns only the base family for them (no Piece).
+ * Dropdown options for entering a quantity of a NON-'ea' item: a synthetic Piece
+ * option FIRST (the primary reason this picker exists), then the base measure
+ * family (anchored on the base UOM so selecting Piece never collapses the list).
+ * 'ea' items keep their existing per-piece checkbox flow, so this returns only the
+ * base family for them (no Piece).
  */
 export function nonEaStockUnitOptions(item) {
   const b = baseOf(item);
@@ -69,8 +70,7 @@ export function nonEaStockUnitOptions(item) {
 
   if (b === 'ea') {return familyOptions;}
 
-  familyOptions.push(pieceUnitOption());
-  return familyOptions;
+  return [pieceUnitOption(), ...familyOptions];
 }
 
 /**
