@@ -83,6 +83,12 @@ const LocalUserAccountForm = props => {
   const {colors} = useTheme();
   const {can} = useRoleAccess();
   const userRoleConfig = authUser?.role_config;
+  // An executive can only manage members who share one of their branches, so a
+  // member they create with no branch access would fall permanently outside
+  // their scope. `branch_ids: min(1)` already blocks that below; this flag just
+  // lets the branch hint explain WHY at least one branch is required for them.
+  const viewerIsExecutive =
+    !!authUser?.is_executive_account && !authUser?.is_root_account;
   const [showDropDown, setShowDropDown] = useState(false);
   const [createRoleModalVisible, setCreateRoleModalVisible] = useState(false);
   const {status: getRolesStatus, data: getRolesData} = useQuery(
@@ -416,6 +422,8 @@ const LocalUserAccountForm = props => {
               <HelperText style={styles.sectionHint}>
                 {values.is_executive_account
                   ? "Select the branches this executive can access. They'll have no branch access until you assign at least one (branches they create are added automatically)."
+                  : viewerIsExecutive
+                  ? "Select the branches this member can access. Assign at least one — a member with no branch access falls outside your branches and you won't be able to manage them afterward."
                   : editMode
                   ? 'Select the branches this user can access.'
                   : 'Select the branches this user can access. The current branch is checked by default.'}
